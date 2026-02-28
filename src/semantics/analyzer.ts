@@ -16,7 +16,9 @@ import { relTokenToKind } from './iom.js';
 export interface SemanticError {
   message: string;
   entity?: string;
-  rule: string;  // e.g. 'SS-1'
+  rule: string;   // e.g. 'SS-1'
+  line?: number;  // source line from AST span (1-based)
+  col?: number;   // source column from AST span (1-based)
 }
 
 export interface AnalysisResult {
@@ -38,10 +40,13 @@ export function analyze(program: Program): AnalysisResult {
 }
 
 function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram {
-  const entities = new Map<string, IOMEntity>();
+  const entities  = new Map<string, IOMEntity>();
   const relations: IOMRelation[] = [];
-  const packages: IOMPackage[] = [];
-  const notes: IOMNote[] = [];
+  const packages:  IOMPackage[]  = [];
+  const notes:     IOMNote[]     = [];
+
+  // Tracks source location of each entity declaration for error reporting
+  const entitySpans = new Map<string, { line: number; col: number }>();
 
   // First pass — collect entities (SS-1: unique names within diagram scope)
   function collectItems(items: BodyItem[], pkgName?: string) {
@@ -57,16 +62,17 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
       } else if (item.kind === 'EntityDecl') {
         // SS-1: Duplicate entity name check
         if (entities.has(item.name)) {
-          errors.push({ message: `Duplicate entity name '${item.name}'`, entity: item.name, rule: 'SS-1' });
+          errors.push({ message: `Duplicate entity name '${item.name}'`, entity: item.name, rule: 'SS-1', line: item.span.line, col: item.span.col });
         } else {
+          entitySpans.set(item.name, { line: item.span.line, col: item.span.col });
           entities.set(item.name, buildEntity(item, pkgName, errors));
         }
       } else if (item.kind === 'NoteDecl') {
         notes.push({ text: item.text, onEntity: item.on });
         // Attach note text to entity if 'on' is present
         if (item.on && entities.has(item.on)) {
-          const e = entities.get(item.on)!;
-          e.note = item.text;
+          const e = entities.get(item.on);
+          if (e) e.note = item.text;
         }
       } else if (item.kind === 'StyleDecl') {
         // SS-9: Apply styles — target must exist (checked in second pass)
@@ -82,16 +88,25 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
 
   collectItems(diag.body);
 
+  // Second pass: attach notes whose target entity was declared after the note
+  // (fixes order-dependence — BUG-7)
+  for (const note of notes) {
+    if (note.onEntity) {
+      const e = entities.get(note.onEntity);
+      if (e && !e.note) e.note = note.text;
+    }
+  }
+
   // Second pass — relations (SS-3: referential integrity)
   function collectRelations(items: BodyItem[]) {
     for (const item of items) {
       if (item.kind === 'RelationDecl') {
         // SS-3: Both endpoints must exist
         if (!entities.has(item.from)) {
-          errors.push({ message: `Relation references unknown entity '${item.from}'`, rule: 'SS-3' });
+          errors.push({ message: `Relation references unknown entity '${item.from}'`, rule: 'SS-3', line: item.span.line, col: item.span.col });
         }
         if (!entities.has(item.to)) {
-          errors.push({ message: `Relation references unknown entity '${item.to}'`, rule: 'SS-3' });
+          errors.push({ message: `Relation references unknown entity '${item.to}'`, rule: 'SS-3', line: item.span.line, col: item.span.col });
         }
         relations.push(buildRelation(item, relations.length, errors));
       } else if (item.kind === 'PackageDecl') {
@@ -105,7 +120,8 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
   // SS-4: Enum must have at least one value
   for (const [name, entity] of entities) {
     if (entity.kind === 'enum' && entity.enumValues.length === 0) {
-      errors.push({ message: `Enum '${name}' must declare at least one value`, entity: name, rule: 'SS-4' });
+      const sp = entitySpans.get(name);
+      errors.push({ message: `Enum '${name}' must declare at least one value`, entity: name, rule: 'SS-4', ...sp });
     }
   }
 
@@ -114,13 +130,14 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     if (entity.kind === 'interface') {
       for (const field of entity.fields) {
         if (field.defaultValue !== undefined) {
-          errors.push({ message: `Interface '${name}' field '${field.name}' cannot have a default value`, entity: name, rule: 'SS-5' });
+          const sp = entitySpans.get(name);
+          errors.push({ message: `Interface '${name}' field '${field.name}' cannot have a default value`, entity: name, rule: 'SS-5', ...sp });
         }
       }
     }
   }
 
-  // SS-6: No circular direct inheritance (simplified check)
+  // SS-6: No circular direct inheritance — report once per cycle, not once per member
   function hasCircularInheritance(name: string, seen = new Set<string>()): boolean {
     if (seen.has(name)) return true;
     seen.add(name);
@@ -129,9 +146,18 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     return e.extendsNames.some(parent => hasCircularInheritance(parent, new Set(seen)));
   }
 
+  const reportedInCycle = new Set<string>();
   for (const [name] of entities) {
+    if (reportedInCycle.has(name)) continue;
     if (hasCircularInheritance(name)) {
-      errors.push({ message: `Circular inheritance detected involving '${name}'`, entity: name, rule: 'SS-6' });
+      const sp = entitySpans.get(name);
+      errors.push({ message: `Circular inheritance detected involving '${name}'`, entity: name, rule: 'SS-6', ...sp });
+      // Mark all direct parents as part of this cycle so they aren't double-reported
+      const e = entities.get(name);
+      if (e) {
+        for (const p of e.extendsNames) reportedInCycle.add(p);
+      }
+      reportedInCycle.add(name);
     }
   }
 
@@ -139,7 +165,7 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
   function checkStyleTargets(items: BodyItem[]) {
     for (const item of items) {
       if (item.kind === 'StyleDecl' && !entities.has(item.target)) {
-        errors.push({ message: `Style references unknown entity '${item.target}'`, rule: 'SS-7' });
+        errors.push({ message: `Style references unknown entity '${item.target}'`, rule: 'SS-7', line: item.span.line, col: item.span.col });
       }
       if (item.kind === 'PackageDecl') checkStyleTargets(item.body);
     }
@@ -152,7 +178,8 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
       const seen = new Set<string>();
       for (const v of entity.enumValues) {
         if (seen.has(v.name)) {
-          errors.push({ message: `Duplicate enum value '${v.name}' in '${name}'`, entity: name, rule: 'SS-8' });
+          const sp = entitySpans.get(name);
+          errors.push({ message: `Duplicate enum value '${v.name}' in '${name}'`, entity: name, rule: 'SS-8', ...sp });
         }
         seen.add(v.name);
       }
@@ -172,10 +199,12 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
   if (allowed) {
     for (const [name, entity] of entities) {
       if (!allowed.has(entity.kind)) {
+        const sp = entitySpans.get(name);
         errors.push({
           message: `Entity kind '${entity.kind}' is not valid in '${diag.diagramKind}' diagrams`,
           entity: name,
           rule: 'SS-9',
+          ...sp,
         });
       }
     }
@@ -185,7 +214,7 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
   function checkLayoutTargets(items: BodyItem[]) {
     for (const item of items) {
       if (item.kind === 'LayoutAnnotation' && !entities.has(item.entity)) {
-        errors.push({ message: `Layout annotation references unknown entity '${item.entity}'`, rule: 'SS-10' });
+        errors.push({ message: `Layout annotation references unknown entity '${item.entity}'`, rule: 'SS-10', line: item.span.line, col: item.span.col });
       }
       if (item.kind === 'PackageDecl') checkLayoutTargets(item.body);
     }
@@ -247,7 +276,8 @@ function buildEntity(decl: EntityDecl, pkg: string | undefined, errors: Semantic
     name: decl.name,
     kind: decl.entityKind as IOMEntityKind,
     stereotype: decl.stereotype,
-    isAbstract: decl.modifiers.includes('abstract'),
+    // Interfaces are implicitly abstract (ARCH-4)
+    isAbstract: decl.modifiers.includes('abstract') || decl.entityKind === 'interface',
     package: pkg,
     fields,
     methods,

@@ -166,6 +166,43 @@ describe('Parser', () => {
         }
       }
     });
+
+    it('parses nested generic types: Map<K, List<V>> (INCON-5 fix)', () => {
+      // Previously >> was lexed as STEREO_C, mangling closing nested generics
+      const prog = parseOk('diagram D : class { class C { + table: Map<string, List<int>> } }');
+      const entity = prog.diagrams[0].body[0];
+      if (entity.kind === 'EntityDecl') {
+        const field = entity.members[0];
+        if (field.kind === 'FieldDecl') {
+          expect(field.type.kind).toBe('GenericType');
+          if (field.type.kind === 'GenericType') {
+            expect(field.type.base).toBe('Map');
+            expect(field.type.args).toHaveLength(2);
+            expect(field.type.args[1].kind).toBe('GenericType');
+          }
+        }
+      }
+    });
+
+    it('parses nullable type (INCON-1 fix)', () => {
+      const prog = parseOk('diagram D : class { class C { + name: string? } }');
+      const entity = prog.diagrams[0].body[0];
+      if (entity.kind === 'EntityDecl') {
+        const field = entity.members[0];
+        if (field.kind === 'FieldDecl') {
+          expect(field.type.kind).toBe('NullableType');
+        }
+      }
+    });
+
+    it('parses negative coordinates in layout annotation (BUG-1 fix)', () => {
+      const prog = parseOk('diagram D : class { class A {} @A at (-100, -50) }');
+      const annotation = prog.diagrams[0].body.find(b => b.kind === 'LayoutAnnotation');
+      if (annotation?.kind === 'LayoutAnnotation') {
+        expect(annotation.x).toBe(-100);
+        expect(annotation.y).toBe(-50);
+      }
+    });
   });
 
   describe('method declarations', () => {

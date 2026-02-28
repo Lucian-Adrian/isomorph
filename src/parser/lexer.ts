@@ -17,6 +17,7 @@ export type TokenKind =
   | 'node'     | 'sequence' | 'flow'     | 'deployment'
   | 'list'     | 'map'      | 'set'      | 'optional'
   | 'int'      | 'float'    | 'bool'     | 'string_t'
+  | 'true'      | 'false'
   // Relation operators (longest-match-first in lexer)
   | 'INHERIT'    // --|>
   | 'REALIZE'    // ..|>
@@ -39,7 +40,7 @@ export type TokenKind =
   | 'LBRACKET' | 'RBRACKET' | 'COMMA' | 'COLON'
   | 'SEMI' | 'DOT' | 'AT' | 'EQ' | 'PIPE'
   | 'PLUS' | 'MINUS' | 'HASH' | 'TILDE'
-  | 'LT' | 'GT'
+  | 'LT' | 'GT' | 'QUESTION'
   // Meta
   | 'EOF' | 'UNKNOWN';
 
@@ -48,11 +49,13 @@ const KEYWORDS = new Set<string>([
   'note','style','on','extends','implements','at','static','final',
   'void','for','actor','usecase','component','node','sequence',
   'flow','deployment','list','map','set','optional','int','float',
-  'bool','string',
+  'bool','string','true','false',
 ]);
 
 const KEYWORD_MAP: Record<string, TokenKind> = {
   string: 'string_t',
+  true:   'true',
+  false:  'false',
 };
 
 export interface Token {
@@ -142,6 +145,8 @@ export function lex(source: string): LexResult {
 
   function readNumber(startLine: number, startCol: number, start: number): Token {
     let value = '';
+    // Consume optional leading minus (grammar: NUMBER : '-'? [0-9]+ ...)
+    if (pos < source.length && source[pos] === '-') { value += '-'; advance(); }
     while (pos < source.length && /[0-9.]/.test(source[pos])) {
       value += source[pos];
       advance();
@@ -220,7 +225,9 @@ export function lex(source: string): LexResult {
     if (rest.startsWith('--x'))    { advance(3); tokens.push(makeToken('RESTR',     '--x',   start, startLine, startCol)); continue; }
     if (rest.startsWith('--'))     { advance(2); tokens.push(makeToken('ASSOC',     '--',    start, startLine, startCol)); continue; }
     if (rest.startsWith('<<'))     { advance(2); tokens.push(makeToken('STEREO_O',  '<<',    start, startLine, startCol)); continue; }
-    if (rest.startsWith('>>'))     { advance(2); tokens.push(makeToken('STEREO_C',  '>>',    start, startLine, startCol)); continue; }
+    // NOTE: '>>' is NOT lexed as STEREO_C here — always emit two GT tokens.
+    // This prevents ambiguity with closing nested generics like Map<K, List<V>>.
+    // The parser handles stereotype close by consuming GT GT.
     if (rest.startsWith('..'))     { advance(2); tokens.push(makeToken('DOTDOT',    '..',    start, startLine, startCol)); continue; }
 
     // ----- Single-character tokens -----
@@ -244,6 +251,7 @@ export function lex(source: string): LexResult {
       case '~': advance(); tokens.push(makeToken('TILDE',    '~', start, startLine, startCol)); break;
       case '<': advance(); tokens.push(makeToken('LT',       '<', start, startLine, startCol)); break;
       case '>': advance(); tokens.push(makeToken('GT',       '>', start, startLine, startCol)); break;
+      case '?': advance(); tokens.push(makeToken('QUESTION', '?', start, startLine, startCol)); break;
       default:
         errors.push({ message: `Unexpected character '${c}'`, line: startLine, col: startCol, pos });
         advance();

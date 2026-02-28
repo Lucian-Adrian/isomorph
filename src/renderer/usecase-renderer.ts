@@ -3,6 +3,7 @@
 // ============================================================
 
 import type { IOMDiagram } from '../semantics/iom.js';
+import { escapeXml, wrapText, svgDefs } from './utils.js';
 
 export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
@@ -27,6 +28,7 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const ucPositions      = usecases.map((u, i) => ({ e: u, p: pos(u, i, usecases.length, 350) }));
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:Segoe UI,Arial,sans-serif;background:#f8fafc">\n`;
+  svg += svgDefs();
 
   // System boundary
   svg += `  <rect x="280" y="30" width="580" height="${canvasH - 60}" rx="8" fill="white" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
@@ -46,10 +48,10 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     }
   }
 
-  // Draw actors (stick figures)
+  // Draw actors (stick figures) — data-entity-name enables drag-to-reposition
   for (const { e, p } of actorPositions) {
     const x = p.x, y = p.y;
-    svg += `  <g transform="translate(${x},${y})">\n`;
+    svg += `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(e.name)}">\n`;
     svg += `    <circle cx="0" cy="-45" r="12" fill="white" stroke="#334155" stroke-width="1.5"/>\n`;
     svg += `    <line x1="0" y1="-33" x2="0" y2="-8" stroke="#334155" stroke-width="1.5"/>\n`;
     svg += `    <line x1="-18" y1="-22" x2="18" y2="-22" stroke="#334155" stroke-width="1.5"/>\n`;
@@ -78,16 +80,4 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
 
   svg += `</svg>`;
   return svg;
-}
-
-function wrapText(text: string, maxLen: number): string[] {
-  if (text.length <= maxLen) return [text];
-  const mid = Math.floor(text.length / 2);
-  const spaceNear = text.lastIndexOf(' ', mid);
-  if (spaceNear < 0) return [text];
-  return [text.slice(0, spaceNear), text.slice(spaceNear + 1)];
-}
-
-function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

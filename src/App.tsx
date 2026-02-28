@@ -243,8 +243,12 @@ export default function App() {
 
   const parseErrors: ParseError[] = parseResult?.errors ?? [];
   const allErrors: string[] = [
-    ...parseErrors.map(e => e.message),
-    ...(analysisResult?.errors ?? []).map(e => e.message),
+    ...parseErrors.map(e => `[${e.line}:${e.col}] ${e.message}`),
+    ...(analysisResult?.errors ?? []).map(e =>
+      e.line != null
+        ? `[${e.line}:${e.col}] (${e.rule}) ${e.message}`
+        : `(${e.rule}) ${e.message}`
+    ),
   ];
   const diagrams: IOMDiagram[] = analysisResult?.iom.diagrams ?? [];
   const activeDiagram = diagrams[activeDiagramIdx] ?? null;
@@ -308,7 +312,7 @@ export default function App() {
 
         {/* Diagram tabs */}
         {diagrams.length > 1 && (
-          <nav className="iso-tabs" aria-label="Diagrams">
+          <nav className="iso-tabs" aria-label="Diagrams" style={{ overflowX: 'auto', flexShrink: 1 }}>
             {diagrams.map((d, i) => (
               <button
                 key={d.name}

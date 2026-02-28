@@ -210,11 +210,14 @@ export class Parser {
     const name = this.expect('IDENT').value;
 
     // Optional stereotype: << IDENT >>
+    // Note: lexer never emits STEREO_C ('>>'). We consume two GT tokens instead.
+    // This resolves the '>>' ambiguity with closing nested generics (e.g. Map<K, List<V>>).
     let stereotype: string | undefined;
     if (this.at('STEREO_O')) {
       this.advance();
       stereotype = this.expect('IDENT').value;
-      this.expect('STEREO_C');
+      this.expect('GT');
+      this.expect('GT');
     }
 
     // Optional extends / implements
@@ -371,19 +374,7 @@ export class Parser {
     const first = this.peek();
     let base: TypeExpr;
 
-    // Generic shorthand: List<T>, Map<K,V>, Set<T>
-    const genericBuiltins = new Set(['list','map','set','optional','List','Map','Set','Optional']);
-    if ((this.at('IDENT') || this.atAny('list','map','set','optional')) && !genericBuiltins.has(this.peek().value)) {
-      // Simple or generic named type
-      const name = this.advance().value;
-      if (this.at('LT')) {
-        const args = this.parseTypeArgList();
-        const span = this.spanTo(first, this.peek(-1));
-        base = { kind: 'GenericType', base: name, args, span } satisfies GenericType;
-      } else {
-        base = { kind: 'SimpleType', name, span: this.spanFrom(first) } satisfies SimpleType;
-      }
-    } else if (this.atAny('list','map','set','optional','int','float','bool','string_t','void','IDENT')) {
+    if (this.atAny('IDENT', 'list', 'map', 'set', 'optional', 'int', 'float', 'bool', 'string_t', 'void')) {
       const name = this.advance().value;
       if (this.at('LT')) {
         const args = this.parseTypeArgList();
@@ -399,7 +390,7 @@ export class Parser {
     }
 
     // Nullable suffix: type?
-    if (this.at('UNKNOWN') && this.peek().value === '?') {
+    if (this.at('QUESTION')) {
       this.advance();
       const span = this.spanTo(first, this.peek(-1));
       return { kind: 'NullableType', inner: base, span } satisfies NullableType;

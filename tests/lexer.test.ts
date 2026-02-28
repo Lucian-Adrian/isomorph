@@ -65,6 +65,31 @@ describe('Lexer', () => {
       expect(tokens[0].kind).toBe('NUMBER');
       expect(tokens[0].value).toBe('3.14');
     });
+
+    it('lexes negative integer literals (BUG-1 fix)', () => {
+      const { tokens, errors } = lex('-42');
+      expect(errors).toHaveLength(0);
+      expect(tokens[0].kind).toBe('NUMBER');
+      expect(tokens[0].value).toBe('-42');
+    });
+
+    it('lexes negative coordinates in layout annotations', () => {
+      const { tokens, errors } = lex('@Entity at (-100, -50)');
+      expect(errors).toHaveLength(0);
+      // AT IDENT 'at' LPAREN NUMBER COMMA NUMBER RPAREN EOF
+      expect(tokens[4].kind).toBe('NUMBER');
+      expect(tokens[4].value).toBe('-100');
+      expect(tokens[6].kind).toBe('NUMBER');
+      expect(tokens[6].value).toBe('-50');
+    });
+  });
+
+  describe('punctuation', () => {
+    it('lexes ? as QUESTION token (INCON-1 fix)', () => {
+      const { tokens } = lex('int?');
+      expect(tokens[0].kind).toBe('int');
+      expect(tokens[1].kind).toBe('QUESTION');
+    });
   });
 
   describe('relation operators', () => {
@@ -127,10 +152,24 @@ describe('Lexer', () => {
   });
 
   describe('stereotype delimiters', () => {
-    it('lexes << as STEREO_O and >> as STEREO_C', () => {
+    it('lexes << as STEREO_O', () => {
       const { tokens } = lex('<<Entity>>');
       expect(tokens[0].kind).toBe('STEREO_O');
-      expect(tokens[2].kind).toBe('STEREO_C');
+      expect(tokens[1].kind).toBe('IDENT');
+      // '>>' is intentionally lexed as two GT tokens (never as STEREO_C).
+      // This prevents ambiguity with closing nested generics: Map<K, List<V>>
+      // The parser consumes GT GT for stereotype close — see parser.ts for details.
+      expect(tokens[2].kind).toBe('GT');
+      expect(tokens[3].kind).toBe('GT');
+    });
+
+    it('lexes nested generic closing >> as two GT tokens (INCON-5 fix)', () => {
+      // Map<String, List<T>> must not be mangled by a greedy >> → STEREO_C rule
+      const { tokens, errors } = lex('Map<String,List<T>>');
+      expect(errors).toHaveLength(0);
+      // Expect: IDENT LT IDENT COMMA IDENT LT IDENT GT GT EOF
+      const kinds = tokens.map(t => t.kind);
+      expect(kinds).toEqual(['IDENT','LT','IDENT','COMMA','IDENT','LT','IDENT','GT','GT','EOF']);
     });
   });
 

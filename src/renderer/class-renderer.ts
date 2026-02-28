@@ -6,6 +6,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity, IOMRelation } from '../semantics/iom.js';
+import { escapeXml, visSymbolFor, svgDefs } from './utils.js';
 
 // ─── Render configuration ────────────────────────────────────
 
@@ -32,29 +33,16 @@ export function renderClassDiagram(diag: IOMDiagram): string {
   const maxY = Math.max(...positioned.map(p => p.pos.y + p.height)) + 40;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa">\n`;
-  svg += `  <defs>\n`;
-  svg += `    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">\n`;
-  svg += `      <polygon points="0 0, 10 3.5, 0 7" fill="#555"/>\n`;
-  svg += `    </marker>\n`;
-  svg += `    <marker id="hollow-arrow" markerWidth="12" markerHeight="9" refX="12" refY="4.5" orient="auto">\n`;
-  svg += `      <polygon points="0 0, 12 4.5, 0 9" fill="white" stroke="#555" stroke-width="1"/>\n`;
-  svg += `    </marker>\n`;
-  svg += `    <marker id="diamond" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto">\n`;
-  svg += `      <polygon points="0 5, 5 0, 10 5, 5 10" fill="white" stroke="#555" stroke-width="1.5"/>\n`;
-  svg += `    </marker>\n`;
-  svg += `    <marker id="filled-diamond" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto">\n`;
-  svg += `      <polygon points="0 5, 5 0, 10 5, 5 10" fill="#555"/>\n`;
-  svg += `    </marker>\n`;
-  svg += `  </defs>\n`;
+  svg += svgDefs();
 
   // Draw package backgrounds
   for (const pkg of diag.packages) {
-    const members = pkg.entityNames.map(n => positioned.find(p => p.entity.name === n)).filter(Boolean);
+    const members = pkg.entityNames.map(n => positioned.find(p => p.entity.name === n)).filter((p): p is Positioned => p !== undefined);
     if (members.length === 0) continue;
-    const xs = members.map(p => p!.pos.x);
-    const ys = members.map(p => p!.pos.y);
-    const x2s = members.map(p => p!.pos.x + p!.width);
-    const y2s = members.map(p => p!.pos.y + p!.height);
+    const xs  = members.map(p => p.pos.x);
+    const ys  = members.map(p => p.pos.y);
+    const x2s = members.map(p => p.pos.x + p.width);
+    const y2s = members.map(p => p.pos.y + p.height);
     const px = Math.min(...xs) - 20, py = Math.min(...ys) - 30;
     const pw = Math.max(...x2s) - px + 20, ph = Math.max(...y2s) - py + 20;
     svg += `  <rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="6" fill="#f0f4ff" stroke="#b0c0e0" stroke-width="1.5" stroke-dasharray="6,3"/>\n`;
@@ -211,7 +199,8 @@ function markerEndFor(kind: string): string {
     case 'inheritance':          return 'hollow-arrow';
     case 'realization':          return 'hollow-arrow';
     case 'dependency':           return 'arrow';
-    case 'composition':          return 'arrow';
+    // composition: filled diamond at source only, no arrowhead
+    // aggregation: open diamond at source only, no arrowhead
     default:                     return '';
   }
 }
@@ -228,7 +217,7 @@ function markerStartFor(kind: string): string {
 
 function assignPositions(entities: IOMEntity[]): Positioned[] {
   const result: Positioned[] = [];
-  let col = 0, row = 0;
+  let col = 0;
   let maxRowHeight = 0;
   let curX = 40, curY = 40;
 
@@ -248,7 +237,6 @@ function assignPositions(entities: IOMEntity[]): Positioned[] {
       curX += width + GRID_COL_GAP;
       if (col >= GRID_COLS) {
         col = 0;
-        row++;
         curX = 40;
         curY += maxRowHeight + GRID_ROW_GAP;
         maxRowHeight = 0;
@@ -272,7 +260,11 @@ function computeWidth(entity: IOMEntity): number {
 
 function computeHeight(entity: IOMEntity): number {
   const memberCount = entity.fields.length + entity.methods.length + entity.enumValues.length;
-  const dividers = (entity.fields.length > 0 ? 1 : 0) + (entity.methods.length > 0 || entity.enumValues.length > 0 ? 1 : 0);
+  // One divider line before each non-empty section after the header
+  const dividers =
+    (entity.fields.length > 0 ? 1 : 0) +
+    (entity.methods.length > 0 ? 1 : 0) +
+    (entity.enumValues.length > 0 ? 1 : 0);
   return HEADER_HEIGHT + memberCount * LINE_HEIGHT + dividers * 1 + 8;
 }
 
@@ -291,19 +283,4 @@ function boxEdge(p: Positioned, tx: number, ty: number): [number, number] {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
-
-function escapeXml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function visSymbolFor(vis: string): string {
-  if (vis === 'public')    return '+';
-  if (vis === 'private')   return '−';
-  if (vis === 'protected') return '#';
-  if (vis === 'package')   return '~';
-  return '+';
-}
+// escapeXml and visSymbolFor are imported from ./utils.ts

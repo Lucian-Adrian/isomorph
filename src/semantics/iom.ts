@@ -119,10 +119,6 @@ export interface IOM {
 
 // ── Helpers ──────────────────────────────────────────────────
 
-/** Canonical rendering of an IOMField to a type string */
-export function renderType(type: string): string {
-  return type;
-}
 
 /** Map AST relation kind token to IOM relation kind */
 export function relTokenToKind(tok: string): IOMRelationKind {

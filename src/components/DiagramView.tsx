@@ -12,13 +12,23 @@ interface DiagramViewProps {
   onExportSVG?: () => void;
 }
 
-export function DiagramView({ diagram, onEntityMove }: DiagramViewProps) {
+export function DiagramView({ diagram, onEntityMove, onExportSVG }: DiagramViewProps) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(100);
 
   const handleZoomIn  = useCallback(() => setZoom(z => Math.min(z + 20, 200)), []);
   const handleZoomOut = useCallback(() => setZoom(z => Math.max(z - 20, 40)), []);
   const handleFit     = useCallback(() => setZoom(100), []);
+
+  // Keyboard shortcut: Ctrl+E → export SVG
+  useEffect(() => {
+    if (!onExportSVG) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'e') { e.preventDefault(); onExportSVG(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onExportSVG]);
 
   // Render SVG into container on diagram change
   useEffect(() => {
@@ -33,7 +43,9 @@ export function DiagramView({ diagram, onEntityMove }: DiagramViewProps) {
     const svg = renderDiagram(diagram);
     el.innerHTML = svg;
 
-    if (onEntityMove) attachDragHandlers(el, diagram, onEntityMove);
+    // attachDragHandlers returns a cleanup function that removes all window listeners
+    const cleanup = onEntityMove ? attachDragHandlers(el, onEntityMove) : undefined;
+    return cleanup;
   }, [diagram, onEntityMove]);
 
   return (
@@ -41,7 +53,8 @@ export function DiagramView({ diagram, onEntityMove }: DiagramViewProps) {
       {/* Empty state */}
       {!diagram && (
         <div className="iso-canvas-empty" aria-hidden="true">
-          <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+          <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
+            <title>Empty diagram placeholder</title>
             <rect x="2" y="3" width="9" height="7" rx="1.5"/>
             <rect x="13" y="3" width="9" height="7" rx="1.5"/>
             <rect x="7" y="14" width="10" height="7" rx="1.5"/>
@@ -78,7 +91,7 @@ export function DiagramView({ diagram, onEntityMove }: DiagramViewProps) {
 
       {/* Zoom controls */}
       {diagram && (
-        <div className="iso-canvas-toolbar" role="group" aria-label="Zoom controls">
+        <div className="iso-canvas-toolbar" role="toolbar" aria-label="Zoom controls">
           <button
             type="button"
             className="iso-canvas-btn"
@@ -116,14 +129,20 @@ export function DiagramView({ diagram, onEntityMove }: DiagramViewProps) {
 
 // ─── Drag-to-update ──────────────────────────────────────────
 
+/**
+ * Attaches mouse-drag handlers to every SVG group with data-entity-name.
+ * Returns a cleanup function that cancels ALL window listeners via AbortController —
+ * preventing the memory-leak / multiplied-handler bug (BUG-3) that occurred when
+ * the useEffect re-ran on every keystroke without removing the previous listeners.
+ */
 function attachDragHandlers(
   container: HTMLDivElement,
-  _diagram: IOMDiagram,
   onEntityMove: (name: string, x: number, y: number) => void,
-) {
+): () => void {
   const svg = container.querySelector('svg');
-  if (!svg) return;
+  if (!svg) return () => {};
 
+  const controllers: AbortController[] = [];
   const groups = svg.querySelectorAll<SVGGElement>('g[data-entity-name]');
 
   groups.forEach(g => {
@@ -134,6 +153,10 @@ function attachDragHandlers(
     let startX = 0, startY = 0, origX = 0, origY = 0;
 
     g.style.cursor = 'grab';
+
+    const ac = new AbortController();
+    controllers.push(ac);
+    const { signal } = ac;
 
     const onMouseDown = (e: MouseEvent) => {
       dragging = true;
@@ -169,8 +192,10 @@ function attachDragHandlers(
     };
 
     g.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('mousemove', onMouseMove, { signal });
+    window.addEventListener('mouseup',   onMouseUp,   { signal });
   });
+
+  return () => { for (const c of controllers) c.abort(); };
 }
 
