@@ -22,7 +22,7 @@ Tools like PlantUML and Mermaid are code-first: the diagram is rendered from tex
 | Editor | CodeMirror 6 (syntax highlight, error squiggles) |
 | Diagram canvas | D3.js v7 (SVG layout + drag-to-update) |
 | Tests | Vitest |
-| Grammar reference | ANTLR4 `.g4` in `grammar/` |
+| Grammar reference | ANTLR4 `.g4` in `grammar/`, `.isx` source files in `examples/` |
 
 ---
 
@@ -110,9 +110,9 @@ repo/
 │   ├── parser.test.ts
 │   └── semantics.test.ts
 ├── examples/
-│   ├── class-diagram.iso
-│   ├── usecase-diagram.iso
-│   └── component-diagram.iso
+│   ├── class-diagram.isx
+│   ├── usecase-diagram.isx
+│   └── component-diagram.isx
 └── package.json
 ```
 

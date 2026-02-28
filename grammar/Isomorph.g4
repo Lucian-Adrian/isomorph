@@ -6,6 +6,8 @@
 // in src/parser/parser.ts and the BNF rules in the Week 5
 // grammar report.
 //
+// File extension for Isomorph source files: .isx
+//
 // To generate a parser from this grammar:
 //   npx antlr4ts Isomorph.g4 -visitor -o src/generated
 // ============================================================

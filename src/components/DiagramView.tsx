@@ -1,54 +1,116 @@
 // ============================================================
-// DiagramView — SVG Diagram React Component
+// DiagramView — SVG Diagram Canvas Component (v2)
 // ============================================================
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import type { IOMDiagram } from '../semantics/iom.js';
 import { renderDiagram } from '../renderer/index.js';
 
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
   onEntityMove?: (entityName: string, x: number, y: number) => void;
+  onExportSVG?: () => void;
 }
 
 export function DiagramView({ diagram, onEntityMove }: DiagramViewProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(100);
 
-  // Render SVG into the container div
+  const handleZoomIn  = useCallback(() => setZoom(z => Math.min(z + 20, 200)), []);
+  const handleZoomOut = useCallback(() => setZoom(z => Math.max(z - 20, 40)), []);
+  const handleFit     = useCallback(() => setZoom(100), []);
+
+  // Render SVG into container on diagram change
   useEffect(() => {
-    if (!containerRef.current) return;
+    const el = containerRef.current;
+    if (!el) return;
+
     if (!diagram) {
-      containerRef.current.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#8c959f;font-family:sans-serif;font-size:14px;flex-direction:column;gap:8px">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <path d="M9 9h6M9 12h6M9 15h4"/>
-          </svg>
-          <span>Write some Isomorph code to see your diagram here.</span>
-        </div>`;
+      el.innerHTML = '';
       return;
     }
-    const svg = renderDiagram(diagram);
-    containerRef.current.innerHTML = svg;
 
-    // Make entity groups draggable
-    if (onEntityMove) {
-      attachDragHandlers(containerRef.current, diagram, onEntityMove);
-    }
+    const svg = renderDiagram(diagram);
+    el.innerHTML = svg;
+
+    if (onEntityMove) attachDragHandlers(el, diagram, onEntityMove);
   }, [diagram, onEntityMove]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        overflow: 'auto',
-        background: '#fafafa',
-        borderRadius: '6px',
-        border: '1px solid #d0d7de',
-      }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+      {/* Empty state */}
+      {!diagram && (
+        <div className="iso-canvas-empty" aria-hidden="true">
+          <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+            <rect x="2" y="3" width="9" height="7" rx="1.5"/>
+            <rect x="13" y="3" width="9" height="7" rx="1.5"/>
+            <rect x="7" y="14" width="10" height="7" rx="1.5"/>
+            <line x1="6.5" y1="10" x2="6.5" y2="13"/>
+            <line x1="17.5" y1="10" x2="17.5" y2="13"/>
+            <line x1="6.5" y1="13" x2="12" y2="13"/>
+            <line x1="17.5" y1="13" x2="12" y2="13"/>
+            <line x1="12" y1="13" x2="12" y2="14"/>
+          </svg>
+          <span className="iso-canvas-empty-title">No diagram yet</span>
+          <span className="iso-canvas-empty-sub">
+            Write Isomorph code in the editor on the left, or load an example from the toolbar.
+          </span>
+        </div>
+      )}
+
+      {/* SVG canvas with zoom */}
+      <div
+        className="iso-canvas-wrap"
+        role="img"
+        aria-label={diagram ? `${diagram.name} ${diagram.kind} diagram` : 'Diagram canvas'}
+        style={{ display: diagram ? undefined : 'none' }}
+      >
+        <div
+          ref={containerRef}
+          style={{
+            transform: `scale(${zoom / 100})`,
+            transformOrigin: 'top left',
+            display: 'inline-block',
+            transition: 'transform 150ms cubic-bezier(0.16,1,0.3,1)',
+          }}
+        />
+      </div>
+
+      {/* Zoom controls */}
+      {diagram && (
+        <div className="iso-canvas-toolbar" role="group" aria-label="Zoom controls">
+          <button
+            type="button"
+            className="iso-canvas-btn"
+            onClick={handleZoomOut}
+            aria-label="Zoom out"
+            disabled={zoom <= 40}
+            data-tooltip="Zoom out"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            className="iso-canvas-btn"
+            onClick={handleFit}
+            aria-label={`Reset zoom (currently ${zoom}%)`}
+            style={{ width: 44, fontSize: 11 }}
+          >
+            {zoom}%
+          </button>
+          <button
+            type="button"
+            className="iso-canvas-btn"
+            onClick={handleZoomIn}
+            aria-label="Zoom in"
+            disabled={zoom >= 200}
+            data-tooltip="Zoom in"
+          >
+            +
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -62,7 +124,6 @@ function attachDragHandlers(
   const svg = container.querySelector('svg');
   if (!svg) return;
 
-  // Entity boxes are <g> elements with transform="translate(x,y)"
   const groups = svg.querySelectorAll<SVGGElement>('g[transform]');
   const entityList = [...diagram.entities.values()];
 
@@ -94,8 +155,7 @@ function attachDragHandlers(
       const scaleY = parseFloat(svg.getAttribute('height') ?? '600') / svgRect.height;
       const dx = (e.clientX - startX) * scaleX;
       const dy = (e.clientY - startY) * scaleY;
-      const nx = origX + dx, ny = origY + dy;
-      g.setAttribute('transform', `translate(${nx},${ny})`);
+      g.setAttribute('transform', `translate(${origX + dx},${origY + dy})`);
     };
 
     const onMouseUp = (_e: MouseEvent) => {
@@ -114,3 +174,4 @@ function attachDragHandlers(
     window.addEventListener('mouseup', onMouseUp);
   });
 }
+
