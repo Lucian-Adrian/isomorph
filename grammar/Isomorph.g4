@@ -77,7 +77,12 @@ entityKind
     ;
 
 stereotypeOpt
-    : STEREO_OPEN IDENT STEREO_CLOSE
+    // NOTE: '>>' is deliberately NOT lexed as a STEREO_CLOSE token by the
+    // hand-written lexer.  Using a dedicated STEREO_CLOSE token would cause
+    // a maximal-munch ambiguity with nested generics such as Map<K,List<V>>,
+    // where the closing '>>' must be two separate GT tokens.  The parser
+    // therefore consumes two consecutive GT tokens for the stereotype close.
+    : STEREO_OPEN IDENT GT GT
     |
     ;
 
@@ -287,9 +292,11 @@ REL_COMPOSE   : '--*' ;
 REL_RESTR     : '--x' ;
 REL_ASSOC     : '--' ;
 
-// Stereotype delimiters
+// Stereotype open delimiter ('>>' seen in source is consumed as GT GT — see stereotypeOpt)
 STEREO_OPEN   : '<<' ;
-STEREO_CLOSE  : '>>' ;
+// NOTE: STEREO_CLOSE ('>>') is intentionally absent from the lexer rules.
+//       Two consecutive GT tokens are used instead to avoid maximal-munch
+//       ambiguity with closing nested generic type arguments.
 
 // Literals
 STRING  : '"' ( ~["\\\r\n] | '\\' . )* '"' ;

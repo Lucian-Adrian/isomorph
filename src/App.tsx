@@ -4,6 +4,7 @@
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { IsomorphEditor } from './editor/IsomorphEditor.js';
+import type { LintDiagnostic } from './editor/IsomorphEditor.js';
 import { DiagramView } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { parse } from './parser/index.js';
@@ -250,6 +251,14 @@ export default function App() {
         : `(${e.rule}) ${e.message}`
     ),
   ];
+
+  // Combined parse + semantic diagnostics for the editor lint gutter
+  const editorDiagnostics: LintDiagnostic[] = [
+    ...parseErrors.map(e => ({ message: e.message, line: e.line, col: e.col, severity: 'error' as const })),
+    ...(analysisResult?.errors ?? [])
+      .filter((e): e is typeof e & { line: number; col: number } => e.line != null)
+      .map(e => ({ message: `(${e.rule}) ${e.message}`, line: e.line, col: e.col ?? 1, severity: 'error' as const })),
+  ];
   const diagrams: IOMDiagram[] = analysisResult?.iom.diagrams ?? [];
   const activeDiagram = diagrams[activeDiagramIdx] ?? null;
 
@@ -284,6 +293,15 @@ export default function App() {
     setSource('// New Isomorph diagram\ndiagram MyDiagram : class {\n\n  class Entity {\n    + id: string\n  }\n\n}\n');
     setActiveDiagramIdx(0);
   }, []);
+
+  // Keyboard shortcut: Ctrl+N → new file (MF-4)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'n') { e.preventDefault(); handleNew(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleNew]);
 
   const statusClass = allErrors.length > 0
     ? 'iso-status iso-status--err'
@@ -425,7 +443,7 @@ export default function App() {
                 <IsomorphEditor
                   value={source}
                   onChange={setSource}
-                  errors={parseErrors}
+                  errors={editorDiagnostics}
                 />
               </div>
               {/* Inline error list */}

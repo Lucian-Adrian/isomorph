@@ -308,7 +308,6 @@ export function typeToString(t: TypeExpr): string {
     case 'SimpleType':   return t.name;
     case 'GenericType':  return `${t.base}<${t.args.map(typeToString).join(', ')}>`;
     case 'NullableType': return `${typeToString(t.inner)}?`;
-    case 'ListShorthand': return `List<${typeToString(t.element)}>`;
   }
 }
 

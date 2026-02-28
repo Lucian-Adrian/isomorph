@@ -32,8 +32,7 @@ export type TokenKind =
   | 'COMPOSE'    // --*
   | 'RESTR'      // --x
   | 'ASSOC'      // --
-  | 'STEREO_O'   // <<
-  | 'STEREO_C'   // >>
+  | 'STEREO_O'   // << (stereotype open; >> is always two GT tokens — see lexer note)
   | 'DOTDOT'     // ..
   // Punctuation
   | 'LBRACE' | 'RBRACE' | 'LPAREN' | 'RPAREN'

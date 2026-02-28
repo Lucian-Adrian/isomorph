@@ -116,7 +116,8 @@ export interface EnumValueDecl {
 
 // ─── Types ───────────────────────────────────────────────────
 
-export type TypeExpr = SimpleType | GenericType | NullableType | ListShorthand;
+/** List<T>/Map<K,V>/... shorthand syntax is desugared by the parser into GenericType. */
+export type TypeExpr = SimpleType | GenericType | NullableType;
 
 export interface SimpleType {
   kind: 'SimpleType';
@@ -134,12 +135,6 @@ export interface GenericType {
 export interface NullableType {
   kind: 'NullableType';
   inner: TypeExpr;
-  span: Span;
-}
-
-export interface ListShorthand {
-  kind: 'ListShorthand';
-  element: TypeExpr;
   span: Span;
 }
 
