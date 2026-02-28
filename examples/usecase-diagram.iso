@@ -1,0 +1,50 @@
+// ─────────────────────────────────────────────────────────────
+// Isomorph — Library System Use-Case Diagram
+// ─────────────────────────────────────────────────────────────
+
+diagram LibraryUseCases : usecase {
+
+  // Actors
+  actor Librarian
+  actor Member
+  actor System <<system>>
+
+  // Use cases
+  usecase SearchCatalog    [label="Search Catalog"]
+  usecase BorrowBook       [label="Borrow Book"]
+  usecase ReturnBook       [label="Return Book"]
+  usecase ManageInventory  [label="Manage Inventory"]
+  usecase RegisterMember   [label="Register Member"]
+  usecase SendReminder     [label="Send Reminder"]
+  usecase GenerateReport   [label="Generate Report"]
+
+  // Member associations
+  Member --> SearchCatalog
+  Member --> BorrowBook
+  Member --> ReturnBook
+
+  // Librarian associations
+  Librarian --> ManageInventory
+  Librarian --> RegisterMember
+  Librarian --> GenerateReport
+
+  // System associations
+  System --> SendReminder
+
+  // Include/extend
+  BorrowBook --> SearchCatalog   [label="include"]
+  SendReminder --> BorrowBook    [label="extend"]
+
+  // Layout
+  @Librarian       at (60,  280)
+  @Member          at (60,  130)
+  @System          at (60,  430)
+  @SearchCatalog   at (380, 80)
+  @BorrowBook      at (380, 170)
+  @ReturnBook      at (380, 260)
+  @ManageInventory at (380, 350)
+  @RegisterMember  at (380, 440)
+  @SendReminder    at (380, 530)
+  @GenerateReport  at (380, 620)
+
+}

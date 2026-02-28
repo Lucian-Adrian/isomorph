@@ -1,0 +1,99 @@
+// ─────────────────────────────────────────────────────────────
+// Isomorph — Library Management System (Class Diagram)
+// ─────────────────────────────────────────────────────────────
+
+diagram LibrarySystem : class {
+
+  package domain {
+
+    abstract class BaseEntity {
+      # id: int
+      # createdAt: string
+    }
+
+    abstract class Book <<Entity>> extends BaseEntity implements Borrowable {
+      + title: string
+      + isbn: string
+      + author: string
+      - stock: int = 0
+      + checkOut(user: string): bool
+      + returnCopy(): void
+      + getTitle(): string
+      + isAvailable(): bool
+    }
+
+    class PhysicalBook extends Book {
+      + shelfLocation: string
+      + condition: string
+      + getLocation(): string
+    }
+
+    class EBook extends Book {
+      + fileFormat: string
+      + downloadUrl: string
+      + download(user: string): string
+    }
+
+    class Library {
+      + name: string
+      + address: string
+      - books: List<Book>
+      - members: List<Member>
+      + addBook(book: Book): void
+      + removeBook(isbn: string): bool
+      + search(query: string): List<Book>
+      + getMember(id: int): Member
+    }
+
+    class Member {
+      + memberId: string
+      + name: string
+      + email: string
+      - borrowedBooks: List<Book>
+      + borrow(book: Book): bool
+      + returnBook(book: Book): void
+      + getBorrowHistory(): List<Book>
+    }
+
+    interface Borrowable {
+      + borrow(user: string): void
+      + return(): void
+      + isAvailable(): bool
+    }
+
+    enum BookStatus {
+      AVAILABLE
+      CHECKED_OUT
+      RESERVED
+      LOST
+    }
+
+    enum MembershipType {
+      BASIC
+      PREMIUM
+      STUDENT
+    }
+
+  }
+
+  // Relations
+  Library --* Book        [label="manages", toMult="0..*"]
+  Library --* Member      [label="has", toMult="0..*"]
+  Member  --> Book        [label="borrows", toMult="0..*"]
+  Book    ..|> Borrowable
+  PhysicalBook --|> Book
+  EBook        --|> Book
+  Member       --> MembershipType [label="type"]
+
+  // Layout persistence
+  @BaseEntity    at (380, 20)
+  @Book          at (280, 140)
+  @PhysicalBook  at (120, 310)
+  @EBook         at (480, 310)
+  @Library       at (700, 140)
+  @Member        at (700, 380)
+  @Borrowable    at (30,  140)
+  @BookStatus    at (30,  380)
+  @MembershipType at (700, 570)
+
+}

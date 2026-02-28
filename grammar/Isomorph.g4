@@ -1,0 +1,325 @@
+// ============================================================
+// Isomorph DSL — ANTLR4 Grammar Reference
+// ============================================================
+// This grammar file serves as a formal, machine-readable spec
+// of the Isomorph language. It mirrors the hand-written parser
+// in src/parser/parser.ts and the BNF rules in the Week 5
+// grammar report.
+//
+// To generate a parser from this grammar:
+//   npx antlr4ts Isomorph.g4 -visitor -o src/generated
+// ============================================================
+
+grammar Isomorph;
+
+// ─── Parser Rules ────────────────────────────────────────────
+
+program
+    : importDecl* diagramDecl+ EOF
+    ;
+
+importDecl
+    : KW_IMPORT STRING SEMI?
+    ;
+
+diagramDecl
+    : KW_DIAGRAM IDENT COLON diagramKind LBRACE diagramBody RBRACE
+    ;
+
+diagramKind
+    : KW_CLASS
+    | KW_USECASE
+    | KW_SEQUENCE
+    | KW_COMPONENT
+    | KW_FLOW
+    | KW_DEPLOYMENT
+    ;
+
+diagramBody
+    : bodyItem*
+    ;
+
+bodyItem
+    : packageDecl
+    | entityDecl
+    | relationDecl
+    | noteDecl
+    | styleDecl
+    | layoutAnnotation
+    ;
+
+// ─── Package ─────────────────────────────────────────────────
+
+packageDecl
+    : KW_PACKAGE IDENT LBRACE diagramBody RBRACE
+    ;
+
+// ─── Entity ──────────────────────────────────────────────────
+
+entityDecl
+    : modifierList entityKind IDENT stereotypeOpt inheritanceOpt entityBodyOpt
+    ;
+
+modifierList
+    : ( KW_ABSTRACT | KW_STATIC | KW_FINAL )*
+    ;
+
+entityKind
+    : KW_CLASS
+    | KW_INTERFACE
+    | KW_ENUM
+    | KW_ACTOR
+    | KW_USECASE
+    | KW_COMPONENT
+    | KW_NODE
+    ;
+
+stereotypeOpt
+    : STEREO_OPEN IDENT STEREO_CLOSE
+    |
+    ;
+
+inheritanceOpt
+    : KW_EXTENDS identList implementsOpt
+    | KW_IMPLEMENTS identList
+    |
+    ;
+
+implementsOpt
+    : KW_IMPLEMENTS identList
+    |
+    ;
+
+identList
+    : IDENT ( COMMA IDENT )*
+    ;
+
+entityBodyOpt
+    : LBRACE memberList RBRACE
+    |
+    ;
+
+memberList
+    : member*
+    ;
+
+member
+    : fieldDecl
+    | methodDecl
+    | enumValueDecl
+    | SEMI
+    ;
+
+// ─── Members ─────────────────────────────────────────────────
+
+fieldDecl
+    : visibilityOpt memberModifierList IDENT COLON typeExpr defaultOpt SEMI?
+    ;
+
+methodDecl
+    : visibilityOpt memberModifierList IDENT LPAREN paramListOpt RPAREN COLON typeExpr SEMI?
+    ;
+
+enumValueDecl
+    : IDENT SEMI?
+    ;
+
+visibilityOpt
+    : PLUS
+    | MINUS
+    | HASH
+    | TILDE
+    |
+    ;
+
+memberModifierList
+    : ( KW_ABSTRACT | KW_STATIC | KW_FINAL )*
+    ;
+
+defaultOpt
+    : EQ literal
+    |
+    ;
+
+paramListOpt
+    : paramList
+    |
+    ;
+
+paramList
+    : param ( COMMA param )*
+    ;
+
+param
+    : IDENT COLON typeExpr
+    ;
+
+// ─── Types ───────────────────────────────────────────────────
+
+typeExpr
+    : typeName ( LT typeArgList GT )?
+    | typeExpr QUESTION         // nullable
+    ;
+
+typeName
+    : IDENT
+    | KW_INT | KW_FLOAT | KW_BOOL | KW_STRING | KW_VOID
+    | KW_LIST | KW_MAP | KW_SET | KW_OPTIONAL
+    ;
+
+typeArgList
+    : typeExpr ( COMMA typeExpr )*
+    ;
+
+// ─── Relations ───────────────────────────────────────────────
+
+relationDecl
+    : IDENT relOp IDENT relationAttrs?
+    ;
+
+relOp
+    : REL_ASSOC
+    | REL_ASSOC_DIR
+    | REL_INHERIT
+    | REL_REALIZE
+    | REL_AGGR
+    | REL_COMPOSE
+    | REL_RESTR
+    | REL_DEPEND
+    | REL_INHERIT_R
+    | REL_REALIZE_R
+    | REL_DEPEND_R
+    | REL_AGGR_R
+    | REL_COMPOSE_R
+    ;
+
+relationAttrs
+    : LBRACKET attrList RBRACKET
+    ;
+
+attrList
+    : attr ( COMMA attr )*
+    ;
+
+attr
+    : IDENT EQ STRING
+    ;
+
+// ─── Notes, Style, Layout ────────────────────────────────────
+
+noteDecl
+    : KW_NOTE STRING ( KW_ON IDENT )?
+    ;
+
+styleDecl
+    : KW_STYLE IDENT LBRACE styleAttr* RBRACE
+    ;
+
+styleAttr
+    : IDENT EQ ( STRING | COLOR ) SEMI?
+    ;
+
+layoutAnnotation
+    : AT IDENT KW_AT LPAREN NUMBER COMMA NUMBER RPAREN
+    ;
+
+// ─── Literals ────────────────────────────────────────────────
+
+literal
+    : STRING
+    | NUMBER
+    | KW_TRUE
+    | KW_FALSE
+    ;
+
+// ─── Lexer Rules ─────────────────────────────────────────────
+
+// Keywords
+KW_DIAGRAM    : 'diagram' ;
+KW_CLASS      : 'class' ;
+KW_INTERFACE  : 'interface' ;
+KW_ENUM       : 'enum' ;
+KW_ABSTRACT   : 'abstract' ;
+KW_PACKAGE    : 'package' ;
+KW_IMPORT     : 'import' ;
+KW_NOTE       : 'note' ;
+KW_STYLE      : 'style' ;
+KW_ON         : 'on' ;
+KW_EXTENDS    : 'extends' ;
+KW_IMPLEMENTS : 'implements' ;
+KW_AT         : 'at' ;
+KW_STATIC     : 'static' ;
+KW_FINAL      : 'final' ;
+KW_VOID       : 'void' ;
+KW_FOR        : 'for' ;
+KW_ACTOR      : 'actor' ;
+KW_USECASE    : 'usecase' ;
+KW_COMPONENT  : 'component' ;
+KW_NODE       : 'node' ;
+KW_SEQUENCE   : 'sequence' ;
+KW_FLOW       : 'flow' ;
+KW_DEPLOYMENT : 'deployment' ;
+KW_LIST       : 'list' ;
+KW_MAP        : 'map' ;
+KW_SET        : 'set' ;
+KW_OPTIONAL   : 'optional' ;
+KW_INT        : 'int' ;
+KW_FLOAT      : 'float' ;
+KW_BOOL       : 'bool' ;
+KW_STRING     : 'string' ;
+KW_TRUE       : 'true' ;
+KW_FALSE      : 'false' ;
+
+// Relation operators (order matters — longest match first in ANTLR4)
+REL_INHERIT   : '--|>' ;
+REL_REALIZE   : '..|>' ;
+REL_INHERIT_R : '<|--' ;
+REL_REALIZE_R : '<|..' ;
+REL_DEPEND_R  : '<..' ;
+REL_AGGR_R    : 'o--' ;
+REL_COMPOSE_R : '*--' ;
+REL_ASSOC_DIR : '-->' ;
+REL_DEPEND    : '..>' ;
+REL_AGGR      : '--o' ;
+REL_COMPOSE   : '--*' ;
+REL_RESTR     : '--x' ;
+REL_ASSOC     : '--' ;
+
+// Stereotype delimiters
+STEREO_OPEN   : '<<' ;
+STEREO_CLOSE  : '>>' ;
+
+// Literals
+STRING  : '"' ( ~["\\\r\n] | '\\' . )* '"' ;
+NUMBER  : '-'? [0-9]+ ( '.' [0-9]+ )? ;
+COLOR   : '#' [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]
+               [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] ;
+IDENT   : [a-zA-Z_] [a-zA-Z0-9_]* ;
+
+// Punctuation
+LBRACE   : '{' ;
+RBRACE   : '}' ;
+LPAREN   : '(' ;
+RPAREN   : ')' ;
+LT       : '<' ;
+GT       : '>' ;
+LBRACKET : '[' ;
+RBRACKET : ']' ;
+COMMA    : ',' ;
+COLON    : ':' ;
+SEMI     : ';' ;
+DOT      : '.' ;
+AT       : '@' ;
+EQ       : '=' ;
+PIPE     : '|' ;
+PLUS     : '+' ;
+MINUS    : '-' ;
+HASH     : '#' ;
+TILDE    : '~' ;
+QUESTION : '?' ;
+DOTDOT   : '..' ;
+
+// Whitespace and comments (skip)
+WS           : [ \t\r\n]+    -> skip ;
+LINE_COMMENT : '//' ~[\r\n]* -> skip ;
+BLOCK_COMMENT: '/*' .*? '*/' -> skip ;

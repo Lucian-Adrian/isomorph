@@ -1,0 +1,49 @@
+// ─────────────────────────────────────────────────────────────
+// Isomorph — Library System Component Diagram
+// ─────────────────────────────────────────────────────────────
+
+diagram LibraryArchitecture : component {
+
+  package frontend {
+    component WebApp      <<React>>
+    component EditorPane  <<CodeMirror>>
+    component DiagramPane <<D3.js>>
+  }
+
+  package backend {
+    component APIGateway  <<Express>>
+    component AuthService
+    component CatalogService
+    component BorrowService
+  }
+
+  package datastore {
+    node PostgreSQL    <<database>>
+    node RedisCache    <<cache>>
+  }
+
+  // Connections
+  WebApp      --> APIGateway    [label="HTTP/REST"]
+  EditorPane  --> WebApp        [label="events"]
+  DiagramPane --> WebApp        [label="events"]
+
+  APIGateway  --> AuthService   [label="JWT validation"]
+  APIGateway  --> CatalogService
+  APIGateway  --> BorrowService
+
+  CatalogService --> PostgreSQL [label="SQL"]
+  BorrowService  --> PostgreSQL [label="SQL"]
+  CatalogService --> RedisCache [label="cache read/write"]
+
+  // Layout
+  @WebApp          at (200, 80)
+  @EditorPane      at (80,  200)
+  @DiagramPane     at (330, 200)
+  @APIGateway      at (200, 360)
+  @AuthService     at (60,  500)
+  @CatalogService  at (240, 500)
+  @BorrowService   at (420, 500)
+  @PostgreSQL      at (200, 640)
+  @RedisCache      at (420, 640)
+
+}
