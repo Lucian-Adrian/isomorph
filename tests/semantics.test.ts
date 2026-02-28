@@ -84,6 +84,74 @@ describe('Semantic Analyzer', () => {
     });
   });
 
+  describe('SS-7: style target validity', () => {
+    it('accepts style on existing entity', () => {
+      const result = analyze(parse('diagram D : class { class A {} style A { color = "#ff0000" } }').program);
+      expect(result.errors.filter(e => e.rule === 'SS-7')).toHaveLength(0);
+    });
+
+    it('rejects style on unknown entity', () => {
+      const result = analyze(parse('diagram D : class { class A {} style Missing { color = "#ff0000" } }').program);
+      const ss7 = result.errors.filter(e => e.rule === 'SS-7');
+      expect(ss7.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('SS-8: enum value uniqueness', () => {
+    it('accepts unique enum values', () => {
+      const { errors } = analyzeOk('diagram D : class { enum Status { ACTIVE DONE } }');
+      expect(errors.filter(e => e.rule === 'SS-8')).toHaveLength(0);
+    });
+
+    it('rejects duplicate enum values', () => {
+      const result = analyze(parse('diagram D : class { enum Status { ACTIVE ACTIVE } }').program);
+      const ss8 = result.errors.filter(e => e.rule === 'SS-8');
+      expect(ss8.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('SS-9: diagram kind compatibility', () => {
+    it('accepts class entities in class diagrams', () => {
+      const { errors } = analyzeOk('diagram D : class { class A {} interface I {} enum E { V } }');
+      expect(errors.filter(e => e.rule === 'SS-9')).toHaveLength(0);
+    });
+
+    it('rejects actor in class diagram', () => {
+      const result = analyze(parse('diagram D : class { actor Bob }').program);
+      const ss9 = result.errors.filter(e => e.rule === 'SS-9');
+      expect(ss9.length).toBeGreaterThan(0);
+    });
+
+    it('accepts actor and usecase in usecase diagram', () => {
+      const { errors } = analyzeOk('diagram D : usecase { actor Bob usecase Login }');
+      expect(errors.filter(e => e.rule === 'SS-9')).toHaveLength(0);
+    });
+
+    it('rejects class entity in usecase diagram', () => {
+      const result = analyze(parse('diagram D : usecase { class Foo {} }').program);
+      const ss9 = result.errors.filter(e => e.rule === 'SS-9');
+      expect(ss9.length).toBeGreaterThan(0);
+    });
+
+    it('accepts component in deployment diagram', () => {
+      const { errors } = analyzeOk('diagram D : deployment { component WebServer node Host }');
+      expect(errors.filter(e => e.rule === 'SS-9')).toHaveLength(0);
+    });
+  });
+
+  describe('SS-10: layout reference validity', () => {
+    it('accepts layout on existing entity', () => {
+      const { errors } = analyzeOk('diagram D : class { class A {} @A at (10, 20) }');
+      expect(errors.filter(e => e.rule === 'SS-10')).toHaveLength(0);
+    });
+
+    it('rejects layout on unknown entity', () => {
+      const result = analyze(parse('diagram D : class { class A {} @Missing at (10, 20) }').program);
+      const ss10 = result.errors.filter(e => e.rule === 'SS-10');
+      expect(ss10.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('IOM construction', () => {
     it('builds entities map', () => {
       const { iom } = analyzeOk('diagram D : class { class Book {} class Library {} }');

@@ -1,16 +1,22 @@
 {
   "name": "isomorph",
-  "version": "0.1.0",
-  "description": "Isomorph — bidirectional text-visual diagramming DSL",
+  "version": "1.0.0",
+  "description": "Isomorph — a formally specified DSL for software diagramming with bidirectional text-visual synchronisation",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/team02-faf241/isomorph.git"
+  },
+  "homepage": "https://team02-faf241.github.io/isomorph/",
+  "keywords": ["dsl", "diagramming", "uml", "class-diagram", "bidirectional", "compiler", "typescript"],
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src tests --ext .ts,.tsx",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -18,26 +24,19 @@
     "@codemirror/commands": "^6.7.1",
     "@codemirror/language": "^6.10.6",
     "@codemirror/lint": "^6.8.4",
-    "@codemirror/search": "^6.5.8",
     "@codemirror/state": "^6.4.1",
     "@codemirror/view": "^6.35.3",
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
-    "@lezer/lr": "^1.4.2",
     "codemirror": "^6.0.1",
-    "d3": "^7.9.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/d3": "^7.4.3",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "@typescript-eslint/eslint-plugin": "^8.18.0",
-    "@typescript-eslint/parser": "^8.18.0",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^2.1.8",
-    "eslint": "^9.16.0",
     "jsdom": "^28.1.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",

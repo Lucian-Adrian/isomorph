@@ -74,10 +74,3 @@ export function SplitPane({ left, right, defaultSplit = 0.45 }: SplitPaneProps) 
     </div>
   );
 }
-
-
-interface SplitPaneProps {
-  left: ReactNode;
-  right: ReactNode;
-  defaultSplit?: number; // 0–1, fraction for left panel
-}

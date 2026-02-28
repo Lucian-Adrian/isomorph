@@ -10,7 +10,7 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
 
   // Separate actors from use-cases
   const actors   = entities.filter(e => e.kind === 'actor');
-  const usecases = entities.filter(e => e.kind === 'usecase' || e.kind !== 'actor');
+  const usecases = entities.filter(e => e.kind === 'usecase');
 
   const UC_RX = 80, UC_RY = 30;
 
@@ -62,16 +62,18 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     svg += `  </g>\n`;
   }
 
-  // Draw use cases (ellipses)
+  // Draw use cases (ellipses) — wrapped in <g> for drag support
   for (const { e, p } of ucPositions) {
     if (e.kind === 'actor') continue;
     const x = p.x, y = p.y;
-    svg += `  <ellipse cx="${x}" cy="${y}" rx="${UC_RX}" ry="${UC_RY}" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>\n`;
+    svg += `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(e.name)}">`;
+    svg += `    <ellipse cx="0" cy="0" rx="${UC_RX}" ry="${UC_RY}" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>`;
     const lines = wrapText(e.name, 20);
     lines.forEach((line, i) => {
-      const lineY = y - (lines.length - 1) * 8 + i * 16;
-      svg += `  <text x="${x}" y="${lineY}" text-anchor="middle" font-size="13" font-weight="500" fill="#1e3a5f">${escapeXml(line)}</text>\n`;
+      const lineY = -(lines.length - 1) * 8 + i * 16;
+      svg += `    <text x="0" y="${lineY}" text-anchor="middle" font-size="13" font-weight="500" fill="#1e3a5f">${escapeXml(line)}</text>`;
     });
+    svg += `  </g>`;
   }
 
   svg += `</svg>`;

@@ -135,6 +135,63 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     }
   }
 
+  // SS-7: Style target must reference a declared entity
+  function checkStyleTargets(items: BodyItem[]) {
+    for (const item of items) {
+      if (item.kind === 'StyleDecl' && !entities.has(item.target)) {
+        errors.push({ message: `Style references unknown entity '${item.target}'`, rule: 'SS-7' });
+      }
+      if (item.kind === 'PackageDecl') checkStyleTargets(item.body);
+    }
+  }
+  checkStyleTargets(diag.body);
+
+  // SS-8: Enum value uniqueness within each enum
+  for (const [name, entity] of entities) {
+    if (entity.kind === 'enum') {
+      const seen = new Set<string>();
+      for (const v of entity.enumValues) {
+        if (seen.has(v.name)) {
+          errors.push({ message: `Duplicate enum value '${v.name}' in '${name}'`, entity: name, rule: 'SS-8' });
+        }
+        seen.add(v.name);
+      }
+    }
+  }
+
+  // SS-9: Diagram kind compatibility — certain entity kinds are only valid in specific diagram kinds
+  const ALLOWED_KINDS: Record<string, Set<string>> = {
+    class:      new Set(['class', 'interface', 'enum']),
+    usecase:    new Set(['actor', 'usecase']),
+    sequence:   new Set(['actor']),
+    component:  new Set(['component']),
+    deployment: new Set(['component', 'node']),
+    // flow diagrams accept all entity kinds (generic)
+  };
+  const allowed = ALLOWED_KINDS[diag.diagramKind];
+  if (allowed) {
+    for (const [name, entity] of entities) {
+      if (!allowed.has(entity.kind)) {
+        errors.push({
+          message: `Entity kind '${entity.kind}' is not valid in '${diag.diagramKind}' diagrams`,
+          entity: name,
+          rule: 'SS-9',
+        });
+      }
+    }
+  }
+
+  // SS-10: Layout annotation must reference a declared entity
+  function checkLayoutTargets(items: BodyItem[]) {
+    for (const item of items) {
+      if (item.kind === 'LayoutAnnotation' && !entities.has(item.entity)) {
+        errors.push({ message: `Layout annotation references unknown entity '${item.entity}'`, rule: 'SS-10' });
+      }
+      if (item.kind === 'PackageDecl') checkLayoutTargets(item.body);
+    }
+  }
+  checkLayoutTargets(diag.body);
+
   return {
     name: diag.name,
     kind: diag.diagramKind,

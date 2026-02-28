@@ -118,18 +118,17 @@ export function DiagramView({ diagram, onEntityMove }: DiagramViewProps) {
 
 function attachDragHandlers(
   container: HTMLDivElement,
-  diagram: IOMDiagram,
+  _diagram: IOMDiagram,
   onEntityMove: (name: string, x: number, y: number) => void,
 ) {
   const svg = container.querySelector('svg');
   if (!svg) return;
 
-  const groups = svg.querySelectorAll<SVGGElement>('g[transform]');
-  const entityList = [...diagram.entities.values()];
+  const groups = svg.querySelectorAll<SVGGElement>('g[data-entity-name]');
 
-  groups.forEach((g, idx) => {
-    const entity = entityList[idx];
-    if (!entity) return;
+  groups.forEach(g => {
+    const entityName = g.getAttribute('data-entity-name');
+    if (!entityName) return;
 
     let dragging = false;
     let startX = 0, startY = 0, origX = 0, origY = 0;
@@ -165,7 +164,7 @@ function attachDragHandlers(
       const tf = g.getAttribute('transform') ?? '';
       const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
       if (m) {
-        onEntityMove(entity.name, Math.round(parseFloat(m[1])), Math.round(parseFloat(m[2])));
+        onEntityMove(entityName, Math.round(parseFloat(m[1])), Math.round(parseFloat(m[2])));
       }
     };
 

@@ -99,7 +99,7 @@ function renderEntityBox(p: Positioned): string {
 
   let s = '';
   // Container
-  s += `  <g transform="translate(${x},${y})">\n`;
+  s += `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(entity.name)}">\n`;
   s += `    <rect width="${width}" height="${height}" rx="6" fill="white" stroke="${borderColor}" stroke-width="${borderWidth}" filter="url(#shadow)"/>\n`;
 
   // Header background

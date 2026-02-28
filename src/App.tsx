@@ -253,8 +253,9 @@ export default function App() {
   const handleEntityMove = useCallback((name: string, x: number, y: number) => {
     const newAnnotation = `@${name} at (${x}, ${y})`;
     setSource(s => {
-      const re = new RegExp(`@${name}\\s+at\\s+\\([^)]+\\)`, 'g');
-      if (re.test(s)) return s.replace(new RegExp(`@${name}\\s+at\\s+\\([^)]+\\)`, 'g'), newAnnotation);
+      const pattern = new RegExp(`@${name}\\s+at\\s+\\([^)]+\\)`);
+      const replaced = s.replace(pattern, newAnnotation);
+      if (replaced !== s) return replaced;
       const lastBrace = s.lastIndexOf('}');
       return lastBrace < 0 ? s : s.slice(0, lastBrace) + `  ${newAnnotation}\n` + s.slice(lastBrace);
     });
