@@ -23,11 +23,11 @@ export function visSymbolFor(vis: string): string {
   return '+';
 }
 
-/** Shared SVG <defs> block: markers + drop-shadow filter. */
+/** Shared SVG <defs> block: markers, drop-shadow, gradients. */
 export function svgDefs(): string {
   return `  <defs>
-    <filter id="shadow" x="-10%" y="-10%" width="125%" height="125%">
-      <feDropShadow dx="1" dy="2" stdDeviation="2.5" flood-color="#00000018"/>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.12)"/>
     </filter>
     <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#555"/>
@@ -41,6 +41,22 @@ export function svgDefs(): string {
     <marker id="filled-diamond" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto">
       <polygon points="0 5, 6 0, 12 5, 6 10" fill="#555"/>
     </marker>
+    <linearGradient id="grad-class" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e0f2f1"/>
+      <stop offset="100%" stop-color="#d4edec"/>
+    </linearGradient>
+    <linearGradient id="grad-interface" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8f0fe"/>
+      <stop offset="100%" stop-color="#d4e4fc"/>
+    </linearGradient>
+    <linearGradient id="grad-abstract" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f3e8ff"/>
+      <stop offset="100%" stop-color="#e8d5ff"/>
+    </linearGradient>
+    <linearGradient id="grad-enum" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fef3c7"/>
+      <stop offset="100%" stop-color="#fde68a"/>
+    </linearGradient>
   </defs>
 `;
 }

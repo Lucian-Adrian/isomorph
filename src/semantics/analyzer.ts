@@ -1,7 +1,7 @@
 // ============================================================
 // Isomorph Static Semantic Analyzer
 // ============================================================
-// Implements SS-1 through SS-10 from the grammar report,
+// Implements SS-1 through SS-14 from the grammar report,
 // transforming the AST into the Isomorph Object Model.
 // ============================================================
 
@@ -221,6 +221,68 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
   }
   checkLayoutTargets(diag.body);
 
+  // SS-11: Abstract entity cannot also be final
+  for (const [name] of entities) {
+    const decl = findEntityDecl(diag.body, name);
+    if (decl?.modifiers.includes('abstract') && decl.modifiers.includes('final')) {
+      const sp = entitySpans.get(name);
+      errors.push({ message: `Entity '${name}' cannot be both abstract and final`, entity: name, rule: 'SS-11', ...sp });
+    }
+  }
+
+  // SS-12: Method parameter names must be unique within each method
+  for (const [name] of entities) {
+    const decl = findEntityDecl(diag.body, name);
+    if (!decl) continue;
+    for (const member of decl.members) {
+      if (member.kind === 'MethodDecl') {
+        const paramNames = new Set<string>();
+        for (const param of member.params) {
+          if (paramNames.has(param.name)) {
+            errors.push({
+              message: `Duplicate parameter '${param.name}' in method '${name}.${member.name}'`,
+              entity: name,
+              rule: 'SS-12',
+              line: member.span.line,
+              col: member.span.col,
+            });
+          }
+          paramNames.add(param.name);
+        }
+      }
+    }
+  }
+
+  // SS-13: extends target must reference a declared entity
+  for (const [name, entity] of entities) {
+    for (const parent of entity.extendsNames) {
+      if (!entities.has(parent)) {
+        const sp = entitySpans.get(name);
+        errors.push({
+          message: `Entity '${name}' extends unknown entity '${parent}'`,
+          entity: name,
+          rule: 'SS-13',
+          ...sp,
+        });
+      }
+    }
+  }
+
+  // SS-14: implements target must reference a declared entity
+  for (const [name, entity] of entities) {
+    for (const iface of entity.implementsNames) {
+      if (!entities.has(iface)) {
+        const sp = entitySpans.get(name);
+        errors.push({
+          message: `Entity '${name}' implements unknown entity '${iface}'`,
+          entity: name,
+          rule: 'SS-14',
+          ...sp,
+        });
+      }
+    }
+  }
+
   return {
     name: diag.name,
     kind: diag.diagramKind,
@@ -329,4 +391,16 @@ export function isField(m: Member): m is import('../parser/ast.js').FieldDecl {
 
 export function isMethod(m: Member): m is import('../parser/ast.js').MethodDecl {
   return m.kind === 'MethodDecl';
+}
+
+/** Locate the AST EntityDecl node for a given entity name (searches nested packages). */
+function findEntityDecl(items: BodyItem[], name: string): EntityDecl | undefined {
+  for (const item of items) {
+    if (item.kind === 'EntityDecl' && item.name === name) return item;
+    if (item.kind === 'PackageDecl') {
+      const found = findEntityDecl(item.body, name);
+      if (found) return found;
+    }
+  }
+  return undefined;
 }

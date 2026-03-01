@@ -10,6 +10,22 @@
 //
 // To generate a parser from this grammar:
 //   npx antlr4ts Isomorph.g4 -visitor -o src/generated
+//
+// ── Static Semantic Rules (enforced by src/semantics/analyzer.ts) ──
+//   SS-1:  Unique entity names within diagram scope
+//   SS-2:  Unique member names within each entity
+//   SS-3:  Referential integrity — relation endpoints must exist
+//   SS-4:  Enum must declare at least one value
+//   SS-5:  Interface fields cannot have default values
+//   SS-6:  No circular direct inheritance chains
+//   SS-7:  Style target must reference a declared entity
+//   SS-8:  Enum value uniqueness within each enum
+//   SS-9:  Diagram kind compatibility (entity ↔ diagram)
+//   SS-10: Layout annotation must reference a declared entity
+//   SS-11: Abstract entity cannot also be marked final
+//   SS-12: Method parameter names must be unique per method
+//   SS-13: Extends target must reference a declared entity
+//   SS-14: Implements target must reference a declared entity
 // ============================================================
 
 grammar Isomorph;

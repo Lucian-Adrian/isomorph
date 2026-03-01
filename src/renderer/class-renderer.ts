@@ -81,7 +81,7 @@ function renderEntityBox(p: Positioned): string {
   const isAbstract = entity.isAbstract;
   const isInterface = entity.kind === 'interface';
   const isEnum = entity.kind === 'enum';
-  const headerBg = isInterface ? '#e8f0fe' : isEnum ? '#fef3c7' : entity.isAbstract ? '#f3e8ff' : '#e0f2f1';
+  const headerFill = isInterface ? 'url(#grad-interface)' : isEnum ? 'url(#grad-enum)' : entity.isAbstract ? 'url(#grad-abstract)' : 'url(#grad-class)';
   const borderColor = isInterface ? '#3b82f6' : isEnum ? '#d97706' : entity.isAbstract ? '#9333ea' : '#0d9488';
   const borderWidth = 1.5;
 
@@ -91,8 +91,8 @@ function renderEntityBox(p: Positioned): string {
   s += `    <rect width="${width}" height="${height}" rx="6" fill="white" stroke="${borderColor}" stroke-width="${borderWidth}" filter="url(#shadow)"/>\n`;
 
   // Header background
-  s += `    <rect width="${width}" height="${HEADER_HEIGHT}" rx="6" fill="${headerBg}" stroke="${borderColor}" stroke-width="${borderWidth}"/>\n`;
-  s += `    <rect y="${HEADER_HEIGHT - 6}" width="${width}" height="6" fill="${headerBg}"/>\n`;
+  s += `    <rect width="${width}" height="${HEADER_HEIGHT}" rx="6" fill="${headerFill}" stroke="${borderColor}" stroke-width="${borderWidth}"/>\n`;
+  s += `    <rect y="${HEADER_HEIGHT - 6}" width="${width}" height="6" fill="${headerFill}"/>\n`;
 
   // Header text
   let nameY = HEADER_HEIGHT / 2 + 4;
