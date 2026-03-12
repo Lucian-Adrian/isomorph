@@ -50,7 +50,12 @@ export default function App() {
 
   // ── Parse + analyze on every keystroke ───────────────────
   const parseResult = useMemo(() => {
-    try { return parse(source); } catch { return null; }
+    try { return parse(source); } catch (e) {
+      return {
+        program: { kind: 'Program' as const, imports: [], diagrams: [], span: { start: 0, end: 0, line: 1, col: 1 } },
+        errors: [{ message: e instanceof Error ? e.message : 'Internal parse error', line: 1, col: 1, pos: 0 }],
+      };
+    }
   }, [source]);
 
   const analysisResult = useMemo(() => {
@@ -60,14 +65,19 @@ export default function App() {
 
   const parseErrors: ParseError[] = parseResult?.errors ?? [];
   const semanticErrors = analysisResult?.errors ?? [];
-  const allErrors: string[] = formatAllErrors(parseErrors, semanticErrors);
+  const semanticErrorsOnly = semanticErrors.filter(e => e.severity !== 'warning');
+  const semanticWarnings = semanticErrors.filter(e => e.severity === 'warning');
+  const allErrors: string[] = formatAllErrors(parseErrors, semanticErrorsOnly);
 
   // Combined parse + semantic diagnostics for the editor lint gutter
   const editorDiagnostics: LintDiagnostic[] = [
     ...parseErrors.map(e => ({ message: e.message, line: e.line, col: e.col, severity: 'error' as const })),
-    ...semanticErrors
+    ...semanticErrorsOnly
       .filter((e): e is typeof e & { line: number; col: number } => e.line != null)
       .map(e => ({ message: `(${e.rule}) ${e.message}`, line: e.line, col: e.col ?? 1, severity: 'error' as const })),
+    ...semanticWarnings
+      .filter((e): e is typeof e & { line: number; col: number } => e.line != null)
+      .map(e => ({ message: `(${e.rule}) ${e.message}`, line: e.line, col: e.col ?? 1, severity: 'warning' as const })),
   ];
   const diagrams: IOMDiagram[] = analysisResult?.iom.diagrams ?? [];
   const activeDiagram = diagrams[activeDiagramIdx] ?? null;
@@ -92,6 +102,79 @@ export default function App() {
   const handleExportPNG = useCallback(() => {
     exportPNG(activeDiagram?.name ?? 'diagram');
   }, [activeDiagram]);
+
+  // ── Add entity from toolbox palette ───────────────────────
+  const handleAddEntity = useCallback((kind: string, name: string, x: number, y: number) => {
+    setSource(s => {
+      // Find the last closing brace of the current diagram
+      const lastBrace = s.lastIndexOf('}');
+      if (lastBrace < 0) return s;
+
+      let entitySnippet: string;
+      if (kind === 'abstract') {
+        entitySnippet = `  abstract class ${name} {\n    + id: string\n  }`;
+      } else if (kind === 'interface') {
+        entitySnippet = `  interface ${name} {\n    + method(): void\n  }`;
+      } else if (kind === 'enum') {
+        entitySnippet = `  enum ${name} {\n    VALUE_A\n    VALUE_B\n  }`;
+      } else if (kind === 'actor') {
+        entitySnippet = `  actor ${name}`;
+      } else if (kind === 'usecase') {
+        entitySnippet = `  usecase ${name}`;
+      } else if (kind === 'component') {
+        entitySnippet = `  component ${name}`;
+      } else if (kind === 'node') {
+        entitySnippet = `  node ${name}`;
+      } else {
+        entitySnippet = `  class ${name} {\n    + id: string\n  }`;
+      }
+      const layout = `  @${name} at (${x}, ${y})`;
+      return s.slice(0, lastBrace) + entitySnippet + '\n' + layout + '\n' + s.slice(lastBrace);
+    });
+  }, []);
+
+  // ── Add relation from arrow tool ──────────────────────────
+  const handleAddRelation = useCallback((from: string, to: string, operator: string, label: string) => {
+    setSource(s => {
+      const lastBrace = s.lastIndexOf('}');
+      if (lastBrace < 0) return s;
+      const labelSnippet = label ? ` [label="${label}"]` : '';
+      const line = `  ${from} ${operator} ${to}${labelSnippet}`;
+      return s.slice(0, lastBrace) + line + '\n' + s.slice(lastBrace);
+    });
+  }, []);
+
+  // ── Edit relation label via double-click ──────────────────
+  const handleEditRelationLabel = useCallback((from: string, to: string, oldLabel: string, newLabel: string) => {
+    setSource(s => {
+      // Escape special regex chars in entity names
+      const escFrom = from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escTo = to.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+      if (oldLabel && newLabel) {
+        // Replace existing label
+        const pattern = new RegExp(
+          `(${escFrom}\\s+\\S+\\s+${escTo}\\s*)\\[label="[^"]*"\\]`
+        );
+        const replaced = s.replace(pattern, `$1[label="${newLabel}"]`);
+        if (replaced !== s) return replaced;
+      } else if (!oldLabel && newLabel) {
+        // Add label to existing relation
+        const pattern = new RegExp(
+          `(${escFrom}\\s+\\S+\\s+${escTo})([^\\[\\n]*?)\\n`
+        );
+        const replaced = s.replace(pattern, `$1 [label="${newLabel}"]\n`);
+        if (replaced !== s) return replaced;
+      } else if (oldLabel && !newLabel) {
+        // Remove label
+        const pattern = new RegExp(
+          `(${escFrom}\\s+\\S+\\s+${escTo}\\s*)\\[label="[^"]*"\\]`
+        );
+        return s.replace(pattern, `$1`);
+      }
+      return s;
+    });
+  }, []);
 
   // ── New file ──────────────────────────────────────────────
   const handleNew = useCallback(() => {
@@ -129,7 +212,11 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [handleNew, handleExportSVG, handleExportPNG, shortcutsOpen]);
 
-  const statusClass = allErrors.length > 0
+  // Show warning when source has non-whitespace but produced no diagrams and no errors
+  const hasContent = source.trim().length > 0;
+  const noDiagramsWarning = hasContent && diagrams.length === 0 && allErrors.length === 0;
+
+  const statusClass = allErrors.length > 0 || noDiagramsWarning
     ? 'iso-status iso-status--err'
     : diagrams.length > 0
       ? 'iso-status iso-status--ok'
@@ -274,7 +361,9 @@ export default function App() {
           <div className="iso-status-dot" aria-hidden="true" />
           {allErrors.length > 0
             ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}`
-            : diagrams.length > 0 ? 'Valid' : 'Ready'}
+            : noDiagramsWarning
+              ? 'No diagrams'
+              : diagrams.length > 0 ? 'Valid' : 'Ready'}
         </output>
       </header>
 
@@ -344,8 +433,12 @@ export default function App() {
               <div className="iso-panel-body">
                 <DiagramView
                   diagram={activeDiagram}
+                  diagramKind={activeDiagram?.kind}
                   onEntityMove={handleEntityMove}
                   onExportSVG={handleExportSVG}
+                  onAddEntity={handleAddEntity}
+                  onAddRelation={handleAddRelation}
+                  onEditRelationLabel={handleEditRelationLabel}
                 />
               </div>
             </div>

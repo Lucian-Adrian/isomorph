@@ -168,7 +168,7 @@ function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): str
   const markerStart  = markerStartFor(rel.kind);
   const color        = '#555';
 
-  let s = `  <g>\n`;
+  let s = `  <g data-relation-id="${escapeXml(rel.id)}" data-rel-from="${escapeXml(rel.from)}" data-rel-to="${escapeXml(rel.to)}">\n`;
   const dashAttr = strokeDash ? ` stroke-dasharray="${strokeDash}"` : '';
   const meAttr   = markerEnd ? ` marker-end="url(#${markerEnd})"` : '';
   const msAttr   = markerStart ? ` marker-start="url(#${markerStart})"` : '';
@@ -178,7 +178,10 @@ function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): str
   const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
   if (rel.label) {
     s += `    <rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="white" opacity="0.8"/>\n`;
-    s += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#333" font-style="italic">${escapeXml(rel.label)}</text>\n`;
+    s += `    <text data-rel-label="true" x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#333" font-style="italic" style="cursor:pointer">${escapeXml(rel.label)}</text>\n`;
+  } else {
+    // Invisible hit-target for double-click to add a label
+    s += `    <text data-rel-label="true" x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="transparent" style="cursor:pointer">  </text>\n`;
   }
 
   // Multiplicities
