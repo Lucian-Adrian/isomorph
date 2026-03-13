@@ -5,14 +5,17 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type { IOMDiagram } from '../semantics/iom.js';
 import { renderDiagram } from '../renderer/index.js';
+import { IconPointer, IconHand, IconEdge } from './Icons';
+import type { IOMEntity } from '../semantics/iom.js';
 
-export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge';
+export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge';
 
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
   onEntityMove?: (entityName: string, x: number, y: number) => void;
-  onEntityEditRequest?: (entityName: string, currentName: string, currentStereotype: string) => void;
+  onEntityEditRequest?: (entity: IOMEntity) => void;
   onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string) => void;
+  onRelationAddRequest?: (fromEntity: string, toEntity: string) => void;
   onExportSVG?: () => void;
   onDropEntity?: (keyword: string, x: number, y: number) => void;
   availableTools?: CanvasTool[];
@@ -25,16 +28,18 @@ export function DiagramView({
   onRelationEditRequest,
   onExportSVG,
   onDropEntity,
-  availableTools = ['move', 'hand', 'edit-node', 'edit-edge'],
+  onRelationAddRequest,
+  availableTools = ['move', 'hand', 'edit-node', 'edit-edge', 'add-edge'],
 }: DiagramViewProps) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(100);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [activeTool, setActiveTool] = useState<CanvasTool>('move');
+  const [drawingEdge, setDrawingEdge] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
 
   const dragRef = useRef<{
-    mode: 'none' | 'entity' | 'pan';
+    mode: 'none' | 'entity' | 'pan' | 'add-edge';
     pointerId: number;
     startClientX: number;
     startClientY: number;
@@ -93,14 +98,68 @@ export function DiagramView({
     svgEl.style.webkitUserSelect = 'none';
   }, [diagram]);
 
+  const lastClickRef = useRef<number>(0);
+
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!diagram || !canvasRef.current || e.button !== 0) return;
     const target = e.target as Element;
+
+    const now = Date.now();
+    if (now - lastClickRef.current < 300) {
+      lastClickRef.current = 0;
+      // It's a double click!
+      const relationGroup = target.closest('g[data-relation-id]') as SVGGElement | null;
+      if (relationGroup && onRelationEditRequest && availableTools.includes('edit-edge')) {
+        const relationId = relationGroup.getAttribute('data-relation-id');
+        const relationKind = relationGroup.getAttribute('data-relation-kind') ?? 'association';
+        const relationLabel = relationGroup.getAttribute('data-relation-label') ?? '';
+        if (relationId) {
+          onRelationEditRequest(relationId, relationLabel, relationKind);
+          return;
+        }
+      }
+
+      const entityGroup = target.closest('g[data-entity-name]') as SVGGElement | null;
+      if (entityGroup && onEntityEditRequest && availableTools.includes('edit-node')) {
+        const entityName = entityGroup.getAttribute('data-entity-name');
+        if (entityName) {
+          const current = diagram.entities.get(entityName);
+          if (current) onEntityEditRequest(current);
+          return;
+        }
+      }
+      return;
+    }
+    lastClickRef.current = now;
+
     const entityGroup = target.closest('g[data-entity-name]') as SVGGElement | null;
     const canMoveEntity = availableTools.includes('move') || availableTools.includes('hand');
     const shouldPan = true; // Always allow pan if missed entity
 
-    if (entityGroup && canMoveEntity) {
+    if (entityGroup && activeTool === 'add-edge') {
+      const entityName = entityGroup.getAttribute('data-entity-name') ?? undefined;
+      if (!entityName) return;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const scale = zoom / 100;
+      const x = (e.clientX - rect.left - pan.x) / scale;
+      const y = (e.clientY - rect.top - pan.y) / scale;
+      dragRef.current = {
+        mode: 'add-edge',
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        entityName,
+        entityOrigX: x,
+        entityOrigY: y,
+      };
+      setDrawingEdge({ x1: x, y1: y, x2: x, y2: y });
+      canvasRef.current?.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+
+    if (entityGroup && canMoveEntity && activeTool !== 'add-edge') {
       const entityName = entityGroup.getAttribute('data-entity-name') ?? undefined;
       if (!entityName) return;
       const tf = entityGroup.getAttribute('transform') ?? '';
@@ -147,6 +206,16 @@ export function DiagramView({
       return;
     }
 
+    if (drag.mode === 'add-edge' && drag.entityOrigX != null && drag.entityOrigY != null) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const scale = zoom / 100;
+      const x2 = (e.clientX - rect.left - pan.x) / scale;
+      const y2 = (e.clientY - rect.top - pan.y) / scale;
+      setDrawingEdge(prev => prev ? { ...prev, x2, y2 } : null);
+      return;
+    }
+
     if (drag.mode === 'entity' && drag.entityGroup && drag.entityOrigX != null && drag.entityOrigY != null) {
       const scale = zoom / 100;
       const dx = (e.clientX - drag.startClientX) / scale;
@@ -158,6 +227,18 @@ export function DiagramView({
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (drag.mode === 'none' || drag.pointerId !== e.pointerId) return;
+
+    if (drag.mode === 'add-edge') {
+      setDrawingEdge(null);
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      const targetEntityGroup = target?.closest('g[data-entity-name]');
+      const toEntityName = targetEntityGroup?.getAttribute('data-entity-name');
+      if (drag.entityName && toEntityName && drag.entityName !== toEntityName) {
+        if (onRelationAddRequest) {
+          onRelationAddRequest(drag.entityName, toEntityName);
+        }
+      }
+    }
 
     if (drag.mode === 'entity' && drag.entityGroup && drag.entityName && onEntityMove) {
       const tf = drag.entityGroup.getAttribute('transform') ?? '';
@@ -172,31 +253,6 @@ export function DiagramView({
     }
     dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
   }, [onEntityMove]);
-
-  const handleDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!diagram) return;
-    const target = e.target as Element;
-
-    const relationGroup = target.closest('g[data-relation-id]') as SVGGElement | null;
-    if (relationGroup && onRelationEditRequest && availableTools.includes('edit-edge')) {
-      const relationId = relationGroup.getAttribute('data-relation-id');
-      const relationKind = relationGroup.getAttribute('data-relation-kind') ?? 'association';
-      const relationLabel = relationGroup.getAttribute('data-relation-label') ?? '';
-      if (!relationId) return;
-
-      onRelationEditRequest(relationId, relationLabel, relationKind);
-      return;
-    }
-
-    const entityGroup = target.closest('g[data-entity-name]') as SVGGElement | null;
-    if (entityGroup && onEntityEditRequest && availableTools.includes('edit-node')) {
-      const entityName = entityGroup.getAttribute('data-entity-name');
-      if (!entityName) return;
-      const current = diagram.entities.get(entityName);
-      
-      onEntityEditRequest(entityName, current?.name ?? entityName, current?.stereotype ?? '');
-    }
-  }, [diagram, onEntityEditRequest, onRelationEditRequest, availableTools]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -232,7 +288,7 @@ export function DiagramView({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        onDoubleClick={handleDoubleClick}        onDragOver={e => e.preventDefault()}
+        onDragOver={e => e.preventDefault()}
         onDrop={e => {
           e.preventDefault();
           const keyword = e.dataTransfer.getData('text/plain');
@@ -252,6 +308,32 @@ export function DiagramView({
             transition: 'transform 150ms cubic-bezier(0.16,1,0.3,1)',
           }}
         />
+        {drawingEdge && (
+          <svg style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100}}>
+            <g style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})`, transformOrigin: 'top left' }}>
+              <line x1={drawingEdge.x1} y1={drawingEdge.y1} x2={drawingEdge.x2} y2={drawingEdge.y2} stroke="var(--accent-color, #2563eb)" strokeWidth="3" strokeDasharray="5,5" />
+            </g>
+          </svg>
+        )}
+      </div>
+
+      {/* Tools Array */}
+      <div className="iso-canvas-tools" style={{ position: 'absolute', left: 16, top: 16, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 10 }}>
+        {availableTools.includes('move') && (
+          <button className={`iso-canvas-btn ${activeTool === 'move' ? 'active' : ''}`} onClick={() => setActiveTool('move')} title="Select / Move">
+            <IconPointer />
+          </button>
+        )}
+        {availableTools.includes('hand') && (
+          <button className={`iso-canvas-btn ${activeTool === 'hand' ? 'active' : ''}`} onClick={() => setActiveTool('hand')} title="Pan Canvas">
+            <IconHand />
+          </button>
+        )}
+        {availableTools.includes('add-edge') && (
+          <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'active' : ''}`} onClick={() => setActiveTool('add-edge')} title="Draw Edge">
+            <IconEdge />
+          </button>
+        )}
       </div>
 
       {/* Zoom controls */}

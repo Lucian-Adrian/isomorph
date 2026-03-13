@@ -22,7 +22,7 @@ import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
 import { exportSVG, exportPNG } from './utils/exporter.js';
 import { EXAMPLES } from './data/examples.js';
-import type { IOMDiagram } from './semantics/iom.js';
+import type { IOMDiagram, IOMEntity } from './semantics/iom.js';
 import type { ParseError } from './parser/index.js';
 
 type DiagramKind = IOMDiagram['kind'];
@@ -74,8 +74,8 @@ function templateFor(kind: DiagramKind): string {
 
 function toolsetFor(kind?: DiagramKind): CanvasTool[] {
   if (!kind) return ['move', 'hand'];
-  if (kind === 'sequence' || kind === 'flow') return ['hand'];
-  return ['move', 'hand', 'edit-node', 'edit-edge'];
+  if (kind === 'flow') return ['hand'];
+  return ['move', 'hand', 'add-edge', 'edit-node', 'edit-edge'];
 }
 
 function getStencilsForKind(kind?: DiagramKind) {
@@ -130,15 +130,28 @@ function updateEntityPosition(source: string, name: string, x: number, y: number
   return lastBrace < 0 ? source : source.slice(0, lastBrace) + `  ${newAnnotation}\n` + source.slice(lastBrace);
 }
 
+function changeDiagramKind(source: string, diagramName: string, newKind: string): string {
+  const rx = new RegExp(`(diagram\\s+${escapeRegex(diagramName)}\\s*:\\s*)[a-zA-Z]+\\b`);
+  return source.replace(rx, `$1${newKind}`);
+}
+
 function updateEntityDeclaration(
   source: string,
   entityName: string,
-  updates: { name?: string; stereotype?: string },
+  updates: { name?: string; stereotype?: string; isAbstract?: boolean },
 ): string {
   const entityLine = new RegExp(`(^\\s*(?:abstract\\s+|static\\s+|final\\s+)*(?:class|interface|enum|actor|usecase|component|node)\\s+)${escapeRegex(entityName)}(\\b[^\\n]*)`, 'm');
   let next = source;
 
   next = next.replace(entityLine, (_match, prefix: string, rest: string) => {
+    let newPrefix = prefix;
+    if (updates.isAbstract !== undefined) {
+      if (updates.isAbstract && !/abstract\s+/.test(newPrefix)) {
+        newPrefix = newPrefix.replace(/^(\s*)/, '$1abstract ');
+      } else if (!updates.isAbstract) {
+        newPrefix = newPrefix.replace(/abstract\s+/, '');
+      }
+    }
     const hasStereo = /<<[^>]+>>/.test(rest);
     let nextRest = rest;
     if (updates.stereotype !== undefined) {
@@ -152,7 +165,7 @@ function updateEntityDeclaration(
         nextRest = nextRest.replace(/\s*<<[^>]+>>/, '');
       }
     }
-    return `${prefix}${updates.name || entityName}${nextRest}`;
+    return `${newPrefix}${updates.name || entityName}${nextRest}`;
   });
 
   if (updates.name && updates.name !== entityName) {
@@ -218,7 +231,7 @@ export default function App() {
   const [newDiagramKind, setNewDiagramKind] = useState<DiagramKind>('class');
   const [examplesOpen, setExamplesOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
-  const [editingEntity, setEditingEntity]   = useState<{ entityName: string, name: string, stereotype: string } | null>(null);
+  const [editingEntity, setEditingEntity]   = useState<IOMEntity | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse' } | null>(null);
   const examplesRef                         = useRef<HTMLDivElement>(null);
   const fileInputRef                        = useRef<HTMLInputElement>(null);
@@ -287,15 +300,25 @@ export default function App() {
     }));
   }, [updateActiveTab]);
 
-  const handleEntityEditRequest = useCallback((entityName: string, name: string, stereotype: string) => {
-    setEditingEntity({ entityName, name, stereotype });
+  const handleEntityEditRequest = useCallback((entity: IOMEntity) => {
+    setEditingEntity(entity);
   }, []);
 
   const handleRelationEditRequest = useCallback((relationId: string, label: string, kind: string) => {
     setEditingRelation({ relationId, label, kind, direction: 'forward' });
   }, []);
 
-  const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string }) => {
+  const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string) => {
+    updateActiveTab(tab => {
+      const source = tab.source;
+      const lastBrace = source.lastIndexOf('}');
+      if (lastBrace < 0) return tab;
+      const newSource = source.slice(0, lastBrace) + `  ${fromEntity} --> ${toEntity}\n` + source.slice(lastBrace);
+      return { ...tab, source: newSource };
+    });
+  }, [updateActiveTab]);
+
+  const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean }) => {
     updateActiveTab(tab => ({
       ...tab,
       source: updateEntityDeclaration(tab.source, entityName, updates),
@@ -518,31 +541,23 @@ export default function App() {
 
         <select
           className="iso-select"
-          value={newDiagramKind}
-          onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}
-          aria-label="Template type for new tab"
-          title="New tab diagram type"
-        >
-          {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-            <option key={k} value={k}>{k}</option>
-          ))}
-        </select>
-
-        <select
-          className="iso-select"
-          value={activeTab?.diagramKindFilter ?? 'all'}
-          onChange={e => {
-            const next = e.target.value as 'all' | DiagramKind;
-            updateActiveTab(tab => ({ ...tab, diagramKindFilter: next, activeDiagramIdx: 0 }));
-          }}
-          aria-label="Diagram kind filter"
-          title="Filter diagrams by type"
-        >
-          {DIAGRAM_KINDS.map(k => (
-            <option key={k} value={k}>{k === 'all' ? 'all types' : k}</option>
-          ))}
-        </select>
-
+            value={activeDiagram?.kind ?? 'class'}
+            onChange={e => {
+              const next = e.target.value as DiagramKind;
+              if (activeDiagram) {
+                updateActiveTab(tab => ({
+                  ...tab,
+                  source: changeDiagramKind(tab.source, activeDiagram.name, next)
+                }));
+              }
+            }}
+            aria-label="Change Active Diagram Type"
+            title="Change active diagram type"
+            disabled={!activeDiagram}
+          >
+            {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+              <option key={k} value={k}>{k}</option>              ))}
+            </select>
         {/* Action: New */}
         <button type="button" className="iso-btn" onClick={handleNew} aria-label="New diagram (Ctrl+N)" data-tooltip="New (Ctrl+N)">
           <IconNew />
@@ -744,6 +759,7 @@ export default function App() {
                   onEntityMove={handleEntityMove}
                   onEntityEditRequest={handleEntityEditRequest}
                   onRelationEditRequest={handleRelationEditRequest}
+                  onRelationAddRequest={handleRelationAddRequest}
                   onExportSVG={handleExportSVG}
                   onDropEntity={handleDropEntity}
                   availableTools={toolsetFor(activeDiagram?.kind)}
@@ -763,12 +779,22 @@ export default function App() {
               <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus />
             </div>
             <div className="iso-modal-field">
+              <label>Kind</label>
+              <span style={{ padding: '0.4rem', border: '1px solid transparent' }}>{editingEntity.kind}</span>
+            </div>
+            <div className="iso-modal-field">
               <label>Stereotype</label>
               <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder="e.g. device" />
             </div>
+            <div className="iso-modal-field">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input type="checkbox" checked={editingEntity.isAbstract} onChange={e => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })} />
+                Abstract
+              </label>
+            </div>
             <div className="iso-modal-actions">
               <button className="iso-btn" onClick={() => setEditingEntity(null)}>Cancel</button>
-              <button className="iso-btn iso-btn--primary" onClick={() => handleEntityEdit(editingEntity.entityName, { name: editingEntity.name, stereotype: editingEntity.stereotype })}>Save</button>
+              <button className="iso-btn iso-btn--primary" onClick={() => handleEntityEdit(editingEntity.id, { name: editingEntity.name, stereotype: editingEntity.stereotype, isAbstract: editingEntity.isAbstract })}>Save</button>
             </div>
           </div>
         </div>

@@ -83,6 +83,7 @@ function renderComponent(p: Placed): string {
 
 function renderNode(p: Placed): string {
   const { entity, x, y } = p;
+  const label = entity.stereotype ? `«${entity.stereotype}»` : '«node»';
   const w = BOX_W, h = NODE_H, d = DEPTH;
   let s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(entity.name)}">\n`;
   // 3-D box top face
@@ -91,7 +92,7 @@ function renderNode(p: Placed): string {
   s += `    <polygon points="${w},${d} ${w + d},0 ${w + d},${h} ${w},${h + d}" fill="#e2e8f0" stroke="#475569" stroke-width="1.2"/>\n`;
   // Front face
   s += `    <rect x="0" y="${d}" width="${w}" height="${h}" rx="0" fill="white" stroke="#475569" stroke-width="1.2" filter="url(#shadow)"/>\n`;
-  s += `    <text x="${w / 2}" y="${d + 16}" text-anchor="middle" font-size="10" fill="#64748b" font-style="italic">«node»</text>\n`;
+  s += `    <text x="${w / 2}" y="${d + 16}" text-anchor="middle" font-size="10" fill="#64748b" font-style="italic">${escapeXml(label)}</text>\n`;
   s += `    <text x="${w / 2}" y="${d + 35}" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">${escapeXml(entity.name)}</text>\n`;
   s += `  </g>\n`;
   return s;
