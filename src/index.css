@@ -5,6 +5,7 @@
 
 /* ── CSS Custom Properties ─────────────────────────────────── */
 :root {
+  color-scheme: dark;
   /* Brand */
   --iso-brand:         #818cf8;
   --iso-brand-dark:    #6366f1;
@@ -250,6 +251,27 @@ body {
   background: var(--iso-bg-active);
   color: var(--iso-brand);
   border-color: var(--iso-brand-dark);
+}
+
+.iso-select {
+  min-height: 28px;
+  border: 1px solid var(--iso-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--iso-text);
+  border-radius: var(--iso-radius);
+  padding: 0 8px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.iso-select option {
+  background: #1e1e24; /* or var(--iso-bg) if supported */
+  color: #fff;
+}
+
+.iso-select:focus-visible {
+  outline: 2px solid var(--iso-brand);
+  outline-offset: 2px;
 }
 
 /* ── Diagram Tab Pills ──────────────────────────────────────── */
@@ -504,6 +526,10 @@ body {
   background: #f6f8fa;
   color: #24292f;
 }
+.iso-canvas-btn--active {
+  background: #dde7ff;
+  color: #1f3f9b;
+}
 .iso-canvas-btn:focus-visible {
   outline: 2px solid #0550ae;
   outline-offset: 2px;
@@ -745,184 +771,55 @@ body {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── Entity Toolbox ─────────────────────────────────────────── */
-.iso-toolbox {
+
+/* ── Modals ──────────────────────────────────────────────── */
+.iso-modal-overlay {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  z-index: 50;
-  background: white;
-  border: 1px solid #d0d7de;
-  border-radius: 10px;
-  padding: 6px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.iso-modal {
+  background: var(--iso-bg-app);
+  border: 1px solid var(--iso-border);
+  padding: 24px;
+  border-radius: 8px;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 130px;
-  max-height: calc(100% - 60px);
-  overflow-y: auto;
-  transition: width 150ms ease, min-width 150ms ease;
+  gap: 16px;
+  color: var(--iso-text);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
-
-.iso-toolbox--collapsed {
-  min-width: 0;
-  width: 32px;
-  padding: 6px 4px;
-  align-items: center;
+.iso-modal h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
 }
-
-.iso-toolbox-toggle {
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #57606a;
-  font-size: 10px;
+.iso-modal-field {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 120ms;
+  flex-direction: column;
+  gap: 6px;
 }
-.iso-toolbox-toggle:hover {
-  background: #f6f8fa;
-  color: #24292f;
+.iso-modal-field label {
+  font-size: 12px;
+  color: var(--iso-text-muted);
 }
-
-.iso-toolbox-section-title {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: #8b949e;
-  padding: 4px 8px 2px;
-  user-select: none;
+.iso-modal-field input {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--iso-text);
+  border: 1px solid var(--iso-border);
+  border-radius: var(--iso-radius);
+  padding: 8px;
+  font-family: inherit;
+  font-size: 14px;
 }
-
-.iso-toolbox-btn {
+.iso-modal-actions {
   display: flex;
-  align-items: center;
   gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  cursor: pointer;
-  font-size: 12px;
-  font-family: inherit;
-  color: #24292f;
-  transition: all 120ms;
-  touch-action: manipulation;
-  white-space: nowrap;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
-.iso-toolbox-btn:hover {
-  background: #f6f8fa;
-  border-color: #d0d7de;
-}
-.iso-toolbox-btn--active {
-  background: #dbeafe;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-}
-.iso-toolbox-btn--small {
-  padding: 3px 8px;
-}
-
-.iso-toolbox-icon {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 700;
-  background: #f0f2f5;
-  color: #57606a;
-  flex-shrink: 0;
-}
-.iso-toolbox-btn--active .iso-toolbox-icon {
-  background: #bfdbfe;
-  color: #1d4ed8;
-}
-
-.iso-toolbox-label {
-  flex: 1;
-}
-
-.iso-toolbox-sep {
-  height: 1px;
-  background: #d0d7de;
-  margin: 4px 6px;
-}
-
-.iso-toolbox-hint {
-  font-size: 10px;
-  color: #57606a;
-  padding: 6px 8px;
-  background: #f6f8fa;
-  border-radius: 6px;
-  margin-top: 2px;
-  line-height: 1.5;
-}
-.iso-toolbox-hint--active {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-.iso-toolbox-hint small {
-  color: #8b949e;
-}
-
-/* ── Arrow Type Picker ──────────────────────────────────────── */
-.iso-arrow-picker {
-  position: absolute;
-  left: calc(100% + 4px);
-  top: 0;
-  background: white;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
-  padding: 4px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-  z-index: 60;
-  min-width: 160px;
-  animation: fade-in 100ms ease;
-}
-
-.iso-arrow-picker-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 5px;
-  background: transparent;
-  cursor: pointer;
-  font-size: 12px;
-  font-family: inherit;
-  color: #24292f;
-  width: 100%;
-  text-align: left;
-  transition: background 100ms;
-}
-.iso-arrow-picker-item:hover {
-  background: #f6f8fa;
-}
-.iso-arrow-picker-item--active {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-.iso-arrow-picker-item code {
-  font-family: 'SF Mono', 'Cascadia Code', monospace;
-  font-size: 11px;
-  background: #f0f2f5;
-  padding: 1px 5px;
-  border-radius: 3px;
-  min-width: 40px;
-  text-align: center;
-}
-.iso-arrow-picker-item--active code {
-  background: #bfdbfe;
-}
-

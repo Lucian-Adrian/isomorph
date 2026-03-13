@@ -41,11 +41,13 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     if (!f || !t) continue;
     const strokeDash = rel.kind === 'dependency' ? '6,3' : '';
     const dashAttr = strokeDash ? ` stroke-dasharray="${strokeDash}"` : '';
-    svg += `  <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="#64748b" stroke-width="1.5"${dashAttr}/>\n`;
+    const safeLabel = rel.label ? escapeXml(rel.label) : '';
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;      svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;    svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="#64748b" stroke-width="1.5"${dashAttr}/>\n`;
     if (rel.label) {
       const mx = (f.p.x + t.p.x) / 2, my = (f.p.y + t.p.y) / 2 - 6;
-      svg += `  <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#475569">«${escapeXml(rel.label)}»</text>\n`;
+      svg += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#475569">«${safeLabel}»</text>\n`;
     }
+    svg += `  </g>\n`;
   }
 
   // Draw actors (stick figures) — data-entity-name enables drag-to-reposition

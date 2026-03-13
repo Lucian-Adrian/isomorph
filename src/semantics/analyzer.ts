@@ -19,7 +19,6 @@ export interface SemanticError {
   rule: string;   // e.g. 'SS-1'
   line?: number;  // source line from AST span (1-based)
   col?: number;   // source column from AST span (1-based)
-  severity?: 'error' | 'warning';
 }
 
 export interface AnalysisResult {
@@ -162,11 +161,11 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     }
   }
 
-  // SS-7: Style target must reference a declared entity (warning — not fatal)
+  // SS-7: Style target must reference a declared entity
   function checkStyleTargets(items: BodyItem[]) {
     for (const item of items) {
       if (item.kind === 'StyleDecl' && !entities.has(item.target)) {
-        errors.push({ message: `Style references unknown entity '${item.target}'`, rule: 'SS-7', line: item.span.line, col: item.span.col, severity: 'warning' });
+        errors.push({ message: `Style references unknown entity '${item.target}'`, rule: 'SS-7', line: item.span.line, col: item.span.col });
       }
       if (item.kind === 'PackageDecl') checkStyleTargets(item.body);
     }
@@ -211,11 +210,11 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     }
   }
 
-  // SS-10: Layout annotation must reference a declared entity (warning — not fatal)
+  // SS-10: Layout annotation must reference a declared entity
   function checkLayoutTargets(items: BodyItem[]) {
     for (const item of items) {
       if (item.kind === 'LayoutAnnotation' && !entities.has(item.entity)) {
-        errors.push({ message: `Layout annotation references unknown entity '${item.entity}'`, rule: 'SS-10', line: item.span.line, col: item.span.col, severity: 'warning' });
+        errors.push({ message: `Layout annotation references unknown entity '${item.entity}'`, rule: 'SS-10', line: item.span.line, col: item.span.col });
       }
       if (item.kind === 'PackageDecl') checkLayoutTargets(item.body);
     }

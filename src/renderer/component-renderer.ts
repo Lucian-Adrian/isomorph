@@ -44,7 +44,14 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
     const x1 = f.x + BOX_W / 2, y1 = f.y + COMP_H / 2;
     const x2 = t.x + BOX_W / 2, y2 = t.y + COMP_H / 2;
     const dash = rel.kind === 'dependency' ? ' stroke-dasharray="6,3"' : '';
-    svg += `  <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#64748b" stroke-width="1.5"${dash}/>\n`;
+    const safeLabel = rel.label ? escapeXml(rel.label) : '';
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;      svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#64748b" stroke-width="1.5"${dash}/>`;
+    if (rel.label) {
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2 - 6;
+      svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#475569" font-style="italic">${safeLabel}</text>`;
+    }
+    svg += `</g>\n`;
   }
 
   // Entities
