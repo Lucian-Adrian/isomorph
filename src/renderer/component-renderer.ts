@@ -56,9 +56,14 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
 
   // Entities
   for (const p of placed) {
-    svg += p.entity.kind === 'node'
-      ? renderNode(p)
-      : renderComponent(p);
+    const k = p.entity.kind;
+    if (k === 'node' || k === 'device' || k === 'environment') {
+      svg += renderNode(p);
+    } else if (k === 'artifact') {
+      svg += renderArtifact(p);
+    } else {
+      svg += renderComponent(p);
+    }
   }
 
   svg += `</svg>`;
@@ -77,13 +82,52 @@ function renderComponent(p: Placed): string {
   s += `    <rect x="${ix - 4}" y="${iy + 5}" width="5" height="2" rx="0.5" fill="#94a3b8"/>\n`;
   s += `    <text x="${BOX_W / 2}" y="14" text-anchor="middle" font-size="10" fill="#64748b" font-style="italic">${escapeXml(label)}</text>\n`;
   s += `    <text x="${BOX_W / 2}" y="33" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">${escapeXml(entity.name)}</text>\n`;
+  // Draw ports
+  const provided = entity.fields.filter(f => f.type === 'provided');
+  const required = entity.fields.filter(f => f.type === 'required');
+  const ports = entity.fields.filter(f => f.type === 'port');
+  
+  provided.forEach((f, i) => {
+    const py = 12 + i * 20;
+    s += `    <line x1="${BOX_W}" y1="${py}" x2="${BOX_W + 15}" y2="${py}" stroke="#64748b" stroke-width="1.5"/>\n`;
+    s += `    <circle cx="${BOX_W + 20}" cy="${py}" r="5" fill="white" stroke="#64748b" stroke-width="1.5"/>\n`;
+    s += `    <text x="${BOX_W + 28}" y="${py + 3}" font-size="10" fill="#475569">${escapeXml(f.name)}</text>\n`;
+  });
+  
+  required.forEach((f, i) => {
+    const py = 12 + i * 20;
+    s += `    <line x1="0" y1="${py}" x2="-15" y2="${py}" stroke="#64748b" stroke-width="1.5"/>\n`;
+    s += `    <path d="M -20 ${py - 5} A 5 5 0 0 0 -20 ${py + 5}" fill="none" stroke="#64748b" stroke-width="1.5"/>\n`;
+    s += `    <text x="-24" y="${py + 3}" text-anchor="end" font-size="10" fill="#475569">${escapeXml(f.name)}</text>\n`;
+  });
+  
+  ports.forEach((f, i) => {
+    const px = 20 + i * 20;
+    s += `    <rect x="${px - 4}" y="${COMP_H - 4}" width="8" height="8" fill="white" stroke="#64748b" stroke-width="1.5"/>\n`;
+    s += `    <text x="${px}" y="${COMP_H + 14}" text-anchor="middle" font-size="10" fill="#475569">${escapeXml(f.name)}</text>\n`;
+  });
+
+  s += `  </g>\n`;
+  return s;
+}
+
+function renderArtifact(p: Placed): string {
+  const { entity, x, y } = p;
+  const label = entity.stereotype ? `«${entity.stereotype}»` : '«artifact»';
+  let s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(entity.name)}">\n`;
+  s += `    <path d="M 0 0 L ${BOX_W - 12} 0 L ${BOX_W} 12 L ${BOX_W} ${COMP_H} L 0 ${COMP_H} Z" fill="white" stroke="#64748b" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+  s += `    <polyline points="${BOX_W - 12} 0, ${BOX_W - 12} 12, ${BOX_W} 12" fill="none" stroke="#64748b" stroke-width="1.5"/>\n`;
+  // Icon outline
+  s += `    <text x="${BOX_W / 2}" y="18" text-anchor="middle" font-size="10" fill="#64748b" font-style="italic">${escapeXml(label)}</text>\n`;
+  s += `    <text x="${BOX_W / 2}" y="36" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">${escapeXml(entity.name)}</text>\n`;
   s += `  </g>\n`;
   return s;
 }
 
 function renderNode(p: Placed): string {
   const { entity, x, y } = p;
-  const label = entity.stereotype ? `«${entity.stereotype}»` : '«node»';
+  const defaultLabel = entity.kind === 'device' ? '«device»' : entity.kind === 'environment' ? '«execution environment»' : '«node»';
+  const label = entity.stereotype ? `«${entity.stereotype}»` : defaultLabel;
   const w = BOX_W, h = NODE_H, d = DEPTH;
   let s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(entity.name)}">\n`;
   // 3-D box top face
@@ -134,7 +178,8 @@ function placeEntities(entities: IOMEntity[]): Placed[] {
   let maxRowH = 0;
 
   for (const entity of entities) {
-    const h = entity.kind === 'node' ? NODE_H + DEPTH : COMP_H;
+    const k = entity.kind;
+    const h = (k === 'node' || k === 'device' || k === 'environment') ? NODE_H + DEPTH : COMP_H;
     const pos = entity.position
       ? { x: entity.position.x, y: entity.position.y }
       : { x: curX, y: curY };

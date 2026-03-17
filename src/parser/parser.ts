@@ -132,6 +132,7 @@ export class Parser {
     const kinds: Record<string, DiagramKind> = {
       class: 'class', usecase: 'usecase', sequence: 'sequence',
       component: 'component', flow: 'flow', deployment: 'deployment',
+      activity: 'activity', state: 'state', collaboration: 'collaboration',
     };
     const kind = kinds[t.value];
     if (kind) { this.advance(); return kind; }
@@ -181,7 +182,13 @@ export class Parser {
   private isEntityStart(): boolean {
     const k = this.peek().kind;
     if (k === 'abstract' || k === 'static' || k === 'final') return true;
-    return ['class', 'interface', 'enum', 'actor', 'usecase', 'component', 'node'].includes(k);
+    return [
+      'class', 'interface', 'enum', 'actor', 'usecase', 'component', 'node', 'participant',
+      'partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action',
+      'state', 'composite', 'concurrent', 'choice', 'history',
+      'device', 'artifact', 'environment',
+      'boundary', 'system', 'multiobject', 'active_object', 'collaboration', 'composite_object'
+    ].includes(k);
   }
 
   private isRelationOperator(k: TokenKind): boolean {
@@ -278,6 +285,11 @@ export class Parser {
   private parseMember(entityKind: EntityKind): Member | null {
     // Separator line (just a semicolon)
     if (this.at('SEMI')) { this.advance(); return null; }
+
+    // Nested Entities
+    if (this.isEntityStart()) {
+      return this.parseEntityDecl();
+    }
 
     // Enum values have no visibility/type prefix
     if (entityKind === 'enum' && this.at('IDENT') && !this.isVisibility(this.peek().kind)) {

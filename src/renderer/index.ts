@@ -3,11 +3,15 @@ import { renderClassDiagram } from './class-renderer.js';
 import { renderUseCaseDiagram } from './usecase-renderer.js';
 import { renderComponentDiagram, renderPlaceholderDiagram } from './component-renderer.js';
 import { renderSequenceDiagram } from './sequence-renderer.js';
+import { renderStateOrActivityDiagram } from './state-renderer.js';
+import { renderCollaborationDiagram } from './collaboration-renderer.js';
 
 export { renderClassDiagram } from './class-renderer.js';
 export { renderUseCaseDiagram } from './usecase-renderer.js';
 export { renderComponentDiagram, renderPlaceholderDiagram } from './component-renderer.js';
 export { renderSequenceDiagram } from './sequence-renderer.js';
+export { renderStateOrActivityDiagram } from './state-renderer.js';
+export { renderCollaborationDiagram } from './collaboration-renderer.js';
 
 /**
  * Render any IOMDiagram to an SVG string.
@@ -20,6 +24,9 @@ export function renderDiagram(diag: IOMDiagram): string {
     case 'component':
     case 'deployment': return renderComponentDiagram(diag);
     case 'sequence':   return renderSequenceDiagram(diag);
+    case 'activity':
+    case 'state':      return renderStateOrActivityDiagram(diag);
+    case 'collaboration': return renderCollaborationDiagram(diag);
     case 'flow':       return renderPlaceholderDiagram(diag);
   }
 }

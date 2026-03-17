@@ -26,7 +26,10 @@ export type DiagramKind =
   | 'sequence'
   | 'component'
   | 'flow'
-  | 'deployment';
+  | 'deployment'
+  | 'activity'
+  | 'state'
+  | 'collaboration';
 
 export interface DiagramDecl {
   kind: 'DiagramDecl';
@@ -62,7 +65,12 @@ export type EntityKind =
   | 'actor'
   | 'usecase'
   | 'component'
-  | 'node';
+  | 'node'
+  | 'participant'
+  | 'partition' | 'decision' | 'merge' | 'fork' | 'join' | 'start' | 'stop' | 'action'
+  | 'state' | 'composite' | 'concurrent' | 'choice' | 'history'
+  | 'device' | 'artifact' | 'environment'
+  | 'boundary' | 'system' | 'multiobject' | 'active_object' | 'collaboration' | 'composite_object' | 'object';
 
 export type Modifier = 'abstract' | 'static' | 'final';
 export type Visibility = '+' | '-' | '#' | '~' | '';
@@ -81,7 +89,7 @@ export interface EntityDecl {
 
 // ─── Members ─────────────────────────────────────────────────
 
-export type Member = FieldDecl | MethodDecl | EnumValueDecl;
+export type Member = FieldDecl | MethodDecl | EnumValueDecl | EntityDecl;
 
 export interface FieldDecl {
   kind: 'FieldDecl';

@@ -15,6 +15,11 @@ export type TokenKind =
   | 'at'       | 'static'   | 'final'    | 'void'
   | 'for'      | 'actor'    | 'usecase'  | 'component'
   | 'node'     | 'sequence' | 'flow'     | 'deployment'
+  | 'participant' | 'partition' | 'decision' | 'merge' | 'fork' | 'join'
+  | 'start' | 'stop' | 'action' | 'state' | 'composite' | 'concurrent'
+  | 'choice' | 'history' | 'device' | 'artifact' | 'environment'
+  | 'boundary' | 'system' | 'multiobject' | 'active_object' | 'collaboration'
+  | 'composite_object' | 'activity' | 'object'
   | 'list'     | 'map'      | 'set'      | 'optional'
   | 'int'      | 'float'    | 'bool'     | 'string_t'
   | 'true'      | 'false'
@@ -48,7 +53,11 @@ const KEYWORDS = new Set<string>([
   'note','style','on','extends','implements','at','static','final',
   'void','for','actor','usecase','component','node','sequence',
   'flow','deployment','list','map','set','optional','int','float',
-  'bool','string','true','false',
+  'bool','string','true','false','participant',
+  'partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action',
+  'state', 'composite', 'concurrent', 'choice', 'history', 'device', 'artifact',
+  'environment', 'boundary', 'system', 'multiobject', 'active_object',
+  'collaboration', 'composite_object', 'activity', 'object'
 ]);
 
 const KEYWORD_MAP: Record<string, TokenKind> = {

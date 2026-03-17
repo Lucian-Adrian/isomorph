@@ -19,6 +19,8 @@ interface DiagramViewProps {
   onExportSVG?: () => void;
   onDropEntity?: (keyword: string, x: number, y: number) => void;
   availableTools?: CanvasTool[];
+  selectedItems?: { type: 'entity' | 'relation', id: string }[];
+  onSelectionChange?: (selection: { type: 'entity' | 'relation', id: string }[]) => void;
 }
 
 export function DiagramView({
@@ -30,6 +32,8 @@ export function DiagramView({
   onDropEntity,
   onRelationAddRequest,
   availableTools = ['move', 'hand', 'edit-node', 'edit-edge', 'add-edge'],
+  selectedItems = [],
+  onSelectionChange,
 }: DiagramViewProps) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -98,6 +102,56 @@ export function DiagramView({
     svgEl.style.webkitUserSelect = 'none';
   }, [diagram]);
 
+  // Apply selection outlines separately to preserve DOM during drag
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const svgEl = el.querySelector('svg');
+    if (!svgEl) return;
+
+    // First clear any previous outlines
+    const previouslySelected = svgEl.querySelectorAll('[data-orig-stroke]');
+    previouslySelected.forEach(node => {
+      const origStroke = node.getAttribute('data-orig-stroke');
+      const origStrokeWidth = node.getAttribute('data-orig-stroke-width');
+      if (origStroke !== null) node.setAttribute('stroke', origStroke);
+      if (origStrokeWidth !== null) node.setAttribute('stroke-width', origStrokeWidth);
+      node.removeAttribute('stroke-dasharray');
+      node.removeAttribute('data-orig-stroke');
+      node.removeAttribute('data-orig-stroke-width');
+    });
+
+    // Apply new selection outlines
+    try {
+      selectedItems.forEach(item => {
+        let node;
+        if (item.type === 'entity') {
+          node = svgEl.querySelector(`g[data-entity-name="${item.id}"]`);
+        } else if (item.type === 'relation') {
+          node = svgEl.querySelector(`g[data-relation-id="${item.id}"]`);
+        }
+
+        if (node) {
+          // Highlight by adding stroke ring
+          const rectOrShape = node.querySelector('rect, circle, polygon, path, ellipse, line');
+          if (rectOrShape && (rectOrShape.tagName !== 'g')) {
+            const orgStroke = rectOrShape.getAttribute('stroke') || '';
+            const orgStrokeWidth = rectOrShape.getAttribute('stroke-width') || '';
+            rectOrShape.setAttribute('stroke', '#3b82f6');
+            rectOrShape.setAttribute('stroke-width', '3');
+            rectOrShape.setAttribute('data-orig-stroke', orgStroke);
+            rectOrShape.setAttribute('data-orig-stroke-width', orgStrokeWidth);
+            // Drop shadow or stroke dash to make it stand out
+            rectOrShape.setAttribute('stroke-dasharray', '4,2');
+          }
+        }
+      });
+    } catch(err) {
+      // ignore
+    }
+
+  }, [diagram, selectedItems]);
+
   const lastClickRef = useRef<number>(0);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
@@ -132,7 +186,34 @@ export function DiagramView({
     }
     lastClickRef.current = now;
 
+    // Handle Selection logic
+    const relationGroup = target.closest('g[data-relation-id]') as SVGGElement | null;
     const entityGroup = target.closest('g[data-entity-name]') as SVGGElement | null;
+
+    if (activeTool === 'move' && onSelectionChange) {
+      if (entityGroup) {
+        const entityName = entityGroup.getAttribute('data-entity-name');
+        if (entityName) {
+          if (e.shiftKey) {
+            onSelectionChange([...selectedItems, { type: 'entity', id: entityName }]);
+          } else {
+            onSelectionChange([{ type: 'entity', id: entityName }]);
+          }
+        }
+      } else if (relationGroup) {
+        const relationId = relationGroup.getAttribute('data-relation-id');
+        if (relationId) {
+          if (e.shiftKey) {
+            onSelectionChange([...selectedItems, { type: 'relation', id: relationId }]);
+          } else {
+            onSelectionChange([{ type: 'relation', id: relationId }]);
+          }
+        }
+      } else {
+        onSelectionChange([]);
+      }
+    }
+
     const canMoveEntity = availableTools.includes('move') || availableTools.includes('hand');
     const shouldPan = true; // Always allow pan if missed entity
 
@@ -142,8 +223,9 @@ export function DiagramView({
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
       const scale = zoom / 100;
-      const x = (e.clientX - rect.left - pan.x) / scale;
-      const y = (e.clientY - rect.top - pan.y) / scale;
+      const wrap = canvasRef.current;
+      const x = (e.clientX - rect.left + (wrap.scrollLeft || 0) - pan.x) / scale;
+      const y = (e.clientY - rect.top + (wrap.scrollTop || 0) - pan.y) / scale;
       dragRef.current = {
         mode: 'add-edge',
         pointerId: e.pointerId,
@@ -193,7 +275,7 @@ export function DiagramView({
       canvasRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
     }
-  }, [diagram, availableTools, activeTool, pan]);
+  }, [diagram, availableTools, activeTool, pan, zoom, selectedItems, onSelectionChange, onRelationEditRequest, onEntityEditRequest]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -208,10 +290,11 @@ export function DiagramView({
 
     if (drag.mode === 'add-edge' && drag.entityOrigX != null && drag.entityOrigY != null) {
       const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      const wrap = canvasRef.current;
+      if (!rect || !wrap) return;
       const scale = zoom / 100;
-      const x2 = (e.clientX - rect.left - pan.x) / scale;
-      const y2 = (e.clientY - rect.top - pan.y) / scale;
+      const x2 = (e.clientX - rect.left + wrap.scrollLeft - pan.x) / scale;
+      const y2 = (e.clientY - rect.top + wrap.scrollTop - pan.y) / scale;
       setDrawingEdge(prev => prev ? { ...prev, x2, y2 } : null);
       return;
     }
@@ -222,7 +305,7 @@ export function DiagramView({
       const dy = (e.clientY - drag.startClientY) / scale;
       drag.entityGroup.setAttribute('transform', `translate(${drag.entityOrigX + dx},${drag.entityOrigY + dy})`);
     }
-  }, [zoom]);
+  }, [zoom, pan]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -252,7 +335,7 @@ export function DiagramView({
       canvasRef.current.releasePointerCapture(e.pointerId);
     }
     dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
-  }, [onEntityMove]);
+  }, [onEntityMove, onRelationAddRequest]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>

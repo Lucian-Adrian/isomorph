@@ -206,4 +206,31 @@ diagram CloudDeploy : deployment {
 }
 `,
   },
+  {
+    label: 'Sequence',
+    kind: 'sequence',
+    source: `// Authentication flow — sequence diagram
+diagram AuthFlow : sequence {
+
+  actor User
+  participant AuthService
+  participant Database
+  participant TokenService
+
+  User --> AuthService [label="login(email, pass)"]
+  AuthService --> Database [label="findUser(email)"]
+  Database ..> AuthService [label="userRecord"]
+  AuthService --> AuthService [label="verifyPassword()"]
+  AuthService --> TokenService [label="generateJWT(userId)"]
+  TokenService ..> AuthService [label="token"]
+  AuthService ..> User [label="{ token, profile }"]
+
+  @User at (80, 60)
+  @AuthService at (260, 60)
+  @Database at (440, 60)
+  @TokenService at (620, 60)
+
+}
+`,
+  },
 ];

@@ -823,3 +823,4 @@ body {
   justify-content: flex-end;
   margin-top: 8px;
 }
+.iso-selected > rect, .iso-selected > circle, .iso-selected > path, .iso-selected > polygon { stroke: #3b82f6 !important; filter: drop-shadow(0px 0px 4px rgba(59, 130, 246, 0.8)) !important; } .iso-selected line { stroke: #3b82f6 !important; stroke-width: 3px !important; }

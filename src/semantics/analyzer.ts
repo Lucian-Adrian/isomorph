@@ -67,6 +67,8 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
           entitySpans.set(item.name, { line: item.span.line, col: item.span.col });
           entities.set(item.name, buildEntity(item, pkgName, errors));
         }
+        const nestedEntities = item.members.filter(m => m.kind === 'EntityDecl') as any;
+        collectItems(nestedEntities, pkgName);
       } else if (item.kind === 'NoteDecl') {
         notes.push({ text: item.text, onEntity: item.on });
         // Attach note text to entity if 'on' is present
@@ -189,10 +191,13 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
   // SS-9: Diagram kind compatibility — certain entity kinds are only valid in specific diagram kinds
   const ALLOWED_KINDS: Record<string, Set<string>> = {
     class:      new Set(['class', 'interface', 'enum']),
-    usecase:    new Set(['actor', 'usecase']),
-    sequence:   new Set(['actor']),
+    usecase:    new Set(['actor', 'usecase', 'boundary', 'system']),
+    sequence:   new Set(['actor', 'participant']),
     component:  new Set(['component']),
-    deployment: new Set(['component', 'node']),
+    deployment: new Set(['component', 'node', 'device', 'artifact', 'environment']),
+    activity:   new Set(['partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action', 'state']),
+    state:      new Set(['state', 'composite', 'concurrent', 'choice', 'history', 'start', 'stop', 'decision']),
+    collaboration: new Set(['multiobject', 'active_object', 'collaboration', 'composite_object', 'actor', 'object'])
     // flow diagrams accept all entity kinds (generic)
   };
   const allowed = ALLOWED_KINDS[diag.diagramKind];
@@ -279,6 +284,25 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
           rule: 'SS-14',
           ...sp,
         });
+      }
+    }
+  }
+
+  // SS-15: Pedagogical Noun/Verb naming conventions heurustic
+  if (diag.diagramKind === 'usecase' || diag.diagramKind === 'collaboration') {
+    for (const [name, entity] of entities) {
+      const sp = entitySpans.get(name);
+      // Rough heuristic: starts with a common verb prefix
+      const startsWithVerb = /^(get|set|is|has|can|do|create|update|delete|process|manage|run|save|load|print|send|receive|calculate|authenticate|borrow|return|reserve)/i.test(name);
+      
+      if (entity.kind === 'actor' || entity.kind === 'object' || entity.kind === 'multiobject' || entity.kind === 'active_object' || entity.kind === 'boundary' || entity.kind === 'system') {
+        if (startsWithVerb) {
+          errors.push({ message: `Naming Convention: '${entity.kind}' names should typically be Nouns, but '${name}' looks like a Verb.`, entity: name, rule: 'SS-15', ...sp });
+        }
+      } else if (entity.kind === 'usecase' || entity.kind === 'collaboration') {
+        if (!startsWithVerb) {
+          errors.push({ message: `Naming Convention: '${entity.kind}' names must be Verbs, but '${name}' does not start with a recognized verb.`, entity: name, rule: 'SS-15', ...sp });
+        }
       }
     }
   }

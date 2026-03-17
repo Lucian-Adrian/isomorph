@@ -22,7 +22,12 @@ export type IOMEntityKind =
   | 'actor'
   | 'usecase'
   | 'component'
-  | 'node';
+  | 'node'
+  | 'participant'
+  | 'partition' | 'decision' | 'merge' | 'fork' | 'join' | 'start' | 'stop' | 'action'
+  | 'state' | 'composite' | 'concurrent' | 'choice' | 'history'
+  | 'device' | 'artifact' | 'environment'
+  | 'boundary' | 'system' | 'multiobject' | 'active_object' | 'collaboration' | 'composite_object' | 'object';
 
 /** Resolved field descriptor */
 export interface IOMField {
@@ -94,7 +99,7 @@ export interface IOMRelation {
 /** A diagram within the IOM */
 export interface IOMDiagram {
   name: string;
-  kind: 'class' | 'usecase' | 'sequence' | 'component' | 'flow' | 'deployment';
+  kind: 'class' | 'usecase' | 'sequence' | 'component' | 'flow' | 'deployment' | 'activity' | 'state' | 'collaboration';
   entities: Map<string, IOMEntity>;
   relations: IOMRelation[];
   packages: IOMPackage[];

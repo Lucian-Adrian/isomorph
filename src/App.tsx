@@ -33,9 +33,11 @@ interface WorkspaceTab {
   source: string;
   activeDiagramIdx: number;
   diagramKindFilter: 'all' | DiagramKind;
+  undoStack?: string[];
+  redoStack?: string[];
 }
 
-const DIAGRAM_KINDS: Array<'all' | DiagramKind> = ['all', 'class', 'usecase', 'component', 'deployment', 'sequence', 'flow'];
+const DIAGRAM_KINDS: Array<'all' | DiagramKind> = ['all', 'class', 'usecase', 'component', 'deployment', 'sequence', 'activity', 'state', 'collaboration', 'flow'];
 
 const REL_TOKENS_BY_KIND: Record<string, string> = {
   association: '--',
@@ -70,6 +72,24 @@ function templateFor(kind: DiagramKind): string {
     return `diagram ${diagramName} : flow {\n\n  component Start\n\n}\n`;
   }
   return `diagram ${diagramName} : class {\n\n  class Entity {\n    + id: string\n  }\n\n}\n`;
+}
+
+function insertBeforeAnnotations(source: string, insertion: string): string {
+  const lastBrace = source.lastIndexOf('}');
+  if (lastBrace < 0) return source;
+  const diagramBody = source.slice(0, lastBrace);
+  const firstAtMatch = diagramBody.match(/^[ \t]*@[A-Za-z0-9_]+[ \t]+at[ \t]+\(/m);
+  
+  if (firstAtMatch && firstAtMatch.index !== undefined) {
+    return source.slice(0, firstAtMatch.index) + insertion + '\n  ' + source.slice(firstAtMatch.index);
+  }
+  return source.slice(0, lastBrace) + insertion + '\n' + source.slice(lastBrace);
+}
+
+function insertAtEnd(source: string, insertion: string): string {
+  const lastBrace = source.lastIndexOf('}');
+  if (lastBrace < 0) return source;
+  return source.slice(0, lastBrace) + insertion + '\n' + source.slice(lastBrace);
 }
 
 function toolsetFor(kind?: DiagramKind): CanvasTool[] {
@@ -107,6 +127,36 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Actor', keyword: 'actor' },
         { label: 'Participant', keyword: 'participant' },
       ];
+    case 'state':
+      return [
+        { label: 'State', keyword: 'state' },
+        { label: 'Start Node', keyword: 'start' },
+        { label: 'Final Node', keyword: 'stop' },
+        { label: 'Decision', keyword: 'decision' },
+        { label: 'Fork', keyword: 'fork' },
+        { label: 'Join', keyword: 'join' },
+        { label: 'History', keyword: 'history' },
+        { label: 'Concurrent', keyword: 'concurrent' },
+        { label: 'Composite', keyword: 'composite' },
+      ];
+    case 'activity':
+      return [
+        { label: 'Action', keyword: 'action' },
+        { label: 'Start Node', keyword: 'start' },
+        { label: 'Activity Final', keyword: 'stop' },
+        { label: 'Decision', keyword: 'decision' },
+        { label: 'Merge', keyword: 'merge' },
+        { label: 'Fork', keyword: 'fork' },
+        { label: 'Join', keyword: 'join' },
+        { label: 'Partition', keyword: 'partition' },
+      ];
+    case 'collaboration':
+      return [
+        { label: 'Object', keyword: 'object' },
+        { label: 'Actor', keyword: 'actor' },
+        { label: 'Multiobject', keyword: 'multiobject' },
+        { label: 'Active Object', keyword: 'active_object' },
+      ];
     case 'flow':
       return [
         { label: 'Action', keyword: 'component' },
@@ -135,12 +185,91 @@ function changeDiagramKind(source: string, diagramName: string, newKind: string)
   return source.replace(rx, `$1${newKind}`);
 }
 
+const ENTITY_KINDS_RX = '(?:class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object)';
+
+function findEntityBounds(source: string, entityName: string): { start: number, end: number, bodyStart: number, bodyEnd: number } | null {
+  const sigRx = new RegExp(`^\\s*(?:abstract\\s+|static\\s+|final\\s+)*${ENTITY_KINDS_RX}\\s+${escapeRegex(entityName)}\\b`, 'm');
+  const match = sigRx.exec(source);
+  if (!match) return null;
+  
+  let lineEndIndex = source.indexOf('\n', match.index);
+  if (lineEndIndex === -1) lineEndIndex = source.length;
+
+  const sigLine = source.slice(match.index, lineEndIndex);
+  const inlineBraceIdx = sigLine.indexOf('{');
+  
+  let searchStart = lineEndIndex;
+  let bodyStart = -1;
+  
+  if (inlineBraceIdx === -1) {
+    const after = source.slice(lineEndIndex);
+    const braceMatch = after.match(/^\s*\{/);
+    if (!braceMatch) {
+      const nextLineStart = source.indexOf('\n', lineEndIndex);
+      return { start: match.index, end: nextLineStart === -1 ? source.length : nextLineStart + 1, bodyStart: -1, bodyEnd: -1 };
+    }
+    searchStart = lineEndIndex + braceMatch.index! + braceMatch[0].length;
+    bodyStart = searchStart;
+  } else {
+    searchStart = match.index + inlineBraceIdx + 1;
+    bodyStart = searchStart;
+  }
+
+  let braceCount = 1;
+  for (let i = searchStart; i < source.length; i++) {
+    if (source[i] === '{') {
+      braceCount++;
+    } else if (source[i] === '}') {
+      braceCount--;
+      if (braceCount === 0) {
+        let end = i + 1;
+        if (source[end] === '\r') end++;
+        if (source[end] === '\n') end++;
+        return { start: match.index, end, bodyStart, bodyEnd: i };
+      }
+    }
+  }
+  return { start: match.index, end: source.length, bodyStart, bodyEnd: source.length };
+}
+
+function extractEntityBody(source: string, entityName: string): string | null {
+  const bounds = findEntityBounds(source, entityName);
+  if (!bounds || bounds.bodyStart === -1) return null;
+  return source.slice(bounds.bodyStart, bounds.bodyEnd).replace(/^\n/, '').replace(/\n\s*$/, '');
+}
+
+function extractEntityDeclaration(source: string, entityName: string): string | null {
+  const bounds = findEntityBounds(source, entityName);
+  if (!bounds) return null;
+  return source.slice(bounds.start, bounds.end);
+}
+
+function removeEntityDeclaration(source: string, entityName: string): string {
+  const bounds = findEntityBounds(source, entityName);
+  if (!bounds) return source;
+  return source.slice(0, bounds.start) + source.slice(bounds.end);
+}
+
+function replaceEntityBody(source: string, entityName: string, newBody: string): string {
+  const bounds = findEntityBounds(source, entityName);
+  if (!bounds) return source;
+  if (bounds.bodyStart === -1) {
+    const sigEnd = bounds.end;
+    const innerBody = ' {\n  ' + newBody.split('\n').join('\n  ') + '\n}';
+    return source.slice(0, sigEnd) + innerBody + source.slice(sigEnd);
+  }
+  const innerBody = '\n  ' + newBody.split('\n').join('\n  ') + '\n';
+  return source.slice(0, bounds.bodyStart) + innerBody + source.slice(bounds.bodyEnd);
+}
+
+
+
 function updateEntityDeclaration(
   source: string,
   entityName: string,
   updates: { name?: string; stereotype?: string; isAbstract?: boolean },
 ): string {
-  const entityLine = new RegExp(`(^\\s*(?:abstract\\s+|static\\s+|final\\s+)*(?:class|interface|enum|actor|usecase|component|node)\\s+)${escapeRegex(entityName)}(\\b[^\\n]*)`, 'm');
+  const entityLine = new RegExp(`(^\\s*(?:abstract\\s+|static\\s+|final\\s+)*${ENTITY_KINDS_RX}\\s+)${escapeRegex(entityName)}(\\b[^\\n]*)`, 'm');
   let next = source;
 
   next = next.replace(entityLine, (_match, prefix: string, rest: string) => {
@@ -231,17 +360,31 @@ export default function App() {
   const [newDiagramKind, setNewDiagramKind] = useState<DiagramKind>('class');
   const [examplesOpen, setExamplesOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
-  const [editingEntity, setEditingEntity]   = useState<IOMEntity | null>(null);
+  const [isUMLCompliant, setIsUMLCompliant] = useState(true);
+  const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse' } | null>(null);
+  const [renamingTabId, setRenamingTabId]   = useState<string | null>(null);
   const examplesRef                         = useRef<HTMLDivElement>(null);
   const fileInputRef                        = useRef<HTMLInputElement>(null);
+
+  const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
 
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId]);
   const source = activeTab?.source ?? '';
   const fileName = activeTab?.name ?? 'untitled.isx';
 
-  const updateActiveTab = useCallback((update: (tab: WorkspaceTab) => WorkspaceTab) => {
-    setTabs(prev => prev.map(tab => (tab.id === (activeTab?.id ?? '') ? update(tab) : tab)));
+  const updateActiveTab = useCallback((update: (tab: WorkspaceTab) => WorkspaceTab, saveHistory = true) => {
+    setTabs(prev => prev.map(tab => {
+      if (tab.id === (activeTab?.id ?? '')) {
+        const result = update(tab);
+        if (saveHistory && result.source !== tab.source) {
+          result.undoStack = [...(tab.undoStack || []), tab.source];
+          result.redoStack = [];
+        }
+        return result;
+      }
+      return tab;
+    }));
   }, [activeTab]);
 
   // ── Close dropdown on outside click ──────────────────────
@@ -266,7 +409,12 @@ export default function App() {
   }, [parseResult]);
 
   const parseErrors: ParseError[] = parseResult?.errors ?? [];
-  const semanticErrors = analysisResult?.errors ?? [];
+  const rawSemanticErrors = analysisResult?.errors ?? [];
+
+  // Rules that enforce strict UML semantics
+  const strictUmlRules = ['SS-4', 'SS-5', 'SS-6', 'SS-11'];
+  const semanticErrors = rawSemanticErrors.filter(e => isUMLCompliant || !strictUmlRules.includes(e.rule));
+
   const allErrors: string[] = formatAllErrors(parseErrors, semanticErrors);
 
   // Combined parse + semantic diagnostics for the editor lint gutter
@@ -301,8 +449,12 @@ export default function App() {
   }, [updateActiveTab]);
 
   const handleEntityEditRequest = useCallback((entity: IOMEntity) => {
-    setEditingEntity(entity);
-  }, []);
+    let body = '';
+    if (activeTab) {
+      body = extractEntityBody(activeTab.source, entity.name) ?? '';
+    }
+    setEditingEntity({ ...entity, bodyText: body, origName: entity.name });
+  }, [activeTab]);
 
   const handleRelationEditRequest = useCallback((relationId: string, label: string, kind: string) => {
     setEditingRelation({ relationId, label, kind, direction: 'forward' });
@@ -310,19 +462,19 @@ export default function App() {
 
   const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string) => {
     updateActiveTab(tab => {
-      const source = tab.source;
-      const lastBrace = source.lastIndexOf('}');
-      if (lastBrace < 0) return tab;
-      const newSource = source.slice(0, lastBrace) + `  ${fromEntity} --> ${toEntity}\n` + source.slice(lastBrace);
+      const newSource = insertBeforeAnnotations(tab.source, `${fromEntity} --> ${toEntity}`);
       return { ...tab, source: newSource };
     });
   }, [updateActiveTab]);
 
-  const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean }) => {
-    updateActiveTab(tab => ({
-      ...tab,
-      source: updateEntityDeclaration(tab.source, entityName, updates),
-    }));
+  const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean; bodyText?: string }) => {
+    updateActiveTab(tab => {
+      let source = updateEntityDeclaration(tab.source, entityName, updates);
+      if (updates.bodyText !== undefined) {
+        source = replaceEntityBody(source, updates.name || entityName, updates.bodyText);
+      }
+      return { ...tab, source };
+    });
     setEditingEntity(null);
   }, [updateActiveTab]);
 
@@ -339,24 +491,209 @@ export default function App() {
 
   const handleDropEntity = useCallback((keyword: string, x: number, y: number) => {
     updateActiveTab(tab => {
-      let src = tab.source;
-      const baseName = keyword.split(' ')[0]; // for "node <<device>>", baseName is "node"
-      const name = `${baseName.charAt(0).toUpperCase() + baseName.slice(1)}${Math.floor(Math.random() * 1000)}`;
-      
-      let declaration = `\n  ${keyword} ${name}`;
-      if (keyword === 'class' || keyword === 'interface' || keyword === 'enum') {
-        declaration += ' {\n  }\n';
-      } else {
-        declaration += '\n';
+      let src = tab.source.trim();
+      if (!src || src.lastIndexOf('}') < 0) {
+        const dk = tab.diagramKindFilter === 'all' ? 'class' : (tab.diagramKindFilter || 'class');
+        src = `diagram NewDiagram : ${dk} {\n\n}\n`;
       }
 
-      const lastBrace = src.lastIndexOf('}');
-      if (lastBrace >= 0) {
-        src = src.slice(0, lastBrace) + declaration + `  @${name} at (${Math.round(x)}, ${Math.round(y)})\n` + src.slice(lastBrace);
+      const baseName = keyword.split(' ')[0]; // for "node <<device>>", baseName is "node"
+      
+      let index = 1;
+      const prefixName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+      let name = `${prefixName}${index}`;
+      while (new RegExp(`${ENTITY_KINDS_RX}\\s+${name}\\b`).test(src)) {
+        index++;
+        name = `${prefixName}${index}`;
       }
+
+      let declaration = `${keyword} ${name} {\n    // head\n\n    // body\n\n    // footer\n  }`;
+
+      src = insertBeforeAnnotations(src, declaration);
+      src = insertAtEnd(src, `  @${name} at (${Math.round(x)}, ${Math.round(y)})`);
       return { ...tab, source: src };
     });
   }, [updateActiveTab]);
+
+  // ── Keyboard shortcuts ────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Skip if user is focused on CodeMirror editor or an input/textarea
+      const ae = document.activeElement;
+      const isInEditor = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.closest?.('.cm-content') || ae.closest?.('.cm-editor'));
+
+      // Deletion of selected items
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (isInEditor) return;
+        
+        if (selectedItems.length > 0) {
+          updateActiveTab(tab => {
+            let nextSource = tab.source;
+
+            for (const item of selectedItems) {
+              if (item.type === 'entity') {
+                // Wipe entity block properly considering nested braces
+                nextSource = removeEntityDeclaration(nextSource, item.id);
+                // Wipe annotations
+                const rxAnno = new RegExp(`^\\s*@${escapeRegex(item.id)}\\s+at\\s*\\([^)]+\\)\\s*\\n?`, 'gm');
+                nextSource = nextSource.replace(rxAnno, '');
+                // Wipe relations connected to this
+                const rxRel = new RegExp(`^\\s*(?:${escapeRegex(item.id)}\\s+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)\\s+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*\\s+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)\\s+${escapeRegex(item.id)})(?:\\s*\\[[^\\]]*\\])?\\s*\\n?`, 'gm');
+                nextSource = nextSource.replace(rxRel, '');
+              } else if (item.type === 'relation') {
+                const idxRaw = item.id.replace('rel_', '');
+                const relationIdx = Number.parseInt(idxRaw, 10);
+                if (Number.isInteger(relationIdx) && relationIdx >= 0) {
+                  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+                  const matches = [...nextSource.matchAll(relRegex)];
+                  const match = matches[relationIdx];
+                  if (match && match.index != null) {
+                    nextSource = nextSource.slice(0, match.index) + nextSource.slice(match.index + match[0].length + 1);
+                  }
+                }
+              }
+            }
+            return { ...tab, source: nextSource };
+          });
+          setSelectedItems([]);
+        }
+      }
+
+      // Undo / Redo (skip when CodeMirror has focus — it has its own undo/redo)
+      if ((e.ctrlKey || e.metaKey) && !isInEditor) {
+        if (e.key === 'z') {
+          e.preventDefault();
+          updateActiveTab(tab => {
+            if (!tab.undoStack || tab.undoStack.length === 0) return tab;
+            const newUndo = [...tab.undoStack];
+            const previousSource = newUndo.pop()!;
+            return {
+              ...tab,
+              source: previousSource,
+              undoStack: newUndo,
+              redoStack: [...(tab.redoStack || []), tab.source]
+            };
+          }, false);
+        } else if (e.key === 'y') {
+          e.preventDefault();
+          updateActiveTab(tab => {
+            if (!tab.redoStack || tab.redoStack.length === 0) return tab;
+            const newRedo = [...tab.redoStack];
+            const nextSource = newRedo.pop()!;
+            return {
+              ...tab,
+              source: nextSource,
+              undoStack: [...(tab.undoStack || []), tab.source],
+              redoStack: newRedo
+            };
+          }, false);
+        }
+
+        // Copy selected items
+        if (e.key === 'c' && selectedItems.length > 0 && activeDiagram) {
+          e.preventDefault();
+          const snippets: string[] = [];
+          for (const item of selectedItems) {
+            if (item.type === 'entity') {
+              const entity = activeDiagram.entities.get(item.id);
+              if (!entity) continue;
+              // Reconstruct the entity declaration from the source using exact boundaries
+              const extracted = extractEntityDeclaration(activeTab!.source, item.id);
+              if (extracted) snippets.push(extracted.trim());
+              
+              // Also copy annotations
+              const annoRx = new RegExp(`^\\s*@${escapeRegex(item.id)}\\s+at\\s*\\([^)]+\\)`, 'gm');
+              const annoMatches = activeTab?.source.match(annoRx);
+              if (annoMatches) snippets.push(...annoMatches);
+            }
+          }
+          if (snippets.length > 0) {
+            navigator.clipboard.writeText(snippets.join('\n')).catch(() => {});
+          }
+        }
+
+        // Paste from clipboard
+        if (e.key === 'v') {
+          e.preventDefault();
+          navigator.clipboard.readText().then(text => {
+            if (!text.trim()) return;
+            // Auto-rename pasted entities to avoid collisions
+            let pasteText = text;
+            const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
+            const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
+            
+            for (const name of namesToReplace) {
+              const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
+              const baseStr = baseMatch ? baseMatch[1] : name;
+              
+              let newName = baseStr + '1';
+              let i = 2;
+              
+              const isNameTaken = (n: string) => {
+                const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
+                return rx.test(activeTab?.source || '') || rx.test(pasteText);
+              };
+
+              let emergencyBreak = 0;
+              while (isNameTaken(newName) && emergencyBreak < 1000) {
+                newName = baseStr + i;
+                i++;
+                emergencyBreak++;
+              }
+              pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
+            }
+            // Offset positions by 30px
+            pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)/g, (_, n, x, y) => {
+              return `@${n} at (${parseInt(x) + 30}, ${parseInt(y) + 30})`;
+            });
+            updateActiveTab(tab => {
+              const src = insertBeforeAnnotations(tab.source, pasteText.trim());
+              return { ...tab, source: src };
+            });
+          }).catch(() => {});
+        }
+        
+        // Cut selected items
+        if (e.key === 'x' && selectedItems.length > 0 && activeDiagram) {
+          e.preventDefault();
+          const snippets: string[] = [];
+          
+          updateActiveTab(tab => {
+            let nextSource = tab.source;
+            for (const item of selectedItems) {
+              if (item.type === 'entity') {
+                const entity = activeDiagram.entities.get(item.id);
+                if (!entity) continue;
+                
+                const extracted = extractEntityDeclaration(nextSource, item.id);
+                if (extracted) snippets.push(extracted.trim());
+
+                // Wipe entity block properly considering nested braces
+                nextSource = removeEntityDeclaration(nextSource, item.id);
+                
+                // Also copy & wipe annotations
+                const annoRx = new RegExp(`^\\s*@${escapeRegex(item.id)}\\s+at\\s*\\([^)]+\\)\\s*\\n?`, 'gm');
+                const annoMatches = nextSource.match(annoRx);
+                if (annoMatches) snippets.push(...annoMatches.map(s => s.trim()));
+                nextSource = nextSource.replace(annoRx, '');
+                
+                // Wipe relations connected to this
+                const rxRel = new RegExp(`^\\s*(?:${escapeRegex(item.id)}\\s+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)\\s+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*\\s+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)\\s+${escapeRegex(item.id)})(?:\\s*\\[[^\\]]*\\])?\\s*\\n?`, 'gm');
+                nextSource = nextSource.replace(rxRel, '');
+              }
+            }
+            if (snippets.length > 0) {
+              navigator.clipboard.writeText(snippets.join('\n')).catch(() => {});
+            }
+            return { ...tab, source: nextSource };
+          });
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedItems, updateActiveTab, activeDiagram, activeTab]);
 
   // ── Export callbacks (delegated to exporter module) ───────
   const handleExportSVG = useCallback(() => {
@@ -527,15 +864,54 @@ export default function App() {
 
         <nav className="iso-tabs" aria-label="Open files" style={{ maxWidth: 360, overflowX: 'auto' }}>
           {tabs.map(tab => (
-            <button
+            <div
               key={tab.id}
               className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
-              type="button"
               onClick={() => setActiveTabId(tab.id)}
+              onDoubleClick={() => setRenamingTabId(tab.id)}
               aria-label={`Open ${tab.name}`}
+              style={{ paddingRight: tabs.length > 1 ? '4px' : '10px' }}
             >
-              {tab.name}
-            </button>
+              {renamingTabId === tab.id ? (
+                <input
+                  autoFocus
+                  defaultValue={tab.name}
+                  className="iso-tab-rename-input"
+                  style={{ background: 'transparent', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', outline: 'none', width: '80px', borderBottom: '1px solid currentColor' }}
+                  onBlur={(e) => {
+                    setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, name: e.target.value || t.name } : t));
+                    setRenamingTabId(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') setRenamingTabId(null);
+                  }}
+                  onClick={e => e.stopPropagation()}
+                />
+              ) : (
+                tab.name
+              )}
+              {tabs.length > 1 && (
+                <button
+                  type="button"
+                  style={{ all: 'unset', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '4px', marginLeft: '4px', cursor: 'pointer', opacity: 0.6 }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.background = 'transparent'; }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Are you sure you want to close "${tab.name}"? Unsaved changes may be lost.`)) {
+                      setTabs(prev => {
+                        const next = prev.filter(t => t.id !== tab.id);
+                        if (activeTabId === tab.id) setActiveTabId(next[Math.max(0, next.length - 1)].id);
+                        return next;
+                      });
+                    }
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
           ))}
         </nav>
 
@@ -663,6 +1039,12 @@ export default function App() {
             ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}`
             : diagrams.length > 0 ? 'Valid' : 'Ready'}
         </output>
+
+        <div className="iso-header-sep" aria-hidden="true" />
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '13px', color: 'var(--iso-text)' }}>
+          <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
+          Strict UML
+        </label>
       </header>
 
       {/* ──────────────── MAIN ────────────────────────────── */}
@@ -763,6 +1145,8 @@ export default function App() {
                   onExportSVG={handleExportSVG}
                   onDropEntity={handleDropEntity}
                   availableTools={toolsetFor(activeDiagram?.kind)}
+                  selectedItems={selectedItems}
+                  onSelectionChange={setSelectedItems}
                 />
               </div>
             </div>
@@ -786,15 +1170,58 @@ export default function App() {
               <label>Stereotype</label>
               <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder="e.g. device" />
             </div>
-            <div className="iso-modal-field">
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input type="checkbox" checked={editingEntity.isAbstract} onChange={e => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })} />
-                Abstract
-              </label>
-            </div>
+            {['class', 'interface'].includes(editingEntity.kind) && (
+              <div className="iso-modal-field">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input type="checkbox" checked={editingEntity.isAbstract} onChange={e => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })} />
+                  Abstract
+                </label>
+              </div>
+            )}
+            {[
+              'class', 'interface', 'enum', 'struct', 'component', 'node', 'device', 
+              'environment', 'state', 'activity', 'usecase', 'actor', 'multiobject', 
+              'active_object', 'collaboration', 'composite', 'concurrent', 'artifact'
+            ].includes(editingEntity.kind) && (
+              <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
+                  <label>Body</label>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {['class', 'interface'].includes(editingEntity.kind) && (
+                       <>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  + newField : string' } : null); }}>+ Pub Field</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  - newField : string' } : null); }}>+ Priv Field</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  + newMethod() : void' } : null); }}>+ Pub Method</button>
+                       </>
+                    )}
+                    {['node', 'device', 'environment', 'component'].includes(editingEntity.kind) && (
+                       <>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  node NewNode' } : null); }}>+ Node</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  artifact NewArtifact' } : null); }}>+ Artifact</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  + port1 : provided' } : null); }}>+ Port (prov)</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  + port2 : required' } : null); }}>+ Port (req)</button>
+                       </>
+                    )}
+                    {['state', 'composite', 'concurrent'].includes(editingEntity.kind) && (
+                       <>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  entry() : void' } : null); }}>+ Entry</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  exit() : void' } : null); }}>+ Exit</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  do() : void' } : null); }}>+ Do</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  state SubState' } : null); }}>+ SubState</button>
+                       </>
+                    )}
+                  </div>
+                </div>
+                <textarea 
+                  value={editingEntity.bodyText ?? ''} 
+                  onChange={e => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
+                  style={{ width: '100%', minHeight: '120px', fontFamily: 'monospace', padding: '0.5rem', resize: 'vertical' }}
+                />
+              </div>
+            )}
             <div className="iso-modal-actions">
-              <button className="iso-btn" onClick={() => setEditingEntity(null)}>Cancel</button>
-              <button className="iso-btn iso-btn--primary" onClick={() => handleEntityEdit(editingEntity.id, { name: editingEntity.name, stereotype: editingEntity.stereotype, isAbstract: editingEntity.isAbstract })}>Save</button>
+              <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>Cancel</button>
+              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText }); }}>Save</button>
             </div>
           </div>
         </div>
@@ -806,7 +1233,12 @@ export default function App() {
             <h3>Edit Relation</h3>
             <div className="iso-modal-field">
               <label>Label</label>
-              <input type="text" value={editingRelation.label} onChange={e => setEditingRelation({ ...editingRelation, label: e.target.value })} autoFocus />
+              <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
+                <input type="text" style={{ flex: 1 }} value={editingRelation.label} onChange={e => setEditingRelation({ ...editingRelation, label: e.target.value })} autoFocus />
+                {['state', 'activity'].includes(activeDiagram?.kind || '') && (
+                  <button className="iso-btn" onClick={() => setEditingRelation(r => r ? { ...r, label: r.label.includes('[') ? r.label : `[${r.label || 'guard'}]` } : null)}>+ Guard</button>
+                )}
+              </div>
             </div>
             <div className="iso-modal-field">
               <label>Kind</label>

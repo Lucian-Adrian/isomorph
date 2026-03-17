@@ -1,5 +1,5 @@
 // ============================================================
-// Sequence Diagram SVG Renderer
+// Sequence Diagram SVG Renderer (Enhanced)
 // ============================================================
 import type { IOMDiagram } from '../semantics/iom.js';
 import { escapeXml, svgDefs } from './utils.js';
@@ -9,69 +9,149 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   if (entities.length === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa"><text x="20" y="40">Empty Sequence Diagram</text></svg>`;
 
   const paddingX = 80;
-  const colSpacing = 160;
+  const colSpacing = 180;
   const paddingY = 60;
   const rowSpacing = 60;
-  
+  const selfLoopWidth = 40;
+  const selfLoopHeight = 30;
+  const activationWidth = 12;
+
+  // Count self-messages to allocate extra row height
+  let selfMessageCount = 0;
+  for (const rel of diag.relations) {
+    if (rel.from === rel.to) selfMessageCount++;
+  }
+
   const width = paddingX * 2 + Math.max(0, entities.length - 1) * colSpacing;
-  const height = paddingY * 2 + 40 + Math.max(0, diag.relations.length) * rowSpacing + 60;
+  const height = paddingY * 2 + 40 + Math.max(0, diag.relations.length) * rowSpacing + selfMessageCount * selfLoopHeight + 80;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa">\n`;
   svg += svgDefs();
 
-  // Entities as columns
+  // --- Entities as columns ---
   const entityX = new Map<string, number>();
   let currentX = paddingX;
+
   for (const ent of entities) {
-    entityX.set(ent.name, currentX);
+    let xPos = currentX;
+    if (ent.position && ent.position.x !== undefined) {
+      xPos = ent.position.x;
+      currentX = Math.max(currentX, xPos) + colSpacing;
+    } else {
+      currentX += colSpacing;
+    }
+    entityX.set(ent.name, xPos);
+
     const isActor = ent.kind === 'actor' || ent.stereotype === 'actor';
     const label = escapeXml(ent.name);
-    
-    svg += `  <g transform="translate(${currentX},${paddingY})" data-entity-name="${label}">\n`;
+
+    svg += `  <g transform="translate(${xPos},${paddingY})" data-entity-name="${label}">\n`;
+    // Invisible hitbox for dragging
+    svg += `    <rect x="-60" y="-35" width="120" height="${height - paddingY + 20}" fill="transparent" style="cursor: pointer;" />\n`;
+
     if (isActor) {
-      svg += `    <circle cx="0" cy="0" r="8" fill="#bfdbfe" stroke="#475569" stroke-width="1.5" />\n`;
-      svg += `    <path d="M0,8 v12 M-8,14 h16 M-4,30 l4,-10 l4,10" stroke="#475569" stroke-width="1.5" fill="none" />\n`;
-      svg += `    <text x="0" y="46" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">${label}</text>\n`;
+      // Actor stick figure with better proportions
+      svg += `    <circle cx="0" cy="-4" r="10" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" />\n`;
+      svg += `    <path d="M0,6 v14 M-10,12 h20 M-6,30 l6,-10 l6,10" stroke="#3b82f6" stroke-width="1.5" fill="none" />\n`;
+      svg += `    <text x="0" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">${label}</text>\n`;
     } else {
-      svg += `    <rect x="-50" y="-15" width="100" height="30" rx="4" fill="#bfdbfe" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" />\n`;
-      svg += `    <text x="0" y="4" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">${label}</text>\n`;
+      // Participant box with gradient and rounded corners
+      svg += `    <rect x="-60" y="-20" width="120" height="36" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" />\n`;
+      svg += `    <text x="0" y="4" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">${label}</text>\n`;
     }
-    
+
     // Lifeline
-    svg += `    <line x1="0" y1="${isActor ? 50 : 20}" x2="0" y2="${height - paddingY - 20}" stroke="#94a3b8" stroke-dasharray="4,4" />\n`;
-    
+    const lifelineStart = isActor ? 52 : 20;
+    svg += `    <line x1="0" y1="${lifelineStart}" x2="0" y2="${height - paddingY - 30}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4" />\n`;
+
+    // Bottom box (mirror of top for participant)
+    if (!isActor) {
+      const bottomY = height - paddingY - 30;
+      svg += `    <rect x="-60" y="${bottomY}" width="120" height="30" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" />\n`;
+      svg += `    <text x="0" y="${bottomY + 19}" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">${label}</text>\n`;
+    }
+
     svg += `  </g>\n`;
-    currentX += colSpacing;
   }
 
-  // Relations as messages
+  // --- Relations as messages ---
   let currentY = paddingY + 80;
   for (const rel of diag.relations) {
     const startX = entityX.get(rel.from);
     const endX = entityX.get(rel.to);
-    if (startX !== undefined && endX !== undefined) {
-      const isRight = endX > startX;
-      // const arrowX = isRight ? endX - 6 : endX + 6;
-      const dash = rel.kind === 'dependency' || rel.kind === 'realization' ? ' stroke-dasharray="6,3"' : '';
-      
-      svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}">\n`;
+    if (startX === undefined || endX === undefined) continue;
+
+    const isDashed = rel.kind === 'dependency' || rel.kind === 'realization';
+    const dash = isDashed ? ' stroke-dasharray="6,3"' : '';
+    const labelTxt = rel.label ? escapeXml(rel.label) : '';
+    const isSelfMessage = rel.from === rel.to;
+
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}">\n`;
+
+    if (isSelfMessage) {
+      // Self-message loop
+      const x = startX;
+      const loopRight = x + selfLoopWidth;
+      const y1 = currentY;
+      const y2 = currentY + selfLoopHeight;
+
       // Hitbox
-      svg += `    <line x1="${startX}" y1="${currentY}" x2="${endX}" y2="${currentY}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;
-      svg += `    <line x1="${startX}" y1="${currentY}" x2="${endX}" y2="${currentY}" stroke="#475569" stroke-width="1.5"${dash} />\n`;
-      
-      if (isRight) {
-        svg += `    <polygon points="${endX},${currentY} ${endX-10},${currentY-4} ${endX-10},${currentY+4}" fill="#475569" />\n`;
-      } else {
-        svg += `    <polygon points="${endX},${currentY} ${endX+10},${currentY-4} ${endX+10},${currentY+4}" fill="#475569" />\n`;
+      svg += `    <rect x="${x}" y="${y1 - 5}" width="${selfLoopWidth + 10}" height="${selfLoopHeight + 10}" fill="transparent" style="cursor: pointer" />\n`;
+      // Loop path
+      svg += `    <path d="M${x},${y1} H${loopRight} V${y2} H${x}" stroke="#475569" stroke-width="1.5" fill="none"${dash} />\n`;
+      // Arrowhead
+      svg += `    <polygon points="${x},${y2} ${x + 8},${y2 - 4} ${x + 8},${y2 + 4}" fill="#475569" />\n`;
+      // Activation box
+      svg += `    <rect x="${x - activationWidth / 2}" y="${y1 - 4}" width="${activationWidth}" height="${selfLoopHeight + 8}" rx="2" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" />\n`;
+
+      if (labelTxt) {
+        svg += `    <text x="${loopRight + 6}" y="${y1 + selfLoopHeight / 2 + 4}" font-size="11" fill="#475569">${labelTxt}</text>\n`;
       }
 
-      const labelTxt = rel.label ? escapeXml(rel.label) : '';
-      if (labelTxt) {
-        svg += `    <text x="${Math.min(startX, endX) + Math.abs(endX - startX)/2}" y="${currentY - 6}" text-anchor="middle" font-size="11" fill="#475569">${labelTxt}</text>\n`;
+      currentY += rowSpacing + selfLoopHeight;
+    } else {
+      // Normal message
+      const isRight = endX > startX;
+
+      // Hitbox
+      svg += `    <line x1="${startX}" y1="${currentY}" x2="${endX}" y2="${currentY}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;
+
+      // Activation box at sender
+      svg += `    <rect x="${startX - activationWidth / 2}" y="${currentY - 10}" width="${activationWidth}" height="20" rx="2" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" />\n`;
+
+      // Message line
+      svg += `    <line x1="${startX}" y1="${currentY}" x2="${endX}" y2="${currentY}" stroke="#475569" stroke-width="1.5"${dash} />\n`;
+
+      // Arrowhead
+      if (isDashed) {
+        // Open arrowhead for return/dashed
+        if (isRight) {
+          svg += `    <path d="M${endX - 10},${currentY - 4} L${endX},${currentY} L${endX - 10},${currentY + 4}" stroke="#475569" stroke-width="1.5" fill="none" />\n`;
+        } else {
+          svg += `    <path d="M${endX + 10},${currentY - 4} L${endX},${currentY} L${endX + 10},${currentY + 4}" stroke="#475569" stroke-width="1.5" fill="none" />\n`;
+        }
+      } else {
+        // Filled arrowhead for solid messages
+        if (isRight) {
+          svg += `    <polygon points="${endX},${currentY} ${endX - 10},${currentY - 5} ${endX - 10},${currentY + 5}" fill="#475569" />\n`;
+        } else {
+          svg += `    <polygon points="${endX},${currentY} ${endX + 10},${currentY - 5} ${endX + 10},${currentY + 5}" fill="#475569" />\n`;
+        }
       }
-      svg += `  </g>\n`;
+
+      // Label
+      if (labelTxt) {
+        const mx = Math.min(startX, endX) + Math.abs(endX - startX) / 2;
+        // Label background
+        const labelWidth = labelTxt.length * 7 + 10;
+        svg += `    <rect x="${mx - labelWidth / 2}" y="${currentY - 18}" width="${labelWidth}" height="16" rx="3" fill="white" opacity="0.9" />\n`;
+        svg += `    <text x="${mx}" y="${currentY - 6}" text-anchor="middle" font-size="11" fill="#475569">${labelTxt}</text>\n`;
+      }
+
       currentY += rowSpacing;
     }
+
+    svg += `  </g>\n`;
   }
 
   svg += `</svg>`;

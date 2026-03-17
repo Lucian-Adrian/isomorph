@@ -9,11 +9,12 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
   if (entities.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="20" y="40" font-family="sans-serif" font-size="14">Empty diagram</text></svg>';
 
-  // Separate actors from use-cases
+  // Separate into actors, use-cases, and boundaries
   const actors   = entities.filter(e => e.kind === 'actor');
   const usecases = entities.filter(e => e.kind === 'usecase');
+  const bounds   = entities.filter(e => e.kind === 'system' || e.kind === 'boundary');
 
-  const UC_RX = 80, UC_RY = 30;
+  const UC_RX = 80, UC_RY = 40;
 
   const canvasW = 900, canvasH = 600;
 
@@ -30,9 +31,22 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:Segoe UI,Arial,sans-serif;background:#f8fafc">\n`;
   svg += svgDefs();
 
-  // System boundary
-  svg += `  <rect x="280" y="30" width="580" height="${canvasH - 60}" rx="8" fill="white" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
-  svg += `  <text x="300" y="52" font-size="13" fill="#64748b" font-style="italic">${escapeXml(diag.name)} : System</text>\n`;
+  // Draw system boundaries (backgrounds)
+  if (bounds.length > 0) {
+    for (const b of bounds) {
+      const bx = b.position ? b.position.x : 280;
+      const by = b.position ? b.position.y : 30;
+      const bw = 500, bh = 400; // default large size
+      svg += `  <g transform="translate(${bx},${by})" data-entity-name="${escapeXml(b.name)}">\n`;
+      svg += `    <rect x="0" y="0" width="${bw}" height="${bh}" fill="white" stroke="#94a3b8" stroke-width="1.5"/>\n`;
+      svg += `    <text x="10" y="20" font-size="13" font-weight="bold" fill="#64748b">${escapeXml(b.name)}</text>\n`;
+      svg += `  </g>\n`;
+    }
+  } else {
+    // Default system boundary if none explicitly defined
+    svg += `  <rect x="280" y="30" width="580" height="${canvasH - 60}" rx="8" fill="white" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
+    svg += `  <text x="300" y="52" font-size="13" fill="#64748b" font-style="italic">${escapeXml(diag.name)} : System</text>\n`;
+  }
 
   // Draw relations
   for (const rel of diag.relations) {
@@ -71,12 +85,25 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     if (e.kind === 'actor') continue;
     const x = p.x, y = p.y;
     svg += `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(e.name)}">`;
-    svg += `    <ellipse cx="0" cy="0" rx="${UC_RX}" ry="${UC_RY}" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>`;
+    const exts = [...e.fields, ...e.methods];
+    const hasExts = exts.length > 0;
+    const ry = hasExts ? UC_RY + exts.length * 8 : UC_RY;
+    
+    svg += `    <ellipse cx="0" cy="0" rx="${UC_RX}" ry="${ry}" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>`;
     const lines = wrapText(e.name, 20);
+    const textStart = hasExts ? -(ry / 2) : 0;
     lines.forEach((line, i) => {
-      const lineY = -(lines.length - 1) * 8 + i * 16;
+      const lineY = textStart - (lines.length - 1) * 8 + i * 16;
       svg += `    <text x="0" y="${lineY}" text-anchor="middle" font-size="13" font-weight="500" fill="#1e3a5f">${escapeXml(line)}</text>`;
     });
+    
+    if (hasExts) {
+      svg += `    <line x1="${-UC_RX + 10}" y1="${5}" x2="${UC_RX - 10}" y2="${5}" stroke="#3b82f6" stroke-width="1"/>`;
+      svg += `    <text x="0" y="18" text-anchor="middle" font-size="10" font-style="italic" fill="#64748b">extension points</text>`;
+      exts.forEach((ext, i) => {
+        svg += `    <text x="0" y="${30 + i * 12}" text-anchor="middle" font-size="10" fill="#1e3a5f">${escapeXml(ext.name)}</text>`;
+      });
+    }
     svg += `  </g>`;
   }
 
