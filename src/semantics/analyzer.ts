@@ -83,7 +83,15 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
       } else if (item.kind === 'LayoutAnnotation') {
         // SS-10: Layout annotations overwrite position
         const e = entities.get(item.entity);
-        if (e) e.position = { x: item.x, y: item.y };
+        if (e) {
+          e.position = { x: item.x, y: item.y };
+        } else {
+          // See if it's a package
+          const p = packages.find(pkg => pkg.name === item.entity);
+          if (p) {
+            p.position = { x: item.x, y: item.y };
+          }
+        }
       }
     }
   }
@@ -215,11 +223,11 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     }
   }
 
-  // SS-10: Layout annotation must reference a declared entity
+  // SS-10: Layout annotation must reference a declared entity or package
   function checkLayoutTargets(items: BodyItem[]) {
     for (const item of items) {
-      if (item.kind === 'LayoutAnnotation' && !entities.has(item.entity)) {
-        errors.push({ message: `Layout annotation references unknown entity '${item.entity}'`, rule: 'SS-10', line: item.span.line, col: item.span.col });
+      if (item.kind === 'LayoutAnnotation' && !entities.has(item.entity) && !packages.some(p => p.name === item.entity)) {
+        errors.push({ message: `Layout annotation references unknown entity or package '${item.entity}'`, rule: 'SS-10', line: item.span.line, col: item.span.col });
       }
       if (item.kind === 'PackageDecl') checkLayoutTargets(item.body);
     }

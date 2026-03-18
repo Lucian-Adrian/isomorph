@@ -18,6 +18,7 @@ export const EXAMPLES: Example[] = [
     source: `// Library System — class diagram
 diagram LibrarySystem : class {
 
+  package emptyPkg { }
   package domain {
 
     abstract class Book <<Entity>> implements Borrowable {
@@ -358,3 +359,4 @@ diagram OrderFlow : flow {
 `
   }
 ];
+

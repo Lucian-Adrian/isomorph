@@ -23,31 +23,55 @@ const GRID_COLS     = 4;
 
 export function renderClassDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
-  if (entities.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="20" y="40" font-family="sans-serif" font-size="14">Empty diagram</text></svg>';
+  if (entities.length === 0 && diag.packages.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="20" y="40" font-family="sans-serif" font-size="14">Empty diagram</text></svg>';
 
   // Auto-layout: assign positions to entities that lack them
   const positioned = assignPositions(entities);
 
   // Compute canvas size
-  const maxX = Math.max(...positioned.map(p => p.pos.x + p.width)) + 40;
-  const maxY = Math.max(...positioned.map(p => p.pos.y + p.height)) + 40;
+  const maxEntityX = positioned.length > 0 ? Math.max(...positioned.map(p => p.pos.x + p.width)) : 0;
+  const maxEntityY = positioned.length > 0 ? Math.max(...positioned.map(p => p.pos.y + p.height)) : 0;
+  const maxPkgX = diag.packages.length > 0 ? Math.max(...diag.packages.map(p => (p.position?.x ?? 100) + 160)) : 0;
+  const maxPkgY = diag.packages.length > 0 ? Math.max(...diag.packages.map(p => (p.position?.y ?? 100) + 100)) : 0;
+  const maxX = Math.max(maxEntityX, maxPkgX) + 40;
+  const maxY = Math.max(maxEntityY, maxPkgY) + 40;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa">\n`;
   svg += svgDefs();
 
+  // Set to keep track of rendered members
+  const renderedEntities = new Set<string>();
+
   // Draw package backgrounds
   for (const pkg of diag.packages) {
     const members = pkg.entityNames.map(n => positioned.find(p => p.entity.name === n)).filter((p): p is Positioned => p !== undefined);
-    if (members.length === 0) continue;
-    const xs  = members.map(p => p.pos.x);
-    const ys  = members.map(p => p.pos.y);
-    const x2s = members.map(p => p.pos.x + p.width);
-    const y2s = members.map(p => p.pos.y + p.height);
-    const px = Math.min(...xs) - 20, py = Math.min(...ys) - 30;
-    const pw = Math.max(...x2s) - px + 20, ph = Math.max(...y2s) - py + 20;
-      svg += `  <g data-package-name="${escapeXml(pkg.name)}">\n`;
-      svg += `    <rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="6" fill="#f0f4ff" stroke="#b0c0e0" stroke-width="1.5" stroke-dasharray="6,3"/>\n`;
-      svg += `    <text x="${px + 8}" y="${py + 18}" font-size="11" fill="#5566aa" font-style="italic">«package» ${escapeXml(pkg.name)}</text>\n`;
+      
+      let px, py, pw, ph;
+      if (members.length === 0) {
+        px = pkg.position ? pkg.position.x : 100;
+        py = pkg.position ? pkg.position.y : 100;
+        pw = 160;
+        ph = 100;
+      } else {
+        const xs  = members.map(p => p.pos.x);
+        const ys  = members.map(p => p.pos.y);
+        const x2s = members.map(p => p.pos.x + p.width);
+        const y2s = members.map(p => p.pos.y + p.height);
+        px = Math.min(...xs) - 20;
+        py = Math.min(...ys) - 30;
+        pw = Math.max(...x2s) - px + 20;
+        ph = Math.max(...y2s) - py + 20;
+      }
+
+      svg += `  <g data-package-name="${escapeXml(pkg.name)}" transform="translate(${px},${py})">\n`;
+      svg += `    <rect x="0" y="0" width="${pw}" height="${ph}" rx="6" fill="#f0f4ff" stroke="#b0c0e0" stroke-width="1.5" stroke-dasharray="6,3"/>\n`;
+      svg += `    <text x="8" y="18" font-size="11" fill="#5566aa" font-style="italic">«package» ${escapeXml(pkg.name)}</text>\n`;
+      
+      for (const member of members) {
+        svg += renderEntityBox(member, px, py);
+        renderedEntities.add(member.entity.name);
+      }
+
       svg += `  </g>\n`;
   }
 
@@ -61,7 +85,9 @@ export function renderClassDiagram(diag: IOMDiagram): string {
 
   // Draw entity boxes
   for (const p of positioned) {
-    svg += renderEntityBox(p);
+    if (!renderedEntities.has(p.entity.name)) {
+      svg += renderEntityBox(p);
+    }
   }
 
   svg += `</svg>`;
@@ -77,9 +103,10 @@ interface Positioned {
   height: number;
 }
 
-function renderEntityBox(p: Positioned): string {
+function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
   const { entity, pos, width, height } = p;
-  const { x, y } = pos;
+  const x = pos.x - parentX;
+  const y = pos.y - parentY;
   const isAbstract = entity.isAbstract;
   const isInterface = entity.kind === 'interface';
   const isEnum = entity.kind === 'enum';
@@ -300,3 +327,4 @@ function boxEdge(p: Positioned, tx: number, ty: number): [number, number] {
 
 // ─── Helpers ─────────────────────────────────────────────────
 // escapeXml and visSymbolFor are imported from ./utils.ts
+

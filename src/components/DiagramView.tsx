@@ -12,7 +12,7 @@ export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge
 
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
-  onEntityMove?: (entityName: string, x: number, y: number) => void;
+  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number) => void;
   onEntityEditRequest?: (entity: IOMEntity) => void;
   onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string) => void;
   onRelationAddRequest?: (fromEntity: string, toEntity: string) => void;
@@ -189,10 +189,7 @@ export function DiagramView({
       if (pkgGroup && onTextRenameRequest && availableTools.includes('edit-node')) {
         const pkgName = pkgGroup.getAttribute('data-package-name');
         if (pkgName) {
-           const newName = window.prompt("Edit package name:", pkgName);
-           if (newName && newName !== pkgName) {
-             onTextRenameRequest(pkgName, newName, 'package');
-           }
+           e.preventDefault(); e.stopPropagation(); onTextRenameRequest(pkgName, '', 'package');
            return;
         }
       }
@@ -201,10 +198,7 @@ export function DiagramView({
       if (diagramGroup && onTextRenameRequest && availableTools.includes('edit-node')) {
         const diagName = diagramGroup.getAttribute('data-diagram-name');
         if (diagName) {
-           const newName = window.prompt("Edit diagram name:", diagName);
-           if (newName && newName !== diagName) {
-             onTextRenameRequest(diagName, newName, 'diagram');
-           }
+           e.preventDefault(); e.stopPropagation(); onTextRenameRequest(diagName, '', 'diagram');
            return;
         }
       }
@@ -214,11 +208,11 @@ export function DiagramView({
 
     // Handle Selection logic
     const relationGroup = target.closest('g[data-relation-id]') as SVGGElement | null;
-    const entityGroup = target.closest('g[data-entity-name]') as SVGGElement | null;
+    const entityGroup = target.closest('g[data-entity-name], g[data-package-name]') as SVGGElement | null;
 
     if (activeTool === 'move' && onSelectionChange) {
       if (entityGroup) {
-        const entityName = entityGroup.getAttribute('data-entity-name');
+        const entityName = entityGroup.getAttribute('data-entity-name') || entityGroup.getAttribute('data-package-name');
         if (entityName) {
           if (e.shiftKey) {
             onSelectionChange([...selectedItems, { type: 'entity', id: entityName }]);
@@ -244,7 +238,7 @@ export function DiagramView({
     const shouldPan = true; // Always allow pan if missed entity
 
     if (entityGroup && activeTool === 'add-edge') {
-      const entityName = entityGroup.getAttribute('data-entity-name') ?? undefined;
+      const entityName = entityGroup.getAttribute('data-entity-name') ?? entityGroup.getAttribute('data-package-name') ?? undefined;
       if (!entityName) return;
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -268,12 +262,24 @@ export function DiagramView({
     }
 
     if (entityGroup && canMoveEntity && activeTool !== 'add-edge') {
-      const entityName = entityGroup.getAttribute('data-entity-name') ?? undefined;
+      const entityName = entityGroup.getAttribute('data-entity-name') ?? entityGroup.getAttribute('data-package-name') ?? undefined;
       if (!entityName) return;
       const tf = entityGroup.getAttribute('transform') ?? '';
       const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
-      const entityOrigX = m ? parseFloat(m[1]) : 0;
-      const entityOrigY = m ? parseFloat(m[2]) : 0;
+      
+      let entityOrigX = m ? parseFloat(m[1]) : 0;
+      let entityOrigY = m ? parseFloat(m[2]) : 0;
+      
+      // If we don't have transform (like a package or usecase diagram wrapper without at() initially)
+      if (!m) {
+        // Fallback to reading x/y bounds from its inner rect if available
+        const rect = entityGroup.querySelector('rect');
+        if (rect) {
+          entityOrigX = parseFloat(rect.getAttribute('x') || '0');
+          entityOrigY = parseFloat(rect.getAttribute('y') || '0');
+        }
+      }
+
       dragRef.current = {
         mode: 'entity',
         pointerId: e.pointerId,
@@ -353,12 +359,26 @@ export function DiagramView({
       const tf = drag.entityGroup.getAttribute('transform') ?? '';
       const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
       if (m) {
-        onEntityMove(drag.entityName, Math.round(parseFloat(m[1])), Math.round(parseFloat(m[2])));
+          let updatedX = Math.round(parseFloat(m[1]));
+          let updatedY = Math.round(parseFloat(m[2]));
+          
+          if (!drag.entityGroup.hasAttribute('data-package-name')) {
+            const pkgGroup = drag.entityGroup.closest('g[data-package-name]') as SVGGElement | null;
+            if (pkgGroup) {
+              const ptf = pkgGroup.getAttribute('transform') ?? '';
+              const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
+              if (pm) {
+                 updatedX += Math.round(parseFloat(pm[1]));
+                 updatedY += Math.round(parseFloat(pm[2]));
+              }
+            }
+          }
+          
+          const origX = Math.round(drag.entityOrigX ?? 0); const origY = Math.round(drag.entityOrigY ?? 0); onEntityMove(drag.entityName, updatedX, updatedY, updatedX - origX, updatedY - origY);
+        }
       }
-    }
 
-    if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
-      canvasRef.current.releasePointerCapture(e.pointerId);
+      if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
     }
     dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
   }, [onEntityMove, onRelationAddRequest]);
@@ -482,4 +502,7 @@ export function DiagramView({
     </div>
   );
 }
+
+
+
 

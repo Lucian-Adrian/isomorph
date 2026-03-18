@@ -83,6 +83,25 @@ function templateFor(kind: DiagramKind): string {
   return `diagram ${diagramName} : class {\n\n  class Entity {\n    + id: string\n  }\n\n}\n`;
 }
 
+function insertIntoPackage(source: string, targetPackage: string, declaration: string) {
+  const rx = new RegExp('package\s+' + targetPackage + '\\s*\\{', 'g');
+  const match = rx.exec(source);
+  if (!match) return insertBeforeAnnotations(source, declaration);
+  let depth = 1;
+  for (let i = match.index + match[0].length; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    if (source[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        let prefix = source.substring(0, i);
+        if (!prefix.endsWith('\n')) prefix += '\n';
+        return prefix + '  ' + declaration + '\n' + source.substring(i);
+      }
+    }
+  }
+  return insertBeforeAnnotations(source, declaration);
+}
+
 function insertBeforeAnnotations(source: string, insertion: string): string {
   const lastBrace = source.lastIndexOf('}');
   if (lastBrace < 0) return source;
@@ -90,15 +109,21 @@ function insertBeforeAnnotations(source: string, insertion: string): string {
   const firstAtMatch = diagramBody.match(/^[ \t]*@[A-Za-z0-9_]+[ \t]+at[ \t]+\(/m);
   
   if (firstAtMatch && firstAtMatch.index !== undefined) {
-    return source.slice(0, firstAtMatch.index) + insertion + '\n' + source.slice(firstAtMatch.index);
+    let prefix = source.slice(0, firstAtMatch.index);
+    if (!prefix.endsWith('\n')) prefix += '\n';
+    return prefix + insertion + '\n' + source.slice(firstAtMatch.index);
   }
-  return source.slice(0, lastBrace) + insertion + '\n' + source.slice(lastBrace);
+  let prefix = source.slice(0, lastBrace);
+  if (!prefix.endsWith('\n')) prefix += '\n';
+  return prefix + insertion + '\n' + source.slice(lastBrace);
 }
 
 function insertAtEnd(source: string, insertion: string): string {
   const lastBrace = source.lastIndexOf('}');
   if (lastBrace < 0) return source;
-  return source.slice(0, lastBrace) + insertion + '\n' + source.slice(lastBrace);
+  let prefix = source.slice(0, lastBrace);
+  if (!prefix.endsWith('\n')) prefix += '\n';
+  return prefix + insertion + '\n' + source.slice(lastBrace);
 }
 
 /** Normalize indentation and ordering inside diagram blocks. */
@@ -280,7 +305,7 @@ function updateEntityPosition(source: string, name: string, x: number, y: number
 }
 
 function changeDiagramKind(source: string, diagramName: string, newKind: string): string {
-  const rx = new RegExp(`(diagram\\s+${escapeRegex(diagramName)}\\s*:\\s*)[a-zA-Z]+\\b`);
+  const rx = new RegExp(`(diagram\s+${escapeRegex(diagramName)}\\s*:\\s*)[a-zA-Z]+\\b`);
   return source.replace(rx, `$1${newKind}`);
 }
 
@@ -465,6 +490,7 @@ export default function App() {
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
   const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
+  const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string } | null>(null);
   const [renamingTabId, setRenamingTabId]   = useState<string | null>(null);
   const examplesRef                         = useRef<HTMLDivElement>(null);
@@ -544,12 +570,33 @@ export default function App() {
   }, [activeTab, safeDiagramIdx, activeDiagramIdx, updateActiveTab]);
 
   // ── Bidirectional: drag entity → update @Entity at ───────
-  const handleEntityMove = useCallback((name: string, x: number, y: number) => {
-    updateActiveTab(tab => ({
-      ...tab,
-      source: updateEntityPosition(tab.source, name, x, y),
-    }));
-  }, [updateActiveTab]);
+  const handleEntityMove = useCallback((name: string, x: number, y: number, dragDx?: number, dragDy?: number) => {
+    updateActiveTab(tab => {
+      let src = tab.source;
+      if (activeDiagram) {
+        const pkg = activeDiagram.packages.find(p => p.name === name);
+        if (pkg) {
+          const dx = dragDx ?? 0;
+          const dy = dragDy ?? 0;
+
+          src = updateEntityPosition(src, name, x, y);
+          if (dx !== 0 || dy !== 0) {
+            for (const eName of pkg.entityNames) {
+              const ent = activeDiagram.entities.get(eName);
+              if (ent && ent.position) {
+                src = updateEntityPosition(src, eName, ent.position.x + dx, ent.position.y + dy);
+              }
+            }
+          }
+          return { ...tab, source: src };
+        }
+      }
+      return {
+        ...tab,
+        source: updateEntityPosition(src, name, x, y),
+      };
+    });
+  }, [updateActiveTab, activeDiagram]);
 
   const handleEntityEditRequest = useCallback((entity: IOMEntity) => {
     let body = '';
@@ -578,7 +625,7 @@ export default function App() {
     setEditingRelation({ relationId, label, kind, direction: 'forward', fromMult: rel?.fromMult || '', toMult: rel?.toMult || '' });
   }, [activeDiagram]);
 
-  const handleTextRenameRequest = useCallback((oldName: string, newName: string, type: 'diagram' | 'package') => { updateActiveTab(tab => { let src = tab.source; if (type === 'diagram') { src = src.replace(new RegExp('diagram\\\\s+' + oldName), 'diagram ' + newName); } else { src = src.replace(new RegExp('package\\\\s+' + oldName), 'package ' + newName); src = src.replace(new RegExp('@' + oldName + '\\\\s+at'), '@' + newName + ' at'); } return { ...tab, source: src }; }); }, [updateActiveTab]);
+  const handleTextRenameRequest = useCallback((oldName: string, _newName: string, type: 'diagram' | 'package') => { setEditingText({ oldName, newName: oldName, type }); }, []);
   const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string) => {
     updateActiveTab(tab => {
       let newSource = insertBeforeAnnotations(tab.source, `  ${fromEntity} --> ${toEntity}`);
@@ -635,16 +682,7 @@ export default function App() {
         declaration += ' {\n\n  }';
       }
 
-        if (targetPackage) { 
-          let pkgRegex = new RegExp('(package\\s+' + targetPackage + '\\s*\\{[\\s\\S]*?\\n)(\\s*\\})'); 
-          if (pkgRegex.test(src)) { 
-            src = src.replace(pkgRegex, '$1  ' + declaration + '\n$2'); 
-          } else { 
-            src = insertBeforeAnnotations(src, declaration); 
-          } 
-        } else { 
-          src = insertBeforeAnnotations(src, declaration); 
-        }
+        if (targetPackage) { src = insertIntoPackage(src, targetPackage, declaration); } else { src = insertBeforeAnnotations(src, declaration); }
       src = insertAtEnd(src, `  @${name} at (${Math.round(x)}, ${Math.round(y)})`);
       src = formatDiagramSource(src);
       return { ...tab, source: src };
@@ -1436,7 +1474,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ──────────────── STATUS BAR ──────────────────────── */}
+      {editingText && ( <div className="iso-modal-overlay"> <div className="iso-modal"> <h3>Edit {editingText.type === 'diagram' ? 'Diagram Name' : 'Package Name'}</h3> <div className="iso-modal-field"> <label>Name</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>Cancel</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>Save</button> </div> </div> </div> )} {/* ──────────────── STATUS BAR ──────────────────────── */}
       <footer className="iso-statusbar">
         <span className="iso-statusbar-item">Isomorph DSL</span>
         <span className="iso-statusbar-sep">·</span>
@@ -1466,3 +1504,7 @@ export default function App() {
     </div>
   );
 }
+
+
+
+

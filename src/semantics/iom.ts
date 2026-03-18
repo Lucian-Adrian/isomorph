@@ -109,6 +109,7 @@ export interface IOMDiagram {
 export interface IOMPackage {
   name: string;
   entityNames: string[];
+  position?: { x: number, y: number };
   subPackages: IOMPackage[];
 }
 
