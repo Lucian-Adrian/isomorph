@@ -944,7 +944,6 @@ export default function App() {
       <div className="iso-shell">
         <header className="iso-header">
           <button type="button" className="iso-logo" aria-label="Isomorph home">
-            <div className="iso-logo-mark" aria-hidden="true">Is</div>
             <span className="iso-logo-name">Isomorph</span>
           </button>
         </header>
@@ -986,7 +985,6 @@ export default function App() {
       <header className="iso-header">
         {/* Logo */}
         <button type="button" className="iso-logo" aria-label="Isomorph home" onClick={e => e.preventDefault()}>
-          <div className="iso-logo-mark" aria-hidden="true">Is</div>
           <span className="iso-logo-name">Isomorph</span>
         </button>
 
@@ -1001,7 +999,7 @@ export default function App() {
 
         {/* Diagram tabs */}
         {diagrams.length > 1 && (
-          <nav className="iso-tabs" aria-label="Diagrams" style={{ overflowX: 'auto', flexShrink: 1 }}>
+          <nav className="iso-tabs" aria-label="Diagrams" style={{ flex: '1 1 auto', minWidth: 0, overflowX: 'auto' }}>
             {filteredDiagrams.map((d, i) => (
               <button
                 key={d.name}
@@ -1020,7 +1018,7 @@ export default function App() {
 
         <div className="iso-header-spacer" />
 
-        <nav className="iso-tabs" aria-label="Open files" style={{ maxWidth: 360, overflowX: 'auto' }}>
+        <nav className="iso-tabs" aria-label="Open files" style={{ flex: '0 1 30%', minWidth: 0, overflowX: 'auto', display: 'flex' }}>
           {tabs.map(tab => (
             <div
               key={tab.id}
