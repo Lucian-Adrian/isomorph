@@ -309,7 +309,7 @@ function changeDiagramKind(source: string, diagramName: string, newKind: string)
   return source.replace(rx, `$1${newKind}`);
 }
 
-const ENTITY_KINDS_RX = '(?:class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object)';
+const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object)';
 
 function findEntityBounds(source: string, entityName: string): { start: number, end: number, bodyStart: number, bodyEnd: number } | null {
   const sigRx = new RegExp(`^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+${escapeRegex(entityName)}\\b`, 'm');
@@ -769,8 +769,7 @@ export default function App() {
           const snippets: string[] = [];
           for (const item of selectedItems) {
             if (item.type === 'entity') {
-              const entity = activeDiagram.entities.get(item.id);
-              if (!entity) continue;
+              if (!activeDiagram.entities.has(item.id) && !activeDiagram.packages.find(p => p.name === item.id)) continue;
               // Reconstruct the entity declaration from the source using exact boundaries
               const extracted = extractEntityDeclaration(activeTab!.source, item.id);
               if (extracted) snippets.push(extracted.trim());
@@ -837,8 +836,7 @@ export default function App() {
             let nextSource = tab.source;
             for (const item of selectedItems) {
               if (item.type === 'entity') {
-                const entity = activeDiagram.entities.get(item.id);
-                if (!entity) continue;
+                if (!activeDiagram.entities.has(item.id) && !activeDiagram.packages.find(p => p.name === item.id)) continue;
                 
                 const extracted = extractEntityDeclaration(nextSource, item.id);
                 if (extracted) snippets.push(extracted.trim());
@@ -1504,6 +1502,8 @@ export default function App() {
     </div>
   );
 }
+
+
 
 
 
