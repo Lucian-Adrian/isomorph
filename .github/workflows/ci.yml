@@ -52,13 +52,12 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - uses: actions/configure-pages@v4
+      - name: Deploy to GitHub Pages (website branch)
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          enablement: true
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./website/dist
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./website/dist
+          publish_branch: website
+          user_name: github-actions[bot]
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          keep_files: false
