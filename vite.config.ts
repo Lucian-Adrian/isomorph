@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
-  base: '/isomorph/',
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {
@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'website/dist',
+    outDir: 'website/dist/app',
   },
   test: {
     environment: 'jsdom',

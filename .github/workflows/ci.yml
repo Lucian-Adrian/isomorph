@@ -52,6 +52,11 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      - name: Prepare website output
+        run: |
+          mkdir -p website/dist
+          cp website/index.html website/dist/index.html
+
       - name: Deploy to GitHub Pages (website branch)
         uses: peaceiris/actions-gh-pages@v4
         with:
