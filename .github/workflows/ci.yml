@@ -56,12 +56,14 @@ jobs:
           mkdir -p website/dist
           cp website/index.html website/dist/index.html
 
-      - name: Deploy to GitHub Pages (website branch)
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./website/dist
-          publish_branch: website
-          user_name: github-actions[bot]
-          user_email: 41898282+github-actions[bot]@users.noreply.github.com
-          keep_files: false
+      - name: Deploy to website branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan website
+          git reset --hard
+          git clean -fdx
+          cp -r website/dist/* .
+          git add --all
+          git commit -m "Deploy site: $GITHUB_SHA" || true
+          git push --force origin website
