@@ -45,8 +45,10 @@ export function renderClassDiagram(diag: IOMDiagram): string {
     const y2s = members.map(p => p.pos.y + p.height);
     const px = Math.min(...xs) - 20, py = Math.min(...ys) - 30;
     const pw = Math.max(...x2s) - px + 20, ph = Math.max(...y2s) - py + 20;
-    svg += `  <rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="6" fill="#f0f4ff" stroke="#b0c0e0" stroke-width="1.5" stroke-dasharray="6,3"/>\n`;
-    svg += `  <text x="${px + 8}" y="${py + 18}" font-size="11" fill="#5566aa" font-style="italic">«package» ${escapeXml(pkg.name)}</text>\n`;
+      svg += `  <g data-package-name="${escapeXml(pkg.name)}">\n`;
+      svg += `    <rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="6" fill="#f0f4ff" stroke="#b0c0e0" stroke-width="1.5" stroke-dasharray="6,3"/>\n`;
+      svg += `    <text x="${px + 8}" y="${py + 18}" font-size="11" fill="#5566aa" font-style="italic">«package» ${escapeXml(pkg.name)}</text>\n`;
+      svg += `  </g>\n`;
   }
 
   // Draw relations

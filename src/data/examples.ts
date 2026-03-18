@@ -139,13 +139,14 @@ diagram LibraryUseCase : usecase {
   Librarian --> GenerateReport
   System --> GenerateReport [label="schedules"]
 
-  @Student at (80, 300)
-  @Librarian at (80, 480)
-  @SearchBooks at (350, 180)
-  @BorrowBook at (350, 300)
-  @ReturnBook at (350, 420)
-  @ManageCatalog at (650, 360)
-  @GenerateReport at (650, 480)
+  @Student at (100, 300)
+  @Librarian at (100, 480)
+  @System at (100, 600)
+  @SearchBooks at (450, 180)
+  @BorrowBook at (450, 300)
+  @ReturnBook at (450, 420)
+  @ManageCatalog at (750, 360)
+  @GenerateReport at (750, 480)
 
 }
 `,

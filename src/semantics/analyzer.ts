@@ -293,7 +293,7 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     for (const [name, entity] of entities) {
       const sp = entitySpans.get(name);
       // Rough heuristic: starts with a common verb prefix
-      const startsWithVerb = /^(get|set|is|has|can|do|create|update|delete|process|manage|run|save|load|print|send|receive|calculate|authenticate|borrow|return|reserve)/i.test(name);
+      const startsWithVerb = /^(get|set|is|has|can|do|create|update|delete|process|manage|run|save|load|print|send|receive|calculate|authenticate|borrow|return|reserve|search|generate|find|check|verify|validate)/i.test(name);
       
       if (entity.kind === 'actor' || entity.kind === 'object' || entity.kind === 'multiobject' || entity.kind === 'active_object' || entity.kind === 'boundary' || entity.kind === 'system') {
         if (startsWithVerb) {

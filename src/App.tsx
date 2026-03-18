@@ -192,6 +192,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Abstract Class', keyword: 'abstract class' },
         { label: 'Interface', keyword: 'interface' },
         { label: 'Enum', keyword: 'enum' },
+        { label: 'Package', keyword: 'package' },
       ];
     case 'usecase':
       return [
@@ -577,6 +578,7 @@ export default function App() {
     setEditingRelation({ relationId, label, kind, direction: 'forward', fromMult: rel?.fromMult || '', toMult: rel?.toMult || '' });
   }, [activeDiagram]);
 
+  const handleTextRenameRequest = useCallback((oldName: string, newName: string, type: 'diagram' | 'package') => { updateActiveTab(tab => { let src = tab.source; if (type === 'diagram') { src = src.replace(new RegExp('diagram\\\\s+' + oldName), 'diagram ' + newName); } else { src = src.replace(new RegExp('package\\\\s+' + oldName), 'package ' + newName); src = src.replace(new RegExp('@' + oldName + '\\\\s+at'), '@' + newName + ' at'); } return { ...tab, source: src }; }); }, [updateActiveTab]);
   const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string) => {
     updateActiveTab(tab => {
       let newSource = insertBeforeAnnotations(tab.source, `  ${fromEntity} --> ${toEntity}`);
@@ -609,7 +611,7 @@ export default function App() {
     setEditingRelation(null);
   }, [updateActiveTab]);
 
-  const handleDropEntity = useCallback((keyword: string, x: number, y: number) => {
+  const handleDropEntity = useCallback((keyword: string, x: number, y: number, targetPackage?: string) => {
     updateActiveTab(tab => {
       let src = tab.source.trim();
       if (!src || src.lastIndexOf('}') < 0) {
@@ -633,7 +635,16 @@ export default function App() {
         declaration += ' {\n\n  }';
       }
 
-      src = insertBeforeAnnotations(src, declaration);
+        if (targetPackage) { 
+          let pkgRegex = new RegExp('(package\\s+' + targetPackage + '\\s*\\{[\\s\\S]*?\\n)(\\s*\\})'); 
+          if (pkgRegex.test(src)) { 
+            src = src.replace(pkgRegex, '$1  ' + declaration + '\n$2'); 
+          } else { 
+            src = insertBeforeAnnotations(src, declaration); 
+          } 
+        } else { 
+          src = insertBeforeAnnotations(src, declaration); 
+        }
       src = insertAtEnd(src, `  @${name} at (${Math.round(x)}, ${Math.round(y)})`);
       src = formatDiagramSource(src);
       return { ...tab, source: src };
@@ -1280,6 +1291,7 @@ export default function App() {
                   onEntityEditRequest={handleEntityEditRequest}
                   onRelationEditRequest={handleRelationEditRequest}
                   onRelationAddRequest={handleRelationAddRequest}
+                    onTextRenameRequest={handleTextRenameRequest}
                   onExportSVG={handleExportSVG}
                   onDropEntity={handleDropEntity}
                   availableTools={toolsetFor(activeDiagram?.kind)}

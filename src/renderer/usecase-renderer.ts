@@ -55,8 +55,10 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     }
   } else {
     // Default system boundary if none explicitly defined
-    svg += `  <rect x="280" y="30" width="580" height="${canvasH - 60}" rx="8" fill="white" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
-    svg += `  <text x="300" y="52" font-size="13" fill="#64748b" font-style="italic">${escapeXml(diag.name)} : System</text>\n`;
+    svg += `  <g data-diagram-name="${escapeXml(diag.name)}">\n`;
+    svg += `    <rect x="280" y="30" width="580" height="${canvasH - 60}" rx="8" fill="white" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
+    svg += `    <text x="300" y="52" font-size="13" fill="#64748b" font-style="italic">${escapeXml(diag.name)} : System</text>\n`;
+    svg += `  </g>\n`;
   }
 
   // Draw relations

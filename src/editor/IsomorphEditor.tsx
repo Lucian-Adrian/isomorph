@@ -99,6 +99,24 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
           '.cm-lint-marker-error': { content: '""', color: '#f85149' },
           '.cm-lint-marker-warning': { content: '""', color: '#d29922' },
           '.cm-tooltip-lint': { backgroundColor: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#c9d1d9' },
+          // Autocomplete styling
+          '.cm-tooltip-autocomplete': {
+            backgroundColor: '#161b22',
+            border: '1px solid #30363d',
+            borderRadius: '6px',
+            color: '#c9d1d9',
+          },
+          '.cm-tooltip-autocomplete > ul > li': {
+            color: '#c9d1d9',
+          },
+          '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+            backgroundColor: '#1f6feb',
+            color: '#ffffff',
+          },
+          '.cm-completionLabel': { color: '#c9d1d9' },
+          '.cm-completionMatchedText': { textDecoration: 'underline', color: '#79c0ff' },
+          '.cm-completionDetail': { color: '#8b949e', fontStyle: 'italic', marginLeft: '8px' },
+          '.cm-completionInfo': { padding: '4px 8px', fontStyle: 'italic', color: '#8b949e' },
         }),
       ],
     });

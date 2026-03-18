@@ -17,7 +17,8 @@ interface DiagramViewProps {
   onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string) => void;
   onRelationAddRequest?: (fromEntity: string, toEntity: string) => void;
   onExportSVG?: () => void;
-  onDropEntity?: (keyword: string, x: number, y: number) => void;
+  onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string) => void;
+  onTextRenameRequest?: (oldText: string, newText: string, type: 'diagram' | 'package') => void;
   availableTools?: CanvasTool[];
   selectedItems?: { type: 'entity' | 'relation', id: string }[];
   onSelectionChange?: (selection: { type: 'entity' | 'relation', id: string }[]) => void;
@@ -31,6 +32,7 @@ export function DiagramView({
   onExportSVG,
   onDropEntity,
   onRelationAddRequest,
+  onTextRenameRequest,
   availableTools = ['move', 'hand', 'edit-node', 'edit-edge', 'add-edge'],
   selectedItems = [],
   onSelectionChange,
@@ -180,6 +182,30 @@ export function DiagramView({
           const current = diagram.entities.get(entityName);
           if (current) onEntityEditRequest(current);
           return;
+        }
+      }
+
+      const pkgGroup = target.closest('g[data-package-name]') as SVGGElement | null;
+      if (pkgGroup && onTextRenameRequest && availableTools.includes('edit-node')) {
+        const pkgName = pkgGroup.getAttribute('data-package-name');
+        if (pkgName) {
+           const newName = window.prompt("Edit package name:", pkgName);
+           if (newName && newName !== pkgName) {
+             onTextRenameRequest(pkgName, newName, 'package');
+           }
+           return;
+        }
+      }
+
+      const diagramGroup = target.closest('g[data-diagram-name]') as SVGGElement | null;
+      if (diagramGroup && onTextRenameRequest && availableTools.includes('edit-node')) {
+        const diagName = diagramGroup.getAttribute('data-diagram-name');
+        if (diagName) {
+           const newName = window.prompt("Edit diagram name:", diagName);
+           if (newName && newName !== diagName) {
+             onTextRenameRequest(diagName, newName, 'diagram');
+           }
+           return;
         }
       }
       return;
@@ -379,7 +405,7 @@ export function DiagramView({
             const rect = e.currentTarget.getBoundingClientRect();
             const canvasX = (e.clientX - rect.left - pan.x) / (zoom / 100);
             const canvasY = (e.clientY - rect.top - pan.y) / (zoom / 100);
-            onDropEntity(keyword, canvasX, canvasY);
+            const target = e.target as Element; const pkgGroup = target.closest('g[data-package-name]'); const targetPackage = pkgGroup ? (pkgGroup.getAttribute('data-package-name') ?? undefined) : undefined; onDropEntity(keyword, canvasX, canvasY, targetPackage);
           }
         }}      >
         <div
