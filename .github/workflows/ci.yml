@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [master]
   pull_request:
-    branches: [master, main]
+    branches: [master]
 
 permissions:
   contents: read
@@ -36,7 +36,7 @@ jobs:
   deploy:
     name: Deploy
     needs: test
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -50,13 +50,13 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npm run build -- --base /isomorph/
+      - run: npm run build
 
       - uses: actions/configure-pages@v4
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./website/dist
 
       - id: deployment
         uses: actions/deploy-pages@v4

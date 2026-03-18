@@ -1,7 +1,11 @@
 node_modules/
 dist/
+website/dist/
 .vite/
 coverage/
 *.local
 .DS_Store
 *.log
+
+# Keep empty website folder in repo
+!website/.gitkeep
