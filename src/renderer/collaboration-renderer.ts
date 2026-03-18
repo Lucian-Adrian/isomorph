@@ -61,7 +61,7 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
       const isLeftToRight = x2 > x1;
       const arrow = isLeftToRight ? '→' : '←';
       const text = `${safeLabel} ${arrow}`;
-      svg += `<rect x="${mx - text.length * 3.5}" y="${my - 12}" width="${text.length * 7}" height="16" fill="white" opacity="0.8"/>`;
+      svg += `<rect x="${mx - text.length * 3.5 - 4}" y="${my - 12}" width="${text.length * 7 + 8}" height="16" fill="white" opacity="0.9"/>`;
       svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#333">${escapeXml(text)}</text>`;
     }
     svg += `</g>\n`;

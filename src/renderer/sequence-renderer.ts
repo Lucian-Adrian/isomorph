@@ -22,8 +22,15 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     if (rel.from === rel.to) selfMessageCount++;
   }
 
-  const width = paddingX * 2 + Math.max(0, entities.length - 1) * colSpacing;
+  let computedWidth = paddingX * 2 + Math.max(0, entities.length - 1) * colSpacing;
   const height = paddingY * 2 + 40 + Math.max(0, diag.relations.length) * rowSpacing + selfMessageCount * selfLoopHeight + 80;
+
+  for (const ent of entities) {
+    if (ent.position && ent.position.x !== undefined) {
+      computedWidth = Math.max(computedWidth, ent.position.x + 160);
+    }
+  }
+  const width = computedWidth;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa">\n`;
   svg += svgDefs();

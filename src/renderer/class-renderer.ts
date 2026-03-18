@@ -177,16 +177,24 @@ function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): str
   // Label
   const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
   if (rel.label) {
-    s += `    <rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="white" opacity="0.8"/>\n`;
+    s += `    <rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="white" opacity="0.9"/>\n`;
     s += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#333" font-style="italic">${escapeXml(rel.label)}</text>\n`;
   }
 
   // Multiplicities
   if (rel.fromMult) {
-    s += `    <text x="${(sx + 20).toFixed(1)}" y="${(sy - 6).toFixed(1)}" font-size="11" fill="#666">${escapeXml(rel.fromMult)}</text>\n`;
+    const multX = (sx + 20).toFixed(1);
+    const multY = (sy - 6).toFixed(1);
+    const multW = rel.fromMult.length * 6 + 10;
+    s += `    <rect x="${parseFloat(multX) - multW/2}" y="${parseFloat(multY) - 12}" width="${multW}" height="14" rx="2" fill="white" opacity="0.9"/>\n`;
+    s += `    <text x="${multX}" y="${multY}" font-size="11" fill="#666" font-weight="600" text-anchor="middle">${escapeXml(rel.fromMult)}</text>\n`;
   }
   if (rel.toMult) {
-    s += `    <text x="${(ex - 20).toFixed(1)}" y="${(ey - 6).toFixed(1)}" font-size="11" fill="#666">${escapeXml(rel.toMult)}</text>\n`;
+    const multX = (ex - 20).toFixed(1);
+    const multY = (ey - 6).toFixed(1);
+    const multW = rel.toMult.length * 6 + 10;
+    s += `    <rect x="${parseFloat(multX) - multW/2}" y="${parseFloat(multY) - 12}" width="${multW}" height="14" rx="2" fill="white" opacity="0.9"/>\n`;
+    s += `    <text x="${multX}" y="${multY}" font-size="11" fill="#666" font-weight="600" text-anchor="middle">${escapeXml(rel.toMult)}</text>\n`;
   }
 
   s += `  </g>\n`;

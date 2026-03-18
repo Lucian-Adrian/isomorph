@@ -69,7 +69,16 @@ function templateFor(kind: DiagramKind): string {
     return `diagram ${diagramName} : sequence {\n\n  actor User\n\n}\n`;
   }
   if (kind === 'flow') {
-    return `diagram ${diagramName} : flow {\n\n  component Start\n\n}\n`;
+    return `diagram ${diagramName} : flow {\n\n  start Begin\n  action Process\n  stop End\n\n  Begin --> Process\n  Process --> End\n\n  @Begin at (200, 60)\n  @Process at (170, 180)\n  @End at (200, 300)\n\n}\n`;
+  }
+  if (kind === 'state') {
+    return `diagram ${diagramName} : state {\n\n  start Initial\n  state Active\n  stop Final\n\n  Initial --> Active\n  Active --> Final\n\n  @Initial at (200, 60)\n  @Active at (170, 180)\n  @Final at (200, 300)\n\n}\n`;
+  }
+  if (kind === 'activity') {
+    return `diagram ${diagramName} : activity {\n\n  start Begin\n  action DoWork\n  stop End\n\n  Begin --> DoWork\n  DoWork --> End\n\n  @Begin at (200, 60)\n  @DoWork at (170, 180)\n  @End at (200, 300)\n\n}\n`;
+  }
+  if (kind === 'collaboration') {
+    return `diagram ${diagramName} : collaboration {\n\n  object Client\n  object Server\n\n  Client --> Server [label="1: request"]\n\n  @Client at (100, 120)\n  @Server at (380, 120)\n\n}\n`;
   }
   return `diagram ${diagramName} : class {\n\n  class Entity {\n    + id: string\n  }\n\n}\n`;
 }
@@ -92,9 +101,86 @@ function insertAtEnd(source: string, insertion: string): string {
   return source.slice(0, lastBrace) + insertion + '\n' + source.slice(lastBrace);
 }
 
+/** Normalize indentation and ordering inside diagram blocks. */
+function formatDiagramSource(source: string): string {
+  // Replace tabs with 2 spaces globally
+  let s = source.replace(/\t/g, '  ');
+  // Find the diagram block
+  const diagramMatch = s.match(/^(diagram\s+\S+\s*:\s*\S+\s*\{)(\n[\s\S]*?)(\n\s*\}\s*)$/m);
+  if (!diagramMatch) return s;
+  const header = diagramMatch[1];
+  const body = diagramMatch[2];
+
+  const entityLines: string[] = [];
+  const relationLines: string[] = [];
+  const annotationLines: string[] = [];
+  const commentLines: string[] = [];
+  const otherLines: string[] = [];
+
+  const entityDeclRx = new RegExp(`^\\s*(?:abstract\\s+|static\\s+|final\\s+)*${ENTITY_KINDS_RX}\\s+`, 'm');
+  const relRx = /^\s*[A-Za-z_]\w*\s+(--|-->|--\|>|\.\.\|>|<\|-|-|<\|\.\.|<\.\.|o--|\*--|\.\.>|--o|--\*|--x)\s+[A-Za-z_]\w*/;
+  const annoRx = /^\s*@[A-Za-z_]\w*\s+at\s*\(/;
+  const commentRx = /^\s*\/\//;
+  const packageRx = /^\s*package\s+/;
+  const closeBraceRx = /^\s*\}\s*$/;
+
+  // Collect multi-line entity blocks (with braces)
+  const lines = body.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) { i++; continue; }
+
+    if (annoRx.test(line)) {
+      annotationLines.push('  ' + trimmed);
+      i++;
+    } else if (commentRx.test(line)) {
+      commentLines.push('  ' + trimmed);
+      i++;
+    } else if (relRx.test(line)) {
+      relationLines.push('  ' + trimmed);
+      i++;
+    } else if (entityDeclRx.test(line) || packageRx.test(line)) {
+      // Collect the entity including its brace block if present
+      let block = '  ' + trimmed;
+      if (trimmed.includes('{') && !trimmed.includes('}')) {
+        let braceCount = (trimmed.match(/\{/g) || []).length - (trimmed.match(/\}/g) || []).length;
+        i++;
+        while (i < lines.length && braceCount > 0) {
+          const innerLine = lines[i].trim();
+          braceCount += (innerLine.match(/\{/g) || []).length - (innerLine.match(/\}/g) || []).length;
+          block += '\n    ' + innerLine;
+          i++;
+        }
+      } else {
+        i++;
+      }
+      entityLines.push(block);
+    } else if (closeBraceRx.test(line)) {
+      // Stray closing brace — skip
+      i++;
+    } else {
+      otherLines.push('  ' + trimmed);
+      i++;
+    }
+  }
+
+  // Rebuild body
+  const sections: string[][] = [];
+  if (commentLines.length > 0) sections.push(commentLines);
+  if (entityLines.length > 0) sections.push(entityLines);
+  if (otherLines.length > 0) sections.push(otherLines);
+  if (relationLines.length > 0) sections.push(relationLines);
+  if (annotationLines.length > 0) sections.push(annotationLines);
+
+  const newBody = sections.map(sec => sec.join('\n')).join('\n\n');
+
+  return header + '\n\n' + newBody + '\n\n}';
+}
+
 function toolsetFor(kind?: DiagramKind): CanvasTool[] {
   if (!kind) return ['move', 'hand'];
-  if (kind === 'flow') return ['hand'];
   return ['move', 'hand', 'add-edge', 'edit-node', 'edit-edge'];
 }
 
@@ -103,6 +189,7 @@ function getStencilsForKind(kind?: DiagramKind) {
     case 'class':
       return [
         { label: 'Class', keyword: 'class' },
+        { label: 'Abstract Class', keyword: 'abstract class' },
         { label: 'Interface', keyword: 'interface' },
         { label: 'Enum', keyword: 'enum' },
       ];
@@ -110,17 +197,22 @@ function getStencilsForKind(kind?: DiagramKind) {
       return [
         { label: 'Actor', keyword: 'actor' },
         { label: 'Use Case', keyword: 'usecase' },
+        { label: 'System', keyword: 'system' },
       ];
     case 'component':
       return [
         { label: 'Component', keyword: 'component' },
         { label: 'Interface', keyword: 'interface' },
+        { label: 'Artifact', keyword: 'artifact' },
+        { label: 'Node', keyword: 'node' },
       ];
     case 'deployment':
       return [
         { label: 'Node', keyword: 'node' },
         { label: 'Component', keyword: 'component' },
         { label: 'Device', keyword: 'node <<device>>' },
+        { label: 'Artifact', keyword: 'artifact' },
+        { label: 'Environment', keyword: 'environment' },
       ];
     case 'sequence':
       return [
@@ -156,10 +248,16 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Actor', keyword: 'actor' },
         { label: 'Multiobject', keyword: 'multiobject' },
         { label: 'Active Object', keyword: 'active_object' },
+        { label: 'Composite Obj', keyword: 'composite_object' },
       ];
     case 'flow':
       return [
-        { label: 'Action', keyword: 'component' },
+        { label: 'Process', keyword: 'action' },
+        { label: 'Decision', keyword: 'decision' },
+        { label: 'Start', keyword: 'start' },
+        { label: 'End', keyword: 'stop' },
+        { label: 'Fork', keyword: 'fork' },
+        { label: 'Join', keyword: 'join' },
       ];
     default:
       return [];
@@ -308,7 +406,7 @@ function updateEntityDeclaration(
 function updateRelationById(
   source: string,
   relationId: string,
-  updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse' },
+  updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse'; fromMult?: string; toMult?: string },
 ): string {
   const idxRaw = relationId.replace('rel_', '');
   const relationIdx = Number.parseInt(idxRaw, 10);
@@ -345,6 +443,11 @@ function updateRelationById(
     else attrMap.delete('label');
   }
 
+  if (updates.toMult !== undefined && updates.toMult === '') attrMap.delete('toMult');
+  else if (updates.toMult !== undefined) attrMap.set('toMult', updates.toMult);
+  if (updates.fromMult !== undefined && updates.fromMult === '') attrMap.delete('fromMult');
+  else if (updates.fromMult !== undefined) attrMap.set('fromMult', updates.fromMult);
+
   const attrsSerialized = [...attrMap.entries()].map(([k, v]) => `${k}="${v}"`).join(', ');
   const suffix = attrsSerialized ? ` [${attrsSerialized}]` : '';
   const replacement = `${indent}${from} ${op} ${to}${suffix}`;
@@ -362,7 +465,7 @@ export default function App() {
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
   const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
-  const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse' } | null>(null);
+  const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string } | null>(null);
   const [renamingTabId, setRenamingTabId]   = useState<string | null>(null);
   const examplesRef                         = useRef<HTMLDivElement>(null);
   const fileInputRef                        = useRef<HTMLInputElement>(null);
@@ -453,16 +556,32 @@ export default function App() {
     if (activeTab) {
       body = extractEntityBody(activeTab.source, entity.name) ?? '';
     }
+    // Strip leading uniform indentation and tabs from body for display
+    if (body) {
+      body = body.replace(/\t/g, '  ');
+      const bodyLines = body.split('\n');
+      // Find minimum leading spaces
+      const minIndent = bodyLines.filter(l => l.trim()).reduce((min, l) => {
+        const match = l.match(/^(\s*)/);
+        return match ? Math.min(min, match[1].length) : min;
+      }, Infinity);
+      if (minIndent > 0 && minIndent < Infinity) {
+        body = bodyLines.map(l => l.slice(minIndent)).join('\n');
+      }
+    }
     setEditingEntity({ ...entity, bodyText: body, origName: entity.name });
   }, [activeTab]);
 
   const handleRelationEditRequest = useCallback((relationId: string, label: string, kind: string) => {
-    setEditingRelation({ relationId, label, kind, direction: 'forward' });
-  }, []);
+    // Also extract multiplicities from the source for editing
+    const rel = activeDiagram?.relations.find(r => r.id === relationId);
+    setEditingRelation({ relationId, label, kind, direction: 'forward', fromMult: rel?.fromMult || '', toMult: rel?.toMult || '' });
+  }, [activeDiagram]);
 
   const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string) => {
     updateActiveTab(tab => {
-      const newSource = insertBeforeAnnotations(tab.source, `${fromEntity} --> ${toEntity}`);
+      let newSource = insertBeforeAnnotations(tab.source, `  ${fromEntity} --> ${toEntity}`);
+      newSource = formatDiagramSource(newSource);
       return { ...tab, source: newSource };
     });
   }, [updateActiveTab]);
@@ -473,6 +592,7 @@ export default function App() {
       if (updates.bodyText !== undefined) {
         source = replaceEntityBody(source, updates.name || entityName, updates.bodyText);
       }
+      source = formatDiagramSource(source);
       return { ...tab, source };
     });
     setEditingEntity(null);
@@ -480,12 +600,13 @@ export default function App() {
 
   const handleRelationEdit = useCallback((
     relationId: string,
-    updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse' },
+    updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse'; fromMult?: string; toMult?: string },
   ) => {
-    updateActiveTab(tab => ({
-      ...tab,
-      source: updateRelationById(tab.source, relationId, updates),
-    }));
+    updateActiveTab(tab => {
+      let src = updateRelationById(tab.source, relationId, updates);
+      src = formatDiagramSource(src);
+      return { ...tab, source: src };
+    });
     setEditingRelation(null);
   }, [updateActiveTab]);
 
@@ -508,13 +629,14 @@ export default function App() {
       }
 
       const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum'];
-      let declaration = `${keyword} ${name}`;
+      let declaration = `  ${keyword} ${name}`;
       if (BRACE_KINDS.includes(baseName)) {
-        declaration += ' {\n    // head\n\n    // body\n\n    // footer\n  }';
+        declaration += ' {\n\n  }';
       }
 
       src = insertBeforeAnnotations(src, declaration);
       src = insertAtEnd(src, `  @${name} at (${Math.round(x)}, ${Math.round(y)})`);
+      src = formatDiagramSource(src);
       return { ...tab, source: src };
     });
   }, [updateActiveTab]);
@@ -651,7 +773,8 @@ export default function App() {
               return `@${n} at (${parseInt(x) + 30}, ${parseInt(y) + 30})`;
             });
             updateActiveTab(tab => {
-              const src = insertBeforeAnnotations(tab.source, pasteText.trim());
+              let src = insertBeforeAnnotations(tab.source, pasteText.trim());
+              src = formatDiagramSource(src);
               return { ...tab, source: src };
             });
           }).catch(() => {});
@@ -1213,6 +1336,12 @@ export default function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
                   <label>Body</label>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {['enum'].includes(editingEntity.kind) && (
+                       <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  NEW_VALUE' } : null); }}>+ Enum Value</button>
+                    )}
+                    {['usecase'].includes(editingEntity.kind) && (
+                       <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  extensionPoint' } : null); }}>+ Ext Pt</button>
+                    )}
                     {['class', 'interface'].includes(editingEntity.kind) && (
                        <>
                          <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  + newField : string' } : null); }}>+ Pub Field</button>
@@ -1258,7 +1387,7 @@ export default function App() {
           <div className="iso-modal">
             <h3>Edit Relation</h3>
             <div className="iso-modal-field">
-              <label>Label</label>
+              <label>Role / Label</label>
               <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
                 <input type="text" style={{ flex: 1 }} value={editingRelation.label} onChange={e => setEditingRelation({ ...editingRelation, label: e.target.value })} autoFocus />
                 {['state', 'activity'].includes(activeDiagram?.kind || '') && (
@@ -1266,6 +1395,18 @@ export default function App() {
                 )}
               </div>
             </div>
+            {['class'].includes(activeDiagram?.kind || '') && (
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div className="iso-modal-field" style={{ flex: 1 }}>
+                  <label>From Mult (e.g. 1)</label>
+                  <input type="text" value={editingRelation.fromMult || ''} onChange={e => setEditingRelation({ ...editingRelation, fromMult: e.target.value })} />
+                </div>
+                <div className="iso-modal-field" style={{ flex: 1 }}>
+                  <label>To Mult (e.g. 0..*)</label>
+                  <input type="text" value={editingRelation.toMult || ''} onChange={e => setEditingRelation({ ...editingRelation, toMult: e.target.value })} />
+                </div>
+              </div>
+            )}
             <div className="iso-modal-field">
               <label>Kind</label>
               <select className="iso-select" value={editingRelation.kind} onChange={e => setEditingRelation({ ...editingRelation, kind: e.target.value })}>
@@ -1288,7 +1429,7 @@ export default function App() {
             </div>
             <div className="iso-modal-actions">
               <button className="iso-btn" onClick={() => setEditingRelation(null)}>Cancel</button>
-              <button className="iso-btn iso-btn--primary" onClick={() => handleRelationEdit(editingRelation.relationId, { label: editingRelation.label, kind: editingRelation.kind, direction: editingRelation.direction })}>Save</button>
+              <button className="iso-btn iso-btn--primary" onClick={() => handleRelationEdit(editingRelation.relationId, { label: editingRelation.label, kind: editingRelation.kind, direction: editingRelation.direction, fromMult: editingRelation.fromMult, toMult: editingRelation.toMult })}>Save</button>
             </div>
           </div>
         </div>

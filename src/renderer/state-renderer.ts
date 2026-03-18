@@ -60,7 +60,7 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     if (rel.label) {
       const mx = (x1 + x2) / 2;
       const my = (y1 + y2) / 2 - 8;
-      svg += `<rect x="${mx - rel.label.length * 3.5}" y="${my - 12}" width="${rel.label.length * 7}" height="16" fill="white" opacity="0.8"/>`;
+      svg += `<rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="white" opacity="0.9"/>`;
       svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#333">${safeLabel}</text>`;
     }
     svg += `</g>\n`;

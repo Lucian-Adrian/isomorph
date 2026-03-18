@@ -233,4 +233,127 @@ diagram AuthFlow : sequence {
 }
 `,
   },
+  {
+    label: 'State',
+    kind: 'state',
+    source: `// Authentication Session — state diagram
+diagram AuthSession : state {
+
+  start Initial
+  state LoggedOut
+  state Authenticating
+  state LoggedIn
+  stop Final
+
+  Initial --> LoggedOut
+  LoggedOut --> Authenticating [label="login()"]
+  Authenticating --> LoggedIn [label="success"]
+  Authenticating --> LoggedOut [label="failure"]
+  LoggedIn --> LoggedOut [label="logout()"]
+  LoggedOut --> Final [label="destroy()"]
+
+  @Initial at (160, 40)
+  @LoggedOut at (120, 140)
+  @Authenticating at (280, 140)
+  @LoggedIn at (280, 260)
+  @Final at (160, 280)
+
+}
+`
+  },
+  {
+    label: 'Activity',
+    kind: 'activity',
+    source: `// Checkout Process — activity diagram
+diagram Checkout : activity {
+
+  start Start
+  action AddToCart
+  action EnterShipping
+  fork Fork1
+  action CalculateTax
+  action CheckStock
+  join Join1
+  action ConfirmOrder
+  stop End
+
+  Start --> AddToCart
+  AddToCart --> EnterShipping
+  EnterShipping --> Fork1
+  Fork1 --> CalculateTax
+  Fork1 --> CheckStock
+  CalculateTax --> Join1
+  CheckStock --> Join1
+  Join1 --> ConfirmOrder
+  ConfirmOrder --> End
+
+  @Start at (200, 40)
+  @AddToCart at (160, 120)
+  @EnterShipping at (160, 220)
+  @Fork1 at (130, 320)
+  @CalculateTax at (40, 380)
+  @CheckStock at (240, 380)
+  @Join1 at (130, 480)
+  @ConfirmOrder at (160, 540)
+  @End at (200, 640)
+
+}
+`
+  },
+  {
+    label: 'Collaboration',
+    kind: 'collaboration',
+    source: `// MVC Pattern Updates — collaboration diagram
+diagram MVCUpdate : collaboration {
+
+  actor User
+  object Controller
+  object Model
+  object View
+
+  User --> Controller [label="1: click()"]
+  Controller --> Model [label="2: updateData()"]
+  Model --> View [label="3: notifyChange()"]
+  View --> User [label="4: render()"]
+
+  @User at (40, 160)
+  @Controller at (280, 60)
+  @Model at (560, 160)
+  @View at (280, 280)
+
+}
+`
+  },
+  {
+    label: 'Flow',
+    kind: 'flow',
+    source: `// Order Fulfillment — flow diagram
+diagram OrderFlow : flow {
+
+  start ReceiveOrder
+  action CheckInventory
+  decision InStock
+  action ProcessPayment
+  action Backorder
+  stop Complete
+  stop Cancelled
+
+  ReceiveOrder --> CheckInventory
+  CheckInventory --> InStock
+  InStock --> ProcessPayment [label="Yes"]
+  InStock --> Backorder [label="No"]
+  ProcessPayment --> Complete [label="Success"]
+  ProcessPayment --> Cancelled [label="Failed"]
+
+  @ReceiveOrder at (160, 40)
+  @CheckInventory at (120, 140)
+  @InStock at (160, 240)
+  @ProcessPayment at (40, 360)
+  @Backorder at (280, 260)
+  @Complete at (80, 480)
+  @Cancelled at (0, 480)
+
+}
+`
+  }
 ];

@@ -57,6 +57,14 @@ export function svgDefs(): string {
       <stop offset="0%" stop-color="#fef3c7"/>
       <stop offset="100%" stop-color="#fde68a"/>
     </linearGradient>
+    <linearGradient id="grad-state" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0f4f8"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="grad-flow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ecfdf5"/>
+      <stop offset="100%" stop-color="#d1fae5"/>
+    </linearGradient>
   </defs>
 `;
 }

@@ -16,7 +16,15 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
 
   const UC_RX = 80, UC_RY = 40;
 
-  const canvasW = 900, canvasH = 600;
+  let canvasW = 900;
+  let canvasH = 600;
+
+  for (const ent of entities) {
+    if (ent.position) {
+      canvasW = Math.max(canvasW, ent.position.x + 200);
+      canvasH = Math.max(canvasH, ent.position.y + 200);
+    }
+  }
 
   // Auto-assign positions if missing
   function pos(e: typeof entities[0], i: number, total: number, xBase: number) {
@@ -59,6 +67,8 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;      svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;    svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="#64748b" stroke-width="1.5"${dashAttr}/>\n`;
     if (rel.label) {
       const mx = (f.p.x + t.p.x) / 2, my = (f.p.y + t.p.y) / 2 - 6;
+      const labelW = safeLabel.length * 6 + 10;
+      svg += `    <rect x="${mx - labelW/2}" y="${my - 12}" width="${labelW}" height="14" rx="2" fill="white" opacity="0.9"/>\n`;
       svg += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#475569">«${safeLabel}»</text>\n`;
     }
     svg += `  </g>\n`;
