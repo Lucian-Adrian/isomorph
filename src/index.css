@@ -5,51 +5,69 @@
 
 /* ── CSS Custom Properties ─────────────────────────────────── */
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+
+  /* Legacy Design System mapping to Landing Page */
+  --white: #ffffff;
+  --off: #f7f7f5;
+  --stone: #e8e8e3;
+  --ink-light: #c8c8c0;
+  --ink-mid: #8a8a82;
+  --ink: #3a3a35;
+  --ink-deep: #1a1a16;
+  --accent: #1a1a16;
+  --glass-bg: rgba(255,255,255,0.72);
+  --glass-border: rgba(0,0,0,0.06);
+  --glass-shadow: 0 1px 40px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --radius: 20px;
+  --radius-sm: 12px;
+  --mono: 'DM Mono', monospace;
+  --sans: 'DM Sans', system-ui, sans-serif;
+
   /* Brand */
-  --iso-brand:         #818cf8;
-  --iso-brand-dark:    #6366f1;
-  --iso-brand-glow:    rgba(99,102,241,0.25);
+  --iso-brand:         var(--ink-deep);
+  --iso-brand-dark:    var(--ink);
+  --iso-brand-glow:    rgba(0,0,0,0.05);
 
   /* Surface */
-  --iso-bg-app:        #0d1117;
-  --iso-bg-header:     #161b22;
-  --iso-bg-sidebar:    #0d1117;
-  --iso-bg-editor:     #0d1117;
-  --iso-bg-canvas:     #fafbfc;
-  --iso-bg-panel:      #161b22;
-  --iso-bg-hover:      rgba(255,255,255,0.06);
-  --iso-bg-active:     rgba(99,102,241,0.15);
+  --iso-bg-app:        var(--off);
+  --iso-bg-header:     rgba(255,255,255,0.85);
+  --iso-bg-sidebar:    var(--white);
+  --iso-bg-editor:     var(--white);
+  --iso-bg-canvas:     var(--white);
+  --iso-bg-panel:      var(--white);
+  --iso-bg-hover:      var(--stone);
+  --iso-bg-active:     var(--stone);
 
   /* Border */
-  --iso-border:        rgba(255,255,255,0.08);
-  --iso-border-strong: rgba(255,255,255,0.16);
-  --iso-divider:       #21262d;
+  --iso-border:        var(--glass-border);
+  --iso-border-strong: rgba(0,0,0,0.1);
+  --iso-divider:       var(--stone);
 
   /* Text */
-  --iso-text:          #e6edf3;
-  --iso-text-muted:    #7d8590;
-  --iso-text-faint:    #484f58;
-  --iso-text-canvas:   #1c2128;
+  --iso-text:          var(--ink-deep);
+  --iso-text-muted:    var(--ink-mid);
+  --iso-text-faint:    var(--ink-light);
+  --iso-text-canvas:   var(--ink);
 
   /* Status */
-  --iso-success:       #3fb950;
-  --iso-error:         #f85149;
-  --iso-warning:       #d29922;
-  --iso-info:          #388bfd;
+  --iso-success:       #28c840;
+  --iso-error:         #ff5f57;
+  --iso-warning:       #febc2e;
+  --iso-info:          #0550ae;
 
   /* Radius */
-  --iso-radius-sm:     4px;
-  --iso-radius:        6px;
-  --iso-radius-lg:     10px;
-  --iso-radius-xl:     14px;
+  --iso-radius-sm:     6px;
+  --iso-radius:        8px;
+  --iso-radius-lg:     12px;
+  --iso-radius-xl:     20px;
 
   /* Shadow */
-  --iso-shadow:        0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
-  --iso-shadow-lg:     0 8px 24px rgba(0,0,0,0.5);
+  --iso-shadow:        var(--glass-shadow);
+  --iso-shadow-lg:     0 8px 24px rgba(0,0,0,0.06);
 
   /* Motion */
-  --iso-duration:      150ms;
+  --iso-duration:      0.2s;
   --iso-ease:          cubic-bezier(0.16,1,0.3,1);
 }
 
@@ -70,7 +88,7 @@ html, body, #root {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
   background: var(--iso-bg-app);
   color: var(--iso-text);
@@ -108,6 +126,9 @@ body {
   padding: 4px 8px;
   border-radius: var(--iso-radius);
   transition: background var(--iso-duration) var(--iso-ease);
+  border: none;
+  background: transparent;
+  cursor: pointer;
 }
 .iso-logo:hover { background: var(--iso-bg-hover); }
 .iso-logo:focus-visible {
@@ -115,29 +136,13 @@ body {
   outline-offset: 2px;
 }
 
-.iso-logo-mark {
-  width: 24px;
-  height: 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 900;
-  font-size: 13px;
-  color: white;
-  letter-spacing: -1px;
-  flex-shrink: 0;
-}
-
 .iso-logo-name {
-  font-weight: 700;
+  font-family: var(--sans);
   font-size: 15px;
-  letter-spacing: -0.3px;
-  background: linear-gradient(135deg, #e6edf3 0%, #818cf8 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-deep);
 }
 
 .iso-header-sep {
@@ -238,13 +243,13 @@ body {
   height: 28px;
 }
 .iso-btn--primary {
-  background: var(--iso-brand-dark);
-  color: white;
-  border-color: rgba(255,255,255,0.1);
+  background: var(--ink-deep);
+  color: var(--white);
+  border-color: transparent;
 }
 .iso-btn--primary:hover {
-  background: var(--iso-brand);
-  color: white;
+  background: var(--ink);
+  color: var(--white);
   border-color: transparent;
 }
 .iso-btn--active {
@@ -256,17 +261,17 @@ body {
 .iso-select {
   min-height: 28px;
   border: 1px solid var(--iso-border);
-  background: rgba(255, 255, 255, 0.04);
+  background: transparent;
   color: var(--iso-text);
   border-radius: var(--iso-radius);
   padding: 0 8px;
-  font-size: 12px;
-  font-family: inherit;
+  font-size: 13px;
+  font-family: var(--sans);
 }
 
 .iso-select option {
-  background: #1e1e24; /* or var(--iso-bg) if supported */
-  color: #fff;
+  background: var(--white);
+  color: var(--ink-deep);
 }
 
 .iso-select:focus-visible {
@@ -279,6 +284,10 @@ body {
   display: flex;
   gap: 4px;
   align-items: center;
+  scrollbar-width: none;
+}
+.iso-tabs::-webkit-scrollbar {
+  display: none;
 }
 .iso-tab {
   display: inline-flex;
@@ -295,6 +304,8 @@ body {
   cursor: pointer;
   transition: all var(--iso-duration) var(--iso-ease);
   touch-action: manipulation;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .iso-tab:hover {
   background: var(--iso-bg-hover);
@@ -323,8 +334,9 @@ body {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  background: #1c2128;
-  border: 1px solid var(--iso-border-strong);
+  background: var(--ink-deep);
+  border: 1px solid var(--ink);
+  color: var(--white);
   border-radius: var(--iso-radius-lg);
   box-shadow: var(--iso-shadow-lg);
   padding: 6px;
@@ -339,7 +351,7 @@ body {
   border-radius: var(--iso-radius);
   cursor: pointer;
   font-size: 13px;
-  color: var(--iso-text);
+  color: var(--white);
   background: transparent;
   border: none;
   width: 100%;
@@ -348,7 +360,7 @@ body {
   transition: background var(--iso-duration);
   touch-action: manipulation;
 }
-.iso-dropdown-item:hover { background: var(--iso-bg-hover); }
+.iso-dropdown-item:hover { background: rgba(255,255,255,0.1); }
 .iso-dropdown-item:focus-visible {
   outline: 2px solid var(--iso-brand);
   outline-offset: 2px;
@@ -358,12 +370,12 @@ body {
 .iso-dropdown-item-meta {
   margin-left: auto;
   font-size: 11px;
-  color: var(--iso-text-faint);
-  font-family: 'SF Mono', monospace;
+  color: rgba(255,255,255,0.5);
+  font-family: var(--mono);
 }
 .iso-dropdown-sep {
   height: 1px;
-  background: var(--iso-divider);
+  background: rgba(255,255,255,0.1);
   margin: 6px 0;
 }
 
@@ -515,7 +527,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #57606a;
+  color: var(--ink-mid);
   transition: all var(--iso-duration);
   touch-action: manipulation;
   font-size: 13px;
@@ -523,27 +535,28 @@ body {
   font-weight: 600;
 }
 .iso-canvas-btn:hover {
-  background: #f6f8fa;
-  color: #24292f;
+  background: var(--iso-bg-hover);
+  color: var(--ink-deep);
 }
 .iso-canvas-btn--active {
-  background: #dde7ff;
-  color: #1f3f9b;
+  background: var(--iso-bg-hover);
+  color: var(--ink-deep);
+  border: 1px solid var(--iso-border-strong);
 }
 .iso-canvas-btn:focus-visible {
-  outline: 2px solid #0550ae;
+  outline: 2px solid var(--iso-info);
   outline-offset: 2px;
 }
 .iso-canvas-sep {
   width: 1px;
-  background: #d0d7de;
+  background: var(--iso-divider);
   margin: 4px 2px;
 }
 
 /* ── Error Panel ────────────────────────────────────────────── */
 .iso-error-panel {
-  border-top: 1px solid rgba(248,81,73,0.3);
-  background: rgba(248,81,73,0.05);
+  border-top: 1px solid rgba(255, 95, 87, 0.3);
+  background: rgba(255, 95, 87, 0.05);
   max-height: 120px;
   overflow-y: auto;
   flex-shrink: 0;
@@ -554,8 +567,8 @@ body {
   gap: 8px;
   padding: 5px 12px;
   font-size: 12px;
-  color: #f85149;
-  border-bottom: 1px solid rgba(248,81,73,0.1);
+  color: var(--iso-error);
+  border-bottom: 1px solid rgba(255, 95, 87, 0.1);
   font-family: 'SF Mono','Cascadia Code','Fira Code',monospace;
 }
 .iso-error-icon { flex-shrink: 0; margin-top: 1px; opacity: 0.8; }
@@ -565,14 +578,14 @@ body {
 /* ── Status Bar ─────────────────────────────────────────────── */
 .iso-statusbar {
   height: 24px;
-  background: var(--iso-brand-dark);
-  color: rgba(255,255,255,0.85);
+  background: var(--ink-deep);
+  color: var(--white);
   display: flex;
   align-items: center;
   padding: 0 12px;
   gap: 12px;
   font-size: 11px;
-  font-family: 'SF Mono','Cascadia Code','Fira Code',monospace;
+  font-family: var(--mono);
   flex-shrink: 0;
   user-select: none;
 }
@@ -624,9 +637,10 @@ body {
   top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1c2128;
-  border: 1px solid var(--iso-border-strong);
-  color: var(--iso-text);
+  background: var(--ink-deep);
+  border: 1px solid var(--ink);
+  color: var(--white);
+  font-family: var(--sans);
   font-size: 11px;
   padding: 4px 8px;
   border-radius: var(--iso-radius-sm);
