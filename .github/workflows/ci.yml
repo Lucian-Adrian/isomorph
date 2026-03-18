@@ -1,62 +1,41 @@
-name: CI
+name: Deploy site
 
 on:
   push:
-    branches: [master, main]
-  pull_request:
-    branches: [master, main]
+    branches: [master]
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  contents: write
 
 jobs:
-  # ─── Lint + Test ────────────────────────────────────────────
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-
-  # ─── Build + Deploy to GitHub Pages ─────────────────────────
   deploy:
-    name: Deploy
-    needs: test
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    name: Build & Deploy
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - run: npm ci
-      - run: npm run build -- --base /isomorph/
+      - run: npm run build
 
-      - uses: actions/configure-pages@v4
+      - name: Prepare landing page
+        run: |
+          mkdir -p website/dist
+          cp website/index.html website/dist/index.html
 
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./dist
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish to website branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan website
+          git reset --hard
+          cp -r website/dist/* .
+          touch .nojekyll
+          git add --all
+          git commit -m "Deploy site: $GITHUB_SHA" || true
+          git push --force origin website

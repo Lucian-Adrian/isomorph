@@ -8,7 +8,7 @@
     "type": "git",
     "url": "https://github.com/team02-faf241/isomorph.git"
   },
-  "homepage": "https://team02-faf241.github.io/isomorph/",
+  "homepage": "https://lucian-adrian.github.io/isomorph/",
   "keywords": ["dsl", "diagramming", "uml", "class-diagram", "bidirectional", "compiler", "typescript"],
   "scripts": {
     "dev": "vite",
