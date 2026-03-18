@@ -16,7 +16,7 @@ import { DiagramView } from './components/DiagramView.js';
 import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
-import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard } from './components/Icons.js';
+import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard, IconSave } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -81,7 +81,7 @@ function insertBeforeAnnotations(source: string, insertion: string): string {
   const firstAtMatch = diagramBody.match(/^[ \t]*@[A-Za-z0-9_]+[ \t]+at[ \t]+\(/m);
   
   if (firstAtMatch && firstAtMatch.index !== undefined) {
-    return source.slice(0, firstAtMatch.index) + insertion + '\n  ' + source.slice(firstAtMatch.index);
+    return source.slice(0, firstAtMatch.index) + insertion + '\n' + source.slice(firstAtMatch.index);
   }
   return source.slice(0, lastBrace) + insertion + '\n' + source.slice(lastBrace);
 }
@@ -188,7 +188,7 @@ function changeDiagramKind(source: string, diagramName: string, newKind: string)
 const ENTITY_KINDS_RX = '(?:class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object)';
 
 function findEntityBounds(source: string, entityName: string): { start: number, end: number, bodyStart: number, bodyEnd: number } | null {
-  const sigRx = new RegExp(`^\\s*(?:abstract\\s+|static\\s+|final\\s+)*${ENTITY_KINDS_RX}\\s+${escapeRegex(entityName)}\\b`, 'm');
+  const sigRx = new RegExp(`^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+${escapeRegex(entityName)}\\b`, 'm');
   const match = sigRx.exec(source);
   if (!match) return null;
   
@@ -269,7 +269,7 @@ function updateEntityDeclaration(
   entityName: string,
   updates: { name?: string; stereotype?: string; isAbstract?: boolean },
 ): string {
-  const entityLine = new RegExp(`(^\\s*(?:abstract\\s+|static\\s+|final\\s+)*${ENTITY_KINDS_RX}\\s+)${escapeRegex(entityName)}(\\b[^\\n]*)`, 'm');
+  const entityLine = new RegExp(`(^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+)${escapeRegex(entityName)}(\\b[^\\n]*)`, 'm');
   let next = source;
 
   next = next.replace(entityLine, (_match, prefix: string, rest: string) => {
@@ -502,12 +502,16 @@ export default function App() {
       let index = 1;
       const prefixName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
       let name = `${prefixName}${index}`;
-      while (new RegExp(`${ENTITY_KINDS_RX}\\s+${name}\\b`).test(src)) {
+      while (new RegExp(`${ENTITY_KINDS_RX}[ \\t]+${name}\\b`).test(src)) {
         index++;
         name = `${prefixName}${index}`;
       }
 
-      let declaration = `${keyword} ${name} {\n    // head\n\n    // body\n\n    // footer\n  }`;
+      const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum'];
+      let declaration = `${keyword} ${name}`;
+      if (BRACE_KINDS.includes(baseName)) {
+        declaration += ' {\n    // head\n\n    // body\n\n    // footer\n  }';
+      }
 
       src = insertBeforeAnnotations(src, declaration);
       src = insertAtEnd(src, `  @${name} at (${Math.round(x)}, ${Math.round(y)})`);
@@ -535,16 +539,16 @@ export default function App() {
                 // Wipe entity block properly considering nested braces
                 nextSource = removeEntityDeclaration(nextSource, item.id);
                 // Wipe annotations
-                const rxAnno = new RegExp(`^\\s*@${escapeRegex(item.id)}\\s+at\\s*\\([^)]+\\)\\s*\\n?`, 'gm');
+                const rxAnno = new RegExp(`^[ \\t]*@${escapeRegex(item.id)}[ \\t]+at[ \\t]*\\([^)]+\\)[ \\t]*\\n?`, 'gm');
                 nextSource = nextSource.replace(rxAnno, '');
                 // Wipe relations connected to this
-                const rxRel = new RegExp(`^\\s*(?:${escapeRegex(item.id)}\\s+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)\\s+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*\\s+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)\\s+${escapeRegex(item.id)})(?:\\s*\\[[^\\]]*\\])?\\s*\\n?`, 'gm');
+                const rxRel = new RegExp(`^[ \\t]*(?:${escapeRegex(item.id)}[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+${escapeRegex(item.id)})(?:[ \\t]*\\[[^\\]]*\\])?[ \\t]*\\n?`, 'gm');
                 nextSource = nextSource.replace(rxRel, '');
               } else if (item.type === 'relation') {
                 const idxRaw = item.id.replace('rel_', '');
                 const relationIdx = Number.parseInt(idxRaw, 10);
                 if (Number.isInteger(relationIdx) && relationIdx >= 0) {
-                  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+                  const relRegex = /^([ \t]*)([A-Za-z_][\w]*)[ \t]+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|\.\.>|--o|--\*|--x|--)[ \t]+([A-Za-z_][\w]*)([ \t]*\[[^\]]*\])?[ \t]*$/gm;
                   const matches = [...nextSource.matchAll(relRegex)];
                   const match = matches[relationIdx];
                   if (match && match.index != null) {
@@ -672,13 +676,13 @@ export default function App() {
                 nextSource = removeEntityDeclaration(nextSource, item.id);
                 
                 // Also copy & wipe annotations
-                const annoRx = new RegExp(`^\\s*@${escapeRegex(item.id)}\\s+at\\s*\\([^)]+\\)\\s*\\n?`, 'gm');
+                const annoRx = new RegExp(`^[ \\t]*@${escapeRegex(item.id)}[ \\t]+at[ \\t]*\\([^)]+\\)[ \\t]*\\n?`, 'gm');
                 const annoMatches = nextSource.match(annoRx);
                 if (annoMatches) snippets.push(...annoMatches.map(s => s.trim()));
                 nextSource = nextSource.replace(annoRx, '');
                 
                 // Wipe relations connected to this
-                const rxRel = new RegExp(`^\\s*(?:${escapeRegex(item.id)}\\s+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)\\s+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*\\s+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)\\s+${escapeRegex(item.id)})(?:\\s*\\[[^\\]]*\\])?\\s*\\n?`, 'gm');
+                const rxRel = new RegExp(`^[ \\t]*(?:${escapeRegex(item.id)}[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+${escapeRegex(item.id)})(?:[ \\t]*\\[[^\\]]*\\])?[ \\t]*\\n?`, 'gm');
                 nextSource = nextSource.replace(rxRel, '');
               }
             }
@@ -989,7 +993,29 @@ export default function App() {
           )}
         </div>
 
-        {/* Action: Export */}
+        {/* Action: Export ISX */}
+        <button
+          type="button"
+          className="iso-btn"
+          onClick={() => {
+            if (!activeTab) return;
+            const blob = new Blob([activeTab.source], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = activeTab.name || 'diagram.isx';
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          disabled={!activeTab}
+          aria-label="Export source code (.isx)"
+          data-tooltip="Save ISX"
+        >
+          <IconSave />
+          Save .isx
+        </button>
+
+        {/* Action: Export SVG */}
         <button
           type="button"
           className="iso-btn"
