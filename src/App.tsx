@@ -106,7 +106,7 @@ function formatDiagramSource(source: string): string {
   // Replace tabs with 2 spaces globally
   let s = source.replace(/\t/g, '  ');
   // Find the diagram block
-  const diagramMatch = s.match(/^(diagram\s+\S+\s*:\s*\S+\s*\{)(\n[\s\S]*?)(\n\s*\}\s*)$/m);
+  const diagramMatch = s.match(/^(diagram\s+\S+\s*:\s*\S+\s*\{)([\s\S]*)(\n\s*\})\s*$/);
   if (!diagramMatch) return s;
   const header = diagramMatch[1];
   const body = diagramMatch[2];
@@ -303,8 +303,7 @@ function findEntityBounds(source: string, entityName: string): { start: number, 
     const after = source.slice(lineEndIndex);
     const braceMatch = after.match(/^\s*\{/);
     if (!braceMatch) {
-      const nextLineStart = source.indexOf('\n', lineEndIndex);
-      return { start: match.index, end: nextLineStart === -1 ? source.length : nextLineStart + 1, bodyStart: -1, bodyEnd: -1 };
+      return { start: match.index, end: lineEndIndex, bodyStart: -1, bodyEnd: -1 };
     }
     searchStart = lineEndIndex + braceMatch.index! + braceMatch[0].length;
     bodyStart = searchStart;
@@ -901,21 +900,6 @@ export default function App() {
             <div className="iso-logo-mark" aria-hidden="true">Is</div>
             <span className="iso-logo-name">Isomorph</span>
           </button>
-          <div className="iso-header-sep" />
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <select
-              className="iso-select"
-              value={newDiagramKind}
-              onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}
-              aria-label="Template type for new tab"
-            >
-              {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                <option key={k} value={k}>{k}</option>
-              ))}
-            </select>
-            <button type="button" className="iso-btn" onClick={handleNew}><IconNew /> New</button>
-            <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()}><IconOpen /> Open</button>
-          </div>
         </header>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--iso-bg-app)', color: 'var(--iso-text)' }}>
           <h1 style={{ fontWeight: 300, marginBottom: '24px' }}>Welcome to Isomorph</h1>
@@ -1000,21 +984,26 @@ export default function App() {
               style={{ paddingRight: tabs.length > 1 ? '4px' : '10px' }}
             >
               {renamingTabId === tab.id ? (
-                <input
-                  autoFocus
-                  defaultValue={tab.name}
-                  className="iso-tab-rename-input"
-                  style={{ background: 'transparent', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', outline: 'none', width: '80px', borderBottom: '1px solid currentColor' }}
-                  onBlur={(e) => {
-                    setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, name: e.target.value || t.name } : t));
-                    setRenamingTabId(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.currentTarget.blur();
-                    if (e.key === 'Escape') setRenamingTabId(null);
-                  }}
-                  onClick={e => e.stopPropagation()}
-                />
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  <input
+                    autoFocus
+                    defaultValue={tab.name.includes('.') ? tab.name.substring(0, tab.name.lastIndexOf('.')) : tab.name}
+                    className="iso-tab-rename-input"
+                    style={{ background: 'transparent', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', outline: 'none', width: '80px', borderBottom: '1px solid currentColor' }}
+                    onBlur={(e) => {
+                      const ext = tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : '';
+                      const newName = e.target.value ? e.target.value + ext : tab.name;
+                      setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, name: newName } : t));
+                      setRenamingTabId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur();
+                      if (e.key === 'Escape') setRenamingTabId(null);
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                  <span>{tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : ''}</span>
+                </span>
               ) : (
                 tab.name
               )}
@@ -1337,32 +1326,32 @@ export default function App() {
                   <label>Body</label>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {['enum'].includes(editingEntity.kind) && (
-                       <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  NEW_VALUE' } : null); }}>+ Enum Value</button>
+                       <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'NEW_VALUE' } : null); }}>+ Enum Value</button>
                     )}
                     {['usecase'].includes(editingEntity.kind) && (
-                       <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  extensionPoint' } : null); }}>+ Ext Pt</button>
+                       <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'extensionPoint' } : null); }}>+ Ext Pt</button>
                     )}
                     {['class', 'interface'].includes(editingEntity.kind) && (
                        <>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  + newField : string' } : null); }}>+ Pub Field</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  - newField : string' } : null); }}>+ Priv Field</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  + newMethod() : void' } : null); }}>+ Pub Method</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newField : string' } : null); }}>+ Pub Field</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '- newField : string' } : null); }}>+ Priv Field</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newMethod() : void' } : null); }}>+ Pub Method</button>
                        </>
                     )}
                     {['node', 'device', 'environment', 'component'].includes(editingEntity.kind) && (
                        <>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  node NewNode' } : null); }}>+ Node</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  artifact NewArtifact' } : null); }}>+ Artifact</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  + port1 : provided' } : null); }}>+ Port (prov)</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  + port2 : required' } : null); }}>+ Port (req)</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'node NewNode' } : null); }}>+ Node</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'artifact NewArtifact' } : null); }}>+ Artifact</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port1 : provided' } : null); }}>+ Port (prov)</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port2 : required' } : null); }}>+ Port (req)</button>
                        </>
                     )}
                     {['state', 'composite', 'concurrent'].includes(editingEntity.kind) && (
                        <>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  entry() : void' } : null); }}>+ Entry</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  exit() : void' } : null); }}>+ Exit</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  do() : void' } : null); }}>+ Do</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '  state SubState' } : null); }}>+ SubState</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'entry() : void' } : null); }}>+ Entry</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'exit() : void' } : null); }}>+ Exit</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'do() : void' } : null); }}>+ Do</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'state SubState' } : null); }}>+ SubState</button>
                        </>
                     )}
                   </div>

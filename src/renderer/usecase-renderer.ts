@@ -19,6 +19,9 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   let canvasW = 900;
   let canvasH = 600;
 
+  const maxTotal = Math.max(actors.filter(a=>!a.position).length, usecases.filter(u=>!u.position).length);
+  canvasH = Math.max(canvasH, maxTotal * 140 + 100);
+
   for (const ent of entities) {
     if (ent.position) {
       canvasW = Math.max(canvasW, ent.position.x + 200);

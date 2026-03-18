@@ -146,8 +146,10 @@ export class Parser {
   private parseDiagramBody(): BodyItem[] {
     const items: BodyItem[] = [];
     while (!this.at('RBRACE') && !this.at('EOF')) {
+      const startPos = this.pos;
       const item = this.parseBodyItem();
       if (item) items.push(item);
+      if (this.pos === startPos) this.advance();
     }
     return items;
   }
@@ -183,7 +185,7 @@ export class Parser {
     const k = this.peek().kind;
     if (k === 'abstract' || k === 'static' || k === 'final') return true;
     return [
-      'class', 'interface', 'enum', 'actor', 'usecase', 'component', 'node', 'participant',
+      'class', 'interface', 'enum', 'actor', 'usecase', 'component', 'node', 'participant', 'object',
       'partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action',
       'state', 'composite', 'concurrent', 'choice', 'history',
       'device', 'artifact', 'environment',
@@ -249,8 +251,10 @@ export class Parser {
     if (this.at('LBRACE')) {
       this.advance();
       while (!this.at('RBRACE') && !this.at('EOF')) {
+        const startPos = this.pos;
         const m = this.parseMember(entityKind);
         if (m) members.push(m);
+        if (this.pos === startPos) this.advance();
       }
       closeToken = this.expect('RBRACE');
     }
@@ -441,6 +445,7 @@ export class Parser {
     if (this.at('LBRACKET')) {
       this.advance();
       while (!this.at('RBRACKET') && !this.at('EOF')) {
+        const startPos = this.pos;
         const key = this.expect('IDENT').value;
         this.expect('EQ');
         const val = this.expect('STRING').value;
@@ -449,6 +454,7 @@ export class Parser {
         else if (key === 'toMult') toMult = val;
         else style[key] = val;
         if (this.at('COMMA')) this.advance();
+        if (this.pos === startPos) this.advance();
       }
       this.expect('RBRACKET');
     }
@@ -487,11 +493,13 @@ export class Parser {
     this.expect('LBRACE');
     const styles: Record<string, string> = {};
     while (!this.at('RBRACE') && !this.at('EOF')) {
+      const startPos = this.pos;
       const key = this.expect('IDENT').value;
       this.expect('EQ');
       const val = this.at('COLOR') ? this.advance().value : this.expect('STRING').value;
       styles[key] = val;
       if (this.at('SEMI')) this.advance();
+      if (this.pos === startPos) this.advance();
     }
     const close = this.expect('RBRACE');
     return { kind: 'StyleDecl', target, styles, span: this.spanTo(kw, close) };
