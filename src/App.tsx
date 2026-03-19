@@ -304,11 +304,6 @@ function updateEntityPosition(source: string, name: string, x: number, y: number
   return lastBrace < 0 ? source : source.slice(0, lastBrace) + `  ${newAnnotation}\n` + source.slice(lastBrace);
 }
 
-function changeDiagramKind(source: string, diagramName: string, newKind: string): string {
-  const rx = new RegExp(`(diagram\s+${escapeRegex(diagramName)}\\s*:\\s*)[a-zA-Z]+\\b`);
-  return source.replace(rx, `$1${newKind}`);
-}
-
 const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object)';
 
 function findEntityBounds(source: string, entityName: string): { start: number, end: number, bodyStart: number, bodyEnd: number } | null {
