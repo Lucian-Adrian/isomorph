@@ -491,9 +491,10 @@
                     <h2 class="headline-large reveal delay-1">Textual Tools.</h2>
                     <p class="body-large reveal delay-2">PlantUML, Mermaid.<br>Perfect for Git diffs. Terrible for layout. One line of changed code can scramble a carefully orchestrated architecture diagram entirely.</p>
                 </div>
-                <div class="reveal delay-3" style="font-family: var(--mono); color: var(--ink-mid); font-size: 14px; background: var(--off); padding: 40px; border-radius: 16px;">
+                <div class="reveal delay-3" style="font-family: var(--mono); color: var(--ink-mid); font-size: 14px; background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); padding: 40px; border-radius: 16px;">
                     A --> B<br>
                     B --> C<br>
+                    C --> D<br>
                     <span style="color: #ff5f57">// Wait, why did the whole graph<br>// rotate 90 degrees?</span>
                 </div>
             </div>
@@ -506,8 +507,12 @@
                     <h2 class="headline-large reveal delay-1">Visual Editors.</h2>
                     <p class="body-large reveal delay-2">draw.io, Excalidraw, Figma.<br>Beautiful, stable layouts. But stored in opaque binary or dense XML formats. Completely unreadable in pull requests.</p>
                 </div>
-                <div class="reveal delay-3" style="font-family: var(--mono); color: var(--ink-mid); font-size: 14px; background: var(--off); padding: 40px; border-radius: 16px; word-break: break-all;">
+                <div class="reveal delay-3" style="font-family: var(--mono); color: var(--ink-mid); font-size: 14px; background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); padding: 40px; border-radius: 16px; word-break: break-all;">
                     &lt;mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" ... &gt;<br>
+                    &lt;root&gt;<br>
+                    &nbsp;&nbsp;&lt;mxCell id="0" /&gt;<br>
+                    &nbsp;&nbsp;&lt;mxCell id="1" parent="0" /&gt;<br>
+                    &lt;/root&gt;<br>
                     <span style="color: #ff5f57">&lt;!-- Code reviewers give up here --&gt;</span>
                 </div>
             </div>
