@@ -487,7 +487,7 @@ export default function App() {
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
   const [isMobileLayout, setIsMobileLayout] = useState(false);
-  const [mobilePane, setMobilePane] = useState<'code' | 'diagram' | 'shapes'>('code');
+  const [mobilePane, setMobilePane] = useState<'code' | 'diagram'>('code');
   const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
   const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string } | null>(null);
@@ -566,24 +566,12 @@ export default function App() {
     const apply = (matches: boolean) => {
       setIsMobileLayout(matches);
       if (!matches) return;
-      setMobilePane(prev => {
-        if (prev === 'shapes' && (!activeDiagram?.kind || getStencilsForKind(activeDiagram.kind).length === 0)) {
-          return activeDiagram ? 'diagram' : 'code';
-        }
-        return prev;
-      });
     };
     apply(media.matches);
     const listener = (event: MediaQueryListEvent) => apply(event.matches);
     media.addEventListener('change', listener);
     return () => media.removeEventListener('change', listener);
   }, [activeDiagram]);
-
-  useEffect(() => {
-    if (mobilePane === 'shapes' && (!activeDiagram?.kind || getStencilsForKind(activeDiagram.kind).length === 0)) {
-      setMobilePane(activeDiagram ? 'diagram' : 'code');
-    }
-  }, [activeDiagram, mobilePane]);
 
   useEffect(() => {
     if (!activeTab) return;
@@ -711,6 +699,14 @@ export default function App() {
       return { ...tab, source: src };
     });
   }, [updateActiveTab]);
+
+  const handleStencilInsert = useCallback((keyword: string) => {
+    const entityCount = activeDiagram?.entities.size ?? 0;
+    const x = 120 + (entityCount % 4) * 110;
+    const y = 110 + Math.floor(entityCount / 4) * 90;
+    handleDropEntity(keyword, x, y);
+    setMobilePane('diagram');
+  }, [activeDiagram, handleDropEntity]);
 
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
@@ -1070,6 +1066,28 @@ export default function App() {
           onSelectionChange={setSelectedItems}
         />
       </div>
+    </div>
+  );
+
+  const mobileStencilRail = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
+    <div className="iso-mobile-stencil-rail" aria-label="Shapes">
+      {getStencilsForKind(activeDiagram.kind).map(stencil => (
+        <button
+          key={stencil.label}
+          type="button"
+          className="iso-mobile-stencil"
+          onClick={() => handleStencilInsert(stencil.keyword)}
+        >
+          {stencil.label}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  const mobileCanvasPane = (
+    <div className="iso-mobile-canvas-pane">
+      {mobileStencilRail}
+      {canvasPane}
     </div>
   );
 
@@ -1503,15 +1521,6 @@ export default function App() {
           >
             Canvas
           </button>
-          {shapesPane && (
-            <button
-              type="button"
-              className={`iso-mobile-tab${mobilePane === 'shapes' ? ' iso-mobile-tab--active' : ''}`}
-              onClick={() => setMobilePane('shapes')}
-            >
-              Shapes
-            </button>
-          )}
         </div>
       )}
 
@@ -1520,8 +1529,7 @@ export default function App() {
         {isMobileLayout ? (
           <div className="iso-mobile-main">
             {mobilePane === 'code' && sourcePane}
-            {mobilePane === 'diagram' && canvasPane}
-            {mobilePane === 'shapes' && shapesPane}
+            {mobilePane === 'diagram' && mobileCanvasPane}
           </div>
         ) : (
           <>

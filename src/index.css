@@ -972,6 +972,29 @@ body {
   display: none;
 }
 
+.iso-mobile-canvas-pane {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.iso-mobile-stencil-rail {
+  display: none;
+}
+
+.iso-mobile-stencil {
+  border: 1px solid var(--iso-border);
+  background: var(--white);
+  color: var(--iso-text);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
 .iso-mobile-hide {
   display: initial;
 }
@@ -1137,6 +1160,20 @@ body {
     overflow: hidden;
   }
 
+  .iso-mobile-stencil-rail {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px 6px;
+    overflow-x: auto;
+    background: var(--iso-bg-app);
+    border-bottom: 1px solid var(--iso-divider);
+    scrollbar-width: none;
+  }
+
+  .iso-mobile-stencil-rail::-webkit-scrollbar {
+    display: none;
+  }
+
   .iso-mobile-strip {
     display: block;
     padding: 6px 10px 0;
@@ -1299,6 +1336,15 @@ body {
     padding: 8px 8px 0;
   }
 
+  .iso-mobile-stencil-rail {
+    padding: 8px 8px 6px;
+  }
+
+  .iso-mobile-stencil {
+    padding: 8px 11px;
+    font-size: 11px;
+  }
+
   .iso-mobile-actions {
     flex-direction: column;
     align-items: stretch;
@@ -1385,6 +1431,11 @@ body {
     align-items: stretch;
     gap: 6px;
     padding: 6px 8px 0;
+  }
+
+  .iso-mobile-stencil-rail {
+    padding: 6px 8px 6px;
+    gap: 6px;
   }
 
   .iso-mobile-tab {
