@@ -43,6 +43,7 @@ export function DiagramView({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [activeTool, setActiveTool] = useState<CanvasTool>('move');
   const [drawingEdge, setDrawingEdge] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
+  const [isInteracting, setIsInteracting] = useState(false);
 
   const dragRef = useRef<{
     mode: 'none' | 'entity' | 'pan' | 'add-edge';
@@ -269,6 +270,7 @@ export function DiagramView({
         entityOrigY: y,
       };
       setDrawingEdge({ x1: x, y1: y, x2: x, y2: y });
+      setIsInteracting(true);
       canvasRef.current?.setPointerCapture(e.pointerId);
       e.preventDefault();
       return;
@@ -303,6 +305,7 @@ export function DiagramView({
         entityOrigX,
         entityOrigY,
       };
+      setIsInteracting(true);
       canvasRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
       return;
@@ -317,6 +320,7 @@ export function DiagramView({
         panStartX: pan.x,
         panStartY: pan.y,
       };
+      setIsInteracting(true);
       canvasRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
     }
@@ -391,8 +395,10 @@ export function DiagramView({
         }
       }
 
-      if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
+    if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
+      canvasRef.current.releasePointerCapture(e.pointerId);
     }
+    setIsInteracting(false);
     dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
   }, [onEntityMove, onRelationAddRequest]);
 
@@ -473,7 +479,7 @@ export function DiagramView({
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})`,
             transformOrigin: 'top left',
             display: 'inline-block',
-            transition: 'transform 150ms cubic-bezier(0.16,1,0.3,1)',
+            transition: isInteracting ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)',
           }}
         />
         {drawingEdge && (

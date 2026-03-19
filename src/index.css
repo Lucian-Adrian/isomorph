@@ -392,6 +392,7 @@ body {
 .iso-panel {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   overflow: hidden;
   background: var(--iso-bg-editor);
 }
@@ -972,11 +973,23 @@ body {
   display: none;
 }
 
+.iso-mobile-main > * {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .iso-mobile-canvas-pane {
   display: flex;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   flex-direction: column;
+}
+
+.iso-mobile-canvas-pane .iso-panel {
+  width: 100%;
+  flex: 1 1 auto;
 }
 
 .iso-mobile-stencil-rail {
