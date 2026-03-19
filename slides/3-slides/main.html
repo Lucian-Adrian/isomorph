@@ -26,7 +26,7 @@
             
             /* Apple-tier Physics */
             --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-            --transition-speed: 1.7s;
+            --transition-speed: 1.95s;
         }
 
         * {
@@ -113,7 +113,7 @@
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
-            transition: opacity 1.15s var(--ease-out-expo), visibility 0s 1.15s;
+            transition: opacity 1.3s var(--ease-out-expo), visibility 0s 1.3s;
             background-color: var(--white);
         }
 
@@ -121,7 +121,7 @@
             opacity: 1;
             visibility: visible;
             pointer-events: auto;
-            transition: opacity 1.15s var(--ease-out-expo), visibility 0s 0s;
+            transition: opacity 1.3s var(--ease-out-expo), visibility 0s 0s;
         }
 
         .slide.bg-dark { background-color: var(--ink-deep); color: var(--white); }
@@ -318,6 +318,51 @@
             text-align: center;
         }
 
+        .media-frame {
+            width: 100%;
+            border-radius: 28px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 28px 70px rgba(0, 0, 0, 0.14);
+        }
+
+        .media-frame img {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .operator-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1px;
+            margin-top: 2.5rem;
+            background: var(--stone);
+            border: 1px solid var(--stone);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .operator-card {
+            background: var(--white);
+            padding: 1.35rem 1.5rem;
+        }
+
+        .operator-symbol {
+            display: block;
+            margin-bottom: 0.45rem;
+            font-family: var(--mono);
+            font-size: 1.2rem;
+            color: #b4a7f5;
+        }
+
+        .operator-label {
+            font-size: 0.95rem;
+            color: var(--ink-mid);
+            letter-spacing: -0.02em;
+        }
+
         /* BUTTONS */
         .btn-primary {
             display: inline-flex;
@@ -352,6 +397,12 @@
             font-weight: 200;
             line-height: 1;
             letter-spacing: -0.05em;
+        }
+
+        @media (max-width: 900px) {
+            .operator-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
         }
     </style>
 </head>
@@ -464,6 +515,14 @@
 
         <div class="slide bg-dark">
             <div class="slide-inner center-all">
+                <div class="eyebrow reveal">The Solution</div>
+                <h2 class="headline-large reveal delay-1">ISOMORPH.<br><span class="italic-accent">The DSL for living diagrams.</span></h2>
+                <p class="body-large reveal delay-2">One language where architecture, behavior, layout, and interaction remain part of the same canonical model.</p>
+            </div>
+        </div>
+
+        <div class="slide bg-dark">
+            <div class="slide-inner center-all">
                 <div class="reveal delay-1">
                     <div class="hero-equation">parse(serialise(M)) = M</div>
                 </div>
@@ -487,7 +546,7 @@
                 <div>
                     <p class="body-large reveal delay-2" style="margin-top:0;">Edit the text, the canvas updates.</p>
                     <p class="body-large reveal delay-3">Drag an entity on the canvas, the code updates.</p>
-                    <p class="body-large reveal delay-4" style="color:var(--white); font-weight:400;">The model stays canonical because layout lives inline in the text.</p>
+                    <p class="body-large reveal delay-4" style="color:var(--white); font-weight:400;">The model stays canonical because every visual edit resolves back into the same serialised source.</p>
                 </div>
             </div>
         </div>
@@ -507,6 +566,22 @@
                 <div class="eyebrow reveal">Coverage</div>
                 <h2 class="headline-large reveal delay-1">Nine complete UML<br>diagram types.</h2>
                 <p class="body-large reveal delay-2">Class, usecase, sequence, component, deployment, state, activity, collaboration, and flow. Unified under one parser.</p>
+            </div>
+        </div>
+
+        <div class="slide bg-off">
+            <div class="slide-inner">
+                <div class="eyebrow reveal">Lexical Rules</div>
+                <h2 class="headline-large reveal delay-1">8 strict relation operators.</h2>
+                <p class="body-large reveal delay-2">Explicit syntax over convention. Structural meaning stays readable in code and unambiguous in the parser.</p>
+                <div class="operator-grid reveal delay-3">
+                    <div class="operator-card"><span class="operator-symbol">--&gt;</span><span class="operator-label">Association</span></div>
+                    <div class="operator-card"><span class="operator-symbol">-|&gt;</span><span class="operator-label">Generalization</span></div>
+                    <div class="operator-card"><span class="operator-symbol">..|&gt;</span><span class="operator-label">Realization</span></div>
+                    <div class="operator-card"><span class="operator-symbol">--*</span><span class="operator-label">Composition</span></div>
+                    <div class="operator-card"><span class="operator-symbol">--o</span><span class="operator-label">Aggregation</span></div>
+                    <div class="operator-card"><span class="operator-symbol">..&gt;</span><span class="operator-label">Dependency</span></div>
+                </div>
             </div>
         </div>
 
@@ -676,10 +751,17 @@
         </div>
 
         <div class="slide">
-            <div class="slide-inner center-all">
-                <div class="eyebrow reveal">The Interface</div>
-                <h2 class="headline-large reveal delay-1">Drag the canvas.</h2>
-                <p class="body-large reveal delay-2">Move any node. Only its `@Entity` coordinate changes. Every other byte in your architecture file stays completely untouched.</p>
+            <div class="slide-inner split">
+                <div>
+                    <div class="eyebrow reveal">The Interface</div>
+                    <h2 class="headline-large reveal delay-1">Drag the canvas.<br><span class="italic-accent">Patch the source.</span></h2>
+                    <p class="body-large reveal delay-2">Move any node. Only its `@Entity` coordinate changes. The semantic body stays untouched, so visual editing becomes a deterministic text transformation.</p>
+                </div>
+                <div class="reveal delay-3">
+                    <div class="media-frame">
+                        <img src="../isomorph.gif" alt="Drag and drop editing in Isomorph">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -692,10 +774,17 @@
         </div>
 
         <div class="slide">
-            <div class="slide-inner center-all">
-                <div class="eyebrow reveal">Behavioral Diagrams</div>
-                <h2 class="headline-large reveal delay-1">Model the system<br><span class="italic-accent">as it behaves.</span></h2>
-                <p class="body-large reveal delay-2">Sequence, state, activity, collaboration, and flow diagrams let the same language capture runtime interactions, control flow, and execution logic.</p>
+            <div class="slide-inner split">
+                <div>
+                    <div class="eyebrow reveal">Behavioral Diagrams</div>
+                    <h2 class="headline-large reveal delay-1">Model the system<br><span class="italic-accent">as it behaves.</span></h2>
+                    <p class="body-large reveal delay-2">Sequence, state, activity, collaboration, and flow diagrams capture runtime interaction, control flow, and execution logic in the same language as structure.</p>
+                </div>
+                <div class="reveal delay-3">
+                    <div class="media-frame">
+                        <img src="../sequence.jpg" alt="Sequence diagram rendered by Isomorph">
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -703,7 +792,7 @@
             <div class="slide-inner center-all">
                 <div class="eyebrow reveal">Why both matter</div>
                 <h2 class="headline-large reveal delay-1">One language.<br><span class="italic-accent">One canonical model.</span></h2>
-                <p class="body-large reveal delay-2">Structure defines what can exist. Behavior proves how it moves. Isomorph keeps both in sync so architecture and execution never drift apart.</p>
+                <p class="body-large reveal delay-2">Structure defines what can exist. Behavior proves how it moves. Isomorph keeps both in one source so the architecture and the execution story never drift apart.</p>
             </div>
         </div>
 
@@ -711,7 +800,7 @@
             <div class="slide-inner">
                 <div class="eyebrow reveal">Core Tech Stack</div>
                 <h2 class="headline-large reveal delay-1">Handcrafted recursive descent.<br><span class="italic-accent">Built for this problem.</span></h2>
-                <p class="body-large reveal delay-2">No ANTLR. No Chevrotain. We built the parser ourselves because grammar control, source-mapped errors, round-trip serialization, and invariant preservation had to work together, not as afterthoughts.</p>
+                <p class="body-large reveal delay-2">No ANTLR. No Chevrotain. We built the parser, analyzer, serializer, and editor loop ourselves because grammar control, source-mapped errors, and round-trip invariants had to work as one system, not as stitched-on tooling.</p>
             </div>
         </div>
 

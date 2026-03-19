@@ -423,6 +423,7 @@
   .compare-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: fixed;
   }
 
   .compare-table th {
@@ -431,9 +432,14 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--ink-mid);
-    padding: 12px 14px;
-    text-align: left;
+    padding: 14px 12px;
+    text-align: center;
     border-bottom: 0.5px solid var(--stone);
+  }
+
+  .compare-table th:first-child {
+    text-align: left;
+    width: 30%;
   }
 
   .compare-table th:last-child {
@@ -445,9 +451,10 @@
     font-size: 13px;
     font-weight: 300;
     color: var(--ink);
-    padding: 14px 14px;
+    padding: 16px 12px;
     border-bottom: 0.5px solid var(--off);
     vertical-align: middle;
+    text-align: center;
   }
 
   .compare-table tr:last-child td { border-bottom: none; }
@@ -455,6 +462,13 @@
   .compare-table td:first-child {
     color: var(--ink-mid);
     font-size: 12px;
+    text-align: left;
+    font-weight: 400;
+  }
+
+  .compare-table th:last-child,
+  .compare-table td:last-child {
+    background: rgba(255, 255, 255, 0.7);
   }
 
   .check {
@@ -519,6 +533,7 @@
 
   .compare-card {
     padding: 24px 24px 18px;
+    overflow: hidden;
   }
 
 
