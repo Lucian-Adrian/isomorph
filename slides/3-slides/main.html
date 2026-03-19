@@ -243,6 +243,51 @@
         .t-cmt { color: var(--ink-mid); }
         .t-num { color: #c07ad1; }
 
+        /* ACCESS SLIDE */
+        .access-grid {
+            display: grid;
+            grid-template-columns: 0.9fr 1.1fr;
+            gap: clamp(32px, 6vw, 96px);
+            align-items: center;
+        }
+
+        .qr-card {
+            background: var(--white);
+            border: 1px solid var(--stone);
+            border-radius: 28px;
+            padding: clamp(18px, 2.8vw, 28px);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.08);
+            display: inline-flex;
+            flex-direction: column;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .qr-card img {
+            width: min(28vw, 320px);
+            max-width: 100%;
+            border-radius: 18px;
+            display: block;
+        }
+
+        .qr-caption {
+            font-family: var(--mono);
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--ink-mid);
+        }
+
+        .access-url {
+            margin-top: 2rem;
+            font-family: var(--mono);
+            font-size: clamp(24px, 3vw, 40px);
+            line-height: 1.15;
+            letter-spacing: -0.04em;
+            color: var(--ink-deep);
+            word-break: break-word;
+        }
+
         /* GLASS PROGRESS */
         .progress-container {
             position: fixed;
@@ -402,6 +447,14 @@
         @media (max-width: 900px) {
             .operator-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .access-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .qr-card img {
+                width: min(54vw, 320px);
             }
         }
     </style>
@@ -841,6 +894,22 @@
                         Open the IDE
                         <svg width="16" height="16" viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M7.5 3l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="slide bg-off">
+            <div class="slide-inner access-grid">
+                <div class="reveal delay-1" style="display:flex; justify-content:center;">
+                    <div class="qr-card">
+                        <img src="./isomorph-qr.png" alt="QR code for the Isomorph live IDE">
+                        <div class="qr-caption">Scan on phone or tablet</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="eyebrow reveal">Open Isomorph</div>
+                    <h2 class="headline-large reveal delay-1">Scan the code.<br><span class="italic-accent">Open the IDE.</span></h2>
+                    <div class="access-url reveal delay-2">shorturl.at/nqJ09</div>
                 </div>
             </div>
         </div>
