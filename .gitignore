@@ -7,5 +7,13 @@ coverage/
 .DS_Store
 *.log
 
+# Generated slide exports (not source)
+slides/3-slides/append.html
+slides/3-slides/backup.html
+slides/3-slides/deck.js
+slides/3-slides/index.html
+slides/3-slides/shared.css
+slides/3-slides/slide-list.json
+
 # Keep empty website folder in repo
 !website/.gitkeep
