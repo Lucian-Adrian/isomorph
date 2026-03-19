@@ -486,6 +486,8 @@ export default function App() {
   const [examplesOpen, setExamplesOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
+  const [mobilePane, setMobilePane] = useState<'code' | 'diagram'>('code');
   const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
   const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string } | null>(null);
@@ -558,6 +560,18 @@ export default function App() {
   const activeDiagramIdx = activeTab?.activeDiagramIdx ?? 0;
   const safeDiagramIdx = Math.max(0, Math.min(activeDiagramIdx, Math.max(filteredDiagrams.length - 1, 0)));
   const activeDiagram = filteredDiagrams[safeDiagramIdx] ?? null;
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 900px)');
+    const apply = (matches: boolean) => {
+      setIsMobileLayout(matches);
+      if (!matches) return;
+    };
+    apply(media.matches);
+    const listener = (event: MediaQueryListEvent) => apply(event.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [activeDiagram]);
 
   useEffect(() => {
     if (!activeTab) return;
@@ -685,6 +699,14 @@ export default function App() {
       return { ...tab, source: src };
     });
   }, [updateActiveTab]);
+
+  const handleStencilInsert = useCallback((keyword: string) => {
+    const entityCount = activeDiagram?.entities.size ?? 0;
+    const x = 120 + (entityCount % 4) * 110;
+    const y = 110 + Math.floor(entityCount / 4) * 90;
+    handleDropEntity(keyword, x, y);
+    setMobilePane('diagram');
+  }, [activeDiagram, handleDropEntity]);
 
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
@@ -940,6 +962,177 @@ export default function App() {
     : diagrams.length > 0
       ? 'iso-status iso-status--ok'
       : 'iso-status iso-status--idle';
+  const statusLabel = allErrors.length > 0
+    ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}`
+    : diagrams.length > 0
+      ? 'Valid'
+      : 'Ready';
+
+  const shapesPane = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
+    <div className="iso-sidebar">
+      <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
+        <IconDiagram size={11} /> Shapes
+      </div>
+      <div className="iso-sidebar-body">
+        {getStencilsForKind(activeDiagram.kind).map(stencil => (
+          <div
+            key={stencil.label}
+            draggable
+            onDragStart={e => {
+              e.dataTransfer.setData('text/plain', stencil.keyword);
+              e.dataTransfer.effectAllowed = 'copy';
+            }}
+            className="iso-stencil"
+          >
+            {stencil.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  const sourcePane = (
+    <div className="iso-panel" style={{ height: '100%' }}>
+      <div className="iso-panel-header">
+        <IconCode size={11} />
+        Source
+        <span className="iso-panel-info" aria-live="polite">
+          {parseErrors.length > 0
+            ? ` — ${parseErrors.length} parse error${parseErrors.length > 1 ? 's' : ''}`
+            : source.trim() ? ' — OK' : ''}
+        </span>
+        <span className="iso-panel-spacer" />
+        <span style={{ fontSize: 10, color: 'var(--iso-text-faint)', fontFamily: 'monospace' }}>
+          {source.split('\n').length} lines
+        </span>
+      </div>
+      <div className="iso-panel-body">
+        <IsomorphEditor
+          value={source}
+          onChange={value => updateActiveTab(tab => ({ ...tab, source: value }))}
+          errors={editorDiagnostics}
+        />
+      </div>
+      {allErrors.length > 0 && (
+        <div className="iso-error-panel" role="log" aria-label="Errors">
+          {allErrors.slice(0, 8).map((msg, i) => (
+            <div key={`err-${msg.slice(0, 20)}-${i}`} className="iso-error-item">
+              <span className="iso-error-icon" aria-hidden="true">✖</span>
+              <span className="iso-error-msg">{msg}</span>
+            </div>
+          ))}
+          {allErrors.length > 8 && (
+            <div className="iso-error-item">
+              <span className="iso-error-icon" aria-hidden="true">…</span>
+              <span className="iso-error-msg" style={{ color: 'var(--iso-text-muted)' }}>
+                +{allErrors.length - 8} more error{allErrors.length - 8 > 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const canvasPane = (
+    <div className="iso-panel iso-panel--canvas" style={{ height: '100%' }}>
+      <div className="iso-panel-header">
+        <IconDiagram size={11} />
+        Canvas
+        <span className="iso-panel-info" aria-live="polite">
+          {activeDiagram
+            ? ` — ${activeDiagram.name} · ${activeDiagram.entities.size} entities · ${activeDiagram.relations.length} relations`
+            : ''}
+        </span>
+        <span className="iso-panel-spacer" />
+        {diagrams.length > 0 && (
+          <span style={{ fontSize: 10, color: '#6e7781', fontFamily: 'monospace' }}>
+            drag to reposition
+          </span>
+        )}
+      </div>
+      <div className="iso-panel-body">
+        <DiagramView
+          diagram={activeDiagram}
+          onEntityMove={handleEntityMove}
+          onEntityEditRequest={handleEntityEditRequest}
+          onRelationEditRequest={handleRelationEditRequest}
+          onRelationAddRequest={handleRelationAddRequest}
+          onTextRenameRequest={handleTextRenameRequest}
+          onExportSVG={handleExportSVG}
+          onDropEntity={handleDropEntity}
+          availableTools={toolsetFor(activeDiagram?.kind)}
+          selectedItems={selectedItems}
+          onSelectionChange={setSelectedItems}
+        />
+      </div>
+    </div>
+  );
+
+  const mobileStencilRail = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
+    <div className="iso-mobile-stencil-rail" aria-label="Shapes">
+      {getStencilsForKind(activeDiagram.kind).map(stencil => (
+        <button
+          key={stencil.label}
+          type="button"
+          className="iso-mobile-stencil"
+          onClick={() => handleStencilInsert(stencil.keyword)}
+        >
+          {stencil.label}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  const mobileCanvasPane = (
+    <div className="iso-mobile-canvas-pane">
+      {mobileStencilRail}
+      {canvasPane}
+    </div>
+  );
+
+  const examplesDropdown = (
+    <div className="iso-dropdown" ref={examplesRef}>
+      <button
+        type="button"
+        className="iso-btn"
+        onClick={() => setExamplesOpen(o => !o)}
+        aria-haspopup="menu"
+        aria-expanded={examplesOpen}
+        aria-label="Load example diagram"
+      >
+        Examples
+        <IconChevron dir={examplesOpen ? 'up' : 'down'} />
+      </button>
+      {examplesOpen && (
+        <div className="iso-dropdown-menu" role="menu" aria-label="Example diagrams">
+          {EXAMPLES.map(ex => (
+            <button
+              key={ex.label}
+              type="button"
+              className="iso-dropdown-item"
+              role="menuitem"
+              onClick={() => {
+                updateActiveTab(tab => ({
+                  ...tab,
+                  source: ex.source,
+                  activeDiagramIdx: 0,
+                  diagramKindFilter: ex.kind as DiagramKind,
+                }));
+                setExamplesOpen(false);
+              }}
+            >
+              <span className="iso-dropdown-item-icon" aria-hidden="true">
+                ⭕
+              </span>
+              {ex.label}
+              <span className="iso-dropdown-item-meta">{ex.kind}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   if (tabs.length === 0) {
     return (
@@ -949,11 +1142,11 @@ export default function App() {
             <span className="iso-logo-name">Isomorph</span>
           </button>
         </header>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--iso-bg-app)', color: 'var(--iso-text)' }}>
-          <h1 style={{ fontWeight: 300, marginBottom: '24px' }}>Welcome to Isomorph</h1>
-          <p style={{ color: 'var(--iso-text-muted)', marginBottom: '32px' }}>Open an existing diagram or create a new one to get started.</p>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="iso-empty-state">
+          <h1 className="iso-empty-title">Welcome to Isomorph</h1>
+          <p className="iso-empty-copy">Open an existing diagram or create a new one to get started.</p>
+          <div className="iso-empty-actions">
+            <div className="iso-empty-group">
                 <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
                   {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
                     <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} Diagram</option>
@@ -963,8 +1156,8 @@ export default function App() {
                   Create New Diagram
                 </button>
               </div>
-            <div style={{ borderLeft: '1px solid var(--iso-border)' }}></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className="iso-empty-divider" aria-hidden="true"></div>
+            <div className="iso-empty-group iso-empty-group--secondary">
               <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
                 Open Existing File...
               </button>
@@ -997,24 +1190,30 @@ export default function App() {
   return (
     <div className="iso-shell">
       {/* ──────────────── HEADER ──────────────────────────── */}
-      <header className="iso-header">
+      <header className={`iso-header${isMobileLayout ? ' iso-header--mobile' : ''}`}>
         {/* Logo */}
         <button type="button" className="iso-logo" aria-label="Isomorph home" onClick={e => e.preventDefault()}>
           <span className="iso-logo-name">Isomorph</span>
         </button>
 
-        <div className="iso-header-sep" aria-hidden="true" />
+        <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
 
         {/* File breadcrumb */}
-        <div className="iso-breadcrumb">
+        <div className="iso-breadcrumb iso-mobile-hide">
           <span className="iso-breadcrumb-name">{fileName}</span>
         </div>
 
-        <div className="iso-header-sep" aria-hidden="true" />
+        {isMobileLayout && (
+          <div className="iso-mobile-title" title={fileName}>
+            {fileName}
+          </div>
+        )}
+
+        <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
 
         {/* Diagram tabs */}
         {diagrams.length > 1 && (
-          <nav className="iso-tabs" aria-label="Diagrams" style={{ flex: '1 1 auto', minWidth: 0, overflowX: 'auto' }}>
+          <nav className="iso-tabs iso-mobile-hide" aria-label="Diagrams" style={{ flex: '1 1 auto', minWidth: 0, overflowX: 'auto' }}>
             {filteredDiagrams.map((d, i) => (
               <button
                 key={d.name}
@@ -1033,7 +1232,7 @@ export default function App() {
 
         <div className="iso-header-spacer" />
 
-        <div style={{ display: 'flex', alignItems: 'center', flex: '0 1 30%', minWidth: 0, overflow: 'hidden' }}>
+        <div className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', flex: '0 1 30%', minWidth: 0, overflow: 'hidden' }}>
           <button 
             type="button" 
             style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }} 
@@ -1106,252 +1305,238 @@ export default function App() {
         </div>
 
         {activeDiagram && (
-          <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: '12px', color: 'var(--iso-text-muted)', background: 'var(--iso-bg-hover)', borderRadius: 'var(--iso-radius)', height: '28px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+          <div className={isMobileLayout ? 'iso-kind-badge iso-kind-badge--mobile iso-mobile-hide' : 'iso-kind-badge'}>
             {activeDiagram.kind}
           </div>
         )}
 
-        {/* Action: New */}
-        <button type="button" className="iso-btn" onClick={handleNew} aria-label="New diagram (Ctrl+N)" data-tooltip="New (Ctrl+N)">
-          <IconNew />
-          New
-        </button>
+        {!isMobileLayout && (
+          <div className="iso-header-actions">
+            <button type="button" className="iso-btn" onClick={handleNew} aria-label="New diagram (Ctrl+N)" data-tooltip="New (Ctrl+N)">
+              <IconNew />
+              New
+            </button>
 
-        {/* Action: Open file */}
-        <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()} aria-label="Open .isx file (Ctrl+O)" data-tooltip="Open (Ctrl+O)">
-          <IconOpen />
-          Open
-        </button>
+            <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()} aria-label="Open .isx file (Ctrl+O)" data-tooltip="Open (Ctrl+O)">
+              <IconOpen />
+              Open
+            </button>
+
+            {examplesDropdown}
+
+            <button
+              type="button"
+              className="iso-btn"
+              onClick={() => {
+                if (!activeTab) return;
+                const blob = new Blob([activeTab.source], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = activeTab.name || 'diagram.isx';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              disabled={!activeTab}
+              aria-label="Export source code (.isx)"
+              data-tooltip="Save ISX"
+            >
+              <IconSave />
+              Save .isx
+            </button>
+
+            <button
+              type="button"
+              className="iso-btn"
+              onClick={handleExportSVG}
+              disabled={!activeDiagram}
+              aria-label="Export diagram as SVG (Ctrl+E)"
+              data-tooltip="Export SVG (Ctrl+E)"
+            >
+              <IconExport />
+              SVG
+            </button>
+            <button
+              type="button"
+              className="iso-btn"
+              onClick={handleExportPNG}
+              disabled={!activeDiagram}
+              aria-label="Export diagram as PNG (Ctrl+Shift+E)"
+              data-tooltip="Export PNG (Ctrl+Shift+E)"
+            >
+              <IconExport />
+              PNG
+            </button>
+
+            <div className="iso-header-sep" aria-hidden="true" />
+
+            <button
+              type="button"
+              className="iso-btn iso-btn--icon"
+              onClick={() => setShortcutsOpen(o => !o)}
+              aria-label="Keyboard shortcuts (Ctrl+/)"
+              data-tooltip="Shortcuts (Ctrl+/)"
+            >
+              <IconKeyboard />
+            </button>
+          </div>
+        )}
+
         <input ref={fileInputRef} type="file" accept=".isx,.iso,.txt" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
-
-        {/* Action: Examples */}
-        <div className="iso-dropdown" ref={examplesRef}>
-          <button
-            type="button"
-            className="iso-btn"
-            onClick={() => setExamplesOpen(o => !o)}
-            aria-haspopup="menu"
-            aria-expanded={examplesOpen}
-            aria-label="Load example diagram"
-          >
-            Examples
-            <IconChevron dir={examplesOpen ? 'up' : 'down'} />
-          </button>
-          {examplesOpen && (
-            <div className="iso-dropdown-menu" role="menu" aria-label="Example diagrams">
-              {EXAMPLES.map(ex => (
-                <button
-                  key={ex.label}
-                  type="button"
-                  className="iso-dropdown-item"
-                  role="menuitem"
-                  onClick={() => {
-                    updateActiveTab(tab => ({
-                      ...tab,
-                      source: ex.source,
-                      activeDiagramIdx: 0,
-                      diagramKindFilter: ex.kind as DiagramKind,
-                    }));
-                    setExamplesOpen(false);
-                  }}
-                >
-                  <span className="iso-dropdown-item-icon" aria-hidden="true">
-                    ⭕
-                  </span>
-                  {ex.label}
-                  <span className="iso-dropdown-item-meta">{ex.kind}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Action: Export ISX */}
-        <button
-          type="button"
-          className="iso-btn"
-          onClick={() => {
-            if (!activeTab) return;
-            const blob = new Blob([activeTab.source], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = activeTab.name || 'diagram.isx';
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-          disabled={!activeTab}
-          aria-label="Export source code (.isx)"
-          data-tooltip="Save ISX"
-        >
-          <IconSave />
-          Save .isx
-        </button>
-
-        {/* Action: Export SVG */}
-        <button
-          type="button"
-          className="iso-btn"
-          onClick={handleExportSVG}
-          disabled={!activeDiagram}
-          aria-label="Export diagram as SVG (Ctrl+E)"
-          data-tooltip="Export SVG (Ctrl+E)"
-        >
-          <IconExport />
-          SVG
-        </button>
-        <button
-          type="button"
-          className="iso-btn"
-          onClick={handleExportPNG}
-          disabled={!activeDiagram}
-          aria-label="Export diagram as PNG (Ctrl+Shift+E)"
-          data-tooltip="Export PNG (Ctrl+Shift+E)"
-        >
-          <IconExport />
-          PNG
-        </button>
-
-        <div className="iso-header-sep" aria-hidden="true" />
-
-        {/* Action: Keyboard shortcuts */}
-        <button
-          type="button"
-          className="iso-btn iso-btn--icon"
-          onClick={() => setShortcutsOpen(o => !o)}
-          aria-label="Keyboard shortcuts (Ctrl+/)"
-          data-tooltip="Shortcuts (Ctrl+/)"
-        >
-          <IconKeyboard />
-        </button>
-
-        <div className="iso-header-sep" aria-hidden="true" />
 
         {/* Status */}
         <output
-          className={statusClass}
+          className={`${statusClass}${isMobileLayout ? ' iso-mobile-hide' : ''}`}
           aria-live="polite"
           aria-label={allErrors.length > 0 ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}` : 'Diagram valid'}
         >
           <div className="iso-status-dot" aria-hidden="true" />
-          {allErrors.length > 0
-            ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}`
-            : diagrams.length > 0 ? 'Valid' : 'Ready'}
+          {statusLabel}
         </output>
 
-        <div className="iso-header-sep" aria-hidden="true" />
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '13px', color: 'var(--iso-text)' }}>
+        <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
+        <label className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '13px', color: 'var(--iso-text)' }}>
           <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
           Strict UML
         </label>
       </header>
 
-      {/* ──────────────── MAIN ────────────────────────────── */}
-      <main className="iso-main">
-        {activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 && (
-          <div className="iso-sidebar" style={{ width: 160, borderRight: '1px solid var(--iso-divider)', background: 'var(--iso-bg-sidebar)', display: 'flex', flexDirection: 'column' }}>
-            <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-              <IconDiagram size={11} /> Shapes
+      {isMobileLayout && (
+        <>
+          <div className="iso-mobile-meta">
+            {activeDiagram && (
+              <div className="iso-kind-badge iso-kind-badge--mobile">
+                {activeDiagram.kind}
+              </div>
+            )}
+            <output
+              className={`${statusClass} iso-mobile-status`}
+              aria-live="polite"
+              aria-label={allErrors.length > 0 ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}` : 'Diagram valid'}
+            >
+              <div className="iso-status-dot" aria-hidden="true" />
+              {statusLabel}
+            </output>
+          </div>
+
+          {tabs.length > 1 && (
+            <div className="iso-mobile-strip">
+              <nav className="iso-tabs" aria-label="Open files">
+                {tabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
+                    onClick={() => setActiveTabId(tab.id)}
+                  >
+                    {tab.name}
+                  </button>
+                ))}
+              </nav>
             </div>
-            <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {getStencilsForKind(activeDiagram.kind).map(stencil => (
-                <div
-                  key={stencil.label}
-                  draggable
-                  onDragStart={e => {
-                    e.dataTransfer.setData('text/plain', stencil.keyword);
-                    e.dataTransfer.effectAllowed = 'copy';
-                  }}
-                  style={{
-                    padding: '8px', background: 'var(--iso-bg-header)', border: '1px solid var(--iso-border)',
-                    borderRadius: '4px', cursor: 'grab', fontSize: '12px', textAlign: 'center', userSelect: 'none'
-                  }}
-                >
-                  {stencil.label}
-                </div>
-              ))}
+          )}
+
+          {diagrams.length > 1 && (
+            <div className="iso-mobile-strip iso-mobile-strip--muted">
+              <nav className="iso-tabs" aria-label="Diagrams">
+                {filteredDiagrams.map((d, i) => (
+                  <button
+                    key={d.name}
+                    type="button"
+                    className={`iso-tab${i === safeDiagramIdx ? ' iso-tab--active' : ''}`}
+                    onClick={() => updateActiveTab(tab => ({ ...tab, activeDiagramIdx: i }))}
+                  >
+                    {d.name}
+                    <span className="iso-tab-kind">{d.kind}</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
+          )}
+
+          <div className="iso-mobile-actions">
+            <div className="iso-mobile-actions-group">
+              <button type="button" className="iso-btn" onClick={handleNew}>
+                <IconNew />
+                New
+              </button>
+              <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()}>
+                <IconOpen />
+                Open
+              </button>
+              {examplesDropdown}
+            </div>
+            <div className="iso-mobile-actions-group iso-mobile-actions-group--secondary">
+              <button
+                type="button"
+                className="iso-btn"
+                onClick={() => {
+                  if (!activeTab) return;
+                  const blob = new Blob([activeTab.source], { type: 'text/plain' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = activeTab.name || 'diagram.isx';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                disabled={!activeTab}
+              >
+                <IconSave />
+                Save
+              </button>
+              <button type="button" className="iso-btn" onClick={handleExportSVG} disabled={!activeDiagram}>
+                <IconExport />
+                SVG
+              </button>
+              <button type="button" className="iso-btn" onClick={handleExportPNG} disabled={!activeDiagram}>
+                <IconExport />
+                PNG
+              </button>
+              <button type="button" className="iso-btn iso-btn--icon" onClick={() => setShortcutsOpen(o => !o)} aria-label="Keyboard shortcuts">
+                <IconKeyboard />
+              </button>
+              <label className="iso-mobile-toggle">
+                <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
+                Strict UML
+              </label>
             </div>
           </div>
+        </>
+      )}
+
+      {isMobileLayout && (
+        <div className="iso-mobile-bar">
+          <button
+            type="button"
+            className={`iso-mobile-tab${mobilePane === 'code' ? ' iso-mobile-tab--active' : ''}`}
+            onClick={() => setMobilePane('code')}
+          >
+            Source
+          </button>
+          <button
+            type="button"
+            className={`iso-mobile-tab${mobilePane === 'diagram' ? ' iso-mobile-tab--active' : ''}`}
+            onClick={() => setMobilePane('diagram')}
+          >
+            Canvas
+          </button>
+        </div>
+      )}
+
+      {/* ──────────────── MAIN ────────────────────────────── */}
+      <main className="iso-main">
+        {isMobileLayout ? (
+          <div className="iso-mobile-main">
+            {mobilePane === 'code' && sourcePane}
+            {mobilePane === 'diagram' && mobileCanvasPane}
+          </div>
+        ) : (
+          <>
+            {shapesPane}
+            <SplitPane left={sourcePane} right={canvasPane} />
+          </>
         )}
-        <SplitPane
-          left={
-            <div className="iso-panel" style={{ height: '100%' }}>
-              <div className="iso-panel-header">
-                <IconCode size={11} />
-                Source
-                <span className="iso-panel-info" aria-live="polite">
-                  {parseErrors.length > 0
-                    ? ` — ${parseErrors.length} parse error${parseErrors.length > 1 ? 's' : ''}`
-                    : source.trim() ? ' — OK' : ''}
-                </span>
-                <span className="iso-panel-spacer" />
-                <span style={{ fontSize: 10, color: 'var(--iso-text-faint)', fontFamily: 'monospace' }}>
-                  {source.split('\n').length} lines
-                </span>
-              </div>
-              <div className="iso-panel-body">
-                <IsomorphEditor
-                  value={source}
-                  onChange={value => updateActiveTab(tab => ({ ...tab, source: value }))}
-                  errors={editorDiagnostics}
-                />
-              </div>
-              {/* Inline error list */}
-              {allErrors.length > 0 && (
-                <div className="iso-error-panel" role="log" aria-label="Errors">
-                  {allErrors.slice(0, 8).map((msg, i) => (
-                    <div key={`err-${msg.slice(0, 20)}-${i}`} className="iso-error-item">
-                      <span className="iso-error-icon" aria-hidden="true">✖</span>
-                      <span className="iso-error-msg">{msg}</span>
-                    </div>
-                  ))}
-                  {allErrors.length > 8 && (
-                    <div className="iso-error-item">
-                      <span className="iso-error-icon" aria-hidden="true">…</span>
-                      <span className="iso-error-msg" style={{ color: 'var(--iso-text-muted)' }}>
-                        +{allErrors.length - 8} more error{allErrors.length - 8 > 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          }
-          right={
-            <div className="iso-panel iso-panel--canvas" style={{ height: '100%' }}>
-              <div className="iso-panel-header">
-                <IconDiagram size={11} />
-                Canvas
-                <span className="iso-panel-info" aria-live="polite">
-                  {activeDiagram
-                    ? ` — ${activeDiagram.name} · ${activeDiagram.entities.size} entities · ${activeDiagram.relations.length} relations`
-                    : ''}
-                </span>
-                <span className="iso-panel-spacer" />
-                {diagrams.length > 0 && (
-                  <span style={{ fontSize: 10, color: '#6e7781', fontFamily: 'monospace' }}>
-                    drag to reposition
-                  </span>
-                )}
-              </div>
-              <div className="iso-panel-body">
-                <DiagramView
-                  diagram={activeDiagram}
-                  onEntityMove={handleEntityMove}
-                  onEntityEditRequest={handleEntityEditRequest}
-                  onRelationEditRequest={handleRelationEditRequest}
-                  onRelationAddRequest={handleRelationAddRequest}
-                    onTextRenameRequest={handleTextRenameRequest}
-                  onExportSVG={handleExportSVG}
-                  onDropEntity={handleDropEntity}
-                  availableTools={toolsetFor(activeDiagram?.kind)}
-                  selectedItems={selectedItems}
-                  onSelectionChange={setSelectedItems}
-                />
-              </div>
-            </div>
-          }
-        />
       </main>
 
       {editingEntity && (
