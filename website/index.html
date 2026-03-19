@@ -420,12 +420,12 @@
   }
 
   .compare-table th {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 400;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--ink-mid);
-    padding: 12px 20px;
+    padding: 12px 14px;
     text-align: left;
     border-bottom: 0.5px solid var(--stone);
   }
@@ -436,10 +436,10 @@
   }
 
   .compare-table td {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 300;
     color: var(--ink);
-    padding: 16px 20px;
+    padding: 14px 14px;
     border-bottom: 0.5px solid var(--off);
     vertical-align: middle;
   }
@@ -448,7 +448,7 @@
 
   .compare-table td:first-child {
     color: var(--ink-mid);
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .check {
@@ -468,6 +468,7 @@
     background: var(--ink-deep);
     border-radius: var(--radius);
     overflow: hidden;
+    text-align: left;
   }
 
   .syntax-header {
@@ -497,6 +498,7 @@
   .syntax-body {
     padding: 28px 28px 32px;
     overflow-x: auto;
+    text-align: left;
   }
 
   .syntax-body code {
@@ -506,7 +508,13 @@
     line-height: 2;
     display: block;
     white-space: pre;
+    text-align: left;
   }
+
+  .compare-card {
+    padding: 24px 24px 18px;
+  }
+
 
   /* syntax tokens */
   .t-kw   { color: #b4a7f5; }
@@ -711,6 +719,35 @@
     text-transform: uppercase;
   }
 
+  .breadth-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 36px;
+  }
+
+  .breadth-card {
+    background: var(--white);
+    border: 0.5px solid var(--stone);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+
+  .breadth-title {
+    font-size: 20px;
+    font-weight: 300;
+    color: var(--ink-deep);
+    letter-spacing: -0.02em;
+    margin-bottom: 14px;
+  }
+
+  .breadth-body {
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1.75;
+    color: var(--ink-mid);
+  }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 900px) {
     nav { padding: 0 24px; }
@@ -722,6 +759,7 @@
     .features-grid { grid-template-columns: 1fr; }
     .rules-grid { grid-template-columns: 1fr; }
     .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .breadth-grid { grid-template-columns: 1fr; }
     .window-body { grid-template-columns: 1fr; }
     .window-divider { display: none; }
     footer { flex-direction: column; gap: 16px; }
@@ -876,8 +914,8 @@
         <div class="stat-label">Diagram types</div>
       </div>
       <div class="stat-cell">
-        <div class="stat-num">84</div>
-        <div class="stat-label">Passing tests</div>
+        <div class="stat-num">4</div>
+        <div class="stat-label">Competitors compared</div>
       </div>
       <div class="stat-cell">
         <div class="stat-num">55</div>
@@ -907,32 +945,29 @@
         </p>
       </div>
       <div data-reveal data-reveal-delay="2">
-        <div class="glass-card">
+        <div class="glass-card compare-card">
           <table class="compare-table">
             <thead>
               <tr>
                 <th>Property</th>
                 <th>PlantUML</th>
                 <th>draw.io</th>
+                <th>Mermaid</th>
                 <th style="color: #1a1a16;">Isomorph</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>Text-based</td>
+                <td>Text-based source</td>
                 <td><span class="check yes">✓</span></td>
                 <td><span class="check no">✗</span></td>
+                <td><span class="check yes">✓</span></td>
                 <td><span class="check yes">✓</span></td>
               </tr>
               <tr>
                 <td>Stable layout</td>
                 <td><span class="check no">✗</span></td>
                 <td><span class="check yes">✓</span></td>
-                <td><span class="check yes">✓</span></td>
-              </tr>
-              <tr>
-                <td>Bidirectional</td>
-                <td><span class="check no">✗</span></td>
                 <td><span class="check no">✗</span></td>
                 <td><span class="check yes">✓</span></td>
               </tr>
@@ -941,9 +976,11 @@
                 <td><span class="check yes">✓</span></td>
                 <td><span class="check no">✗</span></td>
                 <td><span class="check yes">✓</span></td>
+                <td><span class="check yes">✓</span></td>
               </tr>
               <tr>
-                <td>Formal semantics</td>
+                <td>Bidirectional architecture</td>
+                <td><span class="check no">✗</span></td>
                 <td><span class="check no">✗</span></td>
                 <td><span class="check no">✗</span></td>
                 <td><span class="check yes">✓</span></td>
@@ -1011,7 +1048,7 @@
         </div>
       </div>
 
-      <div>
+      <div style="text-align: left;">
         <p class="section-tag">Diagram types</p>
         <p style="font-size: 15px; font-weight: 300; color: var(--ink-mid); line-height: 1.75; margin-bottom: 8px;">
           Nine complete UML diagram types — one language, one canonical model.
@@ -1059,6 +1096,19 @@
         </div>
       </div>
     </div>
+
+    <div class="breadth-grid" data-reveal data-reveal-delay="2">
+      <div class="breadth-card">
+        <p class="section-tag">Structural breadth</p>
+        <p class="breadth-title">Architecture, modules, and deployment.</p>
+        <p class="breadth-body">Class, component, deployment, package, and module views describe what exists and how systems are organized. These are first-class constructs in the grammar, not ad-hoc templates.</p>
+      </div>
+      <div class="breadth-card">
+        <p class="section-tag">Behavioral breadth</p>
+        <p class="breadth-title">Runtime flow, state, and interaction.</p>
+        <p class="breadth-body">Sequence, state, activity, collaboration, and flow diagrams capture what the system does over time. Structure and behavior live in one language and one canonical model.</p>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1072,7 +1122,7 @@
 
     <div class="invariant" data-reveal data-reveal-delay="1">
       <p class="invariant-formula">parse(serialise(M)) = M</p>
-      <p class="invariant-label">For all models M in the canonical IOM domain</p>
+      <p class="invariant-label">Layout stays in the source, not in a sidecar file</p>
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--stone); border: 0.5px solid var(--stone); border-radius: var(--radius); overflow: hidden; margin-top: 1px;" data-reveal data-reveal-delay="2">
@@ -1095,6 +1145,65 @@
         <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 16px;">04 · Render</p>
         <p style="font-size: 20px; font-weight: 200; color: var(--ink-deep); letter-spacing: -0.02em; margin-bottom: 10px;">9 SVG renderers</p>
         <p style="font-size: 13px; font-weight: 300; color: var(--ink-mid); line-height: 1.65;">@Entity at (x,y) coordinates applied from source. ELK fallback for unplaced entities.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-inner">
+    <div class="split">
+      <div class="split-text" data-reveal>
+        <p class="section-tag">ISX file</p>
+        <h2 class="section-heading">One file for code,<br><em>layout, and round-trip edits</em></h2>
+        <p class="section-body">
+          An `.isx` file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.
+        </p>
+      </div>
+      <div data-reveal data-reveal-delay="1">
+        <div class="syntax-block">
+          <div class="syntax-header">
+            <span class="syntax-filename">payments.isx</span>
+            <span class="syntax-lang">Source of truth</span>
+          </div>
+          <div class="syntax-body">
+            <code><span class="t-kw">diagram</span> <span class="t-def">Payments</span> : <span class="t-kw">component</span> {
+  <span class="t-kw">component</span> <span class="t-type">Gateway</span>
+  <span class="t-kw">component</span> <span class="t-type">Ledger</span>
+  <span class="t-type">Gateway</span> <span class="t-rel">--&gt;</span> <span class="t-type">Ledger</span>
+
+  <span class="t-ann">@Gateway</span> at (<span class="t-num">120</span>, <span class="t-num">140</span>)
+  <span class="t-ann">@Ledger</span>  at (<span class="t-num">420</span>, <span class="t-num">140</span>)
+}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt">
+  <div class="section-inner">
+    <div class="split">
+      <div class="split-text" data-reveal>
+        <p class="section-tag">Core tech stack</p>
+        <h2 class="section-heading">Handcrafted recursive descent.<br><em>No ANTLR, no Chevrotain.</em></h2>
+        <p class="section-body">
+          We chose a custom parser and analyzer stack so grammar control, source-mapped errors, round-trip serialization, and invariant preservation all remain under our control. The renderer and editor were built around that same architecture, not bolted on later.
+        </p>
+      </div>
+      <div data-reveal data-reveal-delay="1">
+        <div class="glass-card">
+          <p class="section-tag">Why custom</p>
+          <p class="feature-body" style="font-size: 14px;">
+            Recursive-descent parsing gave us exact control over the language, deterministic edits, and compiler-style diagnostics. That matters when the same source file must drive both text editing and visual geometry.
+          </p>
+          <div style="display: grid; gap: 1px; margin-top: 24px; background: var(--stone); border: 0.5px solid var(--stone); border-radius: 12px; overflow: hidden;">
+            <div style="background: white; padding: 16px 18px; font-size: 13px; font-weight: 300; color: var(--ink-mid);">Handwritten lexer + recursive-descent parser</div>
+            <div style="background: white; padding: 16px 18px; font-size: 13px; font-weight: 300; color: var(--ink-mid);">Two-pass analyzer with 14 semantic rules</div>
+            <div style="background: white; padding: 16px 18px; font-size: 13px; font-weight: 300; color: var(--ink-mid);">Custom renderer and editor integration</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1186,7 +1295,7 @@
           <path d="M10 14l4 4-4 4M18 22h8" stroke="#1a1a16" stroke-width="1" stroke-linecap="round"/>
         </svg>
         <p class="feature-title">CodeMirror 6 IDE</p>
-        <p class="feature-body">Multi-tab workspace with syntax highlighting, keyboard shortcuts, and a built-in example gallery. Zero install.</p>
+        <p class="feature-body">Multi-tab workspace with syntax highlighting, keyboard shortcuts, and a built-in example gallery for real architecture work.</p>
       </div>
       <div class="feature-cell">
         <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
@@ -1208,14 +1317,6 @@
       </div>
       <div class="feature-cell">
         <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
-          <path d="M8 12h20M8 18h14M8 24h17" stroke="#1a1a16" stroke-width="1" stroke-linecap="round"/>
-          <path d="M26 20l4 4-4 4" stroke="#1a1a16" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <p class="feature-title">SVG & PNG export</p>
-        <p class="feature-body">Export any diagram to pixel-perfect SVG or rasterized PNG. Embedable in documentation, presentations, and wikis.</p>
-      </div>
-      <div class="feature-cell">
-        <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
           <rect x="6" y="6" width="11" height="11" rx="1.5" stroke="#1a1a16" stroke-width="1"/>
           <rect x="19" y="6" width="11" height="11" rx="1.5" stroke="#1a1a16" stroke-width="1"/>
           <rect x="6" y="19" width="11" height="11" rx="1.5" stroke="#1a1a16" stroke-width="1"/>
@@ -1232,6 +1333,14 @@
         <p class="feature-title">ELK auto-layout</p>
         <p class="feature-body">Entities without @annotations are automatically placed using the Eclipse Layout Kernel, stable across re-parses.</p>
       </div>
+      <div class="feature-cell">
+        <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
+          <path d="M9 10h18M9 18h18M9 26h12" stroke="#1a1a16" stroke-width="1" stroke-linecap="round"/>
+          <path d="M23 22l4 4 5-7" stroke="#1a1a16" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="feature-title">Canonical `.isx` source</p>
+        <p class="feature-body">One file stores the model and the layout. Visual edits remain deterministic text edits instead of hidden binary state.</p>
+      </div>
     </div>
   </div>
 </section>
@@ -1239,12 +1348,12 @@
 <!-- CTA -->
 <section style="padding: 140px 40px;">
   <div style="max-width: 640px; margin: 0 auto; text-align: center;">
-    <p class="section-tag" style="margin-bottom: 24px;" data-reveal>Open source · MIT license · GitHub Pages</p>
+    <p class="section-tag" style="margin-bottom: 24px;" data-reveal>Structure · behavior · invariants</p>
     <h2 style="font-size: clamp(36px, 5vw, 64px); font-weight: 200; letter-spacing: -0.03em; line-height: 1.08; color: var(--ink-deep); margin-bottom: 24px;" data-reveal data-reveal-delay="1">
-      Try it in<br><em>your browser now</em>
+      Explore the IDE,<br><em>inspect the source</em>
     </h2>
     <p style="font-size: 15px; font-weight: 300; color: var(--ink-mid); line-height: 1.75; margin-bottom: 48px;" data-reveal data-reveal-delay="2">
-      No install. No account. The complete Isomorph IDE runs as a static site on GitHub Pages.
+      Open the editor, drag the canvas, and verify that the source stays reviewable while the geometry remains stable.
     </p>
     <div style="display: flex; flex-direction: column; align-items: center; gap: 16px;" data-reveal data-reveal-delay="3">
       <a href="https://team02-faf241.github.io/isomorph/" class="btn-primary" style="font-size: 15px; padding: 15px 36px;">
