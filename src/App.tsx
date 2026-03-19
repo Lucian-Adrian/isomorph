@@ -565,13 +565,16 @@ export default function App() {
     const media = window.matchMedia('(max-width: 900px)');
     const apply = (matches: boolean) => {
       setIsMobileLayout(matches);
-      if (!matches) return;
     };
     apply(media.matches);
     const listener = (event: MediaQueryListEvent) => apply(event.matches);
-    media.addEventListener('change', listener);
-    return () => media.removeEventListener('change', listener);
-  }, [activeDiagram]);
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', listener);
+      return () => media.removeEventListener('change', listener);
+    }
+    media.addListener(listener);
+    return () => media.removeListener(listener);
+  }, []);
 
   useEffect(() => {
     if (!activeTab) return;
@@ -967,6 +970,9 @@ export default function App() {
     : diagrams.length > 0
       ? 'Valid'
       : 'Ready';
+  const statusAriaLabel = allErrors.length > 0
+    ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}`
+    : 'Diagram valid';
 
   const shapesPane = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
     <div className="iso-sidebar">
@@ -1070,7 +1076,7 @@ export default function App() {
   );
 
   const mobileStencilRail = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
-    <div className="iso-mobile-stencil-rail" aria-label="Shapes">
+    <div className="iso-mobile-stencil-rail" role="toolbar" aria-label="Insert shapes">
       {getStencilsForKind(activeDiagram.kind).map(stencil => (
         <button
           key={stencil.label}
@@ -1190,7 +1196,7 @@ export default function App() {
   return (
     <div className="iso-shell">
       {/* ──────────────── HEADER ──────────────────────────── */}
-      <header className={`iso-header${isMobileLayout ? ' iso-header--mobile' : ''}`}>
+      <header className="iso-header">
         {/* Logo */}
         <button type="button" className="iso-logo" aria-label="Isomorph home" onClick={e => e.preventDefault()}>
           <span className="iso-logo-name">Isomorph</span>
@@ -1388,7 +1394,7 @@ export default function App() {
         <output
           className={`${statusClass}${isMobileLayout ? ' iso-mobile-hide' : ''}`}
           aria-live="polite"
-          aria-label={allErrors.length > 0 ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}` : 'Diagram valid'}
+          aria-label={statusAriaLabel}
         >
           <div className="iso-status-dot" aria-hidden="true" />
           {statusLabel}
@@ -1412,7 +1418,7 @@ export default function App() {
             <output
               className={`${statusClass} iso-mobile-status`}
               aria-live="polite"
-              aria-label={allErrors.length > 0 ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}` : 'Diagram valid'}
+              aria-label={statusAriaLabel}
             >
               <div className="iso-status-dot" aria-hidden="true" />
               {statusLabel}
