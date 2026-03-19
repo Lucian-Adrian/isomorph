@@ -334,9 +334,9 @@ body {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  background: var(--ink-deep);
-  border: 1px solid var(--ink);
-  color: var(--white);
+  background: var(--white);
+  border: 1px solid var(--iso-border-strong);
+  color: var(--ink-deep);
   border-radius: var(--iso-radius-lg);
   box-shadow: var(--iso-shadow-lg);
   padding: 6px;
@@ -351,7 +351,7 @@ body {
   border-radius: var(--iso-radius);
   cursor: pointer;
   font-size: 13px;
-  color: var(--white);
+  color: var(--ink-deep);
   background: transparent;
   border: none;
   width: 100%;
@@ -360,7 +360,7 @@ body {
   transition: background var(--iso-duration);
   touch-action: manipulation;
 }
-.iso-dropdown-item:hover { background: rgba(255,255,255,0.1); }
+.iso-dropdown-item:hover { background: var(--iso-bg-hover); }
 .iso-dropdown-item:focus-visible {
   outline: 2px solid var(--iso-brand);
   outline-offset: 2px;
@@ -370,12 +370,12 @@ body {
 .iso-dropdown-item-meta {
   margin-left: auto;
   font-size: 11px;
-  color: rgba(255,255,255,0.5);
+  color: var(--ink-mid);
   font-family: var(--mono);
 }
 .iso-dropdown-sep {
   height: 1px;
-  background: rgba(255,255,255,0.1);
+  background: var(--iso-divider);
   margin: 6px 0;
 }
 
@@ -467,7 +467,7 @@ body {
   width: 100%;
   height: 100%;
   position: relative;
-  overflow: auto;
+  overflow: hidden;
   background: var(--iso-bg-canvas);
   background-image: radial-gradient(circle, #c8cdd3 1px, transparent 1px);
   background-size: 24px 24px;
@@ -477,6 +477,8 @@ body {
   display: block;
   min-width: 100%;
   min-height: 100%;
+  background: transparent !important;
+  overflow: visible !important;
 }
 
 .iso-canvas-empty {
@@ -850,3 +852,28 @@ body {
   right: 0;
   transform: none;
 }
+
+.iso-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: overlay-fade-in 180ms var(--iso-ease);
+}
+.iso-modal {
+  background: var(--white); border: 1px solid var(--iso-border-strong);
+  border-radius: var(--iso-radius-lg); padding: 24px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 360px; text-align: center;
+  animation: overlay-slide-in 220ms var(--iso-ease);
+}
+.iso-modal-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--iso-text); }
+.iso-modal-desc { font-size: 13px; color: var(--iso-text-muted); margin-bottom: 20px; line-height: 1.5; }
+.iso-modal-select { width: 100%; padding: 8px 12px; border: 1px solid var(--iso-border); border-radius: var(--iso-radius); margin-bottom: 20px; font-size: 14px; background: white; color: var(--iso-text); }
+.iso-modal-actions { display: flex; gap: 12px; justify-content: stretch; }
+.iso-modal-btn { flex: 1; padding: 10px; border-radius: var(--iso-radius); border: 1px solid transparent; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+.iso-modal-btn.cancel { background: var(--iso-bg-hover); color: var(--iso-text); }
+.iso-modal-btn.cancel:hover { background: var(--iso-divider); }
+.iso-modal-btn.confirm { background: var(--ink-deep); color: white; }
+.iso-modal-btn.confirm:hover { background: var(--ink); }
+.iso-modal-btn.danger { background: var(--iso-error); color: white; }
+.iso-modal-btn.danger:hover { background: #e04a43; }
+

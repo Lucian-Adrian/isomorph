@@ -486,6 +486,8 @@ export default function App() {
   const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('');
   const [newDiagramKind, setNewDiagramKind] = useState<DiagramKind>('class');
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [tabToClose, setTabToClose] = useState<string | null>(null);
   const [examplesOpen, setExamplesOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
@@ -878,20 +880,25 @@ export default function App() {
   }, [activeDiagram]);
 
   // ── New file ──────────────────────────────────────────────
-  const handleNew = useCallback(() => {
+  const executeNewDiagram = useCallback((kind: DiagramKind) => {
     const id = `tab-${slugId()}`;
     setTabs(prev => [
       ...prev,
       {
         id,
         name: `untitled-${prev.length + 1}.isx`,
-        source: templateFor(newDiagramKind),
+        source: templateFor(kind),
         activeDiagramIdx: 0,
         diagramKindFilter: 'all',
       },
     ]);
     setActiveTabId(id);
-  }, [newDiagramKind]);
+    setIsNewModalOpen(false);
+  }, []);
+
+  const handleNew = useCallback(() => {
+    setIsNewModalOpen(true);
+  }, []);
 
   // ── Open file from disk ───────────────────────────────────
   const handleFileOpen = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -952,16 +959,7 @@ export default function App() {
           <p style={{ color: 'var(--iso-text-muted)', marginBottom: '32px' }}>Open an existing diagram or create a new one to get started.</p>
           <div style={{ display: 'flex', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <select
-                className="iso-select"
-                style={{ padding: '8px', fontSize: '14px', minHeight: '36px' }}
-                value={newDiagramKind}
-                onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}
-              >
-                {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                  <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} Diagram</option>
-                ))}
-              </select>
+              
               <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={handleNew}>
                 Create New Diagram
               </button>
@@ -975,10 +973,28 @@ export default function App() {
           </div>
           <input ref={fileInputRef} type="file" accept=".isx,.iso,.txt" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
         </div>
+
+        {/* ──────────────── MODALS (Empty State) ───────────────── */}
+        {isNewModalOpen && (
+          <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
+            <div className="iso-modal" onClick={e => e.stopPropagation()}>
+              <h2 className="iso-modal-title">Create New Diagram</h2>
+              <p className="iso-modal-desc">Select the type of diagram you'd like to create.</p>
+              <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
+                {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+                  <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} Diagram</option>
+                ))}
+              </select>
+              <div className="iso-modal-actions">
+                <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>Cancel</button>
+                <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>Create</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
-
   return (
     <div className="iso-shell">
       {/* ──────────────── HEADER ──────────────────────────── */}
@@ -1018,63 +1034,77 @@ export default function App() {
 
         <div className="iso-header-spacer" />
 
-        <nav className="iso-tabs" aria-label="Open files" style={{ flex: '0 1 30%', minWidth: 0, overflowX: 'auto', display: 'flex' }}>
-          {tabs.map(tab => (
-            <div
-              key={tab.id}
-              className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
-              onClick={() => setActiveTabId(tab.id)}
-              onDoubleClick={() => setRenamingTabId(tab.id)}
-              aria-label={`Open ${tab.name}`}
-              style={{ paddingRight: tabs.length > 1 ? '4px' : '10px' }}
-            >
-              {renamingTabId === tab.id ? (
-                <span style={{ display: 'flex', alignItems: 'center' }}>
-                  <input
-                    autoFocus
-                    defaultValue={tab.name.includes('.') ? tab.name.substring(0, tab.name.lastIndexOf('.')) : tab.name}
-                    className="iso-tab-rename-input"
-                    style={{ background: 'transparent', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', outline: 'none', width: '80px', borderBottom: '1px solid currentColor' }}
-                    onBlur={(e) => {
-                      const ext = tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : '';
-                      const newName = e.target.value ? e.target.value + ext : tab.name;
-                      setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, name: newName } : t));
-                      setRenamingTabId(null);
+        <div style={{ display: 'flex', alignItems: 'center', flex: '0 1 30%', minWidth: 0, overflow: 'hidden' }}>
+          <button 
+            type="button" 
+            style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }} 
+            onClick={e => e.currentTarget.nextElementSibling?.scrollBy({ left: -150, behavior: 'smooth' })}
+            onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
+          >
+            ◀
+          </button>
+          <nav className="iso-tabs" aria-label="Open files" style={{ flex: '1 1 auto', overflowX: 'auto', display: 'flex', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {tabs.map(tab => (
+              <div
+                key={tab.id}
+                className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
+                onClick={() => setActiveTabId(tab.id)}
+                onDoubleClick={() => setRenamingTabId(tab.id)}
+                aria-label={`Open ${tab.name}`}
+                style={{ paddingRight: tabs.length > 1 ? '4px' : '10px' }}
+              >
+                {renamingTabId === tab.id ? (
+                  <span style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      autoFocus
+                      defaultValue={tab.name.includes('.') ? tab.name.substring(0, tab.name.lastIndexOf('.')) : tab.name}
+                      className="iso-tab-rename-input"
+                      style={{ background: 'transparent', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', outline: 'none', width: '80px', borderBottom: '1px solid currentColor' }}
+                      onBlur={(e) => {
+                        const ext = tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : '';
+                        const newName = e.target.value ? e.target.value + ext : tab.name;
+                        setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, name: newName } : t));
+                        setRenamingTabId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                        if (e.key === 'Escape') setRenamingTabId(null);
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    />
+                    <span>{tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : ''}</span>
+                  </span>
+                ) : (
+                  tab.name
+                )}
+                {tabs.length > 1 && (
+                  <button
+                    type="button"
+                    style={{ all: 'unset', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '4px', marginLeft: '4px', cursor: 'pointer', opacity: 0.6 }}
+                    onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.background = 'transparent'; }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTabToClose(tab.id);
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                      if (e.key === 'Escape') setRenamingTabId(null);
-                    }}
-                    onClick={e => e.stopPropagation()}
-                  />
-                  <span>{tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : ''}</span>
-                </span>
-              ) : (
-                tab.name
-              )}
-              {tabs.length > 1 && (
-                <button
-                  type="button"
-                  style={{ all: 'unset', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '4px', marginLeft: '4px', cursor: 'pointer', opacity: 0.6 }}
-                  onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.background = 'transparent'; }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Are you sure you want to close "${tab.name}"? Unsaved changes may be lost.`)) {
-                      setTabs(prev => {
-                        const next = prev.filter(t => t.id !== tab.id);
-                        if (activeTabId === tab.id) setActiveTabId(next[Math.max(0, next.length - 1)].id);
-                        return next;
-                      });
-                    }
-                  }}
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
-        </nav>
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
+          </nav>
+          <button 
+            type="button" 
+            style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }} 
+            onClick={e => e.currentTarget.previousElementSibling?.scrollBy({ left: 150, behavior: 'smooth' })}
+            onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
+          >
+            ▶
+          </button>
+        </div>
 
         <select
           className="iso-select"
@@ -1140,7 +1170,7 @@ export default function App() {
                   }}
                 >
                   <span className="iso-dropdown-item-icon" aria-hidden="true">
-                    {ex.kind === 'class' ? '⬜' : '⭕'}
+                    ⭕
                   </span>
                   {ex.label}
                   <span className="iso-dropdown-item-meta">{ex.kind}</span>
@@ -1497,6 +1527,45 @@ export default function App() {
 
       {/* ──────────────── SHORTCUTS OVERLAY ───────────────── */}
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+      {/* ──────────────── MODALS ───────────────── */}
+      {isNewModalOpen && (
+        <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()}>
+            <h2 className="iso-modal-title">Create New Diagram</h2>
+            <p className="iso-modal-desc">Select the type of diagram you'd like to create.</p>
+            <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
+              {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+                <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} Diagram</option>
+              ))}
+            </select>
+            <div className="iso-modal-actions">
+              <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>Cancel</button>
+              <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tabToClose && (
+        <div className="iso-modal-overlay" onClick={() => setTabToClose(null)}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()}>
+            <h2 className="iso-modal-title">Close Diagram?</h2>
+            <p className="iso-modal-desc">Are you sure you want to close "{tabs.find(t => t.id === tabToClose)?.name}"? Unsaved changes may be lost.</p>
+            <div className="iso-modal-actions">
+              <button className="iso-modal-btn cancel" onClick={() => setTabToClose(null)}>Cancel</button>
+              <button className="iso-modal-btn danger" onClick={() => {
+                setTabs(prev => {
+                  const next = prev.filter(t => t.id !== tabToClose);
+                  if (activeTabId === tabToClose) setActiveTabId(next[Math.max(0, next.length - 1)]?.id ?? '');
+                  return next;
+                });
+                setTabToClose(null);
+              }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

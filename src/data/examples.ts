@@ -59,7 +59,7 @@ diagram LibrarySystem : class {
 `,
   },
   {
-    label: 'E-Commerce',
+    label: 'E-Commerce Platform',
     kind: 'class',
     source: `// E-Commerce platform — class diagram
 diagram ECommerce : class {
@@ -117,7 +117,7 @@ diagram ECommerce : class {
 `,
   },
   {
-    label: 'Use-Case',
+    label: 'Library Use-Cases',
     kind: 'usecase',
     source: `// Library use-case diagram
 diagram LibraryUseCase : usecase {
@@ -152,7 +152,7 @@ diagram LibraryUseCase : usecase {
 `,
   },
   {
-    label: 'Component',
+    label: 'Microservice Arch',
     kind: 'component',
     source: `// Microservice architecture — component diagram
 diagram MicroserviceArch : component {
@@ -182,7 +182,7 @@ diagram MicroserviceArch : component {
 `,
   },
   {
-    label: 'Deployment',
+    label: 'Cloud Deployment',
     kind: 'deployment',
     source: `// Cloud deployment — deployment diagram
 diagram CloudDeploy : deployment {
@@ -208,7 +208,7 @@ diagram CloudDeploy : deployment {
 `,
   },
   {
-    label: 'Sequence',
+    label: 'Authentication Flow',
     kind: 'sequence',
     source: `// Authentication flow — sequence diagram
 diagram AuthFlow : sequence {
@@ -235,7 +235,7 @@ diagram AuthFlow : sequence {
 `,
   },
   {
-    label: 'State',
+    label: 'Session States',
     kind: 'state',
     source: `// Authentication Session — state diagram
 diagram AuthSession : state {
@@ -263,7 +263,7 @@ diagram AuthSession : state {
 `
   },
   {
-    label: 'Activity',
+    label: 'Checkout Process',
     kind: 'activity',
     source: `// Checkout Process — activity diagram
 diagram Checkout : activity {
@@ -302,7 +302,7 @@ diagram Checkout : activity {
 `
   },
   {
-    label: 'Collaboration',
+    label: 'MVC Updates',
     kind: 'collaboration',
     source: `// MVC Pattern Updates — collaboration diagram
 diagram MVCUpdate : collaboration {
@@ -326,7 +326,7 @@ diagram MVCUpdate : collaboration {
 `
   },
   {
-    label: 'Flow',
+    label: 'Order Fulfillment',
     kind: 'flow',
     source: `// Order Fulfillment — flow diagram
 diagram OrderFlow : flow {
