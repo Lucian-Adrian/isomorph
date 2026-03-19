@@ -412,7 +412,33 @@ export function DiagramView({
         ref={canvasRef}
         role="img"
         aria-label={diagram ? `${diagram.name} ${diagram.kind} diagram` : 'Diagram canvas'}
-        style={{ display: diagram ? undefined : 'none' }}
+        style={{
+          display: diagram ? undefined : 'none',
+          backgroundPosition: `${pan.x}px ${pan.y}px`,
+          backgroundSize: `${24 * (zoom / 100)}px ${24 * (zoom / 100)}px`,
+          touchAction: 'none' /* prevent native zooming on trackpads */
+        }}
+        onWheel={(e) => {
+          if (e.ctrlKey) {
+            e.preventDefault();
+            const rect = e.currentTarget.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+            setZoom(z => {
+              const newZ = Math.min(Math.max(z - Math.sign(e.deltaY) * 10, 40), 200);
+              const scaleRatio = newZ / z;
+              // update pan to zoom in towards mouse pointer
+              setPan(p => ({
+                x: mx - (mx - p.x) * scaleRatio,
+                y: my - (my - p.y) * scaleRatio
+              }));
+              return newZ;
+            });
+          } else {
+            e.preventDefault();
+            setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+          }
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -449,17 +475,17 @@ export function DiagramView({
       {/* Tools Array */}
       <div className="iso-canvas-tools" style={{ position: 'absolute', left: 16, top: 16, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 10 }}>
         {availableTools.includes('move') && (
-          <button className={`iso-canvas-btn ${activeTool === 'move' ? 'active' : ''}`} onClick={() => setActiveTool('move')} title="Select / Move">
+          <button className={`iso-canvas-btn ${activeTool === 'move' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('move')} title="Select / Move">
             <IconPointer />
           </button>
         )}
         {availableTools.includes('hand') && (
-          <button className={`iso-canvas-btn ${activeTool === 'hand' ? 'active' : ''}`} onClick={() => setActiveTool('hand')} title="Pan Canvas">
+          <button className={`iso-canvas-btn ${activeTool === 'hand' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('hand')} title="Pan Canvas">
             <IconHand />
           </button>
         )}
         {availableTools.includes('add-edge') && (
-          <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'active' : ''}`} onClick={() => setActiveTool('add-edge')} title="Draw Edge">
+          <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('add-edge')} title="Draw Edge">
             <IconEdge />
           </button>
         )}
