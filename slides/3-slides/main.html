@@ -1,0 +1,1113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Isomorph Keynote</title>
+    <!-- Updated: split sections into structural vs behavioral, added ISX + cyber L1 slides -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200;0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,200;1,9..40,300&family=DM+Mono:wght@300;400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* CORE VARIABLES & PHYSICS */
+      :root {
+        --white: #ffffff;
+        --off: #f7f7f5;
+        --stone: #e8e8e3;
+        --ink-light: #c8c8c0;
+        --ink-mid: #8a8a82;
+        --ink: #3a3a35;
+        --ink-deep: #0a0a0a;
+        --glass-bg: rgba(255, 255, 255, 0.6);
+        --glass-border: rgba(0, 0, 0, 0.04);
+        --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+
+        --mono: "DM Mono", monospace;
+        --sans: "DM Sans", system-ui, -apple-system, sans-serif;
+
+        /* Apple-tier Physics */
+        --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+        --transition-speed: 1.2s;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      body {
+        background-color: var(--white);
+        color: var(--ink-deep);
+        font-family: var(--sans);
+        overflow: hidden; /* Hide scrollbars for presentation */
+        height: 100vh;
+        width: 100vw;
+      }
+
+      /* TYPOGRAPHY */
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: clamp(10px, 1vw, 12px);
+        font-weight: 400;
+        letter-spacing: 0.25em;
+        text-transform: uppercase;
+        color: var(--ink-mid);
+        margin-bottom: 2rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .eyebrow::before {
+        content: "";
+        display: block;
+        width: 24px;
+        height: 1px;
+        background-color: var(--ink-light);
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-weight: 200;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+      }
+
+      .headline-massive {
+        font-size: clamp(48px, 8vw, 120px);
+      }
+
+      .headline-large {
+        font-size: clamp(36px, 5vw, 72px);
+      }
+
+      .body-large {
+        font-size: clamp(18px, 2vw, 28px);
+        font-weight: 300;
+        line-height: 1.6;
+        color: var(--ink);
+        max-width: 800px;
+        margin-top: 2rem;
+      }
+
+      .italic-accent {
+        font-style: italic;
+        color: var(--ink-mid);
+      }
+
+      /* SLIDE ARCHITECTURE */
+      #deck {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        padding: clamp(24px, 5vw, 80px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity 0.8s var(--ease-out-expo),
+          visibility 0s 0.8s;
+        background-color: var(--white);
+      }
+
+      .slide.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transition:
+          opacity 0.8s var(--ease-out-expo),
+          visibility 0s 0s;
+      }
+
+      .slide.bg-dark {
+        background-color: var(--ink-deep);
+        color: var(--white);
+      }
+      .slide.bg-dark .eyebrow {
+        color: var(--ink-light);
+      }
+      .slide.bg-dark .eyebrow::before {
+        background-color: var(--ink);
+      }
+      .slide.bg-dark .body-large {
+        color: var(--ink-light);
+      }
+      .slide.bg-dark .italic-accent {
+        color: var(--ink-mid);
+      }
+
+      .slide.bg-off {
+        background-color: var(--off);
+      }
+
+      .slide-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      /* CHOREOGRAPHY & PHYSICS */
+      .reveal {
+        transform: translateY(40px);
+        opacity: 0;
+        transition:
+          transform var(--transition-speed) var(--ease-out-expo),
+          opacity var(--transition-speed) var(--ease-out-expo);
+      }
+
+      .slide.active .reveal {
+        transform: translateY(0);
+        opacity: 1;
+      }
+
+      .delay-1 {
+        transition-delay: 0.1s;
+      }
+      .delay-2 {
+        transition-delay: 0.2s;
+      }
+      .delay-3 {
+        transition-delay: 0.3s;
+      }
+      .delay-4 {
+        transition-delay: 0.4s;
+      }
+
+      /* GRID COMPONENTS */
+      .split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: clamp(40px, 8vw, 120px);
+        align-items: flex-start;
+      }
+
+      .matrix {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 1px;
+        background: var(--stone);
+        border: 1px solid var(--stone);
+        border-radius: 16px;
+        overflow: hidden;
+        margin-top: 4rem;
+      }
+
+      .matrix-header,
+      .matrix-cell {
+        background: var(--white);
+        padding: 24px;
+        font-size: 16px;
+        font-weight: 300;
+      }
+
+      .matrix-header {
+        font-weight: 500;
+        font-family: var(--mono);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--ink-mid);
+      }
+
+      .matrix-cell.highlight {
+        background: var(--off);
+        font-weight: 500;
+      }
+
+      .check {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        font-size: 12px;
+      }
+      .check.yes {
+        background: var(--ink-deep);
+        color: var(--white);
+      }
+      .check.no {
+        background: var(--stone);
+        color: var(--ink-mid);
+      }
+
+      /* CODE SNIPPETS */
+      .code-window {
+        background: var(--ink-deep);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.2);
+      }
+
+      .code-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 16px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .mac-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .mac-dot.r {
+        background: #ff5f57;
+      }
+      .mac-dot.y {
+        background: #febc2e;
+      }
+      .mac-dot.g {
+        background: #28c840;
+      }
+
+      .code-title {
+        margin-left: 12px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--ink-light);
+      }
+
+      .code-body {
+        padding: 32px;
+        font-family: var(--mono);
+        font-size: clamp(12px, 1.5vw, 16px);
+        line-height: 1.8;
+        color: var(--white);
+        white-space: pre;
+        overflow-x: auto;
+      }
+
+      .t-kw {
+        color: #8b8bf0;
+      }
+      .t-type {
+        color: #86d9c5;
+      }
+      .t-str {
+        color: #50a990;
+      }
+      .t-ann {
+        color: #f5c97a;
+      }
+      .t-cmt {
+        color: var(--ink-mid);
+      }
+      .t-num {
+        color: #c07ad1;
+      }
+
+      /* GLASS PROGRESS */
+      .progress-container {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 240px;
+        height: 40px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid var(--glass-border);
+        border-radius: 100px;
+        display: flex;
+        align-items: center;
+        padding: 0 24px;
+        z-index: 100;
+        box-shadow: var(--glass-shadow);
+        gap: 16px;
+      }
+
+      .progress-track {
+        flex: 1;
+        height: 2px;
+        background: var(--stone);
+        border-radius: 2px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        background: var(--ink-deep);
+        width: 0%;
+        transition: width 0.4s var(--ease-out-expo);
+      }
+
+      .progress-text {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-mid);
+        font-weight: 500;
+      }
+
+      /* HERO EQUATION */
+      .hero-equation {
+        font-family: var(--mono);
+        font-size: clamp(32px, 7vw, 100px);
+        font-weight: 300;
+        color: var(--white);
+        letter-spacing: -0.05em;
+        text-align: center;
+      }
+
+      /* BUTTONS */
+      .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        background: var(--ink-deep);
+        color: var(--white);
+        padding: 18px 40px;
+        border-radius: 100px;
+        text-decoration: none;
+        font-weight: 400;
+        font-size: 16px;
+        letter-spacing: 0.02em;
+        transition:
+          transform 0.2s,
+          opacity 0.2s;
+      }
+
+      .btn-primary:hover {
+        opacity: 0.8;
+        transform: scale(0.98);
+      }
+
+      /* CENTER LAYOUT UTILS */
+      .center-all {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .number-stat {
+        font-size: clamp(64px, 10vw, 160px);
+        font-weight: 200;
+        line-height: 1;
+        letter-spacing: -0.05em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="deck">
+      <!-- PART 1: THE AGITATION (Slides 1-7) -->
+
+      <div class="slide active">
+        <div class="slide-inner center-all">
+          <div class="eyebrow reveal">
+            FAF-241 · Technical University of Moldova
+          </div>
+          <h1 class="headline-massive reveal delay-1">Isomorph</h1>
+          <p class="body-large reveal delay-2">
+            Diagrams that
+            <span class="italic-accent">remember themselves.</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">The Status Quo</div>
+          <h2 class="headline-large reveal delay-1">
+            The industry standard<br /><span class="italic-accent"
+              >is fundamentally broken.</span
+            >
+          </h2>
+          <p class="body-large reveal delay-2">
+            Engineering teams are paralyzed by a decades-old dichotomy in
+            systems design.
+          </p>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner split">
+          <div>
+            <div class="eyebrow reveal">Option A</div>
+            <h2 class="headline-large reveal delay-1">Textual Tools.</h2>
+            <p class="body-large reveal delay-2">
+              PlantUML, Mermaid.<br />Perfect for Git diffs. Terrible for
+              layout. One line of changed code can scramble a carefully
+              orchestrated architecture diagram entirely.
+            </p>
+          </div>
+          <div
+            class="reveal delay-3"
+            style="
+              font-family: var(--mono);
+              color: var(--ink-mid);
+              font-size: 14px;
+              background: var(--off);
+              padding: 40px;
+              border-radius: 16px;
+            "
+          >
+            A --> B<br />
+            B --> C<br />
+            <span style="color: #ff5f57"
+              >// Wait, why did the whole graph<br />// rotate 90 degrees?</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner split">
+          <div>
+            <div class="eyebrow reveal">Option B</div>
+            <h2 class="headline-large reveal delay-1">Visual Editors.</h2>
+            <p class="body-large reveal delay-2">
+              draw.io, Excalidraw, Figma.<br />Beautiful, stable layouts. But
+              stored in opaque binary or dense XML formats. Completely
+              unreadable in pull requests.
+            </p>
+          </div>
+          <div
+            class="reveal delay-3"
+            style="
+              font-family: var(--mono);
+              color: var(--ink-mid);
+              font-size: 14px;
+              background: var(--off);
+              padding: 40px;
+              border-radius: 16px;
+              word-break: break-all;
+            "
+          >
+            &lt;mxGraphModel dx="1200" dy="800" grid="1" gridSize="10"
+            guides="1" tooltips="1" connect="1" arrows="1" ... &gt;<br />
+            <span style="color: #ff5f57"
+              >&lt;!-- Code reviewers give up here --&gt;</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner center-all">
+          <div class="eyebrow reveal">The Problem</div>
+          <h2 class="headline-large reveal delay-1">
+            We are forced into a<br /><span class="italic-accent"
+              >False Choice.</span
+            >
+          </h2>
+          <p class="body-large reveal delay-2">
+            Version control, OR visual stability.<br />You can never have both.
+          </p>
+        </div>
+      </div>
+
+      <div class="slide bg-off">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">The Landscape</div>
+          <h2 class="headline-large reveal delay-1">The Comparison.</h2>
+
+          <div class="matrix reveal delay-2">
+            <div class="matrix-header">Property</div>
+            <div class="matrix-header">PlantUML</div>
+            <div class="matrix-header">draw.io</div>
+            <div class="matrix-header">Mermaid</div>
+            <div class="matrix-header" style="color: var(--ink-deep)">
+              Isomorph
+            </div>
+
+            <div class="matrix-cell">Text-based Source</div>
+            <div class="matrix-cell"><span class="check yes">✓</span></div>
+            <div class="matrix-cell"><span class="check no">✗</span></div>
+            <div class="matrix-cell"><span class="check yes">✓</span></div>
+            <div class="matrix-cell highlight">
+              <span class="check yes">✓</span>
+            </div>
+
+            <div class="matrix-cell">Stable Layout</div>
+            <div class="matrix-cell"><span class="check no">✗</span></div>
+            <div class="matrix-cell"><span class="check yes">✓</span></div>
+            <div class="matrix-cell"><span class="check no">✗</span></div>
+            <div class="matrix-cell highlight">
+              <span class="check yes">✓</span>
+            </div>
+
+            <div class="matrix-cell">VCS Friendly</div>
+            <div class="matrix-cell"><span class="check yes">✓</span></div>
+            <div class="matrix-cell"><span class="check no">✗</span></div>
+            <div class="matrix-cell"><span class="check yes">✓</span></div>
+            <div class="matrix-cell highlight">
+              <span class="check yes">✓</span>
+            </div>
+
+            <div class="matrix-cell">Bidirectional Architecture</div>
+            <div class="matrix-cell"><span class="check no">✗</span></div>
+            <div class="matrix-cell"><span class="check no">✗</span></div>
+            <div class="matrix-cell"><span class="check no">✗</span></div>
+            <div class="matrix-cell highlight">
+              <span class="check yes">✓</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner center-all">
+          <h2 class="headline-large reveal">We refused to compromise.</h2>
+        </div>
+      </div>
+
+      <!-- PART 2: THE PARADIGM SHIFT (Slides 8-13) -->
+
+      <div class="slide bg-dark">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">The Solution</div>
+          <h2 class="headline-large reveal delay-1">
+            A domain-specific language<br />where layout is
+            <span class="italic-accent" style="color: var(--white)"
+              >source data.</span
+            >
+          </h2>
+        </div>
+      </div>
+
+      <div class="slide bg-dark">
+        <div class="slide-inner center-all">
+          <div class="reveal delay-1">
+            <div class="hero-equation">parse(serialise(M)) = M</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide bg-dark">
+        <div class="slide-inner center-all">
+          <div class="eyebrow reveal">The Absolute Truth</div>
+          <h2 class="headline-large reveal delay-1">
+            The only invariant<br />that matters.
+          </h2>
+          <p class="body-large reveal delay-2">
+            parse(serialise(M)) = M — layout stays in the source, not a sidecar.
+          </p>
+        </div>
+      </div>
+
+      <div class="slide bg-dark">
+        <div class="slide-inner split">
+          <div>
+            <div class="eyebrow reveal">Bidirectional Architecture</div>
+            <h2 class="headline-large reveal delay-1">
+              One Tool.<br />One Truth.
+            </h2>
+          </div>
+          <div>
+            <p class="body-large reveal delay-2" style="margin-top: 0">
+              Edit the text, the canvas updates.
+            </p>
+            <p class="body-large reveal delay-3">
+              Drag an entity on the canvas, the code updates.
+            </p>
+            <p
+              class="body-large reveal delay-4"
+              style="color: var(--white); font-weight: 400"
+            >
+              The model stays completely canonical.
+            </p>
+            <p
+              class="body-large reveal delay-4"
+              style="color: var(--white); font-weight: 400"
+            >
+              Layout lives inline in the text; every drag is a deterministic edit.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner center-all">
+          <div class="eyebrow reveal">Syntax Design</div>
+          <h2 class="headline-massive reveal delay-1">Reads like English.</h2>
+          <h2 class="headline-massive reveal delay-2">
+            <span class="italic-accent">Compiles like a type system.</span>
+          </h2>
+        </div>
+      </div>
+
+      <!-- PART 3: THE PROOF (Slides 14-25) -->
+
+      <div class="slide bg-off">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">Coverage</div>
+          <h2 class="headline-large reveal delay-1">
+            Nine complete UML<br />diagram types.
+          </h2>
+          <p class="body-large reveal delay-2">
+            Class, usecase, sequence, component, deployment, state, activity,
+            collaboration, and flow. Unified under one parser.
+          </p>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner split">
+          <div>
+            <div class="eyebrow reveal">Phase 01</div>
+            <h2 class="headline-large reveal delay-1">Lex.</h2>
+          </div>
+          <div>
+            <div class="number-stat reveal delay-2">66</div>
+            <p class="body-large reveal delay-3">
+              Unique token kinds. Longest-match-first scanning. Zero external
+              dependencies.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner split">
+          <div>
+            <div class="eyebrow reveal">Phase 02</div>
+            <h2 class="headline-large reveal delay-1">Parse.</h2>
+          </div>
+          <div>
+            <div class="number-stat reveal delay-2">55</div>
+            <p class="body-large reveal delay-3">
+              Hand-written LL(1) production rules yielding a strictly typed
+              22-node AST.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner split">
+          <div>
+            <div class="eyebrow reveal">Phase 03</div>
+            <h2 class="headline-large reveal delay-1">Analyse.</h2>
+          </div>
+          <div>
+            <div class="number-stat reveal delay-2">14</div>
+            <p class="body-large reveal delay-3">
+              Two-pass semantic static rules evaluating constraints, referential
+              integrity, and cyclic inheritance.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner split">
+          <div>
+            <div class="eyebrow reveal">Phase 04</div>
+            <h2 class="headline-large reveal delay-1">Render.</h2>
+          </div>
+          <div>
+            <div class="number-stat reveal delay-2">09</div>
+            <p class="body-large reveal delay-3">
+              Pixel-perfect SVG renderers converting abstract syntax trees into
+              interactive visual geometry.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide bg-dark">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">The Syntax</div>
+          <div class="code-window reveal delay-1">
+            <div class="code-header">
+              <div class="mac-dot r"></div>
+              <div class="mac-dot y"></div>
+              <div class="mac-dot g"></div>
+              <span class="code-title">library.isx</span>
+            </div>
+            <div class="code-body">
+              <span class="t-kw">diagram</span> LibrarySystem :
+              <span class="t-kw">class</span> {
+
+              <span class="t-kw">package</span> domain {
+              <span class="t-kw">abstract class</span>
+              <span class="t-type">Book</span> { + title :
+              <span class="t-kw">string</span> - stock :
+              <span class="t-kw">int</span> = <span class="t-num">0</span> } } }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide bg-dark">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">Relational Logic</div>
+          <div class="code-window reveal delay-1">
+            <div class="code-header">
+              <div class="mac-dot r"></div>
+              <div class="mac-dot y"></div>
+              <div class="mac-dot g"></div>
+              <span class="code-title">library.isx</span>
+            </div>
+            <div class="code-body">
+              <span class="t-cmt">// Native structural relations built-in</span>
+
+              Library <span class="t-kw">--*</span> Book [label=<span
+                class="t-str"
+                >"contains"</span
+              >] Book <span class="t-kw">..|></span> Borrowable User
+              <span class="t-kw">--></span> Library
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide bg-dark">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">The Magic</div>
+          <div
+            class="code-window reveal delay-1"
+            style="border-color: rgba(245, 201, 122, 0.4)"
+          >
+            <div class="code-header">
+              <div class="mac-dot r"></div>
+              <div class="mac-dot y"></div>
+              <div class="mac-dot g"></div>
+              <span class="code-title">library.isx</span>
+            </div>
+            <div class="code-body">
+              <span class="t-cmt"
+                >// Layout is isolated, parseable source data.</span
+              >
+              <span class="t-cmt"
+                >// Dragging an entity visually updates these lines alone.</span
+              >
+
+              <span class="t-ann">@Book</span> at (<span class="t-num">100</span
+              >, <span class="t-num">130</span>)
+              <span class="t-ann">@Library</span> at (<span class="t-num"
+                >400</span
+              >, <span class="t-num">130</span>)
+              <span class="t-ann">@Borrowable</span> at (<span class="t-num"
+                >100</span
+              >, <span class="t-num">360</span>)
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner center-all">
+          <div class="eyebrow reveal">Semantic Safety</div>
+          <h2 class="headline-large reveal delay-1">
+            Errors are values.<br /><span class="italic-accent"
+              >Not surprises.</span
+            >
+          </h2>
+          <p class="body-large reveal delay-2">
+            Never stare at a blank canvas again.
+          </p>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">Real-time Validation</div>
+          <h2 class="headline-large reveal delay-1">
+            SS-1 through SS-14 fire<br />on every keystroke.
+          </h2>
+          <p class="body-large reveal delay-2">
+            We built a rigorous analyzer that instantly catches cyclic
+            inheritance, missing implementations, and structural violations with
+            exact source mapping.
+          </p>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner split">
+          <div>
+            <div class="eyebrow reveal">ELK Engine</div>
+            <h2 class="headline-large reveal delay-1">Automatic Layout.</h2>
+            <p class="body-large reveal delay-2">
+              Entities without @annotations are mathematically placed using the
+              Eclipse Layout Kernel. It guarantees stability across re-parses.
+            </p>
+          </div>
+          <div class="reveal delay-3">
+            <div
+              style="
+                width: 100%;
+                height: 300px;
+                border: 1px dashed var(--ink-mid);
+                border-radius: 20px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                color: var(--ink-mid);
+              "
+            >
+              ( Algorithmic Graph Render )
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner center-all">
+          <div class="eyebrow reveal">The Interface</div>
+          <h2 class="headline-large reveal delay-1">Drag the canvas.</h2>
+          <p class="body-large reveal delay-2">
+            Move any node. Only its `@Entity` coordinate changes. Every other
+            byte in your architecture file stays completely untouched.
+          </p>
+        </div>
+      </div>
+
+      <div class="slide bg-off">
+        <div class="slide-inner center-all">
+          <div class="eyebrow reveal">Structural Diagrams</div>
+          <h2 class="headline-large reveal delay-1">Designed for real-world architecture.</h2>
+          <p class="body-large reveal delay-2">
+            • Class diagrams<br />
+            • Component diagrams<br />
+            • Deployment diagrams<br />
+            • Package &amp; module diagrams
+          </p>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner center-all">
+          <div class="eyebrow reveal">Behavioral Diagrams</div>
+          <h2 class="headline-large reveal delay-1">Model runtime behavior, not just structure.</h2>
+          <p class="body-large reveal delay-2">
+            • Sequence diagrams<br />
+            • State &amp; activity diagrams<br />
+            • Collaboration &amp; flow diagrams
+          </p>
+        </div>
+      </div>
+
+      <div class="slide bg-dark">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">ISX File</div>
+          <h2 class="headline-large reveal delay-1">
+            Everything lives in a single text file.
+          </h2>
+          <div class="code-window reveal delay-2">
+            <div class="code-header">
+              <div class="mac-dot r"></div>
+              <div class="mac-dot y"></div>
+              <div class="mac-dot g"></div>
+              <span class="code-title">example.isx</span>
+            </div>
+            <div class="code-body">
+              <span class="t-kw">diagram</span> MySystem :
+              <span class="t-kw">class</span> {
+                <span class="t-kw">@User</span> at (<span class="t-num">60</span>, <span class="t-num">120</span>)
+                <span class="t-kw">@Service</span> at (<span class="t-num">420</span>, <span class="t-num">120</span>)
+                <span class="t-kw">@User</span> --&gt; <span class="t-kw">@Service</span> : <span class="t-str">"call"</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide bg-off">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">Cyber-grade L1 Architecture</div>
+          <h2 class="headline-large reveal delay-1">
+            Built from scratch with Antler, ChatGPT, and custom layout engines.
+          </h2>
+          <p class="body-large reveal delay-2">
+            We picked this path because existing tools cannot deliver bidirectional, invariant layouts at scale. This is our own parser, renderer, and editor.
+          </p>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner">
+          <div class="eyebrow reveal">The Workspace</div>
+          <h2 class="headline-large reveal delay-1">
+            A complete IDE.<br /><span class="italic-accent"
+              >Deployed today.</span
+            >
+          </h2>
+          <p class="body-large reveal delay-2">
+            Powered by CodeMirror 6. Multi-tab workspace. Syntax highlighting.
+            Built-in example gallery.
+          </p>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="slide-inner center-all">
+          <h2 class="headline-massive reveal">
+            Experience<br /><span class="italic-accent">Isomorph.</span>
+          </h2>
+          <div class="reveal delay-2" style="margin-top: 4rem">
+            <a
+              href="https://lucian-adrian.github.io/isomorph/"
+              target="_blank"
+              class="btn-primary"
+            >
+              Open the IDE
+              <svg width="16" height="16" viewBox="0 0 14 14" fill="none">
+                <path
+                  d="M2.5 7h9M7.5 3l4 4-4 4"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- GLASS PROGRESS BAR -->
+    <div class="progress-container">
+      <span class="progress-text" id="prog-current">01</span>
+      <div class="progress-track">
+        <div class="progress-fill" id="prog-fill"></div>
+      </div>
+      <span class="progress-text" id="prog-total">00</span>
+    </div>
+
+    <script>
+      class PresentationController {
+        constructor() {
+          this.slides = document.querySelectorAll(".slide");
+          this.current = 0;
+          this.total = this.slides.length;
+
+          this.progCurrent = document.getElementById("prog-current");
+          this.progFill = document.getElementById("prog-fill");
+          this.progTotal = document.getElementById("prog-total");
+
+          this.touchStartX = 0;
+          this.touchEndX = 0;
+
+          this.init();
+        }
+
+        init() {
+          this.updateUI();
+          this.bindEvents();
+        }
+
+        bindEvents() {
+          // Keyboard
+          document.addEventListener("keydown", (e) => {
+            if (
+              e.key === "ArrowRight" ||
+              e.key === " " ||
+              e.key === "ArrowDown"
+            ) {
+              this.next();
+            } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+              this.prev();
+            }
+          });
+
+          // Touch
+          document.addEventListener(
+            "touchstart",
+            (e) => {
+              this.touchStartX = e.changedTouches[0].screenX;
+            },
+            false,
+          );
+
+          document.addEventListener(
+            "touchend",
+            (e) => {
+              this.touchEndX = e.changedTouches[0].screenX;
+              this.handleSwipe();
+            },
+            false,
+          );
+
+          // Mouse click (right side = next, left side = prev)
+          document.addEventListener("click", (e) => {
+            // Ignore clicks on links/buttons
+            if (e.target.closest("a") || e.target.closest("button")) return;
+
+            const screenWidth = window.innerWidth;
+            if (e.clientX > screenWidth / 2) {
+              this.next();
+            } else {
+              this.prev();
+            }
+          });
+        }
+
+        handleSwipe() {
+          const threshold = 50;
+          if (this.touchEndX < this.touchStartX - threshold) {
+            this.next(); // Swipe left
+          }
+          if (this.touchEndX > this.touchStartX + threshold) {
+            this.prev(); // Swipe right
+          }
+        }
+
+        next() {
+          if (this.current < this.total - 1) {
+            this.goTo(this.current + 1);
+          }
+        }
+
+        prev() {
+          if (this.current > 0) {
+            this.goTo(this.current - 1);
+          }
+        }
+
+        goTo(index) {
+          this.slides[this.current].classList.remove("active");
+          this.current = index;
+          this.slides[this.current].classList.add("active");
+          this.updateUI();
+        }
+
+        updateUI() {
+          // Format numbers with leading zero
+          const formatNum = (num) => (num + 1).toString().padStart(2, "0");
+
+          this.progCurrent.textContent = formatNum(this.current);
+          this.progTotal.textContent = this.total.toString().padStart(2, "0");
+
+          // Calculate percentage
+          const percentage = (this.current / (this.total - 1)) * 100;
+          this.progFill.style.width = `${percentage}%`;
+        }
+      }
+
+      // Initialize presentation
+      window.addEventListener("DOMContentLoaded", () => {
+        new PresentationController();
+      });
+    </script>
+  </body>
+</html>
