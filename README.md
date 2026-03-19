@@ -99,11 +99,11 @@ Isomorph parses source code through a totally pure, non-throwing functional pipe
 
 ```mermaid
 graph LR
-    A[".isx Source"] -->|Lexer| B("Tokens []")
-    B -->|Recursive Descent Parser| C("AST (Abstract Syntax Tree)")
-    C -->|Semantic Analyzer (SS1-SS10)| D("IOM (Isomorph Object Model)")
+    A[".isx Source"] -->|Lexer| B["Tokens []"]
+    B -->|Recursive Descent Parser| C["AST: Abstract Syntax Tree"]
+    C -->|"Semantic Analyzer: SS1-SS10"| D["IOM: Isomorph Object Model"]
     D -->|Renderer Dispatcher| E["Pure SVG Output"]
-    E -. "Drag-to-Update Hook" .-> A
+    E -.->|"Drag-to-Update Hook"| A
 ```
 
 ### Compiler Phases:
