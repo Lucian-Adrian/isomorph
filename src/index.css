@@ -476,8 +476,10 @@ body {
 
 .iso-canvas-wrap svg {
   display: block;
-  min-width: 100%;
-  min-height: 100%;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
   background: transparent !important;
   overflow: visible !important;
 }
