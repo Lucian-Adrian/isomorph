@@ -520,19 +520,22 @@
     overflow-x: auto;
     text-align: left;
     background:
-      linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0)),
-      radial-gradient(circle at top right, rgba(139,139,240,0.12), transparent 38%);
+      linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0)),
+      radial-gradient(circle at top right, rgba(139,139,240,0.18), transparent 42%),
+      linear-gradient(135deg, rgba(18,18,22,0.98), rgba(10,10,14,1));
+    border-top: 1px solid rgba(255,255,255,0.06);
   }
 
   .syntax-body code {
     font-family: var(--mono);
     font-size: 13px;
-    font-weight: 400;
-    line-height: 1.9;
+    font-weight: 500;
+    line-height: 1.88;
     display: block;
     white-space: pre;
     text-align: left;
-    color: rgba(255,255,255,0.94);
+    color: rgba(255,255,255,0.98);
+    text-shadow: 0 0 0.01px rgba(255,255,255,0.2);
   }
 
   .compare-card {
@@ -542,15 +545,15 @@
 
 
   /* syntax tokens */
-  .t-kw   { color: #c3b8ff; font-weight: 500; }
-  .t-type { color: #9be7d2; font-weight: 500; }
-  .t-str  { color: #ffbf95; }
-  .t-ann  { color: #ffd979; font-weight: 500; }
-  .t-cmt  { color: rgba(255,255,255,0.4); font-style: italic; }
-  .t-rel  { color: #ffb3cf; font-weight: 500; }
-  .t-vis  { color: rgba(255,255,255,0.72); }
-  .t-num  { color: #bfe0ff; }
-  .t-def  { color: rgba(255,255,255,0.98); font-weight: 500; }
+  .t-kw   { color: #d1c7ff; font-weight: 600; }
+  .t-type { color: #a9f1db; font-weight: 600; }
+  .t-str  { color: #ffc89f; font-weight: 500; }
+  .t-ann  { color: #ffe07f; font-weight: 600; }
+  .t-cmt  { color: rgba(255,255,255,0.56); font-style: italic; }
+  .t-rel  { color: #ffbdd5; font-weight: 600; }
+  .t-vis  { color: rgba(255,255,255,0.82); font-weight: 500; }
+  .t-num  { color: #c9e7ff; font-weight: 500; }
+  .t-def  { color: #ffffff; font-weight: 600; }
 
   /* ── RULES TABLE ── */
   .rules-grid {
