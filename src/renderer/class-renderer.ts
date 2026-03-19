@@ -127,11 +127,11 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
   let nameY = HEADER_HEIGHT / 2 + 4;
   if (entity.stereotype || isInterface || isEnum) {
     const stereoText = entity.stereotype ? `«${entity.stereotype}»` : isInterface ? '«interface»' : '«enum»';
-    s += `    <text x="${width / 2}" y="14" text-anchor="middle" font-size="10" fill="#64748b" font-style="italic">${escapeXml(stereoText)}</text>\n`;
+    s += `    <text x="${width / 2}" y="14" text-anchor="middle" font-size="10" fill="${borderColor}" font-style="italic" textLength="${width - BOX_PADDING * 2}" lengthAdjust="spacingAndGlyphs">${escapeXml(stereoText)}</text>\n`;
     nameY = HEADER_HEIGHT - 8;
   }
   const nameStyle = isAbstract ? 'font-style:italic' : '';
-  s += `    <text x="${width / 2}" y="${nameY}" text-anchor="middle" font-size="${FONT_SIZE}" font-weight="600" style="${nameStyle}" fill="#0f172a">${escapeXml(entity.name)}</text>\n`;
+  s += `    <text x="${width / 2}" y="${nameY}" text-anchor="middle" font-size="${FONT_SIZE}" font-weight="bold" style="${nameStyle}" fill="#1a1a1a" textLength="${width - BOX_PADDING * 2}" lengthAdjust="spacingAndGlyphs">${escapeXml(entity.name)}</text>\n`;
 
   // Divider
   let currentY = HEADER_HEIGHT;
@@ -298,7 +298,8 @@ function computeWidth(entity: IOMEntity): number {
     ...entity.enumValues.map(v => v.name),
   ];
   const maxLen = Math.max(...texts.map(t => t.length));
-  return Math.max(BOX_MIN_WIDTH, maxLen * 7.5 + BOX_PADDING * 2);
+  // Use a slightly larger multiplier to reduce text overflow in variable-width fonts.
+  return Math.max(BOX_MIN_WIDTH, maxLen * 8.5 + BOX_PADDING * 2);
 }
 
 function computeHeight(entity: IOMEntity): number {
