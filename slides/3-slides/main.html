@@ -1030,6 +1030,7 @@
           this.progCurrent = document.getElementById("prog-current");
           this.progFill = document.getElementById("prog-fill");
           this.progTotal = document.getElementById("prog-total");
+          this.progTotal.textContent = this.total.toString().padStart(2, "0");
 
           this.touchStartX = 0;
           this.touchEndX = 0;
@@ -1122,8 +1123,6 @@
           const formatNum = (num) => (num + 1).toString().padStart(2, "0");
 
           this.progCurrent.textContent = formatNum(this.current);
-          this.progTotal.textContent = this.total.toString().padStart(2, "0");
-
           // Calculate percentage
           const percentage = (this.current / (this.total - 1)) * 100;
           this.progFill.style.width = `${percentage}%`;
