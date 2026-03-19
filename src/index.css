@@ -521,10 +521,13 @@ body {
   border-radius: var(--iso-radius-lg);
   padding: 3px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  touch-action: manipulation;
 }
 .iso-canvas-btn {
   width: 28px;
   height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   border: none;
   background: transparent;
   border-radius: var(--iso-radius);
@@ -863,13 +866,16 @@ body {
 .iso-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;
   display: flex; align-items: center; justify-content: center;
+  padding: 20px;
   backdrop-filter: blur(4px);
   animation: overlay-fade-in 180ms var(--iso-ease);
 }
 .iso-modal {
   background: var(--white); border: 1px solid var(--iso-border-strong);
   border-radius: var(--iso-radius-lg); padding: 24px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 360px; text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: min(100%, 360px); text-align: center;
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
   animation: overlay-slide-in 220ms var(--iso-ease);
 }
 .iso-modal-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--iso-text); }
@@ -898,6 +904,53 @@ body {
   flex-direction: column;
   gap: 8px;
   overflow: auto;
+}
+
+.iso-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  background: var(--iso-bg-app);
+  color: var(--iso-text);
+  text-align: center;
+}
+
+.iso-empty-title {
+  margin: 0 0 24px;
+  font-weight: 300;
+  font-size: clamp(30px, 4vw, 42px);
+  letter-spacing: -0.03em;
+}
+
+.iso-empty-copy {
+  margin: 0 0 32px;
+  color: var(--iso-text-muted);
+  max-width: 34rem;
+  line-height: 1.7;
+}
+
+.iso-empty-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.iso-empty-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.iso-empty-group--secondary {
+  justify-content: flex-end;
+}
+
+.iso-empty-divider {
+  width: 1px;
+  background: var(--iso-border);
 }
 
 .iso-stencil {
@@ -950,6 +1003,21 @@ body {
 .iso-mobile-strip,
 .iso-mobile-actions {
   display: none;
+}
+
+.iso-mobile-meta {
+  display: none;
+}
+
+.iso-mobile-status {
+  min-height: 28px;
+}
+
+.iso-mobile-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .iso-mobile-tab {
@@ -1086,6 +1154,8 @@ body {
 
   .iso-mobile-actions {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 8px;
     padding: 6px 10px 8px;
     overflow-x: auto;
@@ -1096,6 +1166,15 @@ body {
 
   .iso-mobile-actions::-webkit-scrollbar {
     display: none;
+  }
+
+  .iso-mobile-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px 0;
+    background: var(--iso-bg-app);
   }
 
   .iso-mobile-actions .iso-dropdown {
@@ -1110,6 +1189,14 @@ body {
     color: var(--iso-text);
     white-space: nowrap;
     padding: 0 4px;
+  }
+
+  .iso-mobile-status {
+    flex-shrink: 0;
+  }
+
+  .iso-empty-actions {
+    width: min(100%, 34rem);
   }
 
   .iso-statusbar {
@@ -1151,6 +1238,35 @@ body {
     padding: 8px;
   }
 
+  .iso-empty-state {
+    justify-content: flex-start;
+    padding: 28px 16px;
+  }
+
+  .iso-empty-title {
+    margin-bottom: 16px;
+  }
+
+  .iso-empty-copy {
+    margin-bottom: 24px;
+  }
+
+  .iso-empty-actions {
+    width: 100%;
+    max-width: 28rem;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .iso-empty-group {
+    width: 100%;
+  }
+
+  .iso-empty-divider {
+    width: 100%;
+    height: 1px;
+  }
+
   .iso-breadcrumb {
     display: none;
   }
@@ -1179,6 +1295,32 @@ body {
     font-size: 11px;
   }
 
+  .iso-mobile-meta {
+    padding: 8px 8px 0;
+  }
+
+  .iso-mobile-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .iso-mobile-actions-group {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .iso-mobile-actions-group::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iso-mobile-actions-group--secondary {
+    padding-top: 2px;
+  }
+
   .iso-canvas-empty-sub {
     max-width: 220px;
     font-size: 12px;
@@ -1198,18 +1340,30 @@ body {
   }
 
   .iso-canvas-toolbar {
-    bottom: 8px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
     right: 8px;
-    padding: 2px;
+    padding: 3px;
+    gap: 4px;
   }
 
   .iso-canvas-btn {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+    font-size: 14px;
+  }
+
+  .iso-modal-overlay {
+    align-items: flex-end;
+    padding: 12px 12px max(12px, env(safe-area-inset-bottom, 0px));
   }
 
   .iso-modal {
+    width: 100%;
+    max-height: min(82dvh, 720px);
     padding: 18px;
+    border-radius: 18px;
   }
 
   .iso-modal-actions {
@@ -1224,6 +1378,13 @@ body {
 
   .iso-mobile-bar {
     padding: 6px 8px;
+  }
+
+  .iso-mobile-meta {
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 6px;
+    padding: 6px 8px 0;
   }
 
   .iso-mobile-tab {
@@ -1241,16 +1402,22 @@ body {
     padding: 5px 8px;
   }
 
+  .iso-mobile-status {
+    width: 100%;
+    justify-content: center;
+  }
+
   .iso-canvas-tools {
     left: 8px !important;
     top: auto !important;
-    bottom: 52px !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 56px) !important;
     gap: 6px !important;
   }
 
   .iso-canvas-toolbar {
     left: 8px;
     right: 8px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
     justify-content: center;
   }
 }

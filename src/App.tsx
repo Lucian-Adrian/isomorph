@@ -580,6 +580,12 @@ export default function App() {
   }, [activeDiagram]);
 
   useEffect(() => {
+    if (mobilePane === 'shapes' && (!activeDiagram?.kind || getStencilsForKind(activeDiagram.kind).length === 0)) {
+      setMobilePane(activeDiagram ? 'diagram' : 'code');
+    }
+  }, [activeDiagram, mobilePane]);
+
+  useEffect(() => {
     if (!activeTab) return;
     if (safeDiagramIdx !== activeDiagramIdx) {
       updateActiveTab(tab => ({ ...tab, activeDiagramIdx: safeDiagramIdx }));
@@ -960,6 +966,11 @@ export default function App() {
     : diagrams.length > 0
       ? 'iso-status iso-status--ok'
       : 'iso-status iso-status--idle';
+  const statusLabel = allErrors.length > 0
+    ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}`
+    : diagrams.length > 0
+      ? 'Valid'
+      : 'Ready';
 
   const shapesPane = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
     <div className="iso-sidebar">
@@ -1113,11 +1124,11 @@ export default function App() {
             <span className="iso-logo-name">Isomorph</span>
           </button>
         </header>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--iso-bg-app)', color: 'var(--iso-text)' }}>
-          <h1 style={{ fontWeight: 300, marginBottom: '24px' }}>Welcome to Isomorph</h1>
-          <p style={{ color: 'var(--iso-text-muted)', marginBottom: '32px' }}>Open an existing diagram or create a new one to get started.</p>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="iso-empty-state">
+          <h1 className="iso-empty-title">Welcome to Isomorph</h1>
+          <p className="iso-empty-copy">Open an existing diagram or create a new one to get started.</p>
+          <div className="iso-empty-actions">
+            <div className="iso-empty-group">
                 <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
                   {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
                     <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} Diagram</option>
@@ -1127,8 +1138,8 @@ export default function App() {
                   Create New Diagram
                 </button>
               </div>
-            <div style={{ borderLeft: '1px solid var(--iso-border)' }}></div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'flex-end' }}>
+            <div className="iso-empty-divider" aria-hidden="true"></div>
+            <div className="iso-empty-group iso-empty-group--secondary">
               <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
                 Open Existing File...
               </button>
@@ -1161,7 +1172,7 @@ export default function App() {
   return (
     <div className="iso-shell">
       {/* ──────────────── HEADER ──────────────────────────── */}
-      <header className="iso-header">
+      <header className={`iso-header${isMobileLayout ? ' iso-header--mobile' : ''}`}>
         {/* Logo */}
         <button type="button" className="iso-logo" aria-label="Isomorph home" onClick={e => e.preventDefault()}>
           <span className="iso-logo-name">Isomorph</span>
@@ -1276,7 +1287,7 @@ export default function App() {
         </div>
 
         {activeDiagram && (
-          <div className={isMobileLayout ? 'iso-kind-badge iso-kind-badge--mobile' : 'iso-kind-badge'}>
+          <div className={isMobileLayout ? 'iso-kind-badge iso-kind-badge--mobile iso-mobile-hide' : 'iso-kind-badge'}>
             {activeDiagram.kind}
           </div>
         )}
@@ -1357,14 +1368,12 @@ export default function App() {
 
         {/* Status */}
         <output
-          className={statusClass}
+          className={`${statusClass}${isMobileLayout ? ' iso-mobile-hide' : ''}`}
           aria-live="polite"
           aria-label={allErrors.length > 0 ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}` : 'Diagram valid'}
         >
           <div className="iso-status-dot" aria-hidden="true" />
-          {allErrors.length > 0
-            ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}`
-            : diagrams.length > 0 ? 'Valid' : 'Ready'}
+          {statusLabel}
         </output>
 
         <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
@@ -1376,6 +1385,22 @@ export default function App() {
 
       {isMobileLayout && (
         <>
+          <div className="iso-mobile-meta">
+            {activeDiagram && (
+              <div className="iso-kind-badge iso-kind-badge--mobile">
+                {activeDiagram.kind}
+              </div>
+            )}
+            <output
+              className={`${statusClass} iso-mobile-status`}
+              aria-live="polite"
+              aria-label={allErrors.length > 0 ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}` : 'Diagram valid'}
+            >
+              <div className="iso-status-dot" aria-hidden="true" />
+              {statusLabel}
+            </output>
+          </div>
+
           {tabs.length > 1 && (
             <div className="iso-mobile-strip">
               <nav className="iso-tabs" aria-label="Open files">
@@ -1412,48 +1437,52 @@ export default function App() {
           )}
 
           <div className="iso-mobile-actions">
-            <button type="button" className="iso-btn" onClick={handleNew}>
-              <IconNew />
-              New
-            </button>
-            <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()}>
-              <IconOpen />
-              Open
-            </button>
-            {examplesDropdown}
-            <button
-              type="button"
-              className="iso-btn"
-              onClick={() => {
-                if (!activeTab) return;
-                const blob = new Blob([activeTab.source], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = activeTab.name || 'diagram.isx';
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              disabled={!activeTab}
-            >
-              <IconSave />
-              ISX
-            </button>
-            <button type="button" className="iso-btn" onClick={handleExportSVG} disabled={!activeDiagram}>
-              <IconExport />
-              SVG
-            </button>
-            <button type="button" className="iso-btn" onClick={handleExportPNG} disabled={!activeDiagram}>
-              <IconExport />
-              PNG
-            </button>
-            <button type="button" className="iso-btn iso-btn--icon" onClick={() => setShortcutsOpen(o => !o)} aria-label="Keyboard shortcuts">
-              <IconKeyboard />
-            </button>
-            <label className="iso-mobile-toggle">
-              <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
-              Strict UML
-            </label>
+            <div className="iso-mobile-actions-group">
+              <button type="button" className="iso-btn" onClick={handleNew}>
+                <IconNew />
+                New
+              </button>
+              <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()}>
+                <IconOpen />
+                Open
+              </button>
+              {examplesDropdown}
+            </div>
+            <div className="iso-mobile-actions-group iso-mobile-actions-group--secondary">
+              <button
+                type="button"
+                className="iso-btn"
+                onClick={() => {
+                  if (!activeTab) return;
+                  const blob = new Blob([activeTab.source], { type: 'text/plain' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = activeTab.name || 'diagram.isx';
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                disabled={!activeTab}
+              >
+                <IconSave />
+                Save
+              </button>
+              <button type="button" className="iso-btn" onClick={handleExportSVG} disabled={!activeDiagram}>
+                <IconExport />
+                SVG
+              </button>
+              <button type="button" className="iso-btn" onClick={handleExportPNG} disabled={!activeDiagram}>
+                <IconExport />
+                PNG
+              </button>
+              <button type="button" className="iso-btn iso-btn--icon" onClick={() => setShortcutsOpen(o => !o)} aria-label="Keyboard shortcuts">
+                <IconKeyboard />
+              </button>
+              <label className="iso-mobile-toggle">
+                <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
+                Strict UML
+              </label>
+            </div>
           </div>
         </>
       )}
