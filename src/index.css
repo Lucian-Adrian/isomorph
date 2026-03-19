@@ -995,9 +995,7 @@ body {
   cursor: pointer;
 }
 
-.iso-mobile-hide {
-  display: initial;
-}
+.iso-mobile-hide {}
 
 .iso-header-actions {
   display: flex;
@@ -1191,8 +1189,8 @@ body {
 
   .iso-mobile-actions {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    align-items: flex-start;
+    justify-content: flex-start;
     gap: 8px;
     padding: 6px 10px 8px;
     overflow-x: auto;
