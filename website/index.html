@@ -519,16 +519,20 @@
     padding: 28px 28px 32px;
     overflow-x: auto;
     text-align: left;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0)),
+      radial-gradient(circle at top right, rgba(139,139,240,0.12), transparent 38%);
   }
 
   .syntax-body code {
     font-family: var(--mono);
     font-size: 13px;
-    font-weight: 300;
-    line-height: 2;
+    font-weight: 400;
+    line-height: 1.9;
     display: block;
     white-space: pre;
     text-align: left;
+    color: rgba(255,255,255,0.94);
   }
 
   .compare-card {
@@ -538,15 +542,15 @@
 
 
   /* syntax tokens */
-  .t-kw   { color: #b4a7f5; }
-  .t-type { color: #86d9c5; }
-  .t-str  { color: #f5a97b; }
-  .t-ann  { color: #f5c97a; }
-  .t-cmt  { color: rgba(255,255,255,0.22); }
-  .t-rel  { color: #f5a7c5; }
-  .t-vis  { color: rgba(255,255,255,0.45); }
-  .t-num  { color: #b4d4f5; }
-  .t-def  { color: rgba(255,255,255,0.85); }
+  .t-kw   { color: #c3b8ff; font-weight: 500; }
+  .t-type { color: #9be7d2; font-weight: 500; }
+  .t-str  { color: #ffbf95; }
+  .t-ann  { color: #ffd979; font-weight: 500; }
+  .t-cmt  { color: rgba(255,255,255,0.4); font-style: italic; }
+  .t-rel  { color: #ffb3cf; font-weight: 500; }
+  .t-vis  { color: rgba(255,255,255,0.72); }
+  .t-num  { color: #bfe0ff; }
+  .t-def  { color: rgba(255,255,255,0.98); font-weight: 500; }
 
   /* ── RULES TABLE ── */
   .rules-grid {
@@ -1042,15 +1046,21 @@
 
     <span class="t-kw">abstract class</span> <span class="t-type">Book</span> &lt;&lt;<span class="t-def">Entity</span>&gt;&gt;
         <span class="t-kw">implements</span> <span class="t-type">Borrowable</span> {
-      <span class="t-vis">+</span> title  : <span class="t-kw">string</span>
-      <span class="t-vis">+</span> isbn   : <span class="t-kw">string</span>
-      <span class="t-vis">-</span> stock  : <span class="t-kw">int</span> = <span class="t-num">0</span>
-      <span class="t-vis">+</span> checkOut(user : <span class="t-kw">string</span>) : <span class="t-kw">bool</span>
+      <span class="t-vis">+</span> <span class="t-def">title</span>  : <span class="t-kw">string</span>
+      <span class="t-vis">+</span> <span class="t-def">isbn</span>   : <span class="t-kw">string</span>
+      <span class="t-vis">-</span> <span class="t-def">stock</span>  : <span class="t-kw">int</span> = <span class="t-num">0</span>
+      <span class="t-vis">+</span> <span class="t-def">checkOut</span>(<span class="t-def">user</span> : <span class="t-kw">string</span>) : <span class="t-kw">bool</span>
+    }
+
+    <span class="t-kw">class</span> <span class="t-type">Library</span> {
+      <span class="t-vis">+</span> <span class="t-def">name</span> : <span class="t-kw">string</span>
+      <span class="t-vis">+</span> <span class="t-def">addBook</span>(<span class="t-def">book</span> : <span class="t-type">Book</span>) : <span class="t-kw">void</span>
+      <span class="t-vis">+</span> <span class="t-def">search</span>(<span class="t-def">query</span> : <span class="t-kw">string</span>) : <span class="t-type">List</span>&lt;<span class="t-type">Book</span>&gt;
     }
 
     <span class="t-kw">interface</span> <span class="t-type">Borrowable</span> {
-      <span class="t-vis">+</span> borrow(user : <span class="t-kw">string</span>) : <span class="t-kw">void</span>
-      <span class="t-vis">+</span> return() : <span class="t-kw">void</span>
+      <span class="t-vis">+</span> <span class="t-def">borrow</span>(<span class="t-def">user</span> : <span class="t-kw">string</span>) : <span class="t-kw">void</span>
+      <span class="t-vis">+</span> <span class="t-def">return</span>() : <span class="t-kw">void</span>
     }
 
     <span class="t-kw">enum</span> <span class="t-type">BookStatus</span> {
@@ -1060,8 +1070,8 @@
     }
   }
 
-  <span class="t-cmt">// Relation operators — 8 types</span>
-  <span class="t-type">Library</span> <span class="t-rel">--*</span> <span class="t-type">Book</span>  [label=<span class="t-str">"contains"</span>, toMult=<span class="t-str">"1..*"</span>]
+  <span class="t-cmt">// Relation operators — 6 native forms shown</span>
+  <span class="t-type">Library</span> <span class="t-rel">--*</span> <span class="t-type">Book</span>  [<span class="t-def">label</span>=<span class="t-str">"contains"</span>, <span class="t-def">toMult</span>=<span class="t-str">"1..*"</span>]
   <span class="t-type">Book</span>    <span class="t-rel">..|&gt;</span> <span class="t-type">Borrowable</span>
 
   <span class="t-cmt">// Layout — rewritten only on drag, never on edit</span>
