@@ -33,7 +33,7 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
   const maxX = Math.max(...placed.map(p => p.x + BOX_W)) + 40;
   const maxY = Math.max(...placed.map(p => p.y + NODE_H + DEPTH)) + 40;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
 
   // Relations
@@ -147,7 +147,7 @@ export function renderPlaceholderDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
   const canvasW = 640, canvasH = 200 + entities.length * 22;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:'DM Sans',system-ui,sans-serif;background:#fafafa">\n`;
   svg += `  <rect width="${canvasW}" height="${canvasH}" fill="#fafafa"/>\n`;
 
   // Header band

@@ -36,7 +36,7 @@ export function renderClassDiagram(diag: IOMDiagram): string {
   const maxX = Math.max(maxEntityX, maxPkgX) + 40;
   const maxY = Math.max(maxEntityY, maxPkgY) + 40;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
 
   // Set to keep track of rendered members

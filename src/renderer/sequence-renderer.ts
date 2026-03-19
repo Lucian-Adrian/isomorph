@@ -6,7 +6,7 @@ import { escapeXml, svgDefs } from './utils.js';
 
 export function renderSequenceDiagram(diag: IOMDiagram): string {
   const entities = Array.from(diag.entities.values());
-  if (entities.length === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa"><text x="20" y="40">Empty Sequence Diagram</text></svg>`;
+  if (entities.length === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" style="font-family:'DM Sans',system-ui,sans-serif;background:#fafafa"><text x="20" y="40">Empty Sequence Diagram</text></svg>`;
 
   const paddingX = 80;
   const colSpacing = 180;
@@ -32,7 +32,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   }
   const width = computedWidth;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="font-family:Segoe UI,Arial,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
 
   // --- Entities as columns ---

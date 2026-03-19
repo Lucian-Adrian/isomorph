@@ -38,7 +38,7 @@ export function renderFlowDiagram(diag: IOMDiagram): string {
     maxY = Math.max(maxY, p.y + dim.h + 60);
   }
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
 
   // Relations (draw first so entities render on top)

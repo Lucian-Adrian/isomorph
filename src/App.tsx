@@ -954,11 +954,15 @@ export default function App() {
           <p style={{ color: 'var(--iso-text-muted)', marginBottom: '32px' }}>Open an existing diagram or create a new one to get started.</p>
           <div style={{ display: 'flex', gap: '16px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              
-              <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={handleNew}>
-                Create New Diagram
-              </button>
-            </div>
+                <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
+                  {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+                    <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} Diagram</option>
+                  ))}
+                </select>
+                <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={() => executeNewDiagram(newDiagramKind)}>
+                  Create New Diagram
+                </button>
+              </div>
             <div style={{ borderLeft: '1px solid var(--iso-border)' }}></div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'flex-end' }}>
               <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>

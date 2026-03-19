@@ -39,7 +39,7 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const actorPositions   = actors.map((a, i) => ({ e: a, p: pos(a, i, actors.length, 80) }));
   const ucPositions      = usecases.map((u, i) => ({ e: u, p: pos(u, i, usecases.length, 350) }));
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:Segoe UI,Arial,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
 
   // Draw system boundaries (backgrounds)
