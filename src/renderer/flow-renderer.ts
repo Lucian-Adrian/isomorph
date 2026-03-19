@@ -38,7 +38,7 @@ export function renderFlowDiagram(diag: IOMDiagram): string {
     maxY = Math.max(maxY, p.y + dim.h + 60);
   }
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:transparent">\n`;
   svg += svgDefs();
 
   // Relations (draw first so entities render on top)
@@ -56,14 +56,14 @@ export function renderFlowDiagram(diag: IOMDiagram): string {
 
     svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
     svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;
-    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#1e293b" stroke-width="1.5"${dash} marker-end="url(#arrow)"/>`;
+    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#64748b" stroke-width="1.5"${dash} marker-end="url(#arrow)"/>`;
 
     if (rel.label) {
       const mx = (x1 + x2) / 2;
       const my = (y1 + y2) / 2 - 8;
       const labelWidth = rel.label.length * 7 + 12;
       svg += `<rect x="${mx - labelWidth / 2}" y="${my - 13}" width="${labelWidth}" height="18" rx="3" fill="white" opacity="0.95"/>`;
-      svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#475569">${safeLabel}</text>`;
+      svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#334155">${safeLabel}</text>`;
     }
     svg += `</g>\n`;
   }
@@ -126,32 +126,32 @@ function renderEntity(p: Placed): string {
 
   if (entity.kind === 'start') {
     // Filled circle
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="#1e293b"/>\n`;
-    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 18}" text-anchor="middle" font-size="12" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="#334155" filter="url(#shadow)"/>\n`;
+    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 18}" text-anchor="middle" font-size="12" fill="#0f172a">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'stop') {
     // Bull's eye (double circle)
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="none" stroke="#1e293b" stroke-width="2.5"/>\n`;
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R - 6}" fill="#1e293b"/>\n`;
-    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 18}" text-anchor="middle" font-size="12" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="none" stroke="#334155" stroke-width="2.5" filter="url(#shadow)"/>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R - 6}" fill="#334155"/>\n`;
+    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 18}" text-anchor="middle" font-size="12" fill="#0f172a">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'decision' || entity.kind === 'merge') {
     // Diamond
     const hw = DIAMOND_S / 2;
-    s += `    <polygon points="${hw},0 ${DIAMOND_S},${hw} ${hw},${DIAMOND_S} 0,${hw}" fill="url(#grad-flow)" stroke="#059669" stroke-width="1.5" filter="url(#shadow)"/>\n`;
-    s += `    <text x="${hw}" y="${DIAMOND_S + 18}" text-anchor="middle" font-size="12" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <polygon points="${hw},0 ${DIAMOND_S},${hw} ${hw},${DIAMOND_S} 0,${hw}" fill="url(#grad-flow)" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+    s += `    <text x="${hw}" y="${DIAMOND_S + 18}" text-anchor="middle" font-size="12" fill="#0f172a">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'fork' || entity.kind === 'join') {
     // Horizontal bar
-    s += `    <rect width="${BAR_W}" height="${BAR_H}" rx="3" fill="#1e293b"/>\n`;
-    s += `    <text x="${BAR_W / 2}" y="${BAR_H + 18}" text-anchor="middle" font-size="12" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <rect width="${BAR_W}" height="${BAR_H}" rx="3" fill="#334155" filter="url(#shadow)"/>\n`;
+    s += `    <text x="${BAR_W / 2}" y="${BAR_H + 18}" text-anchor="middle" font-size="12" fill="#0f172a">${escapeXml(label)}</text>\n`;
   } else {
     // Process / Action — rounded rectangle
     const stereo = entity.stereotype || entity.kind;
     const showStereo = entity.stereotype || (entity.kind !== 'component' && entity.kind !== 'action');
-    s += `    <rect width="${BOX_W}" height="${BOX_H}" rx="10" fill="url(#grad-flow)" stroke="#059669" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+    s += `    <rect width="${BOX_W}" height="${BOX_H}" rx="10" fill="url(#grad-flow)" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)"/>\n`;
     if (showStereo && stereo && stereo !== 'component') {
-      s += `    <text x="${BOX_W / 2}" y="16" text-anchor="middle" font-size="10" fill="#059669" font-style="italic">«${escapeXml(stereo)}»</text>\n`;
-      s += `    <text x="${BOX_W / 2}" y="36" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">${escapeXml(label)}</text>\n`;
+      s += `    <text x="${BOX_W / 2}" y="16" text-anchor="middle" font-size="10" fill="#3b82f6" font-style="italic">«${escapeXml(stereo)}»</text>\n`;
+      s += `    <text x="${BOX_W / 2}" y="36" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">${escapeXml(label)}</text>\n`;
     } else {
-      s += `    <text x="${BOX_W / 2}" y="${BOX_H / 2 + 5}" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">${escapeXml(label)}</text>\n`;
+      s += `    <text x="${BOX_W / 2}" y="${BOX_H / 2 + 5}" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">${escapeXml(label)}</text>\n`;
     }
   }
 

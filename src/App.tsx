@@ -1106,25 +1106,12 @@ export default function App() {
           </button>
         </div>
 
-        <select
-          className="iso-select"
-            value={activeDiagram?.kind ?? 'class'}
-            onChange={e => {
-              const next = e.target.value as DiagramKind;
-              if (activeDiagram) {
-                updateActiveTab(tab => ({
-                  ...tab,
-                  source: changeDiagramKind(tab.source, activeDiagram.name, next)
-                }));
-              }
-            }}
-            aria-label="Change Active Diagram Type"
-            title="Change active diagram type"
-            disabled={!activeDiagram}
-          >
-            {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-              <option key={k} value={k}>{k}</option>              ))}
-            </select>
+        {activeDiagram && (
+          <div style={{ display: 'flex', alignItems: 'center', padding: '0 12px', fontSize: '12px', color: 'var(--iso-text-muted)', background: 'var(--iso-bg-hover)', borderRadius: 'var(--iso-radius)', height: '28px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+            {activeDiagram.kind}
+          </div>
+        )}
+
         {/* Action: New */}
         <button type="button" className="iso-btn" onClick={handleNew} aria-label="New diagram (Ctrl+N)" data-tooltip="New (Ctrl+N)">
           <IconNew />
@@ -1386,8 +1373,8 @@ export default function App() {
             </div>
             {['class', 'interface'].includes(editingEntity.kind) && (
               <div className="iso-modal-field">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <input type="checkbox" checked={editingEntity.isAbstract} onChange={e => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })} />
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
+                  <input type="checkbox" checked={editingEntity.isAbstract} onChange={e => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })} style={{ margin: 0 }} />
                   Abstract
                 </label>
               </div>
@@ -1461,12 +1448,12 @@ export default function App() {
               </div>
             </div>
             {['class'].includes(activeDiagram?.kind || '') && (
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div className="iso-modal-field" style={{ flex: 1 }}>
+              <div style={{ display: 'flex', gap: '16px', width: '100%' }}>
+                <div className="iso-modal-field" style={{ flex: 1, minWidth: 0 }}>
                   <label>From Mult (e.g. 1)</label>
                   <input type="text" value={editingRelation.fromMult || ''} onChange={e => setEditingRelation({ ...editingRelation, fromMult: e.target.value })} />
                 </div>
-                <div className="iso-modal-field" style={{ flex: 1 }}>
+                <div className="iso-modal-field" style={{ flex: 1, minWidth: 0 }}>
                   <label>To Mult (e.g. 0..*)</label>
                   <input type="text" value={editingRelation.toMult || ''} onChange={e => setEditingRelation({ ...editingRelation, toMult: e.target.value })} />
                 </div>

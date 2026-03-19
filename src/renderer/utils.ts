@@ -26,44 +26,45 @@ export function visSymbolFor(vis: string): string {
 /** Shared SVG <defs> block: markers, drop-shadow, gradients. */
 export function svgDefs(): string {
   return `  <defs>
-    <filter id="shadow" x="-10%" y="-10%" width="130%" height="140%">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.12)"/>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="rgba(0,0,0,0.04)"/>
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.02)"/>
     </filter>
     <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#555"/>
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
     </marker>
     <marker id="hollow-arrow" markerWidth="13" markerHeight="9" refX="13" refY="4.5" orient="auto">
-      <polygon points="0 0, 13 4.5, 0 9" fill="white" stroke="#555" stroke-width="1"/>
+      <polygon points="0 0, 13 4.5, 0 9" fill="white" stroke="#64748b" stroke-width="1.5"/>
     </marker>
     <marker id="diamond" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto">
-      <polygon points="0 5, 6 0, 12 5, 6 10" fill="white" stroke="#555" stroke-width="1.5"/>
+      <polygon points="0 5, 6 0, 12 5, 6 10" fill="white" stroke="#64748b" stroke-width="1.5"/>
     </marker>
     <marker id="filled-diamond" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto">
-      <polygon points="0 5, 6 0, 12 5, 6 10" fill="#555"/>
+      <polygon points="0 5, 6 0, 12 5, 6 10" fill="#64748b"/>
     </marker>
     <linearGradient id="grad-class" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#e0f2f1"/>
-      <stop offset="100%" stop-color="#d4edec"/>
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
     </linearGradient>
     <linearGradient id="grad-interface" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#e8f0fe"/>
-      <stop offset="100%" stop-color="#d4e4fc"/>
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0fdf4"/>
     </linearGradient>
     <linearGradient id="grad-abstract" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f3e8ff"/>
-      <stop offset="100%" stop-color="#e8d5ff"/>
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fdf4ff"/>
     </linearGradient>
     <linearGradient id="grad-enum" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fef3c7"/>
-      <stop offset="100%" stop-color="#fde68a"/>
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fffbeb"/>
     </linearGradient>
     <linearGradient id="grad-state" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f0f4f8"/>
-      <stop offset="100%" stop-color="#e2e8f0"/>
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0f9ff"/>
     </linearGradient>
     <linearGradient id="grad-flow" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ecfdf5"/>
-      <stop offset="100%" stop-color="#d1fae5"/>
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eff6ff"/>
     </linearGradient>
   </defs>
 `;
