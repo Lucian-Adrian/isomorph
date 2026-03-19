@@ -288,15 +288,15 @@ diagram Checkout : activity {
   Join1 --> ConfirmOrder
   ConfirmOrder --> End
 
-  @Start at (200, 40)
-  @AddToCart at (160, 120)
-  @EnterShipping at (160, 220)
-  @Fork1 at (130, 320)
-  @CalculateTax at (40, 380)
-  @CheckStock at (240, 380)
-  @Join1 at (130, 480)
-  @ConfirmOrder at (160, 540)
-  @End at (200, 640)
+  @Start at (400, 40)
+  @AddToCart at (360, 120)
+  @EnterShipping at (360, 220)
+  @Fork1 at (330, 320)
+  @CalculateTax at (240, 380)
+  @CheckStock at (440, 380)
+  @Join1 at (330, 480)
+  @ConfirmOrder at (360, 540)
+  @End at (400, 640)
 
 }
 `
@@ -346,13 +346,13 @@ diagram OrderFlow : flow {
   ProcessPayment --> Complete [label="Success"]
   ProcessPayment --> Cancelled [label="Failed"]
 
-  @ReceiveOrder at (160, 40)
-  @CheckInventory at (120, 140)
-  @InStock at (160, 240)
-  @ProcessPayment at (40, 360)
-  @Backorder at (280, 260)
-  @Complete at (80, 480)
-  @Cancelled at (0, 480)
+  @ReceiveOrder at (360, 40)
+  @CheckInventory at (320, 140)
+  @InStock at (360, 240)
+  @ProcessPayment at (240, 360)
+  @Backorder at (480, 260)
+  @Complete at (280, 480)
+  @Cancelled at (200, 480)
 
 }
 `

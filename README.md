@@ -1,145 +1,187 @@
-# ✦ Isomorph
+<div align="center">
+  <img src="https://raw.githubusercontent.com/team02-faf241/isomorph/master/docs/assets/logo.png" alt="Isomorph Logo" width="120" style="border-radius: 20%;" onerror="this.style.display='none'"/>
 
-**A formally specified domain-specific language for software diagramming with bidirectional text–visual synchronisation and strict pedagogical validation.**
+  # ✦ Isomorph ✦
 
-[](https://github.com/team02-faf241/isomorph/actions/workflows/ci.yml)
-[](https://www.google.com/search?q=LICENSE)
-[](https://www.typescriptlang.org/)
-[](https://www.google.com/search?q=https://reactjs.org/)
-[](https://www.google.com/search?q=%23testing)
+  **A formally specified domain-specific language for software diagramming with bidirectional text–visual synchronization.**
+  
+  [![CI](https://github.com/team02-faf241/isomorph/actions/workflows/ci.yml/badge.svg)](https://github.com/team02-faf241/isomorph/actions/workflows/ci.yml)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+  [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
+  [![CodeMirror](https://img.shields.io/badge/CodeMirror-6.x-green)](https://codemirror.net/)
+  [![Tests](https://img.shields.io/badge/Tests-84%20passing-brightgreen)](#-testing--validation)
 
-[**Live Demo**](https://lucian-adrian.github.io/isomorph/) · [Grammar Spec](grammar/Isomorph.g4) · [Examples](examples/) · [Contributing](CONTRIBUTING.md)
+  [**Live Demo**](https://team02-faf241.github.io/isomorph/) • [**Language Spec**](grammar/Isomorph.g4) • [**Examples**](examples/) • [**Contributing**](CONTRIBUTING.md)
+</div>
 
------
+<br/>
 
-## What is Isomorph?
+> **Isomorph** lets you write structured text on the left and see a live-rendered diagram on the right. But unlike other text-to-diagram tools, Isomorph is **bidirectional**. Drag an entity on the visual canvas, and your source code updates instantly. 
 
-**Isomorph** is a robust DSL where the source code *is* the diagram and the diagram *is* the source code. Write structured text on the left, and see a live-rendered UML diagram on the right. If you drag an entity on the canvas, the source code updates itself via `@Entity at (x, y)` annotations that keep text and layout in perfect sync.
+<br/>
 
-Unlike general-purpose tools, Isomorph acts as a **strict pedagogical compiler**. It is specifically engineered to bridge a constrained educational subset of UML (the "Teacher's Core") with the robust industrial standards of OMG UML 2.5.1. If an architectural design violates core academic rules, Isomorph will throw a compile-time error—ensuring models are "Correct by Construction".
+## Key Features
 
-```text
-┌────────────────┐  lex   ┌──────────┐ parse  ┌─────┐ analyze ┌─────┐ render ┌─────┐
-│  .isx source   │──────▸ │ Token[]  │──────▸ │ AST │──────▸  │ IOM │──────▸ │ SVG │
-└────────────────┘        └──────────┘        └─────┘         └─────┘        └─────┘
-        ▲                                                                       │
-        └───────── @Entity at (x, y) ◂── drag-to-update ◂──────────────────────┘
-```
+- **Bidirectional Synchronization:** The source code *is* the diagram and the diagram *is* the source code. Moving visuals in the canvas writes `@Entity at (x,y)` layout rules straight back to your code.
+- **Formally Specified Grammar:** Defined by a strict, unambiguous [ANTLR4 grammar](grammar/Isomorph.g4) featuring **55 production rules** and **66 token kinds**.
+- **Static Semantic Analysis:** Validates your designs against 10 strict semantic rules (SS-1 to SS-10)—catching circular inheritance, duplicate methods, and invalid endpoints before rendering.
+- **Pure Zero-Dependency SVG Rendering:** High-performance, template-based SVG generation directly from the Abstract Syntax Tree.
+- **Modern Editing Experience:** Embedded CodeMirror 6 with custom syntax highlighting (`.isx` format).
+- **Version Control Friendly:** Layouts are saved as standard text anchors, ensuring zero metadata drift when pushing to Git.
 
-### Why Isomorph? (Feature Comparison)
+---
 
-| Feature | Isomorph | Mermaid | PlantUML | draw.io |
-|---|:---:|:---:|:---:|:---:|
-| **Bidirectional sync (canvas ↔ code)** | ✓ | ✗ | ✗ | \~ |
-| **Pedagogical Rule Linting** | ✓ | ✗ | ✗ | ✗ |
-| **Formal BNF grammar** | ✓ | \~ | \~ | ✗ |
-| **Strict Topological Validation** | ✓ | ✗ | ✗ | ✗ |
-| **Layout stored directly in source text** | ✓ | ✗ | ✗ | ✓ |
-| **Zero-dependency React/Vite compiler** | ✓ | ✗ | ✗ | ✗ |
+## Supported Diagram Types
 
------
+Isomorph’s standard library handles an array of software architecture blueprints:
 
-## The "Teacher's Core" Compiler Specifications
+| Diagram | Support | Renderer Module | Documentation |
+|:---|:---:|:---|:---|
+| **Class Diagrams** | ✅ | `class-renderer.ts` | [class.md](docs/class.md) |
+| **Use Case Diagrams** | ✅ | `usecase-renderer.ts` | [use-case.md](docs/use-case.md) |
+| **Component Diagrams** | ✅ | `component-renderer.ts` | [component.md](docs/component.md) |
+| **Sequence Diagrams** | ✅ | `sequence-renderer.ts` | [sequence.md](docs/sequence.md) |
+| **State Diagrams** | ✅ | `state-renderer.ts` | [state.md](docs/state.md) |
+| **Flow/Activity Diagrams**| ✅ | `flow-renderer.ts` | [activity.md](docs/activity.md) |
+| **Collaboration** | ✅ | `collaboration-renderer.ts`| [collaboration.md](docs/collaboration.md) |
+| **Deployment Diagrams** | ✅ | To Be Extracted | [deployment.md](docs/deployment.md) |
 
-Isomorph implements a "Core + Extension" architecture. The Core module enforces strict educational constraints as hard validation errors, while the Extension module fills semantic gaps with UML 2.5.1 standards.
+---
 
-### ClassModel Validation Rules
+## 💻 The `.isx` Language Syntax
 
-  * **Noun Constraint:** The name of a class must always be a noun.
-  * **Interface Prefix:** The name of an interface must always begin with the letter 'I' (e.g., `IBancomat`). Failing to do so triggers a Critical Error.
-  * **3-Class Generalization:** Generalization hierarchies should involve at least 3 classes to properly demonstrate polymorphism; otherwise, a warning is emitted.
-  * **Implicit Multiplicity:** When multiplicity is 1 to 1, it is implicitly understood and will automatically be hidden by the renderer to keep diagrams clean.
-
-### Component Modeling (UCML) Rules
-
-  * **Strict Realization Topology:** Realization is always used exclusively to connect a Component to an Interface. Connecting two components with a Realization link will cause a hard Compile Error.
-  * **Mandatory Stereotypes:** Natively supports standard structural components like `<<library>>` (.dll), `<table>` (.db), `<<file>>`, `<<document>>`, and `<<executable>>`.
-  * **Advanced Ports:** Implements UML 2.5.1 Ports (`provided`, `required`) and strict differentiation between Assembly and Delegation connectors.
-
------
-
-## Quick Start
-
-Isomorph is built on a modern Vite and React 18 stack.
-
-```bash
-git clone https://github.com/team02-faf241/isomorph.git
-cd isomorph
-npm install
-npm run dev
-```
-
-Open **http://localhost:5173** — the CodeMirror 6 editor loads with a sample diagram and syntax highlighting enabled.
-
------
-
-## Example: Valid `.isx` Source
-
-Below is a compliant example demonstrating Isomorph's syntax and strict adherence to the Teacher's Core rules:
+Isomorph files natively end in **`.isx`**. The syntax looks like an elegant hybrid between typescript interfaces and plantUML definitions.
 
 ```isomorph
-diagram BankingSystem : component {
+diagram Library : class {
 
-  // Rule TC-02: Interfaces MUST start with 'I'
-  interface ICardReader {
-    + readStrip() : String
-    + ejectCard() : void
+  abstract class Book <<Entity>> implements Borrowable {
+    + title : string
+    + isbn  : string
+    - stock : int = 0
+    + checkOut(user: string) : bool
   }
 
-  interface IBankNetwork {
-    + authorizeTransaction(id: String, amount: float) : boolean
+  class Library {
+    + name : string
+    + addBook(book: Book) : void
+    + search(query: string) : List<Book>
   }
 
-  // Nouns used for Components. Mandatory stereotypes applied.
-  component ATMTerminal <<executable>> {
-    property isIndirectlyInstantiated = false
-    
-    // UML 2.5 Ports
-    port cardSlot : ICardReader provided
-    port uplink : IBankNetwork required
+  interface Borrowable {
+    + borrow(user: string) : void
+    + return() : void
   }
 
-  component BankServer <<table>> {
-    - connectionString : String
+  enum BookStatus {
+    AVAILABLE
+    CHECKED_OUT
+    RESERVED
   }
 
-  // Rule TC-03: Realization STRICTLY connects Component -> Interface
-  ATMTerminal realizes ICardReader
-  
-  // Dependency between Components
-  ATMTerminal depends BankServer
+  Library --* Book [label="contains", toMult="1..*"]
+  Book ..|> Borrowable
 
-  // Bidirectional layout annotations — written by the sync engine
-  @ATMTerminal at (100, 150)
-  @BankServer  at (400, 150)
+  // Bidirectional layout anchors — updated continuously as you drag on canvas!
+  @Book       at (100, 130)
+  @Library    at (400, 130)
+  @Borrowable at (100, 360)
+  @BookStatus at (400, 360)
 }
 ```
 
------
+---
 
-## Architecture & Technology Stack
+## Architecture & Pipeline
 
-The meaning of an Isomorph program is defined by its translation into the **Isomorph Object Model (IOM)** — a typed intermediate representation connecting the analyzer to the pure SVG renderers. Every function in the pipeline is **total** (never throws) and **pure** (returns errors as values).
+Isomorph parses source code through a totally pure, non-throwing functional pipeline, feeding eventually into the React View rendering SVGs.
 
-| Concern | Technology | Version |
-|---|---|---|
-| **Language** | TypeScript (strict mode) | 5.7 |
-| **Bundler** | Vite | 6.x |
-| **UI Framework** | React | 18.x |
-| **Code Editor** | CodeMirror | 6.x |
-| **Diagram Renderer** | Pure SVG (template-based, zero external deps) | — |
-| **Test Runner** | Vitest + jsdom | 2.x |
-
------
-
-## Testing
-
-Isomorph maintains **84 passing tests** covering everything from the hand-crafted lexer to the static semantic analyzer.
-
-```bash
-npm run test          # Run all 84 tests
-npm run test:coverage # Generate a coverage report
-npm run build         # Production build (typecheck + bundle)
+```mermaid
+graph LR
+    A[".isx Source"] -->|Lexer| B("Tokens []")
+    B -->|Recursive Descent Parser| C("AST (Abstract Syntax Tree)")
+    C -->|Semantic Analyzer (SS1-SS10)| D("IOM (Isomorph Object Model)")
+    D -->|Renderer Dispatcher| E["Pure SVG Output"]
+    E -. "Drag-to-Update Hook" .-> A
 ```
 
-**License:** [MIT](https://www.google.com/search?q=LICENSE)
+### Compiler Phases:
+1. **Lexing:** Hand-crafted, high-performance tokenizer (66 tokens).
+2. **Parsing:** Recursive descent `LL(1)` parser capturing exactly 22 abstract tree constructs (with structural span tracking).
+3. **Translational Semantics:** The source is mapped into the **Isomorph Object Model (IOM)**.
+4. **Rendering:** Pure SVG render pipelines (`*-renderer.ts`) map the IOM directly to layout nodes.
+
+---
+
+## Static Semantics & Safety
+
+Before any rendering occurs, the AST is validated against **10 core Rules (SS-1 to SS-10)** to enforce architectural correctness:
+
+| Rule   | Constraint Evaluated               | Protective Function                                          |
+|--------|------------------------------------|--------------------------------------------------------------|
+| **SS-1** | Entity name uniqueness             | Rejects duplicate entities (e.g. two `UserService` classes).   |
+| **SS-2** | Member name uniqueness          | Prevents duplicate fields/methods within the same object.      |
+| **SS-3** | Relation endpoint resolution       | Detects edges pointing to non-existent namespaces.            |
+| **SS-4** | Enum non-emptiness                 | Blocks `enum {}` declarations.                                |
+| **SS-5** | Interface field constraints        | Prevents initializations / default values inside interfaces.  |
+| **SS-6** | Acyclic inheritance constraints    | Fails on cyclic graphs (`class A extends B; class B extends A`). |
+| **SS-7** | Style target validity              | Prevents styling operations on non-existent elements.          |
+| **SS-8** | Enum value uniqueness              | Stops repeating internal values in Enums.                      |
+| **SS-9** | Diagram kind compatibility         | Enforces correct blocks per diagram (e.g., no `actor` in `class`). |
+| **SS-10**| Layout reference validity          | Ensures visual coordinate mapping `@Ghost at (x,y)` exists.    |
+
+---
+
+## Technology Stack
+
+| Domain                  | Technology                                                                                                 |
+|-------------------------|------------------------------------------------------------------------------------------------------------|
+| **Language & Typing**   | TypeScript 5.7 *(Strict Mode)*                                                                             |
+| **Bundling & Build**    | Vite 6.x                                                                                                   |
+| **UI Shell**            | React 18.x                                                                                                 |
+| **Code Editor**         | CodeMirror 6 *(Custom Lang Plugin)*                                                                        |
+| **Reference Grammar**   | ANTLR4 (`Isomorph.g4`)                                                                                     |
+| **Unit Testing**        | Vitest 2.x + jsdom                                                                                         |
+
+---
+
+## Testing & Validation
+
+The core of the Isomorph parser and semantics analyzer passes 84 isolated tests natively.
+
+```bash
+# Run the test suite
+npm run test
+
+# Additional QA scripts
+npm run test:watch     # Run in watch mode
+npm run test:coverage  # Display coverage statistics
+npm run typecheck      # Trigger strict TypeScript linting (tsc --noEmit)
+```
+
+**Coverage Breakdown:**
+- `lexer.test.ts`: Keywords, operators, literals, error recovery (24 tests)
+- `parser.test.ts`: Entities, relationships, generative types (28 tests)
+- `semantics.test.ts`: IOM verification and SS-1 through SS-10 constraint validation (32 tests)
+
+---
+
+## Contributing
+
+Contributions are heavily encouraged! To learn how the codebase is structured, conventions for feature branches, and the pull-request process, please see our [**Contribution Guidelines**](CONTRIBUTING.md).
+
+---
+
+## Meet the Team (FAF-241)
+
+| Name                      | Core Role                                |
+|---------------------------|------------------------------------------|
+| **Lucian-Adrian Gavril**  | Team Lead / Technical Writer             |
+| **Aurelian-Mihai Tihon**  | Technical Lead / Language Engineer       |
+| **Iulian Pavlov**         | Documentation / Canvas Rendering         |
+| **Nichita Tcacenco**      | Deployment / Quality Assurance           |
+
+**Mentor**: Fiștic Cristofor  
+**Institution**: Technical University of Moldova  
+**License**: Isomorph is released under the [MIT License](LICENSE).

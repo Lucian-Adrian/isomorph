@@ -267,6 +267,7 @@ body {
   padding: 0 8px;
   font-size: 13px;
   font-family: var(--sans);
+  width: 100%;
 }
 
 .iso-select option {
@@ -824,7 +825,9 @@ body {
   font-size: 12px;
   color: var(--iso-text-muted);
 }
-.iso-modal-field input {
+.iso-modal-field input:not([type="checkbox"]),
+.iso-modal-field select,
+.iso-modal-field textarea {
   background: rgba(255, 255, 255, 0.04);
   color: var(--iso-text);
   border: 1px solid var(--iso-border);
@@ -832,6 +835,8 @@ body {
   padding: 8px;
   font-family: inherit;
   font-size: 14px;
+  width: 100%;
+  min-width: 0;
 }
 .iso-modal-actions {
   display: flex;

@@ -36,7 +36,7 @@ export function renderClassDiagram(diag: IOMDiagram): string {
   const maxX = Math.max(maxEntityX, maxPkgX) + 40;
   const maxY = Math.max(maxEntityY, maxPkgY) + 40;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:transparent">\n`;
   svg += svgDefs();
 
   // Set to keep track of rendered members
@@ -111,7 +111,7 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
   const isInterface = entity.kind === 'interface';
   const isEnum = entity.kind === 'enum';
   const headerFill = isInterface ? 'url(#grad-interface)' : isEnum ? 'url(#grad-enum)' : entity.isAbstract ? 'url(#grad-abstract)' : 'url(#grad-class)';
-  const borderColor = isInterface ? '#3b82f6' : isEnum ? '#d97706' : entity.isAbstract ? '#9333ea' : '#0d9488';
+  const borderColor = isInterface ? '#22c55e' : isEnum ? '#f59e0b' : entity.isAbstract ? '#a855f7' : '#3b82f6';
   const borderWidth = 1.5;
 
   let s = '';
@@ -127,11 +127,11 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
   let nameY = HEADER_HEIGHT / 2 + 4;
   if (entity.stereotype || isInterface || isEnum) {
     const stereoText = entity.stereotype ? `«${entity.stereotype}»` : isInterface ? '«interface»' : '«enum»';
-    s += `    <text x="${width / 2}" y="14" text-anchor="middle" font-size="10" fill="${borderColor}" font-style="italic">${escapeXml(stereoText)}</text>\n`;
+    s += `    <text x="${width / 2}" y="14" text-anchor="middle" font-size="10" fill="#64748b" font-style="italic">${escapeXml(stereoText)}</text>\n`;
     nameY = HEADER_HEIGHT - 8;
   }
   const nameStyle = isAbstract ? 'font-style:italic' : '';
-  s += `    <text x="${width / 2}" y="${nameY}" text-anchor="middle" font-size="${FONT_SIZE}" font-weight="bold" style="${nameStyle}" fill="#1a1a1a">${escapeXml(entity.name)}</text>\n`;
+  s += `    <text x="${width / 2}" y="${nameY}" text-anchor="middle" font-size="${FONT_SIZE}" font-weight="600" style="${nameStyle}" fill="#0f172a">${escapeXml(entity.name)}</text>\n`;
 
   // Divider
   let currentY = HEADER_HEIGHT;
@@ -145,9 +145,9 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
       const typeStr = field.type;
       const defStr = field.defaultValue !== undefined ? ` = ${field.defaultValue}` : '';
       const staticMod = field.isStatic ? 'text-decoration:underline;' : '';
-      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" style="${staticMod}" fill="#333">` +
-           `<tspan fill="${borderColor}">${escapeXml(visSymbol)} </tspan>` +
-           `${escapeXml(field.name)}: <tspan fill="#555" font-style="italic">${escapeXml(typeStr)}${escapeXml(defStr)}</tspan></text>\n`;
+      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" style="${staticMod}" fill="#334155">` +
+           `<tspan fill="#64748b">${escapeXml(visSymbol)} </tspan>` +
+           `${escapeXml(field.name)}: <tspan fill="#64748b" font-style="italic">${escapeXml(typeStr)}${escapeXml(defStr)}</tspan></text>\n`;
     }
     currentY += 4;
   }
@@ -161,9 +161,9 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
       const params = method.params.map(p => `${p.name}: ${p.type}`).join(', ');
       const staticMod = method.isStatic ? 'text-decoration:underline;' : '';
       const abstractMod = method.isAbstract ? 'font-style:italic;' : '';
-      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" style="${staticMod}${abstractMod}" fill="#333">` +
-           `<tspan fill="${borderColor}">${escapeXml(visSymbol)} </tspan>` +
-           `${escapeXml(method.name)}(${escapeXml(params)}): <tspan fill="#555" font-style="italic">${escapeXml(method.returnType)}</tspan></text>\n`;
+      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" style="${staticMod}${abstractMod}" fill="#334155">` +
+           `<tspan fill="#64748b">${escapeXml(visSymbol)} </tspan>` +
+           `${escapeXml(method.name)}(${escapeXml(params)}): <tspan fill="#64748b" font-style="italic">${escapeXml(method.returnType)}</tspan></text>\n`;
     }
     currentY += 4;
   }
@@ -173,7 +173,7 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
     s += `    <line x1="0" y1="${currentY}" x2="${width}" y2="${currentY}" stroke="${borderColor}" stroke-width="0.75"/>\n`;
     for (const val of entity.enumValues) {
       currentY += LINE_HEIGHT;
-      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" fill="#92400e">${escapeXml(val.name)}</text>\n`;
+      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" fill="#334155">${escapeXml(val.name)}</text>\n`;
     }
     currentY += 4;
   }

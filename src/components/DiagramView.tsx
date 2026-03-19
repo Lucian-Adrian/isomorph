@@ -74,6 +74,19 @@ export function DiagramView({
     setPan({ x: 0, y: 0 });
   }, []);
 
+  // Prevent browser native pinch-zoom
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+      }
+    };
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
   // Keyboard shortcut: Ctrl+E → export SVG
   useEffect(() => {
     if (!onExportSVG) return;

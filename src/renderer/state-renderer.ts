@@ -38,7 +38,7 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     maxY = Math.max(maxY, p.y + dim.h + 40);
   }
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:Segoe UI,Arial,sans-serif;background:transparent">\n`;
   svg += svgDefs();
 
   // Relations
@@ -55,13 +55,13 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     
     svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
     svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;
-    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#1e293b" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>`;
     
     if (rel.label) {
       const mx = (x1 + x2) / 2;
       const my = (y1 + y2) / 2 - 8;
       svg += `<rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="white" opacity="0.9"/>`;
-      svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#333">${safeLabel}</text>`;
+      svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#334155">${safeLabel}</text>`;
     }
     svg += `</g>\n`;
   }
@@ -125,41 +125,41 @@ function renderEntity(p: Placed): string {
   let s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(label)}">\n`;
 
   if (entity.kind === 'start') {
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="#1e293b"/>\n`;
-    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 15}" text-anchor="middle" font-size="12" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="#334155" filter="url(#shadow)"/>\n`;
+    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 15}" text-anchor="middle" font-size="12" fill="#0f172a">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'stop') {
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="none" stroke="#1e293b" stroke-width="2"/>\n`;
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R - 6}" fill="#1e293b"/>\n`;
-    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 15}" text-anchor="middle" font-size="12" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="none" stroke="#334155" stroke-width="2" filter="url(#shadow)"/>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R - 6}" fill="#334155"/>\n`;
+    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 15}" text-anchor="middle" font-size="12" fill="#0f172a">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'history') {
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="white" stroke="#1e293b" stroke-width="1.5"/>\n`;
-    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R + 5}" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e293b">H</text>\n`;
-    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 15}" text-anchor="middle" font-size="12" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="#f8fafc" stroke="#334155" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R + 5}" text-anchor="middle" font-size="14" font-weight="600" fill="#0f172a">H</text>\n`;
+    s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 15}" text-anchor="middle" font-size="12" fill="#0f172a">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'decision' || entity.kind === 'choice' || entity.kind === 'merge') {
     const hw = DIAMOND_S / 2;
-    s += `    <polygon points="${hw},0 ${DIAMOND_S},${hw} ${hw},${DIAMOND_S} 0,${hw}" fill="white" stroke="#1e293b" stroke-width="1.5" filter="url(#shadow)"/>\n`;
-    s += `    <text x="${hw}" y="${DIAMOND_S + 15}" text-anchor="middle" font-size="12" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <polygon points="${hw},0 ${DIAMOND_S},${hw} ${hw},${DIAMOND_S} 0,${hw}" fill="#ecfdf5" stroke="#14b8a6" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+    s += `    <text x="${hw}" y="${DIAMOND_S + 15}" text-anchor="middle" font-size="12" fill="#0f172a">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'fork' || entity.kind === 'join') {
-    s += `    <rect width="${BAR_W}" height="${BAR_H}" rx="2" fill="#1e293b"/>\n`;
-    s += `    <text x="${BAR_W / 2}" y="${BAR_H + 15}" text-anchor="middle" font-size="12" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <rect width="${BAR_W}" height="${BAR_H}" rx="2" fill="#334155" filter="url(#shadow)"/>\n`;
+    s += `    <text x="${BAR_W / 2}" y="${BAR_H + 15}" text-anchor="middle" font-size="12" fill="#0f172a">${escapeXml(label)}</text>\n`;
   } else {
     // Action / State / Composite / Concurrent node
     // Rounded rect
     const r = entity.kind === 'action' ? 16 : 8; // Action is more pill-shaped, State is slightly rounded box
-    let fill = 'url(#grad-state)';
+    let fill = '#ecfdf5';
     
     // Check if we need to render internal behaviors (entry, exit, do)
     const intActs = entity.methods.filter(m => m.name === 'entry' || m.name === 'exit' || m.name === 'do');
     const h = Math.max(BOX_H, 40 + intActs.length * 15);
     
-    s += `    <rect width="${BOX_W}" height="${h}" rx="${r}" fill="${fill}" stroke="#1e293b" stroke-width="1.5" filter="url(#shadow)"/>\n`;
-    s += `    <text x="${BOX_W / 2}" y="20" text-anchor="middle" font-size="13" font-weight="bold" fill="#1e293b">${escapeXml(label)}</text>\n`;
+    s += `    <rect width="${BOX_W}" height="${h}" rx="${r}" fill="${fill}" stroke="#14b8a6" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+    s += `    <text x="${BOX_W / 2}" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">${escapeXml(label)}</text>\n`;
     
     if (intActs.length > 0) {
-      s += `    <line x1="0" y1="30" x2="${BOX_W}" y2="30" stroke="#1e293b" stroke-width="1"/>\n`;
-      let my = 45;
+      s += `    <line x1="0" y1="40" x2="${BOX_W}" y2="40" stroke="#14b8a6" stroke-width="1"/>\n`;
+      let my = 55;
       for (const act of intActs) {
-        s += `    <text x="10" y="${my}" font-size="11" fill="#475569"><tspan font-weight="bold">${escapeXml(act.name)}</tspan> / ${escapeXml(act.returnType)}</text>\n`;
+        s += `    <text x="10" y="${my}" font-size="11" fill="#334155"><tspan font-weight="600">${escapeXml(act.name)}</tspan> / ${escapeXml(act.returnType)}</text>\n`;
         my += 15;
       }
     }

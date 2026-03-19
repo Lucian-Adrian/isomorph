@@ -32,7 +32,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   }
   const width = computedWidth;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="font-family:Segoe UI,Arial,sans-serif;background:#fafafa">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="font-family:Segoe UI,Arial,sans-serif;background:transparent">\n`;
   svg += svgDefs();
 
   // --- Entities as columns ---
@@ -58,13 +58,13 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
 
     if (isActor) {
       // Actor stick figure with better proportions
-      svg += `    <circle cx="0" cy="-4" r="10" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" />\n`;
+      svg += `    <circle cx="0" cy="-4" r="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" />\n`;
       svg += `    <path d="M0,6 v14 M-10,12 h20 M-6,30 l6,-10 l6,10" stroke="#3b82f6" stroke-width="1.5" fill="none" />\n`;
-      svg += `    <text x="0" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">${label}</text>\n`;
+      svg += `    <text x="0" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">${label}</text>\n`;
     } else {
       // Participant box with gradient and rounded corners
-      svg += `    <rect x="-60" y="-20" width="120" height="36" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" />\n`;
-      svg += `    <text x="0" y="4" text-anchor="middle" font-size="13" font-weight="600" fill="#1e293b">${label}</text>\n`;
+      svg += `    <rect x="-60" y="-20" width="120" height="36" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" />\n`;
+      svg += `    <text x="0" y="4" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">${label}</text>\n`;
     }
 
     // Lifeline
@@ -74,8 +74,8 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     // Bottom box (mirror of top for participant)
     if (!isActor) {
       const bottomY = height - paddingY - 30;
-      svg += `    <rect x="-60" y="${bottomY}" width="120" height="30" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" />\n`;
-      svg += `    <text x="0" y="${bottomY + 19}" text-anchor="middle" font-size="12" font-weight="600" fill="#1e293b">${label}</text>\n`;
+      svg += `    <rect x="-60" y="${bottomY}" width="120" height="30" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" />\n`;
+      svg += `    <text x="0" y="${bottomY + 19}" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">${label}</text>\n`;
     }
 
     svg += `  </g>\n`;
