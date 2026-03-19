@@ -486,6 +486,8 @@ export default function App() {
   const [examplesOpen, setExamplesOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
+  const [mobilePane, setMobilePane] = useState<'code' | 'diagram' | 'shapes'>('code');
   const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
   const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string } | null>(null);
@@ -558,6 +560,24 @@ export default function App() {
   const activeDiagramIdx = activeTab?.activeDiagramIdx ?? 0;
   const safeDiagramIdx = Math.max(0, Math.min(activeDiagramIdx, Math.max(filteredDiagrams.length - 1, 0)));
   const activeDiagram = filteredDiagrams[safeDiagramIdx] ?? null;
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 900px)');
+    const apply = (matches: boolean) => {
+      setIsMobileLayout(matches);
+      if (!matches) return;
+      setMobilePane(prev => {
+        if (prev === 'shapes' && (!activeDiagram?.kind || getStencilsForKind(activeDiagram.kind).length === 0)) {
+          return activeDiagram ? 'diagram' : 'code';
+        }
+        return prev;
+      });
+    };
+    apply(media.matches);
+    const listener = (event: MediaQueryListEvent) => apply(event.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [activeDiagram]);
 
   useEffect(() => {
     if (!activeTab) return;
@@ -941,6 +961,107 @@ export default function App() {
       ? 'iso-status iso-status--ok'
       : 'iso-status iso-status--idle';
 
+  const shapesPane = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
+    <div className="iso-sidebar">
+      <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
+        <IconDiagram size={11} /> Shapes
+      </div>
+      <div className="iso-sidebar-body">
+        {getStencilsForKind(activeDiagram.kind).map(stencil => (
+          <div
+            key={stencil.label}
+            draggable
+            onDragStart={e => {
+              e.dataTransfer.setData('text/plain', stencil.keyword);
+              e.dataTransfer.effectAllowed = 'copy';
+            }}
+            className="iso-stencil"
+          >
+            {stencil.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  const sourcePane = (
+    <div className="iso-panel" style={{ height: '100%' }}>
+      <div className="iso-panel-header">
+        <IconCode size={11} />
+        Source
+        <span className="iso-panel-info" aria-live="polite">
+          {parseErrors.length > 0
+            ? ` — ${parseErrors.length} parse error${parseErrors.length > 1 ? 's' : ''}`
+            : source.trim() ? ' — OK' : ''}
+        </span>
+        <span className="iso-panel-spacer" />
+        <span style={{ fontSize: 10, color: 'var(--iso-text-faint)', fontFamily: 'monospace' }}>
+          {source.split('\n').length} lines
+        </span>
+      </div>
+      <div className="iso-panel-body">
+        <IsomorphEditor
+          value={source}
+          onChange={value => updateActiveTab(tab => ({ ...tab, source: value }))}
+          errors={editorDiagnostics}
+        />
+      </div>
+      {allErrors.length > 0 && (
+        <div className="iso-error-panel" role="log" aria-label="Errors">
+          {allErrors.slice(0, 8).map((msg, i) => (
+            <div key={`err-${msg.slice(0, 20)}-${i}`} className="iso-error-item">
+              <span className="iso-error-icon" aria-hidden="true">✖</span>
+              <span className="iso-error-msg">{msg}</span>
+            </div>
+          ))}
+          {allErrors.length > 8 && (
+            <div className="iso-error-item">
+              <span className="iso-error-icon" aria-hidden="true">…</span>
+              <span className="iso-error-msg" style={{ color: 'var(--iso-text-muted)' }}>
+                +{allErrors.length - 8} more error{allErrors.length - 8 > 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const canvasPane = (
+    <div className="iso-panel iso-panel--canvas" style={{ height: '100%' }}>
+      <div className="iso-panel-header">
+        <IconDiagram size={11} />
+        Canvas
+        <span className="iso-panel-info" aria-live="polite">
+          {activeDiagram
+            ? ` — ${activeDiagram.name} · ${activeDiagram.entities.size} entities · ${activeDiagram.relations.length} relations`
+            : ''}
+        </span>
+        <span className="iso-panel-spacer" />
+        {diagrams.length > 0 && (
+          <span style={{ fontSize: 10, color: '#6e7781', fontFamily: 'monospace' }}>
+            drag to reposition
+          </span>
+        )}
+      </div>
+      <div className="iso-panel-body">
+        <DiagramView
+          diagram={activeDiagram}
+          onEntityMove={handleEntityMove}
+          onEntityEditRequest={handleEntityEditRequest}
+          onRelationEditRequest={handleRelationEditRequest}
+          onRelationAddRequest={handleRelationAddRequest}
+          onTextRenameRequest={handleTextRenameRequest}
+          onExportSVG={handleExportSVG}
+          onDropEntity={handleDropEntity}
+          availableTools={toolsetFor(activeDiagram?.kind)}
+          selectedItems={selectedItems}
+          onSelectionChange={setSelectedItems}
+        />
+      </div>
+    </div>
+  );
+
   if (tabs.length === 0) {
     return (
       <div className="iso-shell">
@@ -1246,112 +1367,48 @@ export default function App() {
         </label>
       </header>
 
+      {isMobileLayout && (
+        <div className="iso-mobile-bar">
+          <button
+            type="button"
+            className={`iso-mobile-tab${mobilePane === 'code' ? ' iso-mobile-tab--active' : ''}`}
+            onClick={() => setMobilePane('code')}
+          >
+            Source
+          </button>
+          <button
+            type="button"
+            className={`iso-mobile-tab${mobilePane === 'diagram' ? ' iso-mobile-tab--active' : ''}`}
+            onClick={() => setMobilePane('diagram')}
+          >
+            Canvas
+          </button>
+          {shapesPane && (
+            <button
+              type="button"
+              className={`iso-mobile-tab${mobilePane === 'shapes' ? ' iso-mobile-tab--active' : ''}`}
+              onClick={() => setMobilePane('shapes')}
+            >
+              Shapes
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ──────────────── MAIN ────────────────────────────── */}
       <main className="iso-main">
-        {activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 && (
-          <div className="iso-sidebar" style={{ width: 160, borderRight: '1px solid var(--iso-divider)', background: 'var(--iso-bg-sidebar)', display: 'flex', flexDirection: 'column' }}>
-            <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-              <IconDiagram size={11} /> Shapes
-            </div>
-            <div style={{ padding: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {getStencilsForKind(activeDiagram.kind).map(stencil => (
-                <div
-                  key={stencil.label}
-                  draggable
-                  onDragStart={e => {
-                    e.dataTransfer.setData('text/plain', stencil.keyword);
-                    e.dataTransfer.effectAllowed = 'copy';
-                  }}
-                  style={{
-                    padding: '8px', background: 'var(--iso-bg-header)', border: '1px solid var(--iso-border)',
-                    borderRadius: '4px', cursor: 'grab', fontSize: '12px', textAlign: 'center', userSelect: 'none'
-                  }}
-                >
-                  {stencil.label}
-                </div>
-              ))}
-            </div>
+        {isMobileLayout ? (
+          <div className="iso-mobile-main">
+            {mobilePane === 'code' && sourcePane}
+            {mobilePane === 'diagram' && canvasPane}
+            {mobilePane === 'shapes' && shapesPane}
           </div>
+        ) : (
+          <>
+            {shapesPane}
+            <SplitPane left={sourcePane} right={canvasPane} />
+          </>
         )}
-        <SplitPane
-          left={
-            <div className="iso-panel" style={{ height: '100%' }}>
-              <div className="iso-panel-header">
-                <IconCode size={11} />
-                Source
-                <span className="iso-panel-info" aria-live="polite">
-                  {parseErrors.length > 0
-                    ? ` — ${parseErrors.length} parse error${parseErrors.length > 1 ? 's' : ''}`
-                    : source.trim() ? ' — OK' : ''}
-                </span>
-                <span className="iso-panel-spacer" />
-                <span style={{ fontSize: 10, color: 'var(--iso-text-faint)', fontFamily: 'monospace' }}>
-                  {source.split('\n').length} lines
-                </span>
-              </div>
-              <div className="iso-panel-body">
-                <IsomorphEditor
-                  value={source}
-                  onChange={value => updateActiveTab(tab => ({ ...tab, source: value }))}
-                  errors={editorDiagnostics}
-                />
-              </div>
-              {/* Inline error list */}
-              {allErrors.length > 0 && (
-                <div className="iso-error-panel" role="log" aria-label="Errors">
-                  {allErrors.slice(0, 8).map((msg, i) => (
-                    <div key={`err-${msg.slice(0, 20)}-${i}`} className="iso-error-item">
-                      <span className="iso-error-icon" aria-hidden="true">✖</span>
-                      <span className="iso-error-msg">{msg}</span>
-                    </div>
-                  ))}
-                  {allErrors.length > 8 && (
-                    <div className="iso-error-item">
-                      <span className="iso-error-icon" aria-hidden="true">…</span>
-                      <span className="iso-error-msg" style={{ color: 'var(--iso-text-muted)' }}>
-                        +{allErrors.length - 8} more error{allErrors.length - 8 > 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          }
-          right={
-            <div className="iso-panel iso-panel--canvas" style={{ height: '100%' }}>
-              <div className="iso-panel-header">
-                <IconDiagram size={11} />
-                Canvas
-                <span className="iso-panel-info" aria-live="polite">
-                  {activeDiagram
-                    ? ` — ${activeDiagram.name} · ${activeDiagram.entities.size} entities · ${activeDiagram.relations.length} relations`
-                    : ''}
-                </span>
-                <span className="iso-panel-spacer" />
-                {diagrams.length > 0 && (
-                  <span style={{ fontSize: 10, color: '#6e7781', fontFamily: 'monospace' }}>
-                    drag to reposition
-                  </span>
-                )}
-              </div>
-              <div className="iso-panel-body">
-                <DiagramView
-                  diagram={activeDiagram}
-                  onEntityMove={handleEntityMove}
-                  onEntityEditRequest={handleEntityEditRequest}
-                  onRelationEditRequest={handleRelationEditRequest}
-                  onRelationAddRequest={handleRelationAddRequest}
-                    onTextRenameRequest={handleTextRenameRequest}
-                  onExportSVG={handleExportSVG}
-                  onDropEntity={handleDropEntity}
-                  availableTools={toolsetFor(activeDiagram?.kind)}
-                  selectedItems={selectedItems}
-                  onSelectionChange={setSelectedItems}
-                />
-              </div>
-            </div>
-          }
-        />
       </main>
 
       {editingEntity && (

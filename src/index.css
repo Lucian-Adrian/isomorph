@@ -884,3 +884,262 @@ body {
 .iso-modal-btn.danger { background: var(--iso-error); color: white; }
 .iso-modal-btn.danger:hover { background: #e04a43; }
 
+.iso-sidebar {
+  width: 160px;
+  border-right: 1px solid var(--iso-divider);
+  background: var(--iso-bg-sidebar);
+  display: flex;
+  flex-direction: column;
+}
+
+.iso-sidebar-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+}
+
+.iso-stencil {
+  padding: 8px;
+  background: var(--iso-bg-header);
+  border: 1px solid var(--iso-border);
+  border-radius: 4px;
+  cursor: grab;
+  font-size: 12px;
+  text-align: center;
+  user-select: none;
+}
+
+.iso-mobile-bar {
+  display: none;
+}
+
+.iso-mobile-main {
+  display: none;
+}
+
+.iso-mobile-tab {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--iso-text-muted);
+  border-radius: var(--iso-radius);
+  padding: 8px 12px;
+  min-height: 34px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.iso-mobile-tab--active {
+  background: var(--iso-bg-active);
+  color: var(--iso-text);
+  border-color: var(--iso-border);
+}
+
+@media (max-width: 1200px) {
+  .iso-header {
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .iso-btn {
+    padding: 4px 8px;
+  }
+}
+
+@media (max-width: 900px) {
+  body {
+    overflow: hidden;
+  }
+
+  .iso-shell {
+    height: 100dvh;
+  }
+
+  .iso-header {
+    height: auto;
+    min-height: 48px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    padding: 8px 10px;
+    gap: 6px;
+    scrollbar-width: none;
+  }
+
+  .iso-header::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iso-header-sep,
+  .iso-header-spacer {
+    display: none;
+  }
+
+  .iso-logo-name {
+    font-size: 14px;
+  }
+
+  .iso-btn {
+    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .iso-breadcrumb {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .iso-main {
+    min-height: 0;
+  }
+
+  .iso-mobile-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--iso-divider);
+    background: rgba(255,255,255,0.92);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .iso-mobile-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iso-mobile-main {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .iso-statusbar {
+    height: auto;
+    min-height: 24px;
+    padding: 6px 10px;
+    gap: 8px;
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .iso-statusbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iso-panel-header {
+    padding: 0 10px;
+  }
+
+  .iso-error-panel {
+    max-height: 104px;
+  }
+
+  .iso-canvas-toolbar {
+    right: 10px;
+    bottom: 10px;
+  }
+
+  .iso-modal {
+    width: min(92vw, 420px);
+    max-height: min(88dvh, 760px);
+    overflow: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .iso-header {
+    padding: 8px;
+  }
+
+  .iso-breadcrumb {
+    display: none;
+  }
+
+  .iso-tabs {
+    gap: 3px;
+  }
+
+  .iso-tab {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  .iso-panel-header {
+    font-size: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .iso-panel-info {
+    display: none;
+  }
+
+  .iso-canvas-empty-sub {
+    max-width: 220px;
+    font-size: 12px;
+  }
+
+  .iso-canvas-toolbar {
+    bottom: 8px;
+    right: 8px;
+    padding: 2px;
+  }
+
+  .iso-canvas-btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .iso-modal {
+    padding: 18px;
+  }
+
+  .iso-modal-actions {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .iso-header {
+    padding: 6px;
+  }
+
+  .iso-mobile-bar {
+    padding: 6px 8px;
+  }
+
+  .iso-mobile-tab {
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+
+  .iso-btn {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+
+  .iso-statusbar {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+
+  .iso-canvas-tools {
+    left: 8px !important;
+    top: 8px !important;
+    gap: 6px !important;
+  }
+
+  .iso-canvas-toolbar {
+    left: 8px;
+    right: 8px;
+    justify-content: center;
+  }
+}
+

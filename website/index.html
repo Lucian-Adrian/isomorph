@@ -519,10 +519,7 @@
     padding: 28px 28px 32px;
     overflow-x: auto;
     text-align: left;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0)),
-      radial-gradient(circle at top right, rgba(139,139,240,0.18), transparent 42%),
-      linear-gradient(135deg, rgba(18,18,22,0.98), rgba(10,10,14,1));
+    background: linear-gradient(180deg, rgba(18,18,22,0.98), rgba(10,10,14,1));
     border-top: 1px solid rgba(255,255,255,0.06);
   }
 
@@ -535,7 +532,6 @@
     white-space: pre;
     text-align: left;
     color: rgba(255,255,255,0.98);
-    text-shadow: 0 0 0.01px rgba(255,255,255,0.2);
   }
 
   .compare-card {
@@ -791,6 +787,49 @@
     .window-body { grid-template-columns: 1fr; }
     .window-divider { display: none; }
     footer { flex-direction: column; gap: 16px; }
+  }
+
+  @media (max-width: 1200px) {
+    .split { gap: 64px; }
+    .hero-diagram { margin-top: 56px; }
+    .section-heading { max-width: 12ch; }
+  }
+
+  @media (max-width: 720px) {
+    nav { height: 64px; padding: 0 18px; }
+    .nav-cta { display: none; }
+    .hero { padding: 88px 18px 44px; min-height: auto; }
+    .hero-title { font-size: clamp(44px, 16vw, 84px); }
+    .hero-sub { font-size: 16px; margin-bottom: 32px; }
+    .hero-diagram { margin-top: 40px; }
+    .diagram-window { border-radius: 18px; }
+    .window-pane { padding: 18px; }
+    .window-body { min-height: 0; }
+    .canvas-preview { min-height: 220px; }
+    .section { padding: 64px 18px; }
+    .section-heading { font-size: clamp(34px, 10vw, 52px); }
+    .section-body { font-size: 15px; line-height: 1.7; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .compare-card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .compare-table { min-width: 560px; }
+    .compare-table th, .compare-table td { padding: 12px 10px; }
+    .syntax-header { padding: 14px 16px; }
+    .syntax-body { padding: 18px 16px 20px; }
+    .syntax-body code { font-size: 12px; line-height: 1.75; }
+  }
+
+  @media (max-width: 480px) {
+    .hero { padding: 80px 14px 36px; }
+    .section { padding: 52px 14px; }
+    .hero-sub { font-size: 15px; }
+    .pane-label, .syntax-filename, .syntax-lang { font-size: 9px; }
+    .code-line { font-size: 11px; line-height: 1.7; }
+    .canvas-preview { min-height: 180px; }
+    .stats-row { grid-template-columns: 1fr; }
+    .compare-table { min-width: 520px; }
+    .syntax-body { padding: 16px 14px 18px; }
+    .syntax-body code { font-size: 11px; line-height: 1.7; }
+    .section-heading br { display: none; }
   }
 </style>
 </head>
