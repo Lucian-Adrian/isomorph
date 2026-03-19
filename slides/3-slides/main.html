@@ -311,7 +311,7 @@
         /* HERO EQUATION */
         .hero-equation {
             font-family: var(--mono);
-            font-size: clamp(32px, 7vw, 100px);
+            font-size: clamp(24px, 5vw, 72px);
             font-weight: 300;
             color: var(--white);
             letter-spacing: -0.05em;
@@ -472,17 +472,9 @@
 
         <div class="slide bg-dark">
             <div class="slide-inner center-all">
-                <div class="eyebrow reveal">Inline Source</div>
-                <h2 class="headline-large reveal delay-1">Layout lives inline<br><span class="italic-accent" style="color:var(--white);">in the text.</span></h2>
-                <p class="body-large reveal delay-2">No sidecar file. No hidden geometry. The source itself contains the coordinates that keep the model stable.</p>
-            </div>
-        </div>
-
-        <div class="slide bg-dark">
-            <div class="slide-inner center-all">
                 <div class="eyebrow reveal">The Absolute Truth</div>
                 <h2 class="headline-large reveal delay-1">The only invariant<br>that matters.</h2>
-                <p class="body-large reveal delay-2">Layout lives in the source, not a sidecar. For every canonical model, parse(serialise(M)) = M.</p>
+                <p class="body-large reveal delay-2">If a model can be parsed and serialized back without changing its meaning, the source is canonical. Text, layout, and structure stay one truth instead of drifting into separate representations.</p>
             </div>
         </div>
 
