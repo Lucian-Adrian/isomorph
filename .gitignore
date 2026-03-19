@@ -14,6 +14,11 @@ slides/3-slides/deck.js
 slides/3-slides/index.html
 slides/3-slides/shared.css
 slides/3-slides/slide-list.json
+slides/3-slides/slides/
+slides/isomorph.zip
+
+# Helper scripts
+scripts/
 
 # Keep empty website folder in repo
 !website/.gitkeep
