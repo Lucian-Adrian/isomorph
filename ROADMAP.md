@@ -1,29 +1,25 @@
 # Isomorph Roadmap
 
-## Features
-
-The following features are derived from the ideas and requirements in `features.md`. They are grouped by category and prioritized into phases.
-
 ### Phase 1: Core Enhancements (High Priority)
-- **Animation for Sequence Diagrams**: Implement light trail animation that follows message lines in sequential order.
-- **GIF Export**: Add ability to export animations as GIF files using canvas frame capturing.
+- **Verify UML Compliance**: Ensure all diagrams adhere to UML standards for accuracy and consistency.
+- **Swimlanes for Activity Diagrams**: Add swimlane support to activity diagrams for better workflow visualization.
+- **Sequence Diagram Self-Referencing**: Fix the canvas limitation that prevents tracing a line from a participant to itself in sequence diagrams (currently code works but UI doesn't allow it).
 - **Inline Autocomplete**: Provide context-aware suggestions based on diagram type.
 - **Dark Mode**: Implement a dark theme toggle for the user interface.
 - **Custom Colors**: Allow users to customize element colors in diagrams.
 - **Favicon**: Add a favicon to the website.
 
-### Phase 2: Diagram Improvements (Medium Priority)
-- **Swimlanes for Activity Diagrams**: Add swimlane support to activity diagrams for better workflow visualization.
-- **Self-Referencing in Sequence Diagrams**: Enable participants to trace lines to themselves.
-- **Animation for Other Diagram Types**:
-  - Communication Diagrams: Simultaneous ping effects on connections.
-  - Activity Diagrams: Baton pass animation across swimlanes.
-  - Flowcharts: Split pulse for decision branches and fill-up effects.
-  - State Machine Diagrams: Breathing nodes and leaping transitions.
-  - Class Diagrams: Blueprint reveal animation.
+### Phase 2: Animation Implementation (Medium Priority)
+- **Animation for Sequence Diagrams**: Implement light trail animation that follows message lines in sequential order.
+- **GIF Export**: Add ability to export animations as GIF files using canvas frame capturing.
+- **Communication Diagrams**: Simultaneous ping effects on connections.
+- **Activity Diagrams**: Baton pass animation across swimlanes.
+- **Flowcharts**: Split pulse for decision branches and fill-up effects.
+- **State Machine Diagrams**: Breathing nodes and leaping transitions.
+- **Class Diagrams**: Blueprint reveal animation.
 
 ### Phase 3: Collaboration and Advanced Features (Lower Priority)
-- **Multi-User Collaboration**: Real-time collaboration with visible mouse cursors.
+- **Multi-User Collaboration**: Real-time collaboration with visible mouse cursors (comments, roles - viewer, commenter,editor).
 - **Cloud Saves**: Per-account cloud storage with version history.
 - **Integrated Chat**: Real-time chat for collaborators.
 - **Notifications**: Alerts for diagram changes and comments.
