@@ -54,6 +54,53 @@ function slugId() {
   return `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
+function escapeAttrValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function sequenceToCollaborationSource(diagram: IOMDiagram): string {
+  const collabName = `${diagram.name}Collaboration`;
+  const lines: string[] = [];
+  lines.push(`diagram ${collabName} : collaboration {`);
+  lines.push('');
+
+  for (const ent of diagram.entities.values()) {
+    const declKind = ent.kind === 'actor' ? 'actor' : 'object';
+    lines.push(`  ${declKind} ${ent.name}`);
+  }
+
+  if (diagram.entities.size > 0) {
+    lines.push('');
+  }
+
+  diagram.relations.forEach((rel, idx) => {
+    const attrs: string[] = [];
+    if (rel.label) attrs.push(`label="${escapeAttrValue(rel.label)}"`);
+    attrs.push(`msg="${idx + 1}"`);
+    const suffix = attrs.length > 0 ? ` [${attrs.join(', ')}]` : '';
+    lines.push(`  ${rel.from} --> ${rel.to}${suffix}`);
+  });
+
+  if (diagram.relations.length > 0) {
+    lines.push('');
+  }
+
+  for (const ent of diagram.entities.values()) {
+    if (!ent.position) continue;
+    const { x, y, w, h } = ent.position;
+    if (Number.isFinite(w) && Number.isFinite(h)) {
+      lines.push(`  @${ent.name} at (${Math.round(x)}, ${Math.round(y)}, ${Math.round(w!)}, ${Math.round(h!)})`);
+    } else {
+      lines.push(`  @${ent.name} at (${Math.round(x)}, ${Math.round(y)})`);
+    }
+  }
+
+  lines.push('');
+  lines.push('}');
+  lines.push('');
+  return lines.join('\n');
+}
+
 function templateFor(kind: DiagramKind): string {
   const diagramName = `New${kind.charAt(0).toUpperCase()}${kind.slice(1)}Diagram`;
   if (kind === 'usecase') {
@@ -990,6 +1037,26 @@ export default function App() {
     setIsNewModalOpen(true);
   }, []);
 
+  const handleTransformToCollaboration = useCallback(() => {
+    if (!activeDiagram || activeDiagram.kind !== 'sequence') return;
+    const id = `tab-${slugId()}`;
+    const baseName = activeTab?.name?.replace(/\.(isx|iso|txt)$/i, '') || activeDiagram.name || 'diagram';
+    const nextName = `${baseName}-collaboration.isx`;
+    const transformedSource = sequenceToCollaborationSource(activeDiagram);
+
+    setTabs(prev => [
+      ...prev,
+      {
+        id,
+        name: nextName,
+        source: transformedSource,
+        activeDiagramIdx: 0,
+        diagramKindFilter: 'collaboration',
+      },
+    ]);
+    setActiveTabId(id);
+  }, [activeDiagram, activeTab?.name]);
+
   // ── Open file from disk ───────────────────────────────────
   const handleFileOpen = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1462,6 +1529,19 @@ export default function App() {
 
             {examplesDropdown}
 
+            {activeDiagram?.kind === 'sequence' && (
+              <button
+                type="button"
+                className="iso-btn"
+                onClick={handleTransformToCollaboration}
+                aria-label="Transform sequence diagram to collaboration in a new tab"
+                data-tooltip="Transform to Collaboration"
+              >
+                <IconDiagram />
+                Transform
+              </button>
+            )}
+
             <button
               type="button"
               className="iso-btn"
@@ -1603,6 +1683,12 @@ export default function App() {
                 Open
               </button>
               {examplesDropdown}
+              {activeDiagram?.kind === 'sequence' && (
+                <button type="button" className="iso-btn" onClick={handleTransformToCollaboration}>
+                  <IconDiagram />
+                  Transform
+                </button>
+              )}
             </div>
             <div className="iso-mobile-actions-group iso-mobile-actions-group--secondary">
               <button
