@@ -84,12 +84,12 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
         // SS-10: Layout annotations overwrite position
         const e = entities.get(item.entity);
         if (e) {
-          e.position = { x: item.x, y: item.y };
+          e.position = { x: item.x, y: item.y, w: item.w, h: item.h };
         } else {
           // See if it's a package
           const p = packages.find(pkg => pkg.name === item.entity);
           if (p) {
-            p.position = { x: item.x, y: item.y };
+            p.position = { x: item.x, y: item.y, w: item.w, h: item.h };
           }
         }
       }

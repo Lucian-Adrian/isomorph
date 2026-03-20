@@ -38,8 +38,28 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     maxY = Math.max(maxY, p.y + dim.h + 40);
   }
 
+  const partitionEntities = diag.kind === 'activity'
+    ? entities.filter(e => e.kind === 'partition')
+    : [];
+  const shouldRenderSwimlanes = partitionEntities.length > 0;
+
+  if (shouldRenderSwimlanes) {
+    partitionEntities.forEach((partition, idx) => {
+      const px = partition.position?.x ?? (40 + idx * 260);
+      const py = partition.position?.y ?? 16;
+      const pw = partition.position?.w ?? 240;
+      const ph = partition.position?.h ?? Math.max(200, maxY - py - 16);
+      maxX = Math.max(maxX, px + pw + 24);
+      maxY = Math.max(maxY, py + ph + 24);
+    });
+  }
+
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
+
+  if (shouldRenderSwimlanes) {
+    svg += renderActivitySwimlanes(partitionEntities, placed, maxY);
+  }
 
   // Relations
   for (const rel of diag.relations) {
@@ -68,6 +88,7 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
 
   // Entities
   for (const p of placed) {
+    if (shouldRenderSwimlanes && p.entity.kind === 'partition') continue;
     svg += renderEntity(p);
   }
 
@@ -75,7 +96,50 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
   return svg;
 }
 
+function renderActivitySwimlanes(partitions: IOMEntity[], placed: Placed[], height: number): string {
+  const headerHeight = 34;
+
+  const partitionPlacements = partitions
+    .map((partition, idx) => {
+      const fallbackPos = placed.find(p => p.entity.name === partition.name);
+      const laneX = partition.position?.x ?? fallbackPos?.x ?? (40 + idx * 260);
+      const laneY = partition.position?.y ?? 16;
+      const laneW = partition.position?.w ?? 240;
+      const laneH = partition.position?.h ?? Math.max(200, height - laneY - 16);
+      return { partition, laneX, laneY, laneW, laneH };
+    })
+    .sort((a, b) => a.laneX - b.laneX);
+
+  if (partitionPlacements.length === 0) return '';
+
+  let laneSvg = '';
+
+  for (let i = 0; i < partitionPlacements.length; i++) {
+    const lane = partitionPlacements[i];
+    const laneW = Math.max(120, lane.laneW);
+    const laneH = Math.max(120, lane.laneH);
+
+    laneSvg += `  <g transform="translate(${lane.laneX},${lane.laneY})" data-entity-name="${escapeXml(lane.partition.name)}" data-partition-lane="true" data-entity-width="${Math.round(laneW)}" data-entity-height="${Math.round(laneH)}">`;
+    laneSvg += `<rect data-lane-body="true" x="0" y="0" width="${laneW}" height="${laneH}" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>`;
+    laneSvg += `<rect data-lane-header="true" x="0" y="0" width="${laneW}" height="${headerHeight}" rx="8" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1"/>`;
+    laneSvg += `<line data-lane-divider="true" x1="0" y1="${headerHeight}" x2="${laneW}" y2="${headerHeight}" stroke="#cbd5e1" stroke-width="1"/>`;
+    laneSvg += `<text data-lane-title="true" x="${laneW / 2}" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">${escapeXml(lane.partition.name)}</text>`;
+    laneSvg += `<rect data-resize-handle="e" x="${laneW - 4}" y="${laneH / 2 - 10}" width="8" height="20" rx="2" fill="#3b82f6" opacity="0.6" style="cursor: ew-resize"/>`;
+    laneSvg += `<rect data-resize-handle="s" x="${laneW / 2 - 10}" y="${laneH - 4}" width="20" height="8" rx="2" fill="#3b82f6" opacity="0.6" style="cursor: ns-resize"/>`;
+    laneSvg += `<rect data-resize-handle="se" x="${laneW - 6}" y="${laneH - 6}" width="12" height="12" rx="3" fill="#2563eb" opacity="0.8" style="cursor: nwse-resize"/>`;
+    laneSvg += `</g>\n`;
+  }
+
+  return laneSvg;
+}
+
 function getDimensions(entity: IOMEntity): { w: number, h: number } {
+  const sizeW = entity.position?.w;
+  const sizeH = entity.position?.h;
+  if (Number.isFinite(sizeW) && Number.isFinite(sizeH) && sizeW! > 0 && sizeH! > 0) {
+    return { w: sizeW!, h: sizeH! };
+  }
+
   switch (entity.kind) {
     case 'start':
     case 'stop':
@@ -103,16 +167,14 @@ function placeEntities(entities: IOMEntity[]): Placed[] {
 
     result.push({ entity, x: pos.x, y: pos.y });
 
-    if (!entity.position) {
-      maxRowH = Math.max(maxRowH, dim.h);
-      col++;
-      curX += dim.w + GAP_X;
-      if (col >= GRID_COLS) {
-        col = 0;
-        curX = 40;
-        curY += maxRowH + GAP_Y;
-        maxRowH = 0;
-      }
+    maxRowH = Math.max(maxRowH, dim.h);
+    col++;
+    curX += dim.w + GAP_X;
+    if (col >= GRID_COLS) {
+      col = 0;
+      curX = 40;
+      curY += maxRowH + GAP_Y;
+      maxRowH = 0;
     }
   }
 

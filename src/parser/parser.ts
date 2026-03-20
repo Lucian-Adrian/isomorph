@@ -505,7 +505,7 @@ export class Parser {
     return { kind: 'StyleDecl', target, styles, span: this.spanTo(kw, close) };
   }
 
-  // ── Layout annotation: @Name at (x, y) ──────────────────────
+  // ── Layout annotation: @Name at (x, y[, w, h]) ───────────────
 
   private parseLayoutAnnotation(): LayoutAnnotation {
     const at = this.expect('AT');
@@ -515,8 +515,16 @@ export class Parser {
     const x = parseFloat(this.expect('NUMBER').value);
     this.expect('COMMA');
     const y = parseFloat(this.expect('NUMBER').value);
+    let w: number | undefined;
+    let h: number | undefined;
+    if (this.at('COMMA')) {
+      this.advance();
+      w = parseFloat(this.expect('NUMBER').value);
+      this.expect('COMMA');
+      h = parseFloat(this.expect('NUMBER').value);
+    }
     const close = this.expect('RPAREN');
-    return { kind: 'LayoutAnnotation', entity, x, y, span: this.spanTo(at, close) };
+    return { kind: 'LayoutAnnotation', entity, x, y, w, h, span: this.spanTo(at, close) };
   }
 
   // ── Literals ─────────────────────────────────────────────────

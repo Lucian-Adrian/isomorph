@@ -4,6 +4,8 @@ import { analyze } from '../src/semantics/analyzer.js';
 import { renderClassDiagram } from '../src/renderer/class-renderer.js';
 import { renderUseCaseDiagram } from '../src/renderer/usecase-renderer.js';
 import { renderComponentDiagram } from '../src/renderer/component-renderer.js';
+import { renderSequenceDiagram } from '../src/renderer/sequence-renderer.js';
+import { renderStateOrActivityDiagram } from '../src/renderer/state-renderer.js';
 import { escapeXml, visSymbolFor } from '../src/renderer/utils.js';
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -331,5 +333,56 @@ describe('Component Diagram Renderer — advanced', () => {
     const diag = buildDiagram('diagram D : component { component Gateway }');
     const svg = renderComponentDiagram(diag);
     expect(svg).toContain('data-entity-name="Gateway"');
+  });
+});
+
+describe('Sequence Diagram Renderer — advanced', () => {
+  it('renders self-referencing messages as loop paths', () => {
+    const diag = buildDiagram('diagram D : sequence { participant A A --> A [label="self"] }');
+    const svg = renderSequenceDiagram(diag);
+    expect(svg).toContain('data-relation-from="A"');
+    expect(svg).toContain('data-relation-to="A"');
+    expect(svg).toContain('<path d="M');
+  });
+
+  it('uses persisted relation y style for vertical placement', () => {
+    const diag = buildDiagram('diagram D : sequence { participant A participant B A --> B [label="ping", y="260"] }');
+    const svg = renderSequenceDiagram(diag);
+    expect(svg).toContain('data-relation-y="260"');
+  });
+});
+
+describe('Activity Diagram Renderer — swimlanes', () => {
+  it('renders partition entities as swimlanes', () => {
+    const diag = buildDiagram(`diagram D : activity {
+      partition UserLane
+      partition SystemLane
+      start Begin
+      action Validate
+      stop End
+
+      Begin --> Validate
+      Validate --> End
+
+      @UserLane at (40, 20)
+      @SystemLane at (360, 20)
+      @Begin at (120, 120)
+      @Validate at (360, 200)
+      @End at (360, 320)
+    }`);
+    const svg = renderStateOrActivityDiagram(diag);
+    expect(svg).toContain('data-entity-name="UserLane"');
+    expect(svg).toContain('data-entity-name="SystemLane"');
+    expect(svg).toContain('stroke="#cbd5e1"');
+  });
+
+  it('respects optional swimlane width/height from layout annotations', () => {
+    const diag = buildDiagram(`diagram D : activity {
+      partition TeamA
+      @TeamA at (30, 20, 420, 360)
+    }`);
+    const svg = renderStateOrActivityDiagram(diag);
+    expect(svg).toContain('data-entity-width="420"');
+    expect(svg).toContain('data-entity-height="360"');
   });
 });

@@ -10,6 +10,8 @@
 export interface Position {
   x: number;
   y: number;
+  w?: number;
+  h?: number;
 }
 
 /** UML visibility levels */
@@ -109,7 +111,7 @@ export interface IOMDiagram {
 export interface IOMPackage {
   name: string;
   entityNames: string[];
-  position?: { x: number, y: number };
+  position?: { x: number, y: number, w?: number, h?: number };
   subPackages: IOMPackage[];
 }
 

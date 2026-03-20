@@ -12,9 +12,11 @@ export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge
 
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
-  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number) => void;
+  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number }>) => void;
+  onEntityResize?: (entityName: string, w: number, h: number) => void;
   onEntityEditRequest?: (entity: IOMEntity) => void;
   onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string) => void;
+  onRelationVerticalMove?: (relationId: string, y: number, seedRelationYs?: Record<string, number>) => void;
   onRelationAddRequest?: (fromEntity: string, toEntity: string) => void;
   onExportSVG?: () => void;
   onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string) => void;
@@ -27,8 +29,10 @@ interface DiagramViewProps {
 export function DiagramView({
   diagram,
   onEntityMove,
+  onEntityResize,
   onEntityEditRequest,
   onRelationEditRequest,
+  onRelationVerticalMove,
   onExportSVG,
   onDropEntity,
   onRelationAddRequest,
@@ -46,7 +50,7 @@ export function DiagramView({
   const [isInteracting, setIsInteracting] = useState(false);
 
   const dragRef = useRef<{
-    mode: 'none' | 'entity' | 'pan' | 'add-edge';
+    mode: 'none' | 'entity' | 'pan' | 'add-edge' | 'resize-entity' | 'relation-vertical';
     pointerId: number;
     startClientX: number;
     startClientY: number;
@@ -54,9 +58,17 @@ export function DiagramView({
     entityGroup?: SVGGElement;
     entityOrigX?: number;
     entityOrigY?: number;
+    entityOrigW?: number;
+    entityOrigH?: number;
+    resizeHandle?: 'e' | 's' | 'se';
+    relationId?: string;
+    relationGroup?: SVGGElement;
+    relationOrigY?: number;
     panStartX?: number;
     panStartY?: number;
   }>({ mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 });
+
+  const SNAP_THRESHOLD = 10;
 
   useEffect(() => {
     if (!availableTools.includes(activeTool)) {
@@ -223,6 +235,7 @@ export function DiagramView({
     // Handle Selection logic
     const relationGroup = target.closest('g[data-relation-id]') as SVGGElement | null;
     const entityGroup = target.closest('g[data-entity-name], g[data-package-name]') as SVGGElement | null;
+    const resizeHandle = target.closest('[data-resize-handle]') as Element | null;
 
     if (activeTool === 'move' && onSelectionChange) {
       if (entityGroup) {
@@ -250,6 +263,57 @@ export function DiagramView({
 
     const canMoveEntity = availableTools.includes('move') || availableTools.includes('hand');
     const shouldPan = true; // Always allow pan if missed entity
+
+    if (relationGroup && activeTool === 'move' && diagram.kind === 'sequence' && onRelationVerticalMove) {
+      const relationId = relationGroup.getAttribute('data-relation-id') ?? undefined;
+      if (!relationId) return;
+      const relationY = Number.parseFloat(relationGroup.getAttribute('data-relation-y') ?? '0');
+      if (!Number.isFinite(relationY)) return;
+      dragRef.current = {
+        mode: 'relation-vertical',
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        relationId,
+        relationGroup,
+        relationOrigY: relationY,
+      };
+      setIsInteracting(true);
+      canvasRef.current?.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
+
+    if (resizeHandle && entityGroup && activeTool !== 'add-edge') {
+      const handle = (resizeHandle.getAttribute('data-resize-handle') ?? 'se') as 'e' | 's' | 'se';
+      const entityName = entityGroup.getAttribute('data-entity-name') ?? undefined;
+      if (!entityName) return;
+      const tf = entityGroup.getAttribute('transform') ?? '';
+      const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
+      const entityOrigX = m ? parseFloat(m[1]) : 0;
+      const entityOrigY = m ? parseFloat(m[2]) : 0;
+      const entityOrigW = parseFloat(entityGroup.getAttribute('data-entity-width') || '0');
+      const entityOrigH = parseFloat(entityGroup.getAttribute('data-entity-height') || '0');
+      if (!Number.isFinite(entityOrigW) || !Number.isFinite(entityOrigH) || entityOrigW <= 0 || entityOrigH <= 0) return;
+
+      dragRef.current = {
+        mode: 'resize-entity',
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        entityName,
+        entityGroup,
+        entityOrigX,
+        entityOrigY,
+        entityOrigW,
+        entityOrigH,
+        resizeHandle: handle,
+      };
+      setIsInteracting(true);
+      canvasRef.current?.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      return;
+    }
 
     if (entityGroup && activeTool === 'add-edge') {
       const entityName = entityGroup.getAttribute('data-entity-name') ?? entityGroup.getAttribute('data-package-name') ?? undefined;
@@ -324,7 +388,7 @@ export function DiagramView({
       canvasRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
     }
-  }, [diagram, availableTools, activeTool, pan, zoom, selectedItems, onSelectionChange, onRelationEditRequest, onEntityEditRequest]);
+  }, [diagram, availableTools, activeTool, pan, zoom, selectedItems, onSelectionChange, onRelationEditRequest, onEntityEditRequest, onRelationVerticalMove]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -348,13 +412,137 @@ export function DiagramView({
       return;
     }
 
+    if (drag.mode === 'relation-vertical' && drag.relationGroup && drag.relationOrigY != null) {
+      const scale = zoom / 100;
+      const dy = (e.clientY - drag.startClientY) / scale;
+      drag.relationGroup.setAttribute('transform', `translate(0,${dy})`);
+      return;
+    }
+
+    if (drag.mode === 'resize-entity' && drag.entityGroup && drag.entityOrigW != null && drag.entityOrigH != null) {
+      const scale = zoom / 100;
+      const dx = (e.clientX - drag.startClientX) / scale;
+      const dy = (e.clientY - drag.startClientY) / scale;
+      const minW = 120;
+      const minH = 120;
+
+      let nextW = drag.entityOrigW;
+      let nextH = drag.entityOrigH;
+      if (drag.resizeHandle === 'e' || drag.resizeHandle === 'se') {
+        nextW = Math.max(minW, drag.entityOrigW + dx);
+      }
+      if (drag.resizeHandle === 's' || drag.resizeHandle === 'se') {
+        nextH = Math.max(minH, drag.entityOrigH + dy);
+      }
+
+      if (diagram?.kind === 'activity' && drag.entityGroup.getAttribute('data-partition-lane') === 'true') {
+        const others = Array.from(containerRef.current?.querySelectorAll('g[data-partition-lane="true"]') ?? []) as SVGGElement[];
+        const me = drag.entityGroup;
+        const myRightRaw = drag.entityOrigX! + nextW;
+        const myBottomRaw = drag.entityOrigY! + nextH;
+
+        for (const other of others) {
+          if (other === me) continue;
+          const tf = other.getAttribute('transform') ?? '';
+          const tm = tf.match(/translate\(([^,]+),([^)]+)\)/);
+          if (!tm) continue;
+          const ox = parseFloat(tm[1]);
+          const oy = parseFloat(tm[2]);
+          const ow = parseFloat(other.getAttribute('data-entity-width') || '0');
+          const oh = parseFloat(other.getAttribute('data-entity-height') || '0');
+          const oRight = ox + ow;
+          const oBottom = oy + oh;
+
+          if (Math.abs(myRightRaw - ox) <= SNAP_THRESHOLD) {
+            nextW = Math.max(minW, ox - drag.entityOrigX!);
+          } else if (Math.abs(myRightRaw - oRight) <= SNAP_THRESHOLD) {
+            nextW = Math.max(minW, oRight - drag.entityOrigX!);
+          }
+
+          if (Math.abs(myBottomRaw - oy) <= SNAP_THRESHOLD) {
+            nextH = Math.max(minH, oy - drag.entityOrigY!);
+          } else if (Math.abs(myBottomRaw - oBottom) <= SNAP_THRESHOLD) {
+            nextH = Math.max(minH, oBottom - drag.entityOrigY!);
+          }
+        }
+      }
+
+      drag.entityGroup.setAttribute('data-entity-width', String(Math.round(nextW)));
+      drag.entityGroup.setAttribute('data-entity-height', String(Math.round(nextH)));
+
+      const bodyRect = drag.entityGroup.querySelector('rect[data-lane-body]') as SVGRectElement | null;
+      const headerRect = drag.entityGroup.querySelector('rect[data-lane-header]') as SVGRectElement | null;
+      const divider = drag.entityGroup.querySelector('line[data-lane-divider]') as SVGLineElement | null;
+      const title = drag.entityGroup.querySelector('text[data-lane-title]') as SVGTextElement | null;
+      const handleE = drag.entityGroup.querySelector('[data-resize-handle="e"]') as SVGRectElement | null;
+      const handleS = drag.entityGroup.querySelector('[data-resize-handle="s"]') as SVGRectElement | null;
+      const handleSE = drag.entityGroup.querySelector('[data-resize-handle="se"]') as SVGRectElement | null;
+
+      if (bodyRect) {
+        bodyRect.setAttribute('width', String(nextW));
+        bodyRect.setAttribute('height', String(nextH));
+      }
+      if (headerRect) {
+        headerRect.setAttribute('width', String(nextW));
+      }
+      if (divider) {
+        divider.setAttribute('x2', String(nextW));
+      }
+      if (title) {
+        title.setAttribute('x', String(nextW / 2));
+      }
+      if (handleE) {
+        handleE.setAttribute('x', String(nextW - 4));
+        handleE.setAttribute('y', String(nextH / 2 - 10));
+      }
+      if (handleS) {
+        handleS.setAttribute('x', String(nextW / 2 - 10));
+        handleS.setAttribute('y', String(nextH - 4));
+      }
+      if (handleSE) {
+        handleSE.setAttribute('x', String(nextW - 6));
+        handleSE.setAttribute('y', String(nextH - 6));
+      }
+      return;
+    }
+
     if (drag.mode === 'entity' && drag.entityGroup && drag.entityOrigX != null && drag.entityOrigY != null) {
       const scale = zoom / 100;
       const dx = (e.clientX - drag.startClientX) / scale;
       const dy = (e.clientY - drag.startClientY) / scale;
-      drag.entityGroup.setAttribute('transform', `translate(${drag.entityOrigX + dx},${drag.entityOrigY + dy})`);
+      let nextX = drag.entityOrigX + dx;
+      let nextY = drag.entityOrigY + dy;
+
+      if (diagram?.kind === 'activity' && drag.entityGroup.getAttribute('data-partition-lane') === 'true') {
+        const myW = parseFloat(drag.entityGroup.getAttribute('data-entity-width') || '0');
+        const myH = parseFloat(drag.entityGroup.getAttribute('data-entity-height') || '0');
+        const myRightRaw = nextX + myW;
+        const myBottomRaw = nextY + myH;
+
+        const others = Array.from(containerRef.current?.querySelectorAll('g[data-partition-lane="true"]') ?? []) as SVGGElement[];
+        for (const other of others) {
+          if (other === drag.entityGroup) continue;
+          const tf = other.getAttribute('transform') ?? '';
+          const tm = tf.match(/translate\(([^,]+),([^)]+)\)/);
+          if (!tm) continue;
+          const ox = parseFloat(tm[1]);
+          const oy = parseFloat(tm[2]);
+          const ow = parseFloat(other.getAttribute('data-entity-width') || '0');
+          const oh = parseFloat(other.getAttribute('data-entity-height') || '0');
+          const oRight = ox + ow;
+          const oBottom = oy + oh;
+
+          if (Math.abs(nextX - oRight) <= SNAP_THRESHOLD) nextX = oRight;
+          else if (Math.abs(myRightRaw - ox) <= SNAP_THRESHOLD) nextX = ox - myW;
+
+          if (Math.abs(nextY - oBottom) <= SNAP_THRESHOLD) nextY = oBottom;
+          else if (Math.abs(myBottomRaw - oy) <= SNAP_THRESHOLD) nextY = oy - myH;
+        }
+      }
+
+      drag.entityGroup.setAttribute('transform', `translate(${nextX},${nextY})`);
     }
-  }, [zoom, pan]);
+  }, [diagram, zoom, pan]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -365,14 +553,66 @@ export function DiagramView({
       const target = document.elementFromPoint(e.clientX, e.clientY);
       const targetEntityGroup = target?.closest('g[data-entity-name]');
       const toEntityName = targetEntityGroup?.getAttribute('data-entity-name');
-      if (drag.entityName && toEntityName && drag.entityName !== toEntityName) {
+      const isSequenceSelfReference = drag.entityName && toEntityName
+        && drag.entityName === toEntityName
+        && diagram?.kind === 'sequence';
+      if (drag.entityName && toEntityName && (drag.entityName !== toEntityName || isSequenceSelfReference)) {
         if (onRelationAddRequest) {
           onRelationAddRequest(drag.entityName, toEntityName);
         }
       }
     }
 
+    if (drag.mode === 'relation-vertical' && drag.relationGroup && drag.relationId && drag.relationOrigY != null) {
+      const seededRelationYs: Record<string, number> = {};
+      const allRelationGroups = Array.from(containerRef.current?.querySelectorAll('g[data-relation-id][data-relation-y]') ?? []) as SVGGElement[];
+      for (const group of allRelationGroups) {
+        const rid = group.getAttribute('data-relation-id');
+        const yRaw = Number.parseFloat(group.getAttribute('data-relation-y') ?? '');
+        if (!rid || !Number.isFinite(yRaw)) continue;
+        seededRelationYs[rid] = Math.round(yRaw);
+      }
+
+      const tf = drag.relationGroup.getAttribute('transform') ?? '';
+      const m = tf.match(/translate\(0,([^)]+)\)/);
+      const dy = m ? parseFloat(m[1]) : 0;
+      drag.relationGroup.removeAttribute('transform');
+      if (onRelationVerticalMove) {
+        onRelationVerticalMove(drag.relationId, Math.round(drag.relationOrigY + dy), seededRelationYs);
+      }
+    }
+
+    if (drag.mode === 'resize-entity' && drag.entityName && drag.entityGroup && onEntityResize) {
+      const w = parseFloat(drag.entityGroup.getAttribute('data-entity-width') || '0');
+      const h = parseFloat(drag.entityGroup.getAttribute('data-entity-height') || '0');
+      if (w > 0 && h > 0) {
+        onEntityResize(drag.entityName, Math.round(w), Math.round(h));
+      }
+    }
+
     if (drag.mode === 'entity' && drag.entityGroup && drag.entityName && onEntityMove) {
+      const seededPositions: Record<string, { x: number; y: number }> = {};
+      const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
+      for (const group of allEntityGroups) {
+        const entityName = group.getAttribute('data-entity-name');
+        if (!entityName) continue;
+        const tfAll = group.getAttribute('transform') ?? '';
+        const mAll = tfAll.match(/translate\(([^,]+),([^)]+)\)/);
+        if (!mAll) continue;
+        let xAll = Math.round(parseFloat(mAll[1]));
+        let yAll = Math.round(parseFloat(mAll[2]));
+        const pkgGroup = group.closest('g[data-package-name]') as SVGGElement | null;
+        if (pkgGroup) {
+          const ptf = pkgGroup.getAttribute('transform') ?? '';
+          const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
+          if (pm) {
+            xAll += Math.round(parseFloat(pm[1]));
+            yAll += Math.round(parseFloat(pm[2]));
+          }
+        }
+        seededPositions[entityName] = { x: xAll, y: yAll };
+      }
+
       const tf = drag.entityGroup.getAttribute('transform') ?? '';
       const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
       if (m) {
@@ -391,7 +631,7 @@ export function DiagramView({
             }
           }
           
-          const origX = Math.round(drag.entityOrigX ?? 0); const origY = Math.round(drag.entityOrigY ?? 0); onEntityMove(drag.entityName, updatedX, updatedY, updatedX - origX, updatedY - origY);
+          const origX = Math.round(drag.entityOrigX ?? 0); const origY = Math.round(drag.entityOrigY ?? 0); onEntityMove(drag.entityName, updatedX, updatedY, updatedX - origX, updatedY - origY, seededPositions);
         }
       }
 
@@ -400,7 +640,7 @@ export function DiagramView({
     }
     setIsInteracting(false);
     dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
-  }, [onEntityMove, onRelationAddRequest]);
+  }, [diagram, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>

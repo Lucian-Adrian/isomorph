@@ -274,16 +274,14 @@ function assignPositions(entities: IOMEntity[]): Positioned[] {
 
     result.push({ entity, pos, width, height });
 
-    if (!entity.position) {
-      maxRowHeight = Math.max(maxRowHeight, height);
-      col++;
-      curX += width + GRID_COL_GAP;
-      if (col >= GRID_COLS) {
-        col = 0;
-        curX = 40;
-        curY += maxRowHeight + GRID_ROW_GAP;
-        maxRowHeight = 0;
-      }
+    maxRowHeight = Math.max(maxRowHeight, height);
+    col++;
+    curX += width + GRID_COL_GAP;
+    if (col >= GRID_COLS) {
+      col = 0;
+      curX = 40;
+      curY += maxRowHeight + GRID_ROW_GAP;
+      maxRowHeight = 0;
     }
   }
 

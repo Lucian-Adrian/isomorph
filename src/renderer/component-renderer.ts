@@ -186,16 +186,14 @@ function placeEntities(entities: IOMEntity[]): Placed[] {
 
     result.push({ entity, x: pos.x, y: pos.y });
 
-    if (!entity.position) {
-      maxRowH = Math.max(maxRowH, h);
-      col++;
-      curX += BOX_W + GAP_X;
-      if (col >= GRID_COLS) {
-        col = 0;
-        curX = 40;
-        curY += maxRowH + GAP_Y;
-        maxRowH = 0;
-      }
+    maxRowH = Math.max(maxRowH, h);
+    col++;
+    curX += BOX_W + GAP_X;
+    if (col >= GRID_COLS) {
+      col = 0;
+      curX = 40;
+      curY += maxRowH + GAP_Y;
+      maxRowH = 0;
     }
   }
 

@@ -18,12 +18,20 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
 
   // Count self-messages to allocate extra row height
   let selfMessageCount = 0;
+  let maxStyledRelationY = 0;
   for (const rel of diag.relations) {
     if (rel.from === rel.to) selfMessageCount++;
+    const relY = Number.parseFloat(String(rel.styles?.y ?? ''));
+    if (Number.isFinite(relY)) {
+      const relDepth = rel.from === rel.to ? relY + selfLoopHeight : relY;
+      maxStyledRelationY = Math.max(maxStyledRelationY, relDepth);
+    }
   }
 
   let computedWidth = paddingX * 2 + Math.max(0, entities.length - 1) * colSpacing;
-  const height = paddingY * 2 + 40 + Math.max(0, diag.relations.length) * rowSpacing + selfMessageCount * selfLoopHeight + 80;
+  const autoHeight = paddingY * 2 + 40 + Math.max(0, diag.relations.length) * rowSpacing + selfMessageCount * selfLoopHeight + 80;
+  const styledHeight = maxStyledRelationY > 0 ? maxStyledRelationY + 180 : 0;
+  const height = Math.max(autoHeight, styledHeight);
 
   for (const ent of entities) {
     if (ent.position && ent.position.x !== undefined) {
@@ -92,15 +100,17 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     const dash = isDashed ? ' stroke-dasharray="6,3"' : '';
     const labelTxt = rel.label ? escapeXml(rel.label) : '';
     const isSelfMessage = rel.from === rel.to;
+    const styleY = Number.parseFloat(String(rel.styles?.y ?? ''));
+    const relationY = Number.isFinite(styleY) ? styleY : currentY;
 
-    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}">\n`;
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-y="${Math.round(relationY)}">\n`;
 
     if (isSelfMessage) {
       // Self-message loop
       const x = startX;
       const loopRight = x + selfLoopWidth;
-      const y1 = currentY;
-      const y2 = currentY + selfLoopHeight;
+      const y1 = relationY;
+      const y2 = relationY + selfLoopHeight;
 
       // Hitbox
       svg += `    <rect x="${x}" y="${y1 - 5}" width="${selfLoopWidth + 10}" height="${selfLoopHeight + 10}" fill="transparent" style="cursor: pointer" />\n`;
@@ -115,34 +125,38 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
         svg += `    <text x="${loopRight + 6}" y="${y1 + selfLoopHeight / 2 + 4}" font-size="11" fill="#475569">${labelTxt}</text>\n`;
       }
 
-      currentY += rowSpacing + selfLoopHeight;
+      if (!Number.isFinite(styleY)) {
+        currentY += rowSpacing + selfLoopHeight;
+      } else {
+        currentY = Math.max(currentY + rowSpacing, relationY + rowSpacing);
+      }
     } else {
       // Normal message
       const isRight = endX > startX;
 
       // Hitbox
-      svg += `    <line x1="${startX}" y1="${currentY}" x2="${endX}" y2="${currentY}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;
+      svg += `    <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="transparent" stroke-width="15" style="cursor: ns-resize"/>\n`;
 
       // Activation box at sender
-      svg += `    <rect x="${startX - activationWidth / 2}" y="${currentY - 10}" width="${activationWidth}" height="20" rx="2" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" />\n`;
+      svg += `    <rect x="${startX - activationWidth / 2}" y="${relationY - 10}" width="${activationWidth}" height="20" rx="2" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" />\n`;
 
       // Message line
-      svg += `    <line x1="${startX}" y1="${currentY}" x2="${endX}" y2="${currentY}" stroke="#475569" stroke-width="1.5"${dash} />\n`;
+      svg += `    <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="#475569" stroke-width="1.5"${dash} />\n`;
 
       // Arrowhead
       if (isDashed) {
         // Open arrowhead for return/dashed
         if (isRight) {
-          svg += `    <path d="M${endX - 10},${currentY - 4} L${endX},${currentY} L${endX - 10},${currentY + 4}" stroke="#475569" stroke-width="1.5" fill="none" />\n`;
+          svg += `    <path d="M${endX - 10},${relationY - 4} L${endX},${relationY} L${endX - 10},${relationY + 4}" stroke="#475569" stroke-width="1.5" fill="none" />\n`;
         } else {
-          svg += `    <path d="M${endX + 10},${currentY - 4} L${endX},${currentY} L${endX + 10},${currentY + 4}" stroke="#475569" stroke-width="1.5" fill="none" />\n`;
+          svg += `    <path d="M${endX + 10},${relationY - 4} L${endX},${relationY} L${endX + 10},${relationY + 4}" stroke="#475569" stroke-width="1.5" fill="none" />\n`;
         }
       } else {
         // Filled arrowhead for solid messages
         if (isRight) {
-          svg += `    <polygon points="${endX},${currentY} ${endX - 10},${currentY - 5} ${endX - 10},${currentY + 5}" fill="#475569" />\n`;
+          svg += `    <polygon points="${endX},${relationY} ${endX - 10},${relationY - 5} ${endX - 10},${relationY + 5}" fill="#475569" />\n`;
         } else {
-          svg += `    <polygon points="${endX},${currentY} ${endX + 10},${currentY - 5} ${endX + 10},${currentY + 5}" fill="#475569" />\n`;
+          svg += `    <polygon points="${endX},${relationY} ${endX + 10},${relationY - 5} ${endX + 10},${relationY + 5}" fill="#475569" />\n`;
         }
       }
 
@@ -151,11 +165,15 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
         const mx = Math.min(startX, endX) + Math.abs(endX - startX) / 2;
         // Label background
         const labelWidth = labelTxt.length * 7 + 10;
-        svg += `    <rect x="${mx - labelWidth / 2}" y="${currentY - 18}" width="${labelWidth}" height="16" rx="3" fill="white" opacity="0.9" />\n`;
-        svg += `    <text x="${mx}" y="${currentY - 6}" text-anchor="middle" font-size="11" fill="#475569">${labelTxt}</text>\n`;
+        svg += `    <rect x="${mx - labelWidth / 2}" y="${relationY - 18}" width="${labelWidth}" height="16" rx="3" fill="white" opacity="0.9" />\n`;
+        svg += `    <text x="${mx}" y="${relationY - 6}" text-anchor="middle" font-size="11" fill="#475569">${labelTxt}</text>\n`;
       }
 
-      currentY += rowSpacing;
+      if (!Number.isFinite(styleY)) {
+        currentY += rowSpacing;
+      } else {
+        currentY = Math.max(currentY + rowSpacing, relationY + rowSpacing);
+      }
     }
 
     svg += `  </g>\n`;

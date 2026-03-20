@@ -294,14 +294,58 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function updateEntityPosition(source: string, name: string, x: number, y: number): string {
-  const newAnnotation = `@${name} at (${x}, ${y})`;
-  const pattern = new RegExp(`@${escapeRegex(name)}\\s+at\\s+\\([^)]+\\)`);
+function updateEntityPosition(source: string, name: string, x: number, y: number, w?: number, h?: number): string {
+  const hasSize = Number.isFinite(w) && Number.isFinite(h);
+  const newAnnotation = hasSize
+    ? `@${name} at (${x}, ${y}, ${Math.round(w!)}, ${Math.round(h!)})`
+    : `@${name} at (${x}, ${y})`;
+  const pattern = new RegExp(`@${escapeRegex(name)}\\s+at\\s*\\([^)]+\\)`);
   if (pattern.test(source)) {
     return source.replace(pattern, newAnnotation);
   }
   const lastBrace = source.lastIndexOf('}');
   return lastBrace < 0 ? source : source.slice(0, lastBrace) + `  ${newAnnotation}\n` + source.slice(lastBrace);
+}
+
+function updateRelationVerticalPosition(source: string, relationId: string, y: number): string {
+  const idxRaw = relationId.replace('rel_', '');
+  const relationIdx = Number.parseInt(idxRaw, 10);
+  if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
+
+  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+  const matches = [...source.matchAll(relRegex)];
+  const match = matches[relationIdx];
+  if (!match || match.index == null) return source;
+
+  const [full, indent, fromRaw, opRaw, toRaw, attrsRaw = ''] = match;
+  const attrs = attrsRaw.trim().replace(/^\[|\]$/g, '');
+  const attrMap = parseRelationAttrs(attrs);
+  attrMap.set('y', String(Math.max(0, Math.round(y))));
+
+  const attrsSerialized = [...attrMap.entries()].map(([k, v]) => `${k}="${v}"`).join(', ');
+  const suffix = attrsSerialized ? ` [${attrsSerialized}]` : '';
+  const replacement = `${indent}${fromRaw} ${opRaw} ${toRaw}${suffix}`;
+
+  return source.slice(0, match.index) + replacement + source.slice(match.index + full.length);
+}
+
+function updateRelationVerticalPositions(source: string, relationYs: Record<string, number>): string {
+  let next = source;
+  for (const [relationId, y] of Object.entries(relationYs)) {
+    next = updateRelationVerticalPosition(next, relationId, y);
+  }
+  return next;
+}
+
+function parseRelationAttrs(attrs: string): Map<string, string> {
+  const attrMap = new Map<string, string>();
+  const attrRx = /([A-Za-z_][\w]*)\s*=\s*"((?:\\"|[^"])*)"/g;
+  let match: RegExpExecArray | null = attrRx.exec(attrs);
+  while (match) {
+    attrMap.set(match[1], match[2].replace(/\\"/g, '"'));
+    match = attrRx.exec(attrs);
+  }
+  return attrMap;
 }
 
 const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object)';
@@ -449,14 +493,7 @@ function updateRelationById(
   }
 
   const attrs = attrsRaw.trim().replace(/^\[|\]$/g, '');
-  const attrMap = new Map<string, string>();
-  if (attrs) {
-    for (const pair of attrs.split(',')) {
-      const [k, v] = pair.split('=').map(s => s.trim());
-      if (!k || v == null) continue;
-      attrMap.set(k, v.replace(/^"|"$/g, ''));
-    }
-  }
+  const attrMap = parseRelationAttrs(attrs);
 
   if (updates.label !== undefined) {
     if (updates.label) attrMap.set('label', updates.label);
@@ -584,21 +621,31 @@ export default function App() {
   }, [activeTab, safeDiagramIdx, activeDiagramIdx, updateActiveTab]);
 
   // ── Bidirectional: drag entity → update @Entity at ───────
-  const handleEntityMove = useCallback((name: string, x: number, y: number, dragDx?: number, dragDy?: number) => {
+  const handleEntityMove = useCallback((name: string, x: number, y: number, dragDx?: number, dragDy?: number, seedPositions?: Record<string, { x: number; y: number }>) => {
     updateActiveTab(tab => {
       let src = tab.source;
+
+      if (seedPositions) {
+        for (const [entityName, pos] of Object.entries(seedPositions)) {
+          const current = activeDiagram?.entities.get(entityName)?.position;
+          src = updateEntityPosition(src, entityName, Math.round(pos.x), Math.round(pos.y), current?.w, current?.h);
+        }
+      }
+
       if (activeDiagram) {
         const pkg = activeDiagram.packages.find(p => p.name === name);
         if (pkg) {
           const dx = dragDx ?? 0;
           const dy = dragDy ?? 0;
 
-          src = updateEntityPosition(src, name, x, y);
-          if (dx !== 0 || dy !== 0) {
+          const pkgW = pkg.position?.w;
+          const pkgH = pkg.position?.h;
+          src = updateEntityPosition(src, name, x, y, pkgW, pkgH);
+          if (!seedPositions && (dx !== 0 || dy !== 0)) {
             for (const eName of pkg.entityNames) {
               const ent = activeDiagram.entities.get(eName);
               if (ent && ent.position) {
-                src = updateEntityPosition(src, eName, ent.position.x + dx, ent.position.y + dy);
+                src = updateEntityPosition(src, eName, ent.position.x + dx, ent.position.y + dy, ent.position.w, ent.position.h);
               }
             }
           }
@@ -607,10 +654,33 @@ export default function App() {
       }
       return {
         ...tab,
-        source: updateEntityPosition(src, name, x, y),
+        source: updateEntityPosition(src, name, x, y, activeDiagram?.entities.get(name)?.position?.w, activeDiagram?.entities.get(name)?.position?.h),
       };
     });
   }, [updateActiveTab, activeDiagram]);
+
+  const handleEntityResize = useCallback((name: string, w: number, h: number) => {
+    updateActiveTab(tab => {
+      const current = activeDiagram?.entities.get(name)?.position;
+      const x = current?.x ?? 40;
+      const y = current?.y ?? 40;
+      return {
+        ...tab,
+        source: updateEntityPosition(tab.source, name, Math.round(x), Math.round(y), Math.round(w), Math.round(h)),
+      };
+    });
+  }, [activeDiagram, updateActiveTab]);
+
+  const handleRelationVerticalMove = useCallback((relationId: string, y: number, seedRelationYs?: Record<string, number>) => {
+    updateActiveTab(tab => {
+      let src = tab.source;
+      if (seedRelationYs && Object.keys(seedRelationYs).length > 0) {
+        src = updateRelationVerticalPositions(src, seedRelationYs);
+      }
+      src = updateRelationVerticalPosition(src, relationId, y);
+      return { ...tab, source: src };
+    });
+  }, [updateActiveTab]);
 
   const handleEntityEditRequest = useCallback((entity: IOMEntity) => {
     let body = '';
@@ -838,8 +908,8 @@ export default function App() {
               pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
             }
             // Offset positions by 30px
-            pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)/g, (_, n, x, y) => {
-              return `@${n} at (${parseInt(x) + 30}, ${parseInt(y) + 30})`;
+            pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
+              return `@${n} at (${Math.round(parseFloat(x) + 30)}, ${Math.round(parseFloat(y) + 30)}${sizeSuffix || ''})`;
             });
             updateActiveTab(tab => {
               let src = insertBeforeAnnotations(tab.source, pasteText.trim());
@@ -960,6 +1030,66 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [handleNew, handleExportSVG, handleExportPNG, shortcutsOpen]);
 
+  useEffect(() => {
+    const handleModalEnter = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return;
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName === 'TEXTAREA') return;
+
+      if (editingEntity) {
+        e.preventDefault();
+        handleEntityEdit(editingEntity.origName || editingEntity.id, {
+          name: editingEntity.name,
+          stereotype: editingEntity.stereotype,
+          isAbstract: editingEntity.isAbstract,
+          bodyText: editingEntity.bodyText,
+        });
+        return;
+      }
+
+      if (editingRelation) {
+        e.preventDefault();
+        handleRelationEdit(editingRelation.relationId, {
+          label: editingRelation.label,
+          kind: editingRelation.kind,
+          direction: editingRelation.direction,
+          fromMult: editingRelation.fromMult,
+          toMult: editingRelation.toMult,
+        });
+        return;
+      }
+
+      if (isNewModalOpen) {
+        e.preventDefault();
+        executeNewDiagram(newDiagramKind);
+        return;
+      }
+
+      if (tabToClose) {
+        e.preventDefault();
+        setTabs(prev => {
+          const next = prev.filter(t => t.id !== tabToClose);
+          if (activeTabId === tabToClose) setActiveTabId(next[Math.max(0, next.length - 1)]?.id ?? '');
+          return next;
+        });
+        setTabToClose(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleModalEnter);
+    return () => window.removeEventListener('keydown', handleModalEnter);
+  }, [
+    editingEntity,
+    editingRelation,
+    isNewModalOpen,
+    tabToClose,
+    newDiagramKind,
+    handleEntityEdit,
+    handleRelationEdit,
+    executeNewDiagram,
+    activeTabId,
+  ]);
+
   const statusClass = allErrors.length > 0
     ? 'iso-status iso-status--err'
     : diagrams.length > 0
@@ -1061,6 +1191,8 @@ export default function App() {
         <DiagramView
           diagram={activeDiagram}
           onEntityMove={handleEntityMove}
+          onEntityResize={handleEntityResize}
+          onRelationVerticalMove={handleRelationVerticalMove}
           onEntityEditRequest={handleEntityEditRequest}
           onRelationEditRequest={handleRelationEditRequest}
           onRelationAddRequest={handleRelationAddRequest}

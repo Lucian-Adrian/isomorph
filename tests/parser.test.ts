@@ -472,6 +472,18 @@ describe('Parser', () => {
       const layouts = prog.diagrams[0].body.filter(b => b.kind === 'LayoutAnnotation');
       expect(layouts).toHaveLength(2);
     });
+
+    it('parses @Entity at (x, y, w, h)', () => {
+      const prog = parseOk('diagram D : activity { partition Lane @Lane at (10, 20, 300, 500) }');
+      const layout = prog.diagrams[0].body.find(b => b.kind === 'LayoutAnnotation');
+      if (layout?.kind === 'LayoutAnnotation') {
+        expect(layout.entity).toBe('Lane');
+        expect(layout.x).toBe(10);
+        expect(layout.y).toBe(20);
+        expect(layout.w).toBe(300);
+        expect(layout.h).toBe(500);
+      }
+    });
   });
 
   describe('note declarations', () => {
