@@ -611,14 +611,10 @@ export default function App() {
       }
     }
     if (examplesOpen) {
-      document.addEventListener('pointerdown', handleOutsideInteraction);
-      document.addEventListener('mousedown', handleOutsideInteraction);
-      document.addEventListener('touchstart', handleOutsideInteraction, { passive: true });
+      document.addEventListener('click', handleOutsideInteraction);
     }
     return () => {
-      document.removeEventListener('pointerdown', handleOutsideInteraction);
-      document.removeEventListener('mousedown', handleOutsideInteraction);
-      document.removeEventListener('touchstart', handleOutsideInteraction);
+      document.removeEventListener('click', handleOutsideInteraction);
     };
   }, [examplesOpen]);
 
@@ -831,17 +827,6 @@ export default function App() {
       return { ...tab, source: src };
     });
   }, [updateActiveTab]);
-
-  const handleRenameActiveTabMobile = useCallback(() => {
-    if (!activeTab) return;
-    const base = activeTab.name.includes('.') ? activeTab.name.substring(0, activeTab.name.lastIndexOf('.')) : activeTab.name;
-    const ext = activeTab.name.includes('.') ? activeTab.name.substring(activeTab.name.lastIndexOf('.')) : '';
-    const next = window.prompt('Rename file', base);
-    if (next == null) return;
-    const trimmed = next.trim();
-    if (!trimmed) return;
-    setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: `${trimmed}${ext}` } : t));
-  }, [activeTab]);
 
   const handleStencilInsert = useCallback((keyword: string) => {
     if (isMobileLayout) {
@@ -1341,9 +1326,9 @@ export default function App() {
       <button
         type="button"
         className="iso-btn"
-        onClick={() => setExamplesOpen(o => !o)}
-        onTouchStart={e => {
+        onPointerDown={e => {
           e.preventDefault();
+          e.stopPropagation();
           setExamplesOpen(o => !o);
         }}
         aria-haspopup="menu"
@@ -1361,9 +1346,9 @@ export default function App() {
               type="button"
               className="iso-dropdown-item"
               role="menuitem"
-              onClick={() => applyExample(ex)}
-              onTouchStart={e => {
+              onPointerDown={e => {
                 e.preventDefault();
+                e.stopPropagation();
                 applyExample(ex);
               }}
             >
@@ -1449,7 +1434,17 @@ export default function App() {
         </div>
 
         {isMobileLayout && (
-            <div className="iso-mobile-title" title={fileName} onDoubleClick={() => setRenamingTabId(activeTab?.id ?? null)} onClick={() => setRenamingTabId(activeTab?.id ?? null)}>
+            <div
+              className="iso-mobile-title"
+              title={fileName}
+              onPointerDown={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                setRenamingTabId(activeTab?.id ?? null);
+              }}
+              onDoubleClick={() => setRenamingTabId(activeTab?.id ?? null)}
+              onClick={() => setRenamingTabId(activeTab?.id ?? null)}
+            >
               {renamingTabId === activeTab?.id ? (
                 <span style={{ display: "flex", alignItems: "center" }}>
                   <input
@@ -1724,10 +1719,6 @@ export default function App() {
                     key={tab.id}
                     className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
                     onClick={() => {
-                      if (tab.id === activeTab?.id) {
-                        setRenamingTabId(tab.id);
-                        return;
-                      }
                       setActiveTabId(tab.id);
                     }}
                     onDoubleClick={() => setRenamingTabId(tab.id)}
@@ -1766,7 +1757,8 @@ export default function App() {
                               e.stopPropagation();
                               setTabToClose(tab.id);
                             }}
-                            onTouchStart={(e) => {
+                            onPointerDown={(e) => {
+                              e.preventDefault();
                               e.stopPropagation();
                               setTabToClose(tab.id);
                             }}
@@ -1819,9 +1811,6 @@ export default function App() {
               )}
             </div>
             <div className="iso-mobile-actions-group iso-mobile-actions-group--secondary">
-              <button type="button" className="iso-btn" onClick={handleRenameActiveTabMobile} disabled={!activeTab}>
-                Rename
-              </button>
               <button
                 type="button"
                 className="iso-btn"
@@ -1844,8 +1833,9 @@ export default function App() {
                 type="button"
                 className="iso-btn"
                 onClick={handleExportSVG}
-                onTouchStart={e => {
+                onPointerDown={e => {
                   e.preventDefault();
+                  e.stopPropagation();
                   handleExportSVG();
                 }}
                 disabled={!activeDiagram}
@@ -1857,8 +1847,9 @@ export default function App() {
                 type="button"
                 className="iso-btn"
                 onClick={handleExportPNG}
-                onTouchStart={e => {
+                onPointerDown={e => {
                   e.preventDefault();
+                  e.stopPropagation();
                   handleExportPNG();
                 }}
                 disabled={!activeDiagram}
@@ -1926,12 +1917,12 @@ export default function App() {
       </main>
 
       {editingEntity && (
-        <div className="iso-modal-overlay">
-          <div className="iso-modal">
+        <div className="iso-modal-overlay" onClick={() => setEditingEntity(null)}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()}>
             <h3>Edit Entity</h3>
             <div className="iso-modal-field">
               <label>Name</label>
-              <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus />
+              <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus={!isMobileLayout} />
             </div>
             <div className="iso-modal-field">
               <label>Kind</label>
@@ -2005,13 +1996,13 @@ export default function App() {
       )}
 
       {editingRelation && (
-        <div className="iso-modal-overlay">
-          <div className="iso-modal">
+        <div className="iso-modal-overlay" onClick={() => setEditingRelation(null)}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()}>
             <h3>Edit Relation</h3>
             <div className="iso-modal-field">
               <label>Role / Label</label>
               <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
-                <input type="text" style={{ flex: 1 }} value={editingRelation.label} onChange={e => setEditingRelation({ ...editingRelation, label: e.target.value })} autoFocus />
+                <input type="text" style={{ flex: 1 }} value={editingRelation.label} onChange={e => setEditingRelation({ ...editingRelation, label: e.target.value })} autoFocus={!isMobileLayout} />
                 {['state', 'activity'].includes(activeDiagram?.kind || '') && (
                   <button className="iso-btn" onClick={() => setEditingRelation(r => r ? { ...r, label: r.label.includes('[') ? r.label : `[${r.label || 'guard'}]` } : null)}>+ Guard</button>
                 )}
@@ -2057,7 +2048,7 @@ export default function App() {
         </div>
       )}
 
-      {editingText && ( <div className="iso-modal-overlay"> <div className="iso-modal"> <h3>Edit {editingText.type === 'diagram' ? 'Diagram Name' : 'Package Name'}</h3> <div className="iso-modal-field"> <label>Name</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>Cancel</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>Save</button> </div> </div> </div> )} {/* ──────────────── STATUS BAR ──────────────────────── */}
+      {editingText && ( <div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>Edit {editingText.type === 'diagram' ? 'Diagram Name' : 'Package Name'}</h3> <div className="iso-modal-field"> <label>Name</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>Cancel</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>Save</button> </div> </div> </div> )} {/* ──────────────── STATUS BAR ──────────────────────── */}
       <footer className="iso-statusbar">
         <span className="iso-statusbar-item">Isomorph DSL</span>
         <span className="iso-statusbar-sep">·</span>

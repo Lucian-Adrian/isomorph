@@ -930,6 +930,8 @@ body {
   font-size: 14px;
   width: 100%;
   min-width: 0;
+  -webkit-user-select: text;
+  user-select: text;
 }
 .iso-modal-actions {
   display: flex;
@@ -965,6 +967,8 @@ body {
   max-height: calc(100dvh - 40px);
   overflow: auto;
   animation: overlay-slide-in 220ms var(--iso-ease);
+  -webkit-user-select: none;
+  user-select: none;
 }
 .iso-modal-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--iso-text); }
 .iso-modal-desc { font-size: 13px; color: var(--iso-text-muted); margin-bottom: 20px; line-height: 1.5; }

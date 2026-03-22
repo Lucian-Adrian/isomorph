@@ -235,6 +235,8 @@ export function DiagramView({
         const relationKind = relationGroup.getAttribute('data-relation-kind') ?? 'association';
         const relationLabel = relationGroup.getAttribute('data-relation-label') ?? '';
         if (relationId) {
+          e.preventDefault();
+          e.stopPropagation();
           onRelationEditRequest(relationId, relationLabel, relationKind);
           return;
         }
@@ -245,7 +247,11 @@ export function DiagramView({
         const entityName = entityGroup.getAttribute('data-entity-name');
         if (entityName) {
           const current = diagram.entities.get(entityName);
-          if (current) onEntityEditRequest(current);
+          if (current) {
+            e.preventDefault();
+            e.stopPropagation();
+            onEntityEditRequest(current);
+          }
           return;
         }
       }
