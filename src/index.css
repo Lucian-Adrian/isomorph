@@ -1510,13 +1510,14 @@ body {
   }
 
   .iso-modal-overlay {
-    align-items: flex-end;
-    padding: 12px 12px max(12px, env(safe-area-inset-bottom, 0px));
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
   }
 
   .iso-modal {
-    width: 100%;
-    max-height: min(82dvh, 720px);
+    width: min(92vw, 420px);
+    max-height: min(88dvh, 760px);
     padding: 18px;
     border-radius: 18px;
   }

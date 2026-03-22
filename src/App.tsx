@@ -1326,12 +1326,26 @@ export default function App() {
     </div>
   );
 
+  const applyExample = useCallback((ex: (typeof EXAMPLES)[number]) => {
+    updateActiveTab(tab => ({
+      ...tab,
+      source: ex.source,
+      activeDiagramIdx: 0,
+      diagramKindFilter: ex.kind as DiagramKind,
+    }));
+    setExamplesOpen(false);
+  }, [updateActiveTab]);
+
   const examplesDropdown = (
     <div className="iso-dropdown" ref={examplesRef}>
       <button
         type="button"
         className="iso-btn"
         onClick={() => setExamplesOpen(o => !o)}
+        onTouchStart={e => {
+          e.preventDefault();
+          setExamplesOpen(o => !o);
+        }}
         aria-haspopup="menu"
         aria-expanded={examplesOpen}
         aria-label="Load example diagram"
@@ -1347,14 +1361,10 @@ export default function App() {
               type="button"
               className="iso-dropdown-item"
               role="menuitem"
-              onClick={() => {
-                updateActiveTab(tab => ({
-                  ...tab,
-                  source: ex.source,
-                  activeDiagramIdx: 0,
-                  diagramKindFilter: ex.kind as DiagramKind,
-                }));
-                setExamplesOpen(false);
+              onClick={() => applyExample(ex)}
+              onTouchStart={e => {
+                e.preventDefault();
+                applyExample(ex);
               }}
             >
               <span className="iso-dropdown-item-icon" aria-hidden="true">
@@ -1600,7 +1610,7 @@ export default function App() {
               className="iso-btn"
               onClick={() => {
                 if (!activeTab) return;
-                const blob = new Blob([activeTab.source], { type: 'text/plain' });
+                const blob = new Blob([activeTab.source], { type: 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -1721,6 +1731,7 @@ export default function App() {
                       setActiveTabId(tab.id);
                     }}
                     onDoubleClick={() => setRenamingTabId(tab.id)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
                     {renamingTabId === tab.id ? (
                       <span style={{ display: 'flex', alignItems: 'center' }}>
@@ -1744,7 +1755,26 @@ export default function App() {
                         <span>{tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : ''}</span>
                       </span>
                     ) : (
-                      tab.name
+                      <>
+                        <span>{tab.name}</span>
+                        {tabs.length > 1 && (
+                          <button
+                            type="button"
+                            aria-label={`Close ${tab.name}`}
+                            style={{ all: 'unset', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: 4, opacity: 0.75, fontSize: 13, lineHeight: 1, cursor: 'pointer' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTabToClose(tab.id);
+                            }}
+                            onTouchStart={(e) => {
+                              e.stopPropagation();
+                              setTabToClose(tab.id);
+                            }}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 ))}
@@ -1797,7 +1827,7 @@ export default function App() {
                 className="iso-btn"
                 onClick={() => {
                   if (!activeTab) return;
-                  const blob = new Blob([activeTab.source], { type: 'text/plain' });
+                  const blob = new Blob([activeTab.source], { type: 'application/octet-stream' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
@@ -1810,11 +1840,29 @@ export default function App() {
                 <IconSave />
                 Save
               </button>
-              <button type="button" className="iso-btn" onClick={handleExportSVG} disabled={!activeDiagram}>
+              <button
+                type="button"
+                className="iso-btn"
+                onClick={handleExportSVG}
+                onTouchStart={e => {
+                  e.preventDefault();
+                  handleExportSVG();
+                }}
+                disabled={!activeDiagram}
+              >
                 <IconExport />
                 SVG
               </button>
-              <button type="button" className="iso-btn" onClick={handleExportPNG} disabled={!activeDiagram}>
+              <button
+                type="button"
+                className="iso-btn"
+                onClick={handleExportPNG}
+                onTouchStart={e => {
+                  e.preventDefault();
+                  handleExportPNG();
+                }}
+                disabled={!activeDiagram}
+              >
                 <IconExport />
                 PNG
               </button>
