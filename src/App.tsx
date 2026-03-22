@@ -1453,13 +1453,19 @@ export default function App() {
                     className="iso-tab-rename-input"
                     style={{ background: "transparent", border: "none", color: "inherit", fontFamily: "inherit", fontSize: "inherit", outline: "none", width: "100%", borderBottom: "1px solid currentColor" }}
                     onBlur={(e) => {
+                      if (isMobileLayout) return;
                       const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : "";
                       const newName = e.target.value ? e.target.value + ext : fileName;
                       if (activeTab) setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: newName } : t));
                       setRenamingTabId(null);
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Enter") {
+                        const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : "";
+                        const newName = e.currentTarget.value ? e.currentTarget.value + ext : fileName;
+                        if (activeTab) setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: newName } : t));
+                        setRenamingTabId(null);
+                      }
                       if (e.key === "Escape") setRenamingTabId(null);
                     }}
                     onClick={e => e.stopPropagation()}
@@ -1754,11 +1760,6 @@ export default function App() {
                             aria-label={`Close ${tab.name}`}
                             style={{ all: 'unset', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: 4, opacity: 0.75, fontSize: 13, lineHeight: 1, cursor: 'pointer' }}
                             onClick={(e) => {
-                              e.stopPropagation();
-                              setTabToClose(tab.id);
-                            }}
-                            onPointerDown={(e) => {
-                              e.preventDefault();
                               e.stopPropagation();
                               setTabToClose(tab.id);
                             }}
