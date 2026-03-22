@@ -201,5 +201,5 @@ function placeEntities(entities: IOMEntity[]): Placed[] {
 }
 
 function emptyDiagram(name: string): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="20" y="40" font-family="sans-serif" font-size="14">${escapeXml(name)}: empty diagram</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>`;
 }

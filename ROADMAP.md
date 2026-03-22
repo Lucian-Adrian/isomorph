@@ -2,13 +2,9 @@
 
 ### Phase 1: Core Enhancements (High Priority)
 - **Verify UML Compliance**: Ensure all diagrams adhere to UML standards for accuracy and consistency.
-- **Swimlanes for Activity Diagrams**: Add swimlane support to activity diagrams for better workflow visualization.
-- **Sequence Diagram Self-Referencing**: Fix the canvas limitation that prevents tracing a line from a participant to itself in sequence diagrams (currently code works but UI doesn't allow it).
-- **Sequence to Collaboration Conversion**: Add a convert action/button to transform sequence diagrams into collaboration diagrams (Enterprise Architect style).
 - **Inline Autocomplete**: Provide context-aware suggestions based on diagram type.
 - **Dark Mode**: Implement a dark theme toggle for the user interface.
 - **Custom Colors**: Allow users to customize element colors in diagrams. Hex color input with live preview and color picker.
-- **Favicon**: Add a favicon to the website.
 
 ### Phase 2: Animation Implementation (Medium Priority)
 - **Animation for Sequence Diagrams**: Implement light trail animation that follows message lines in sequential order.

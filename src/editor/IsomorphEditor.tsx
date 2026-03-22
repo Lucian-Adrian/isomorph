@@ -179,20 +179,23 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
 
 import type { CompletionContext, Completion } from '@codemirror/autocomplete';
 
+type IsomorphCompletion = Completion & { contexts?: string[] };
+
 /**
  * Rich snippet completions with full apply strings for the most commonly-
  * typed Isomorph constructs.  The `apply` field inserts a ready-to-use
  * template so the user only has to fill in names.
  */
-const SNIPPET_COMPLETIONS: Completion[] = [
+const SNIPPET_COMPLETIONS: IsomorphCompletion[] = [
   // ── Diagrams ──────────────────────────────────────────────
   {
     label: 'diagram',
     type: 'keyword',
     detail: 'declaration',
-    info: 'Declare a class diagram named MyDiagram',
+    info: 'Declare a diagram',
     apply: 'diagram MyDiagram : class {\n\n  class Entity {\n    + id: string\n  }\n\n}',
     boost: 10,
+    contexts: ['global', 'class', 'usecase', 'component', 'sequence', 'deployment', 'flow'],
   },
   // ── Entity declarations ───────────────────────────────────
   {
@@ -202,6 +205,7 @@ const SNIPPET_COMPLETIONS: Completion[] = [
     info: 'Declare a class',
     apply: 'class ClassName {\n  + id: string\n  # name: string\n}',
     boost: 8,
+    contexts: ['class'],
   },
   {
     label: 'abstract class',
@@ -210,6 +214,7 @@ const SNIPPET_COMPLETIONS: Completion[] = [
     info: 'Declare an abstract class',
     apply: 'abstract class AbstractName {\n  + operation(): void\n}',
     boost: 7,
+    contexts: ['class'],
   },
   {
     label: 'interface',
@@ -218,6 +223,7 @@ const SNIPPET_COMPLETIONS: Completion[] = [
     info: 'Declare an interface',
     apply: 'interface IName {\n  + method(): void\n}',
     boost: 7,
+    contexts: ['class', 'component', 'deployment'],
   },
   {
     label: 'enum',
@@ -226,6 +232,7 @@ const SNIPPET_COMPLETIONS: Completion[] = [
     info: 'Declare an enumeration',
     apply: 'enum EnumName {\n  VALUE_A\n  VALUE_B\n  VALUE_C\n}',
     boost: 6,
+    contexts: ['class'],
   },
   {
     label: 'package',
@@ -234,12 +241,13 @@ const SNIPPET_COMPLETIONS: Completion[] = [
     info: 'Group entities into a package',
     apply: 'package domain {\n  \n}',
     boost: 5,
+    contexts: ['class', 'usecase', 'component'],
   },
   // ── Relation snippets ─────────────────────────────────────
-  { label: 'extends',    type: 'keyword', detail: 'inheritance' },
-  { label: 'implements', type: 'keyword', detail: 'realization' },
-  { label: 'import',     type: 'keyword', detail: 'import path' },
-  { label: 'note',       type: 'keyword', detail: 'annotation' },
+  { label: 'extends',    type: 'keyword', detail: 'inheritance', contexts: ['class', 'usecase', 'component'] },
+  { label: 'implements', type: 'keyword', detail: 'realization', contexts: ['class', 'component'] },
+  { label: 'import',     type: 'keyword', detail: 'import path', contexts: ['class', 'usecase', 'component', 'deployment', 'sequence', 'flow'] },
+  { label: 'note',       type: 'keyword', detail: 'annotation' }, // applies to all
   // ── Notes / Style ─────────────────────────────────────────
   {
     label: 'note on',
@@ -256,28 +264,33 @@ const SNIPPET_COMPLETIONS: Completion[] = [
     apply: 'style EntityName { color: #4f46e5 bg: #ede9fe }',
   },
   // ── Primitive types ───────────────────────────────────────
-  { label: 'int',    type: 'type', detail: 'primitive', boost: 2 },
-  { label: 'float',  type: 'type', detail: 'primitive', boost: 2 },
-  { label: 'bool',   type: 'type', detail: 'primitive', boost: 2 },
-  { label: 'string', type: 'type', detail: 'primitive', boost: 2 },
-  { label: 'void',   type: 'type', detail: 'return type', boost: 1 },
+  { label: 'int',    type: 'type', detail: 'primitive', boost: 2, contexts: ['class'] },
+  { label: 'float',  type: 'type', detail: 'primitive', boost: 2, contexts: ['class'] },
+  { label: 'bool',   type: 'type', detail: 'primitive', boost: 2, contexts: ['class'] },
+  { label: 'string', type: 'type', detail: 'primitive', boost: 2, contexts: ['class'] },
+  { label: 'void',   type: 'type', detail: 'return type', boost: 1, contexts: ['class'] },
   // ── Generic collection types ──────────────────────────────
-  { label: 'List',     type: 'type', detail: 'collection', apply: 'List<T>',       boost: 3 },
-  { label: 'Map',      type: 'type', detail: 'collection', apply: 'Map<K, V>',     boost: 3 },
-  { label: 'Set',      type: 'type', detail: 'collection', apply: 'Set<T>',        boost: 3 },
-  { label: 'optional', type: 'type', detail: 'nullable',   apply: 'optional<T>',   boost: 2 },
+  { label: 'List',     type: 'type', detail: 'collection', apply: 'List<T>',       boost: 3, contexts: ['class'] },
+  { label: 'Map',      type: 'type', detail: 'collection', apply: 'Map<K, V>',     boost: 3, contexts: ['class'] },
+  { label: 'Set',      type: 'type', detail: 'collection', apply: 'Set<T>',        boost: 3, contexts: ['class'] },
+  { label: 'optional', type: 'type', detail: 'nullable',   apply: 'optional<T>',   boost: 2, contexts: ['class'] },
   // ── Visibility (for member declarations) ─────────────────
-  { label: 'static', type: 'keyword', detail: 'modifier' },
-  { label: 'final',  type: 'keyword', detail: 'modifier' },
-  { label: 'abstract', type: 'keyword', detail: 'modifier' },
-  // ── Diagram kinds ─────────────────────────────────────────
-  { label: 'usecase',    type: 'keyword', detail: 'diagram kind' },
-  { label: 'component',  type: 'keyword', detail: 'diagram kind' },
-  { label: 'sequence',   type: 'keyword', detail: 'diagram kind' },
-  { label: 'deployment', type: 'keyword', detail: 'diagram kind' },
-  { label: 'flow',       type: 'keyword', detail: 'diagram kind' },
-  { label: 'actor',      type: 'keyword', detail: 'use-case entity' },
-  { label: 'node',       type: 'keyword', detail: 'deployment entity' },
+  { label: 'static', type: 'keyword', detail: 'modifier', contexts: ['class'] },
+  { label: 'final',  type: 'keyword', detail: 'modifier', contexts: ['class'] },
+  { label: 'abstract', type: 'keyword', detail: 'modifier', contexts: ['class'] },
+  // ── Entities for specific diagrams ────────────────────────
+  { label: 'usecase',    type: 'keyword', detail: 'use-case entity', contexts: ['usecase'] },
+  { label: 'actor',      type: 'keyword', detail: 'use-case entity', contexts: ['usecase'] },
+  { label: 'component',  type: 'keyword', detail: 'component entity', contexts: ['component', 'deployment'] },
+  { label: 'node',       type: 'keyword', detail: 'deployment entity', contexts: ['deployment'] },
+  
+  // ── Diagram kinds ───────────────────────────────────────── (used inside 'diagram X : <kind>')
+  { label: 'usecase',    type: 'keyword', detail: 'diagram kind', contexts: ['global'] },
+  { label: 'component',  type: 'keyword', detail: 'diagram kind', contexts: ['global'] },
+  { label: 'sequence',   type: 'keyword', detail: 'diagram kind', contexts: ['global'] },
+  { label: 'deployment', type: 'keyword', detail: 'diagram kind', contexts: ['global'] },
+  { label: 'flow',       type: 'keyword', detail: 'diagram kind', contexts: ['global'] },
+  { label: 'class',      type: 'keyword', detail: 'diagram kind', contexts: ['global'] },
   // ── Relation operators (typed as operator completions) ────
   { label: '--|>',  type: 'operator', detail: 'inheritance',          boost: 4 },
   { label: '..|>',  type: 'operator', detail: 'realization',          boost: 4 },
@@ -291,9 +304,41 @@ const SNIPPET_COMPLETIONS: Completion[] = [
 function isomorphCompletions(context: CompletionContext) {
   const word = context.matchBefore(/[\w<>|.!-]*/);
   if (!word || (word.from === word.to && !context.explicit)) return null;
+
+  // Retrieve document text up to the cursor
+  const docToCursor = context.state.sliceDoc(0, context.pos);
+  
+  // Match "diagram <Name> : <type>" patterns
+  const diagramMatches = [...docToCursor.matchAll(/diagram\s+\w+\s*:\s*(\w+)/g)];
+  let currentDiagramType = 'global'; // default to global context
+  
+  if (diagramMatches.length > 0) {
+    // Determine diagram type from the most recent declaration before cursor
+    currentDiagramType = diagramMatches[diagramMatches.length - 1][1].toLowerCase();
+  }
+
+  // Determine if cursor is right after "diagram MyName :" or "diagram MyName: "
+  const isDeclaringKind = /diagram\s+\w+\s*:\s*[\w]*$/.test(docToCursor);
+
+  // Filter completions based on context
+  const filteredOptions = SNIPPET_COMPLETIONS.filter(snippet => {
+    // If declaring a diagram kind, ONLY show diagram kinds
+    if (isDeclaringKind) {
+      return snippet.detail === 'diagram kind';
+    }
+
+    // Unrestricted snippets appear everywhere (except when declaring a diagram kind)
+    if (!snippet.contexts || snippet.contexts.length === 0) {
+      return true;
+    }
+
+    // Show snippets that match the current diagram type
+    return snippet.contexts.includes(currentDiagramType);
+  });
+
   return {
     from: word.from,
-    options: SNIPPET_COMPLETIONS,
+    options: filteredOptions,
     validFor: /^[\w<>|.!-]*$/,
   };
 }

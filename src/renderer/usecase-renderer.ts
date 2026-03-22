@@ -7,7 +7,7 @@ import { escapeXml, wrapText, svgDefs } from './utils.js';
 
 export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
-  if (entities.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="20" y="40" font-family="sans-serif" font-size="14">Empty diagram</text></svg>';
+  if (entities.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>';
 
   // Separate into actors, use-cases, and boundaries
   const actors   = entities.filter(e => e.kind === 'actor');

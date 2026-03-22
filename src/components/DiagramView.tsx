@@ -642,11 +642,13 @@ export function DiagramView({
     dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
   }, [diagram, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
 
+  const isDiagramEmpty = diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
-      {/* Empty state */}
+      {/* Empty state (no code typed at all) */}
       {!diagram && (
-        <div className="iso-canvas-empty" aria-hidden="true">
+        <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none' }}>
           <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
             <title>Empty diagram placeholder</title>
             <rect x="2" y="3" width="9" height="7" rx="1.5"/>
@@ -661,6 +663,21 @@ export function DiagramView({
           <span className="iso-canvas-empty-title">No diagram yet</span>
           <span className="iso-canvas-empty-sub">
             Write Isomorph code in the editor on the left, or load an example from the toolbar.
+          </span>
+        </div>
+      )}
+
+      {/* Empty diagram state (diagram defined, but no entities) */}
+      {isDiagramEmpty && (
+        <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none', zIndex: 10 }}>
+          <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
+            <title>Empty diagram</title>
+            <circle cx="12" cy="12" r="10" strokeDasharray="4 4" />
+            <path d="M8 12h8" />
+          </svg>
+          <span className="iso-canvas-empty-title">Empty diagram</span>
+          <span className="iso-canvas-empty-sub">
+            Drag and drop elements from the sidebar or type to add entities.
           </span>
         </div>
       )}

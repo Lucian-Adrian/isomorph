@@ -108,7 +108,7 @@ describe('Class Diagram Renderer', () => {
   it('renders empty diagram placeholder', () => {
     const diag = buildDiagram('diagram D : class {}');
     const svg = renderClassDiagram(diag);
-    expect(svg).toContain('Empty diagram');
+    expect(svg).toBe('<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>');
   });
 
   it('uses shadow filter in SVG defs', () => {

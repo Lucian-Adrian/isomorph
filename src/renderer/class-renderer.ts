@@ -23,7 +23,7 @@ const GRID_COLS     = 4;
 
 export function renderClassDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
-  if (entities.length === 0 && diag.packages.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="100"><text x="20" y="40" font-family="sans-serif" font-size="14">Empty diagram</text></svg>';
+  if (entities.length === 0 && diag.packages.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>';
 
   // Auto-layout: assign positions to entities that lack them
   const positioned = assignPositions(entities);
