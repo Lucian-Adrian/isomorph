@@ -2,8 +2,8 @@
 
 ### Phase 1: Core Enhancements (High Priority)
 - **Verify UML Compliance**: Ensure all diagrams adhere to UML standards for accuracy and consistency.
-- **Dark Mode**: Implement a dark theme toggle for the user interface.
 - **Custom Colors**: Allow users to customize element colors in diagrams. Hex color input with live preview and color picker. (UI: color swatch next to color input field, defaults to predefined colours).
+- **Class diagrams Package improvements**: Make canvas drag and drop over them possible and become nested containers for other entities. (UI: package boxes with dashed borders and background color, entities can be dragged into them, showing nesting visually and in code). 
 
 ### Phase 2: Animation Implementation (Medium Priority)
 - **Animation for Sequence Diagrams**: Implement light trail animation that follows message lines in sequential order.
