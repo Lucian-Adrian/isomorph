@@ -43,28 +43,28 @@ export function svgDefs(): string {
       <polygon points="0 5, 6 0, 12 5, 6 10" fill="var(--iso-text-muted)"/>
     </marker>
     <linearGradient id="grad-class" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f8fafc"/>
+      <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
+      <stop offset="100%" stop-color="var(--iso-bg-blue, #f0f9ff)"/>
     </linearGradient>
     <linearGradient id="grad-interface" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f0fdf4"/>
+      <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
+      <stop offset="100%" stop-color="var(--iso-bg-green, #f0fdf4)"/>
     </linearGradient>
     <linearGradient id="grad-abstract" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#fdf4ff"/>
+      <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
+      <stop offset="100%" stop-color="var(--iso-bg-purple, #fdf4ff)"/>
     </linearGradient>
     <linearGradient id="grad-enum" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#fffbeb"/>
+      <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
+      <stop offset="100%" stop-color="var(--iso-bg-orange, #fffbeb)"/>
     </linearGradient>
     <linearGradient id="grad-state" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f0f9ff"/>
+      <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
+      <stop offset="100%" stop-color="var(--iso-bg-blue, #f0f9ff)"/>
     </linearGradient>
     <linearGradient id="grad-flow" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#eff6ff"/>
+      <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
+      <stop offset="100%" stop-color="var(--iso-bg-blue, #eff6ff)"/>
     </linearGradient>
   </defs>
 `;

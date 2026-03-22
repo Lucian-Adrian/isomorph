@@ -144,10 +144,10 @@
   --iso-pkg-text: #a0a8d8;
 
   /* Diagram Node Fills */
-  --iso-bg-blue:   rgba(56, 189, 248, 0.1);
-  --iso-bg-purple: rgba(192, 132, 252, 0.1);
-  --iso-bg-green:  rgba(74, 222, 128, 0.1);
-  --iso-bg-orange: rgba(251, 191, 36, 0.1);
+  --iso-bg-blue:   #15232d;
+  --iso-bg-purple: #231b2d;
+  --iso-bg-green:  #16261a;
+  --iso-bg-orange: #272214;
 
   /* Shadows */
   --iso-shadow:        var(--glass-shadow);

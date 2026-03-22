@@ -63,7 +63,7 @@ export function renderFlowDiagram(diag: IOMDiagram): string {
       const my = (y1 + y2) / 2 - 8;
       const labelWidth = rel.label.length * 7 + 12;
       svg += `<rect x="${mx - labelWidth / 2}" y="${my - 13}" width="${labelWidth}" height="18" rx="3" fill="var(--iso-bg-panel)" opacity="0.95"/>`;
-      svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text-body)">${safeLabel}</text>`;
+      svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text)">${safeLabel}</text>`;
     }
     svg += `</g>\n`;
   }
@@ -124,12 +124,12 @@ function renderEntity(p: Placed): string {
 
   if (entity.kind === 'start') {
     // Filled circle
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="var(--iso-text-body)" filter="url(#shadow)"/>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="var(--iso-text)" filter="url(#shadow)"/>\n`;
     s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 18}" text-anchor="middle" font-size="12" fill="var(--iso-text)">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'stop') {
     // Bull's eye (double circle)
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="none" stroke="#334155" stroke-width="2.5" filter="url(#shadow)"/>\n`;
-    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R - 6}" fill="var(--iso-text-body)"/>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="var(--iso-bg-panel)" stroke="var(--iso-text-muted)" stroke-width="2.5" filter="url(#shadow)"/>\n`;
+    s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R - 6}" fill="var(--iso-text)"/>\n`;
     s += `    <text x="${CIRCLE_R}" y="${CIRCLE_R * 2 + 18}" text-anchor="middle" font-size="12" fill="var(--iso-text)">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'decision' || entity.kind === 'merge') {
     // Diamond
@@ -138,7 +138,7 @@ function renderEntity(p: Placed): string {
     s += `    <text x="${hw}" y="${DIAMOND_S + 18}" text-anchor="middle" font-size="12" fill="var(--iso-text)">${escapeXml(label)}</text>\n`;
   } else if (entity.kind === 'fork' || entity.kind === 'join') {
     // Horizontal bar
-    s += `    <rect width="${BAR_W}" height="${BAR_H}" rx="3" fill="var(--iso-text-body)" filter="url(#shadow)"/>\n`;
+    s += `    <rect width="${BAR_W}" height="${BAR_H}" rx="3" fill="var(--iso-text)" filter="url(#shadow)"/>\n`;
     s += `    <text x="${BAR_W / 2}" y="${BAR_H + 18}" text-anchor="middle" font-size="12" fill="var(--iso-text)">${escapeXml(label)}</text>\n`;
   } else {
     // Process / Action — rounded rectangle

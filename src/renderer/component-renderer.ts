@@ -131,11 +131,11 @@ function renderNode(p: Placed): string {
   const w = BOX_W, h = NODE_H, d = DEPTH;
   let s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(entity.name)}">\n`;
   // 3-D box top face
-  s += `    <polygon points="0,${d} ${d},0 ${w + d},0 ${w},${d}" fill="var(--iso-bg-green, #dcfce7)" stroke="#22c55e" stroke-width="1.5"/>\n`;
+  s += `    <polygon points="0,${d} ${d},0 ${w + d},0 ${w},${d}" fill="var(--iso-bg-green, #dcfce7)" stroke="var(--iso-text, #22c55e)" stroke-width="1.5"/>\n`;
   // Right face
-  s += `    <polygon points="${w},${d} ${w + d},0 ${w + d},${h} ${w},${h + d}" fill="var(--iso-bg-green, #bbf7d0)" stroke="#22c55e" stroke-width="1.5"/>\n`;
+  s += `    <polygon points="${w},${d} ${w + d},0 ${w + d},${h} ${w},${h + d}" fill="var(--iso-bg-green, #bbf7d0)" stroke="var(--iso-text, #22c55e)" stroke-width="1.5"/>\n`;
   // Front face
-  s += `    <rect x="0" y="${d}" width="${w}" height="${h}" rx="0" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+  s += `    <rect x="0" y="${d}" width="${w}" height="${h}" rx="0" fill="url(#grad-interface)" stroke="var(--iso-text, #22c55e)" stroke-width="1.5" filter="url(#shadow)"/>\n`;
   s += `    <text x="${w / 2}" y="${d + 16}" text-anchor="middle" font-size="10" fill="var(--iso-text-muted)" font-style="italic">${escapeXml(label)}</text>\n`;
   s += `    <text x="${w / 2}" y="${d + 35}" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">${escapeXml(entity.name)}</text>\n`;
   s += `  </g>\n`;
@@ -148,10 +148,10 @@ export function renderPlaceholderDiagram(diag: IOMDiagram): string {
   const canvasW = 640, canvasH = 200 + entities.length * 22;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:'DM Sans',system-ui,sans-serif;background:#fafafa">\n`;
-  svg += `  <rect width="${canvasW}" height="${canvasH}" fill="#fafafa"/>\n`;
+  svg += `  <rect width="${canvasW}" height="${canvasH}" fill="var(--iso-bg-panel, #fafafa)"/>\n`;
 
   // Header band
-  svg += `  <rect x="0" y="0" width="${canvasW}" height="60" fill="#f1f5f9"/>\n`;
+  svg += `  <rect x="0" y="0" width="${canvasW}" height="60" fill="var(--iso-bg-panel, #f1f5f9)"/>\n`;
   svg += `  <text x="24" y="26" font-size="14" font-weight="600" fill="var(--iso-text-body)">${escapeXml(diag.name)}</text>\n`;
   svg += `  <text x="24" y="46" font-size="11" fill="var(--iso-text-muted)" font-style="italic">«${diag.kind} diagram» — renderer not yet implemented</text>\n`;
 

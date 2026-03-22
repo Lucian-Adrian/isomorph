@@ -66,23 +66,23 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
 
     if (isActor) {
       // Actor stick figure with better proportions
-      svg += `    <circle cx="0" cy="-4" r="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" />\n`;
+      svg += `    <circle cx="0" cy="-4" r="10" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" />\n`;
       svg += `    <path d="M0,6 v14 M-10,12 h20 M-6,30 l6,-10 l6,10" stroke="#3b82f6" stroke-width="1.5" fill="none" />\n`;
       svg += `    <text x="0" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
     } else {
       // Participant box with gradient and rounded corners
-      svg += `    <rect x="-60" y="-20" width="120" height="36" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" />\n`;
+      svg += `    <rect x="-60" y="-20" width="120" height="36" rx="6" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" />\n`;
       svg += `    <text x="0" y="4" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
     }
 
     // Lifeline
     const lifelineStart = isActor ? 52 : 20;
-    svg += `    <line x1="0" y1="${lifelineStart}" x2="0" y2="${height - paddingY - 30}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4" />\n`;
+    svg += `    <line x1="0" y1="${lifelineStart}" x2="0" y2="${height - paddingY - 30}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="1" stroke-dasharray="6,4" />\n`;
 
     // Bottom box (mirror of top for participant)
     if (!isActor) {
       const bottomY = height - paddingY - 30;
-      svg += `    <rect x="-60" y="${bottomY}" width="120" height="30" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" />\n`;
+      svg += `    <rect x="-60" y="${bottomY}" width="120" height="30" rx="6" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" />\n`;
       svg += `    <text x="0" y="${bottomY + 19}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
     }
 
@@ -119,7 +119,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       // Arrowhead
       svg += `    <polygon points="${x},${y2} ${x + 8},${y2 - 4} ${x + 8},${y2 + 4}" fill="var(--iso-text-muted)" />\n`;
       // Activation box
-      svg += `    <rect x="${x - activationWidth / 2}" y="${y1 - 4}" width="${activationWidth}" height="${selfLoopHeight + 8}" rx="2" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" />\n`;
+      svg += `    <rect x="${x - activationWidth / 2}" y="${y1 - 4}" width="${activationWidth}" height="${selfLoopHeight + 8}" rx="2" fill="var(--iso-bg-blue, #e0e7ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" />\n`;
 
       if (labelTxt) {
         svg += `    <text x="${loopRight + 6}" y="${y1 + selfLoopHeight / 2 + 4}" font-size="11" fill="var(--iso-text-muted)">${labelTxt}</text>\n`;
@@ -138,7 +138,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       svg += `    <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="transparent" stroke-width="15" style="cursor: ns-resize"/>\n`;
 
       // Activation box at sender
-      svg += `    <rect x="${startX - activationWidth / 2}" y="${relationY - 10}" width="${activationWidth}" height="20" rx="2" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" />\n`;
+      svg += `    <rect x="${startX - activationWidth / 2}" y="${relationY - 10}" width="${activationWidth}" height="20" rx="2" fill="var(--iso-bg-blue, #e0e7ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" />\n`;
 
       // Message line
       svg += `    <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dash} />\n`;

@@ -49,14 +49,14 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
       const by = b.position ? b.position.y : 30;
       const bw = 500, bh = 400; // default large size
       svg += `  <g transform="translate(${bx},${by})" data-entity-name="${escapeXml(b.name)}">\n`;
-      svg += `    <rect x="0" y="0" width="${bw}" height="${bh}" fill="#fafafa" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
+      svg += `    <rect x="0" y="0" width="${bw}" height="${bh}" fill="var(--iso-bg-panel, #fafafa)" stroke="var(--iso-border, #cbd5e1)" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
       svg += `    <text x="10" y="20" font-size="13" font-weight="600" fill="var(--iso-text-muted)">${escapeXml(b.name)}</text>\n`;
       svg += `  </g>\n`;
     }
   } else {
     // Default system boundary if none explicitly defined
     svg += `  <g data-diagram-name="${escapeXml(diag.name)}">\n`;
-    svg += `    <rect x="280" y="30" width="580" height="${canvasH - 60}" rx="8" fill="#fafafa" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
+    svg += `    <rect x="280" y="30" width="580" height="${canvasH - 60}" rx="8" fill="var(--iso-bg-panel, #fafafa)" stroke="var(--iso-border, #cbd5e1)" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
     svg += `    <text x="300" y="52" font-size="13" fill="var(--iso-text-muted)" font-style="italic">${escapeXml(diag.name)} : System</text>\n`;
     svg += `  </g>\n`;
   }
@@ -69,7 +69,7 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     const strokeDash = rel.kind === 'dependency' ? '6,3' : '';
     const dashAttr = strokeDash ? ` stroke-dasharray="${strokeDash}"` : '';
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
-    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;      svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;    svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="#94a3b8" stroke-width="1.5"${dashAttr}/>\n`;
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;      svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;    svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="1.5"${dashAttr}/>\n`;
     if (rel.label) {
       const mx = (f.p.x + t.p.x) / 2, my = (f.p.y + t.p.y) / 2 - 6;
       const labelW = safeLabel.length * 6 + 10;
@@ -104,7 +104,7 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     const hasExts = exts.length > 0;
     const ry = hasExts ? UC_RY + exts.length * 8 : UC_RY;
     
-    svg += `    <ellipse cx="0" cy="0" rx="${UC_RX}" ry="${ry}" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)"/>`;
+    svg += `    <ellipse cx="0" cy="0" rx="${UC_RX}" ry="${ry}" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)"/>`;
     const lines = wrapText(e.name, 20);
     const textStart = hasExts ? -(ry / 2) : 0;
     lines.forEach((line, i) => {
