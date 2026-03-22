@@ -50,14 +50,14 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
       const bw = 500, bh = 400; // default large size
       svg += `  <g transform="translate(${bx},${by})" data-entity-name="${escapeXml(b.name)}">\n`;
       svg += `    <rect x="0" y="0" width="${bw}" height="${bh}" fill="#fafafa" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
-      svg += `    <text x="10" y="20" font-size="13" font-weight="600" fill="#64748b">${escapeXml(b.name)}</text>\n`;
+      svg += `    <text x="10" y="20" font-size="13" font-weight="600" fill="var(--iso-text-muted)">${escapeXml(b.name)}</text>\n`;
       svg += `  </g>\n`;
     }
   } else {
     // Default system boundary if none explicitly defined
     svg += `  <g data-diagram-name="${escapeXml(diag.name)}">\n`;
     svg += `    <rect x="280" y="30" width="580" height="${canvasH - 60}" rx="8" fill="#fafafa" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
-    svg += `    <text x="300" y="52" font-size="13" fill="#64748b" font-style="italic">${escapeXml(diag.name)} : System</text>\n`;
+    svg += `    <text x="300" y="52" font-size="13" fill="var(--iso-text-muted)" font-style="italic">${escapeXml(diag.name)} : System</text>\n`;
     svg += `  </g>\n`;
   }
 
@@ -73,8 +73,8 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     if (rel.label) {
       const mx = (f.p.x + t.p.x) / 2, my = (f.p.y + t.p.y) / 2 - 6;
       const labelW = safeLabel.length * 6 + 10;
-      svg += `    <rect x="${mx - labelW/2}" y="${my - 12}" width="${labelW}" height="14" rx="2" fill="white" opacity="0.9"/>\n`;
-      svg += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#475569">«${safeLabel}»</text>\n`;
+      svg += `    <rect x="${mx - labelW/2}" y="${my - 12}" width="${labelW}" height="14" rx="2" fill="var(--iso-bg-panel)" opacity="0.9"/>\n`;
+      svg += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text-muted)">«${safeLabel}»</text>\n`;
     }
     svg += `  </g>\n`;
   }
@@ -83,14 +83,14 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   for (const { e, p } of actorPositions) {
     const x = p.x, y = p.y;
     svg += `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(e.name)}">\n`;
-    svg += `    <circle cx="0" cy="-45" r="12" fill="#f8fafc" stroke="#475569" stroke-width="1.5" filter="url(#shadow)"/>\n`;
-    svg += `    <line x1="0" y1="-33" x2="0" y2="-8" stroke="#475569" stroke-width="1.5"/>\n`;
-    svg += `    <line x1="-18" y1="-22" x2="18" y2="-22" stroke="#475569" stroke-width="1.5"/>\n`;
-    svg += `    <line x1="0" y1="-8" x2="-12" y2="15" stroke="#475569" stroke-width="1.5"/>\n`;
-    svg += `    <line x1="0" y1="-8" x2="12" y2="15" stroke="#475569" stroke-width="1.5"/>\n`;
-    svg += `    <text x="0" y="30" text-anchor="middle" font-size="12" font-weight="500" fill="#0f172a">${escapeXml(e.name)}</text>\n`;
+    svg += `    <circle cx="0" cy="-45" r="12" fill="var(--iso-bg-panel)" stroke="var(--iso-text-muted)" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+    svg += `    <line x1="0" y1="-33" x2="0" y2="-8" stroke="var(--iso-text-muted)" stroke-width="1.5"/>\n`;
+    svg += `    <line x1="-18" y1="-22" x2="18" y2="-22" stroke="var(--iso-text-muted)" stroke-width="1.5"/>\n`;
+    svg += `    <line x1="0" y1="-8" x2="-12" y2="15" stroke="var(--iso-text-muted)" stroke-width="1.5"/>\n`;
+    svg += `    <line x1="0" y1="-8" x2="12" y2="15" stroke="var(--iso-text-muted)" stroke-width="1.5"/>\n`;
+    svg += `    <text x="0" y="30" text-anchor="middle" font-size="12" font-weight="500" fill="var(--iso-text)">${escapeXml(e.name)}</text>\n`;
     if (e.stereotype) {
-      svg += `    <text x="0" y="44" text-anchor="middle" font-size="10" fill="#64748b" font-style="italic">«${escapeXml(e.stereotype)}»</text>\n`;
+      svg += `    <text x="0" y="44" text-anchor="middle" font-size="10" fill="var(--iso-text-muted)" font-style="italic">«${escapeXml(e.stereotype)}»</text>\n`;
     }
     svg += `  </g>\n`;
   }
@@ -109,14 +109,14 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     const textStart = hasExts ? -(ry / 2) : 0;
     lines.forEach((line, i) => {
       const lineY = textStart - (lines.length - 1) * 8 + i * 16;
-      svg += `    <text x="0" y="${lineY}" text-anchor="middle" font-size="13" font-weight="500" fill="#0f172a">${escapeXml(line)}</text>`;
+      svg += `    <text x="0" y="${lineY}" text-anchor="middle" font-size="13" font-weight="500" fill="var(--iso-text)">${escapeXml(line)}</text>`;
     });
     
     if (hasExts) {
       svg += `    <line x1="${-UC_RX + 10}" y1="${5}" x2="${UC_RX - 10}" y2="${5}" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,2"/>`;
-      svg += `    <text x="0" y="18" text-anchor="middle" font-size="10" font-style="italic" fill="#64748b">extension points</text>`;
+      svg += `    <text x="0" y="18" text-anchor="middle" font-size="10" font-style="italic" fill="var(--iso-text-muted)">extension points</text>`;
       exts.forEach((ext, i) => {
-        svg += `    <text x="0" y="${30 + i * 12}" text-anchor="middle" font-size="10" fill="#334155">${escapeXml(ext.name)}</text>`;
+        svg += `    <text x="0" y="${30 + i * 12}" text-anchor="middle" font-size="10" fill="var(--iso-text-body)">${escapeXml(ext.name)}</text>`;
       });
     }
     svg += `  </g>`;

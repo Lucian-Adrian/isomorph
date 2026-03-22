@@ -68,11 +68,11 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       // Actor stick figure with better proportions
       svg += `    <circle cx="0" cy="-4" r="10" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" />\n`;
       svg += `    <path d="M0,6 v14 M-10,12 h20 M-6,30 l6,-10 l6,10" stroke="#3b82f6" stroke-width="1.5" fill="none" />\n`;
-      svg += `    <text x="0" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">${label}</text>\n`;
+      svg += `    <text x="0" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
     } else {
       // Participant box with gradient and rounded corners
       svg += `    <rect x="-60" y="-20" width="120" height="36" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" />\n`;
-      svg += `    <text x="0" y="4" text-anchor="middle" font-size="13" font-weight="600" fill="#0f172a">${label}</text>\n`;
+      svg += `    <text x="0" y="4" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
     }
 
     // Lifeline
@@ -83,7 +83,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     if (!isActor) {
       const bottomY = height - paddingY - 30;
       svg += `    <rect x="-60" y="${bottomY}" width="120" height="30" rx="6" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" />\n`;
-      svg += `    <text x="0" y="${bottomY + 19}" text-anchor="middle" font-size="12" font-weight="600" fill="#0f172a">${label}</text>\n`;
+      svg += `    <text x="0" y="${bottomY + 19}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
     }
 
     svg += `  </g>\n`;
@@ -115,14 +115,14 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       // Hitbox
       svg += `    <rect x="${x}" y="${y1 - 5}" width="${selfLoopWidth + 10}" height="${selfLoopHeight + 10}" fill="transparent" style="cursor: pointer" />\n`;
       // Loop path
-      svg += `    <path d="M${x},${y1} H${loopRight} V${y2} H${x}" stroke="#475569" stroke-width="1.5" fill="none"${dash} />\n`;
+      svg += `    <path d="M${x},${y1} H${loopRight} V${y2} H${x}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none"${dash} />\n`;
       // Arrowhead
-      svg += `    <polygon points="${x},${y2} ${x + 8},${y2 - 4} ${x + 8},${y2 + 4}" fill="#475569" />\n`;
+      svg += `    <polygon points="${x},${y2} ${x + 8},${y2 - 4} ${x + 8},${y2 + 4}" fill="var(--iso-text-muted)" />\n`;
       // Activation box
       svg += `    <rect x="${x - activationWidth / 2}" y="${y1 - 4}" width="${activationWidth}" height="${selfLoopHeight + 8}" rx="2" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" />\n`;
 
       if (labelTxt) {
-        svg += `    <text x="${loopRight + 6}" y="${y1 + selfLoopHeight / 2 + 4}" font-size="11" fill="#475569">${labelTxt}</text>\n`;
+        svg += `    <text x="${loopRight + 6}" y="${y1 + selfLoopHeight / 2 + 4}" font-size="11" fill="var(--iso-text-muted)">${labelTxt}</text>\n`;
       }
 
       if (!Number.isFinite(styleY)) {
@@ -141,22 +141,22 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       svg += `    <rect x="${startX - activationWidth / 2}" y="${relationY - 10}" width="${activationWidth}" height="20" rx="2" fill="#e0e7ff" stroke="#6366f1" stroke-width="1" />\n`;
 
       // Message line
-      svg += `    <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="#475569" stroke-width="1.5"${dash} />\n`;
+      svg += `    <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dash} />\n`;
 
       // Arrowhead
       if (isDashed) {
         // Open arrowhead for return/dashed
         if (isRight) {
-          svg += `    <path d="M${endX - 10},${relationY - 4} L${endX},${relationY} L${endX - 10},${relationY + 4}" stroke="#475569" stroke-width="1.5" fill="none" />\n`;
+          svg += `    <path d="M${endX - 10},${relationY - 4} L${endX},${relationY} L${endX - 10},${relationY + 4}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none" />\n`;
         } else {
-          svg += `    <path d="M${endX + 10},${relationY - 4} L${endX},${relationY} L${endX + 10},${relationY + 4}" stroke="#475569" stroke-width="1.5" fill="none" />\n`;
+          svg += `    <path d="M${endX + 10},${relationY - 4} L${endX},${relationY} L${endX + 10},${relationY + 4}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none" />\n`;
         }
       } else {
         // Filled arrowhead for solid messages
         if (isRight) {
-          svg += `    <polygon points="${endX},${relationY} ${endX - 10},${relationY - 5} ${endX - 10},${relationY + 5}" fill="#475569" />\n`;
+          svg += `    <polygon points="${endX},${relationY} ${endX - 10},${relationY - 5} ${endX - 10},${relationY + 5}" fill="var(--iso-text-muted)" />\n`;
         } else {
-          svg += `    <polygon points="${endX},${relationY} ${endX + 10},${relationY - 5} ${endX + 10},${relationY + 5}" fill="#475569" />\n`;
+          svg += `    <polygon points="${endX},${relationY} ${endX + 10},${relationY - 5} ${endX + 10},${relationY + 5}" fill="var(--iso-text-muted)" />\n`;
         }
       }
 
@@ -165,8 +165,8 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
         const mx = Math.min(startX, endX) + Math.abs(endX - startX) / 2;
         // Label background
         const labelWidth = labelTxt.length * 7 + 10;
-        svg += `    <rect x="${mx - labelWidth / 2}" y="${relationY - 18}" width="${labelWidth}" height="16" rx="3" fill="white" opacity="0.9" />\n`;
-        svg += `    <text x="${mx}" y="${relationY - 6}" text-anchor="middle" font-size="11" fill="#475569">${labelTxt}</text>\n`;
+        svg += `    <rect x="${mx - labelWidth / 2}" y="${relationY - 18}" width="${labelWidth}" height="16" rx="3" fill="var(--iso-bg-panel)" opacity="0.9" />\n`;
+        svg += `    <text x="${mx}" y="${relationY - 6}" text-anchor="middle" font-size="11" fill="var(--iso-text-muted)">${labelTxt}</text>\n`;
       }
 
       if (!Number.isFinite(styleY)) {

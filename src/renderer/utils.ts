@@ -31,16 +31,16 @@ export function svgDefs(): string {
       <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.02)"/>
     </filter>
     <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+      <polygon points="0 0, 10 3.5, 0 7" fill="var(--iso-text-muted)"/>
     </marker>
     <marker id="hollow-arrow" markerWidth="13" markerHeight="9" refX="13" refY="4.5" orient="auto">
-      <polygon points="0 0, 13 4.5, 0 9" fill="white" stroke="#64748b" stroke-width="1.5"/>
+      <polygon points="0 0, 13 4.5, 0 9" fill="var(--iso-bg-panel)" stroke="var(--iso-text-muted)" stroke-width="1.5"/>
     </marker>
     <marker id="diamond" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto">
-      <polygon points="0 5, 6 0, 12 5, 6 10" fill="white" stroke="#64748b" stroke-width="1.5"/>
+      <polygon points="0 5, 6 0, 12 5, 6 10" fill="var(--iso-bg-panel)" stroke="var(--iso-text-muted)" stroke-width="1.5"/>
     </marker>
     <marker id="filled-diamond" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto">
-      <polygon points="0 5, 6 0, 12 5, 6 10" fill="#64748b"/>
+      <polygon points="0 5, 6 0, 12 5, 6 10" fill="var(--iso-text-muted)"/>
     </marker>
     <linearGradient id="grad-class" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#ffffff"/>

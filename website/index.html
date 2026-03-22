@@ -31,6 +31,38 @@
     --sans: 'DM Sans', system-ui, sans-serif;
   }
 
+  /* Dark Theme Overrides */
+  :root[data-theme="dark"] {
+    --white: #111110;
+    --off: #161615;
+    --stone: #20201f;
+    --ink-light: #444443;
+    --ink-mid: #8a8a82;
+    --ink: #cfcfcb;
+    --ink-deep: #f7f7f5;
+    --accent: #f7f7f5;
+    --glass-bg: rgba(17,17,16,0.72);
+    --glass-border: rgba(255,255,255,0.06);
+    --glass-shadow: 0 1px 40px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.2);
+  }
+
+  .theme-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--ink-mid);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 50%;
+    transition: color 0.2s, background 0.2s;
+  }
+  .theme-toggle-btn:hover {
+    color: var(--ink-deep);
+    background: var(--stone);
+  }
+
   html { scroll-behavior: smooth; }
 
   body {
@@ -885,9 +917,15 @@
     .section-heading br { display: none; }
   }
 </style>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('isomorph-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+  </script>
 </head>
 <body>
-
 <!-- NAV -->
 <nav>
   <a href="#" class="nav-logo">Isomorph</a>
@@ -896,6 +934,9 @@
     <li><a href="#architecture">Architecture</a></li>
     <li><a href="#validation">Validation</a></li>
     <li><a href="#demo">Demo</a></li>
+    <li><button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="theme-icon"></svg>
+    </button></li>
   </ul>
   <a href="./app/" class="nav-cta">Try live IDE →</a>
 </nav>
@@ -1525,6 +1566,29 @@
   setTimeout(() => {
     document.querySelectorAll('.hero [data-reveal]').forEach(el => el.classList.add('visible'));
   }, 100);
-</script>
-</body>
-</html>
+
+    // Theme toggle logic
+    const themeBtn = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+
+    function updateThemeIcon(theme) {
+      if (theme === 'dark') {
+        // Moon icon for dark mode (to switch back to light)
+        themeIcon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+      } else {
+        // Sun icon for light mode (to switch to dark)
+        themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+      }
+    }
+
+    // Set initial icon based on current data-theme
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    updateThemeIcon(currentTheme);
+
+    themeBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const newTheme = isDark ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('isomorph-theme', newTheme);
+      updateThemeIcon(newTheme);
+    });

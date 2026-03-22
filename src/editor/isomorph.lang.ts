@@ -78,18 +78,18 @@ export const isomorphLanguage = StreamLanguage.define({
   },
 });
 
-/** Isomorph syntax highlighting theme — tuned for the light editor */
+/** Isomorph syntax highlighting theme */
 export const isomorphHighlightStyle = HighlightStyle.define([
-  { tag: t.keyword,       color: '#0550ae', fontWeight: '500' },
-  { tag: t.typeName,      color: '#953800', fontWeight: '500' },
-  { tag: t.variableName,  color: '#24292f' },
-  { tag: t.string,        color: '#0a3069' },
-  { tag: t.number,        color: '#0550ae' },
-  { tag: t.comment,       color: '#6e7781', fontStyle: 'italic' },
-  { tag: t.operator,      color: '#cf222e', fontWeight: '500' },
-  { tag: t.meta,          color: '#8250df' },
-  { tag: t.atom,          color: '#0550ae' },
-  { tag: t.punctuation,   color: '#24292f' },
+  { tag: t.keyword,       color: 'var(--syn-kw)', fontWeight: '500' },
+  { tag: t.typeName,      color: 'var(--syn-type)', fontWeight: '500' },
+  { tag: t.variableName,  color: 'var(--syn-var)' },
+  { tag: t.string,        color: 'var(--syn-str)' },
+  { tag: t.number,        color: 'var(--syn-num)' },
+  { tag: t.comment,       color: 'var(--syn-comment)', fontStyle: 'italic' },
+  { tag: t.operator,      color: 'var(--syn-op)', fontWeight: '500' },
+  { tag: t.meta,          color: 'var(--syn-meta)' },
+  { tag: t.atom,          color: 'var(--syn-atom)' },
+  { tag: t.punctuation,   color: 'var(--syn-punct)' },
 ]);
 
 export const isomorphSyntax = syntaxHighlighting(isomorphHighlightStyle);

@@ -64,8 +64,8 @@ export function renderClassDiagram(diag: IOMDiagram): string {
       }
 
       svg += `  <g data-package-name="${escapeXml(pkg.name)}" transform="translate(${px},${py})">\n`;
-      svg += `    <rect x="0" y="0" width="${pw}" height="${ph}" rx="6" fill="#f0f4ff" stroke="#b0c0e0" stroke-width="1.5" stroke-dasharray="6,3"/>\n`;
-      svg += `    <text x="8" y="18" font-size="11" fill="#5566aa" font-style="italic" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">«package» ${escapeXml(pkg.name)}</text>\n`;
+      svg += `    <rect x="0" y="0" width="${pw}" height="${ph}" rx="6" fill="var(--iso-pkg-bg)" stroke="var(--iso-pkg-border)" stroke-width="1.5" stroke-dasharray="6,3"/>\n`;
+      svg += `    <text x="8" y="18" font-size="11" fill="var(--iso-pkg-text)" font-style="italic" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">«package» ${escapeXml(pkg.name)}</text>\n`;
       
       for (const member of members) {
         svg += renderEntityBox(member, px, py);
@@ -117,7 +117,7 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
   let s = '';
   // Container
   s += `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(entity.name)}">\n`;
-  s += `    <rect width="${width}" height="${height}" rx="6" fill="white" stroke="${borderColor}" stroke-width="${borderWidth}" filter="url(#shadow)"/>\n`;
+  s += `    <rect width="${width}" height="${height}" rx="6" fill="var(--iso-bg-panel)" stroke="${borderColor}" stroke-width="${borderWidth}" filter="url(#shadow)"/>\n`;
 
   // Header background
   s += `    <rect width="${width}" height="${HEADER_HEIGHT}" rx="6" fill="${headerFill}" stroke="${borderColor}" stroke-width="${borderWidth}"/>\n`;
@@ -127,11 +127,11 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
   let nameY = HEADER_HEIGHT / 2 + 4;
   if (entity.stereotype || isInterface || isEnum) {
     const stereoText = entity.stereotype ? `«${entity.stereotype}»` : isInterface ? '«interface»' : '«enum»';
-    s += `    <text x="${width / 2}" y="14" text-anchor="middle" font-size="10" fill="#64748b" font-style="italic" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">${escapeXml(stereoText)}</text>\n`;
+    s += `    <text x="${width / 2}" y="14" text-anchor="middle" font-size="10" fill="var(--iso-text-muted)" font-style="italic" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">${escapeXml(stereoText)}</text>\n`;
     nameY = HEADER_HEIGHT - 8;
   }
   const nameStyleAttr = isAbstract ? ' font-style="italic"' : '';
-  s += `    <text x="${width / 2}" y="${nameY}" text-anchor="middle" font-size="${FONT_SIZE}" font-weight="600" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"${nameStyleAttr} fill="#0f172a">${escapeXml(entity.name)}</text>\n`;
+  s += `    <text x="${width / 2}" y="${nameY}" text-anchor="middle" font-size="${FONT_SIZE}" font-weight="600" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"${nameStyleAttr} fill="var(--iso-text)">${escapeXml(entity.name)}</text>\n`;
 
   // Divider
   let currentY = HEADER_HEIGHT;
@@ -145,9 +145,9 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
       const typeStr = field.type;
       const defStr = field.defaultValue !== undefined ? ` = ${field.defaultValue}` : '';
       const staticMod = field.isStatic ? 'text-decoration:underline;' : '';
-      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" style="${staticMod}" fill="#334155">` +
-           `<tspan fill="#64748b">${escapeXml(visSymbol)} </tspan>` +
-           `${escapeXml(field.name)}: <tspan fill="#64748b" font-style="italic">${escapeXml(typeStr)}${escapeXml(defStr)}</tspan></text>\n`;
+      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" style="${staticMod}" fill="var(--iso-text-body)">` +
+           `<tspan fill="var(--iso-text-muted)">${escapeXml(visSymbol)} </tspan>` +
+           `${escapeXml(field.name)}: <tspan fill="var(--iso-text-muted)" font-style="italic">${escapeXml(typeStr)}${escapeXml(defStr)}</tspan></text>\n`;
     }
     currentY += 4;
   }
@@ -161,9 +161,9 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
       const params = method.params.map(p => `${p.name}: ${p.type}`).join(', ');
       const staticMod = method.isStatic ? 'text-decoration:underline;' : '';
       const abstractMod = method.isAbstract ? 'font-style:italic;' : '';
-      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" style="${staticMod}${abstractMod}" fill="#334155">` +
-           `<tspan fill="#64748b">${escapeXml(visSymbol)} </tspan>` +
-           `${escapeXml(method.name)}(${escapeXml(params)}): <tspan fill="#64748b" font-style="italic">${escapeXml(method.returnType)}</tspan></text>\n`;
+      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" style="${staticMod}${abstractMod}" fill="var(--iso-text-body)">` +
+           `<tspan fill="var(--iso-text-muted)">${escapeXml(visSymbol)} </tspan>` +
+           `${escapeXml(method.name)}(${escapeXml(params)}): <tspan fill="var(--iso-text-muted)" font-style="italic">${escapeXml(method.returnType)}</tspan></text>\n`;
     }
     currentY += 4;
   }
@@ -173,7 +173,7 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
     s += `    <line x1="0" y1="${currentY}" x2="${width}" y2="${currentY}" stroke="${borderColor}" stroke-width="0.75"/>\n`;
     for (const val of entity.enumValues) {
       currentY += LINE_HEIGHT;
-      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" fill="#334155">${escapeXml(val.name)}</text>\n`;
+      s += `    <text x="${BOX_PADDING}" y="${currentY}" font-size="12" fill="var(--iso-text-body)">${escapeXml(val.name)}</text>\n`;
     }
     currentY += 4;
   }
@@ -195,7 +195,7 @@ function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): str
   const strokeDash   = rel.kind === 'realization' || rel.kind === 'dependency' ? '6,3' : '';
   const markerEnd    = markerEndFor(rel.kind);
   const markerStart  = markerStartFor(rel.kind);
-  const color        = '#555';
+  const color        = 'var(--iso-text-muted)';
 
   const safeLabel = rel.label ? escapeXml(rel.label) : '';
   let s = `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;
@@ -206,8 +206,8 @@ function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): str
   // Label
   const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
   if (rel.label) {
-    s += `    <rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="white" opacity="0.9"/>\n`;
-    s += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#333" font-style="italic">${escapeXml(rel.label)}</text>\n`;
+    s += `    <rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="var(--iso-bg-panel)" opacity="0.9"/>\n`;
+    s += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text)" font-style="italic">${escapeXml(rel.label)}</text>\n`;
   }
 
   // Multiplicities
@@ -221,15 +221,15 @@ function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): str
     const multX = (sx + ux * 25).toFixed(1);
     const multY = (sy + uy * 25 - 10).toFixed(1);
     const multW = rel.fromMult.length * 6 + 10;
-    s += `    <rect x="${parseFloat(multX) - multW/2}" y="${parseFloat(multY) - 12}" width="${multW}" height="14" rx="2" fill="white" opacity="0.9"/>\n`;
-    s += `    <text x="${multX}" y="${multY}" font-size="11" fill="#666" font-weight="600" text-anchor="middle">${escapeXml(rel.fromMult)}</text>\n`;
+    s += `    <rect x="${parseFloat(multX) - multW/2}" y="${parseFloat(multY) - 12}" width="${multW}" height="14" rx="2" fill="var(--iso-bg-panel)" opacity="0.9"/>\n`;
+    s += `    <text x="${multX}" y="${multY}" font-size="11" fill="var(--iso-text-muted)" font-weight="600" text-anchor="middle">${escapeXml(rel.fromMult)}</text>\n`;
   }
   if (rel.toMult) {
     const multX = (ex - ux * 25).toFixed(1);
     const multY = (ey - uy * 25 - 10).toFixed(1);
     const multW = rel.toMult.length * 6 + 10;
-    s += `    <rect x="${parseFloat(multX) - multW/2}" y="${parseFloat(multY) - 12}" width="${multW}" height="14" rx="2" fill="white" opacity="0.9"/>\n`;
-    s += `    <text x="${multX}" y="${multY}" font-size="11" fill="#666" font-weight="600" text-anchor="middle">${escapeXml(rel.toMult)}</text>\n`;
+    s += `    <rect x="${parseFloat(multX) - multW/2}" y="${parseFloat(multY) - 12}" width="${multW}" height="14" rx="2" fill="var(--iso-bg-panel)" opacity="0.9"/>\n`;
+    s += `    <text x="${multX}" y="${multY}" font-size="11" fill="var(--iso-text-muted)" font-weight="600" text-anchor="middle">${escapeXml(rel.toMult)}</text>\n`;
   }
 
   s += `  </g>\n`;

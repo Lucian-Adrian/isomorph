@@ -16,7 +16,7 @@ import { DiagramView } from './components/DiagramView.js';
 import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
-import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard, IconSave } from './components/Icons.js';
+import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconTheme } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -570,6 +570,9 @@ export default function App() {
   const [examplesOpen, setExamplesOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  });
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [mobilePane, setMobilePane] = useState<'code' | 'diagram'>('code');
   const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
@@ -1602,6 +1605,22 @@ export default function App() {
 
         <input ref={fileInputRef} type="file" accept=".isx,.iso,.txt" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
 
+        <button
+          type="button"
+          className="iso-btn iso-btn--icon iso-mobile-hide"
+          onClick={() => {
+            const next = themeMode === 'light' ? 'dark' : 'light';
+            setThemeMode(next);
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('isomorph-theme', next);
+          }}
+          aria-label="Toggle theme"
+          data-tooltip={themeMode === 'light' ? 'Dark mode' : 'Light mode'}
+          style={{ marginLeft: 'auto', marginRight: '8px' }}
+        >
+          <IconTheme />
+        </button>
+
         {/* Status */}
         <output
           className={`${statusClass}${isMobileLayout ? ' iso-mobile-hide' : ''}`}
@@ -1719,6 +1738,19 @@ export default function App() {
               </button>
               <button type="button" className="iso-btn iso-btn--icon" onClick={() => setShortcutsOpen(o => !o)} aria-label="Keyboard shortcuts">
                 <IconKeyboard />
+              </button>
+              <button
+                type="button"
+                className="iso-btn iso-btn--icon"
+                onClick={() => {
+                  const next = themeMode === 'light' ? 'dark' : 'light';
+                  setThemeMode(next);
+                  document.documentElement.setAttribute('data-theme', next);
+                  localStorage.setItem('isomorph-theme', next);
+                }}
+                aria-label="Toggle theme"
+              >
+                <IconTheme />
               </button>
               <label className="iso-mobile-toggle">
                 <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />

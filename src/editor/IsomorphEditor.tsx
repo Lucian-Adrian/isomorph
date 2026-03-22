@@ -83,7 +83,7 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
         readOnlyCompartment.of(EditorState.readOnly.of(readOnly)),
         updateListener,
         EditorView.theme({
-          '&': { height: '100%', fontSize: '13px', background: 'var(--iso-bg-editor)' },
+          '&': { height: '100%', fontSize: '13px', background: 'var(--iso-bg-editor)', color: 'var(--iso-text)' },
           '.cm-scroller': { fontFamily: '"DM Mono","Cascadia Code","Fira Code","JetBrains Mono",monospace', overflow: 'auto' },
           '.cm-content': { minHeight: '200px', caretColor: 'var(--iso-brand-dark)', padding: '8px 0' },
           '.cm-gutters': { backgroundColor: 'var(--iso-bg-editor)', borderRight: '1px solid var(--iso-divider)', color: 'var(--ink-mid)' },

@@ -2,9 +2,8 @@
 
 ### Phase 1: Core Enhancements (High Priority)
 - **Verify UML Compliance**: Ensure all diagrams adhere to UML standards for accuracy and consistency.
-- **Inline Autocomplete**: Provide context-aware suggestions based on diagram type.
 - **Dark Mode**: Implement a dark theme toggle for the user interface.
-- **Custom Colors**: Allow users to customize element colors in diagrams. Hex color input with live preview and color picker.
+- **Custom Colors**: Allow users to customize element colors in diagrams. Hex color input with live preview and color picker. (UI: color swatch next to color input field, defaults to predefined colours).
 
 ### Phase 2: Animation Implementation (Medium Priority)
 - **Animation for Sequence Diagrams**: Implement light trail animation that follows message lines in sequential order.
@@ -16,7 +15,11 @@
 - **Class Diagrams**: Blueprint reveal animation.
 
 ### Phase 3: Collaboration and Advanced Features (Lower Priority)
-- **Multi-User Collaboration**: Real-time collaboration with visible mouse cursors (comments, roles - viewer, commenter,editor).
+- **Auto-Layout Improvements**: Enhanced algorithms for better handling of complex diagrams.
+- **Animation Customization**: User controls for animation speed, style, and effects.
+- **Account System**: User registration and login for saving diagrams in the cloud.
+- **Multi-User Collaboration**: Real-time collaboration with visible mouse cursors (comments, roles - viewer, commenter,editor) [WebSocket-based real-time editing with conflict resolution.].
+- **Settings Page**: User preferences for themes, colors, and collaboration options.
 - **Cloud Saves**: Per-account cloud storage with version history.
 - **Integrated Chat**: Real-time chat for collaborators.
 - **Notifications**: Alerts for diagram changes and comments.
