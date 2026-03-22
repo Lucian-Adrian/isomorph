@@ -579,6 +579,7 @@ export default function App() {
   const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string } | null>(null);
   const [renamingTabId, setRenamingTabId]   = useState<string | null>(null);
+  const [pendingMobileDropKeyword, setPendingMobileDropKeyword] = useState<string | null>(null);
   const examplesRef                         = useRef<HTMLDivElement>(null);
   const fileInputRef                        = useRef<HTMLInputElement>(null);
 
@@ -604,13 +605,21 @@ export default function App() {
 
   // ── Close dropdown on outside click ──────────────────────
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
+    function handleOutsideInteraction(e: Event) {
       if (examplesRef.current && !examplesRef.current.contains(e.target as Node)) {
         setExamplesOpen(false);
       }
     }
-    if (examplesOpen) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    if (examplesOpen) {
+      document.addEventListener('pointerdown', handleOutsideInteraction);
+      document.addEventListener('mousedown', handleOutsideInteraction);
+      document.addEventListener('touchstart', handleOutsideInteraction, { passive: true });
+    }
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsideInteraction);
+      document.removeEventListener('mousedown', handleOutsideInteraction);
+      document.removeEventListener('touchstart', handleOutsideInteraction);
+    };
   }, [examplesOpen]);
 
   // ── Parse + analyze on every keystroke ───────────────────
@@ -823,13 +832,29 @@ export default function App() {
     });
   }, [updateActiveTab]);
 
+  const handleRenameActiveTabMobile = useCallback(() => {
+    if (!activeTab) return;
+    const base = activeTab.name.includes('.') ? activeTab.name.substring(0, activeTab.name.lastIndexOf('.')) : activeTab.name;
+    const ext = activeTab.name.includes('.') ? activeTab.name.substring(activeTab.name.lastIndexOf('.')) : '';
+    const next = window.prompt('Rename file', base);
+    if (next == null) return;
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: `${trimmed}${ext}` } : t));
+  }, [activeTab]);
+
   const handleStencilInsert = useCallback((keyword: string) => {
+    if (isMobileLayout) {
+      setPendingMobileDropKeyword(keyword);
+      setMobilePane('diagram');
+      return;
+    }
     const entityCount = activeDiagram?.entities.size ?? 0;
     const x = 120 + (entityCount % 4) * 110;
     const y = 110 + Math.floor(entityCount / 4) * 90;
     handleDropEntity(keyword, x, y);
     setMobilePane('diagram');
-  }, [activeDiagram, handleDropEntity]);
+  }, [activeDiagram, handleDropEntity, isMobileLayout]);
 
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
@@ -1269,6 +1294,8 @@ export default function App() {
           onTextRenameRequest={handleTextRenameRequest}
           onExportSVG={handleExportSVG}
           onDropEntity={handleDropEntity}
+          pendingDropKeyword={isMobileLayout ? pendingMobileDropKeyword : null}
+          onConsumePendingDrop={() => setPendingMobileDropKeyword(null)}
           availableTools={toolsetFor(activeDiagram?.kind)}
           selectedItems={selectedItems}
           onSelectionChange={setSelectedItems}
@@ -1683,14 +1710,43 @@ export default function App() {
             <div className="iso-mobile-strip">
               <nav className="iso-tabs" aria-label="Open files">
                 {tabs.map(tab => (
-                  <button
+                  <div
                     key={tab.id}
-                    type="button"
                     className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
-                    onClick={() => setActiveTabId(tab.id)}
+                    onClick={() => {
+                      if (tab.id === activeTab?.id) {
+                        setRenamingTabId(tab.id);
+                        return;
+                      }
+                      setActiveTabId(tab.id);
+                    }}
+                    onDoubleClick={() => setRenamingTabId(tab.id)}
                   >
-                    {tab.name}
-                  </button>
+                    {renamingTabId === tab.id ? (
+                      <span style={{ display: 'flex', alignItems: 'center' }}>
+                        <input
+                          autoFocus
+                          defaultValue={tab.name.includes('.') ? tab.name.substring(0, tab.name.lastIndexOf('.')) : tab.name}
+                          className="iso-tab-rename-input"
+                          style={{ background: 'transparent', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', outline: 'none', width: '80px', borderBottom: '1px solid currentColor' }}
+                          onBlur={(e) => {
+                            const ext = tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : '';
+                            const newName = e.target.value ? e.target.value + ext : tab.name;
+                            setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, name: newName } : t));
+                            setRenamingTabId(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                            if (e.key === 'Escape') setRenamingTabId(null);
+                          }}
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <span>{tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : ''}</span>
+                      </span>
+                    ) : (
+                      tab.name
+                    )}
+                  </div>
                 ))}
               </nav>
             </div>
@@ -1733,6 +1789,9 @@ export default function App() {
               )}
             </div>
             <div className="iso-mobile-actions-group iso-mobile-actions-group--secondary">
+              <button type="button" className="iso-btn" onClick={handleRenameActiveTabMobile} disabled={!activeTab}>
+                Rename
+              </button>
               <button
                 type="button"
                 className="iso-btn"

@@ -60,7 +60,11 @@ export function exportSVG(
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = `${diagramName}.svg`;
+  anchor.rel = 'noopener';
+  anchor.target = '_blank';
+  document.body.appendChild(anchor);
   anchor.click();
+  anchor.remove();
 
   URL.revokeObjectURL(url);
 }
@@ -107,13 +111,29 @@ export function exportPNG(
     URL.revokeObjectURL(url);
 
     canvas.toBlob(blob => {
-      if (!blob) return;
-      const pngUrl = URL.createObjectURL(blob);
+      if (blob) {
+        const pngUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = pngUrl;
+        anchor.download = `${diagramName}.png`;
+        anchor.rel = 'noopener';
+        anchor.target = '_blank';
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(pngUrl);
+        return;
+      }
+      // Fallback path for browsers where toBlob may fail.
+      const dataUrl = canvas.toDataURL('image/png');
       const anchor = document.createElement('a');
-      anchor.href = pngUrl;
+      anchor.href = dataUrl;
       anchor.download = `${diagramName}.png`;
+      anchor.rel = 'noopener';
+      anchor.target = '_blank';
+      document.body.appendChild(anchor);
       anchor.click();
-      URL.revokeObjectURL(pngUrl);
+      anchor.remove();
     }, 'image/png');
   };
   img.src = url;

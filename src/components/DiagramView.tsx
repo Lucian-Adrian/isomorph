@@ -24,6 +24,8 @@ interface DiagramViewProps {
   availableTools?: CanvasTool[];
   selectedItems?: { type: 'entity' | 'relation', id: string }[];
   onSelectionChange?: (selection: { type: 'entity' | 'relation', id: string }[]) => void;
+  pendingDropKeyword?: string | null;
+  onConsumePendingDrop?: () => void;
 }
 
 export function DiagramView({
@@ -40,6 +42,8 @@ export function DiagramView({
   availableTools = ['move', 'hand', 'edit-node', 'edit-edge', 'add-edge'],
   selectedItems = [],
   onSelectionChange,
+  pendingDropKeyword,
+  onConsumePendingDrop,
 }: DiagramViewProps) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -79,6 +83,29 @@ export function DiagramView({
   useEffect(() => {
     setPan({ x: 0, y: 0 });
   }, [diagram?.name]);
+
+  const screenToCanvas = useCallback((clientX: number, clientY: number) => {
+    const svgEl = containerRef.current?.querySelector('svg') as SVGSVGElement | null;
+    if (svgEl && typeof svgEl.createSVGPoint === 'function') {
+      const ctm = svgEl.getScreenCTM();
+      if (ctm) {
+        const point = svgEl.createSVGPoint();
+        point.x = clientX;
+        point.y = clientY;
+        const local = point.matrixTransform(ctm.inverse());
+        return { x: local.x, y: local.y };
+      }
+    }
+
+    const wrap = canvasRef.current;
+    const rect = wrap?.getBoundingClientRect();
+    if (!wrap || !rect) return { x: 0, y: 0 };
+    const scale = zoom / 100;
+    return {
+      x: (clientX - rect.left + (wrap.scrollLeft || 0) - pan.x) / scale,
+      y: (clientY - rect.top + (wrap.scrollTop || 0) - pan.y) / scale,
+    };
+  }, [zoom, pan]);
 
   const handleZoomIn  = useCallback(() => setZoom(z => Math.min(z + 20, 200)), []);
   const handleZoomOut = useCallback(() => setZoom(z => Math.max(z - 20, 40)), []);
@@ -183,8 +210,20 @@ export function DiagramView({
   const lastClickRef = useRef<number>(0);
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!diagram || !canvasRef.current || e.button !== 0) return;
+    if (!diagram || !canvasRef.current) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     const target = e.target as Element;
+
+    if (pendingDropKeyword && onDropEntity) {
+      const pos = screenToCanvas(e.clientX, e.clientY);
+      const pkgGroup = target.closest('g[data-package-name]');
+      const targetPackage = pkgGroup ? (pkgGroup.getAttribute('data-package-name') ?? undefined) : undefined;
+      onDropEntity(pendingDropKeyword, pos.x, pos.y, targetPackage);
+      onConsumePendingDrop?.();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
 
     const now = Date.now();
     if (now - lastClickRef.current < 300) {
@@ -388,7 +427,7 @@ export function DiagramView({
       canvasRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
     }
-  }, [diagram, availableTools, activeTool, pan, zoom, selectedItems, onSelectionChange, onRelationEditRequest, onEntityEditRequest, onRelationVerticalMove]);
+  }, [diagram, availableTools, activeTool, pan, zoom, selectedItems, onSelectionChange, onRelationEditRequest, onEntityEditRequest, onRelationVerticalMove, pendingDropKeyword, onDropEntity, onConsumePendingDrop, screenToCanvas]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -724,10 +763,11 @@ export function DiagramView({
           e.preventDefault();
           const keyword = e.dataTransfer.getData('text/plain');
           if (keyword && onDropEntity) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const canvasX = (e.clientX - rect.left - pan.x) / (zoom / 100);
-            const canvasY = (e.clientY - rect.top - pan.y) / (zoom / 100);
-            const target = e.target as Element; const pkgGroup = target.closest('g[data-package-name]'); const targetPackage = pkgGroup ? (pkgGroup.getAttribute('data-package-name') ?? undefined) : undefined; onDropEntity(keyword, canvasX, canvasY, targetPackage);
+            const pos = screenToCanvas(e.clientX, e.clientY);
+            const target = e.target as Element;
+            const pkgGroup = target.closest('g[data-package-name]');
+            const targetPackage = pkgGroup ? (pkgGroup.getAttribute('data-package-name') ?? undefined) : undefined;
+            onDropEntity(keyword, pos.x, pos.y, targetPackage);
           }
         }}      >
         <div
