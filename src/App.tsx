@@ -1412,10 +1412,33 @@ export default function App() {
         </div>
 
         {isMobileLayout && (
-          <div className="iso-mobile-title" title={fileName}>
-            {fileName}
-          </div>
-        )}
+            <div className="iso-mobile-title" title={fileName} onDoubleClick={() => setRenamingTabId(activeTab?.id ?? null)} onClick={() => setRenamingTabId(activeTab?.id ?? null)}>
+              {renamingTabId === activeTab?.id ? (
+                <span style={{ display: "flex", alignItems: "center" }}>
+                  <input
+                    autoFocus
+                    defaultValue={fileName.includes(".") ? fileName.substring(0, fileName.lastIndexOf(".")) : fileName}
+                    className="iso-tab-rename-input"
+                    style={{ background: "transparent", border: "none", color: "inherit", fontFamily: "inherit", fontSize: "inherit", outline: "none", width: "100%", borderBottom: "1px solid currentColor" }}
+                    onBlur={(e) => {
+                      const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : "";
+                      const newName = e.target.value ? e.target.value + ext : fileName;
+                      if (activeTab) setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: newName } : t));
+                      setRenamingTabId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Escape") setRenamingTabId(null);
+                    }}
+                    onClick={e => e.stopPropagation()}
+                  />
+                  <span>{fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : ""}</span>
+                </span>
+              ) : (
+                fileName
+              )}
+            </div>
+          )}
 
         <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
 
@@ -1996,6 +2019,7 @@ export default function App() {
     </div>
   );
 }
+
 
 
 

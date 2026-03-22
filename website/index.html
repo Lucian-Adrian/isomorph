@@ -591,6 +591,8 @@
   .t-vis  { color: rgba(230,233,239,0.72); font-weight: 400; }
   .t-num  { color: #9fc0d8; font-weight: 400; }
   .t-def  { color: #edf1f6; font-weight: 500; }
+    .pipeline-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--stone); border: 0.5px solid var(--stone); border-radius: var(--radius); overflow: hidden; margin-top: 1px; }
+
 
   /* ── RULES TABLE ── */
   .rules-grid {
@@ -822,7 +824,7 @@
     .split { grid-template-columns: 1fr; gap: 48px; }
     .split.reverse { direction: ltr; }
     .features-grid { grid-template-columns: 1fr; }
-    .rules-grid { grid-template-columns: 1fr; }
+    .rules-grid, .pipeline-grid { grid-template-columns: 1fr; }
     .stats-row { grid-template-columns: repeat(3, 1fr); }
     .breadth-grid { grid-template-columns: 1fr; }
     .window-body { grid-template-columns: 1fr; }
@@ -881,7 +883,7 @@
       -webkit-overflow-scrolling: touch;
       padding: 20px 14px 16px;
     }
-    .compare-table { width: max(100%, 560px); min-width: 560px; }
+    .compare-table { width: 100%; min-width: unset; }
     .compare-table th, .compare-table td { padding: 12px 10px; }
     .syntax-header { padding: 14px 16px; }
     .syntax-body { padding: 18px 16px 20px; }
@@ -918,7 +920,11 @@
     .canvas-preview { min-height: 180px; }
     .stats-row { grid-template-columns: 1fr; }
     .compare-card { padding: 18px 10px 14px; }
-    .compare-table { width: max(100%, 500px); min-width: 500px; }
+    .compare-table { width: 100%; min-width: unset; }
+      .compare-table th { font-size: 8px; letter-spacing: 0.05em; }
+      .compare-table td, .compare-table th { padding: 10px 4px; }
+      .compare-table td { font-size: 11px; }
+      .compare-table td:first-child { font-size: 10px; }
     .syntax-body { padding: 16px 14px 18px; }
     .syntax-body code { font-size: 11px; line-height: 1.7; }
     .section-heading br { display: none; }
@@ -1305,7 +1311,7 @@
       <p class="invariant-label">Layout stays in the source, not in a sidecar file</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--stone); border: 0.5px solid var(--stone); border-radius: var(--radius); overflow: hidden; margin-top: 1px;" data-reveal data-reveal-delay="2">
+    <div class="pipeline-grid" data-reveal data-reveal-delay="2">
       <div style="background: var(--white); padding: 32px 28px;">
         <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 16px;">01 · Lex</p>
         <p style="font-size: 20px; font-weight: 200; color: var(--ink-deep); letter-spacing: -0.02em; margin-bottom: 10px;">66 tokens</p>
@@ -1604,3 +1610,8 @@
 </script>
 </body>
 </html>
+
+
+
+
+
