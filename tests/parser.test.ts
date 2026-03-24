@@ -321,13 +321,13 @@ describe('Parser', () => {
 
   describe('method declarations', () => {
     it('parses a public method', () => {
-      const prog = parseOk('diagram D : class { class C { + getTitle(): string } }');
+      const prog = parseOk('diagram D : class { class C { + getLabel(): string } }');
       const entity = prog.diagrams[0].body[0];
       if (entity.kind === 'EntityDecl') {
         const method = entity.members[0];
         expect(method.kind).toBe('MethodDecl');
         if (method.kind === 'MethodDecl') {
-          expect(method.name).toBe('getTitle');
+          expect(method.name).toBe('getLabel');
           expect(method.params).toHaveLength(0);
         }
       }
@@ -543,11 +543,11 @@ describe('Parser', () => {
         diagram LibrarySystem : class {
           package domain {
             abstract class Book <<Entity>> implements Borrowable {
-              + title: string
+              + label: string
               + isbn: string
               - stock: int = 0
               + checkOut(user: string): bool
-              + getTitle(): string
+              + getLabel(): string
             }
             class Library {
               + name: string

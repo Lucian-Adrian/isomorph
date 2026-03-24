@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { IOMDiagram } from '../semantics/iom.js';
-import { escapeXml, wrapText, svgDefs } from './utils.js';
+import { escapeXml, wrapText, svgDefs, renderConfigHeaders } from './utils.js';
 
 export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
@@ -38,9 +38,14 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
 
   const actorPositions   = actors.map((a, i) => ({ e: a, p: pos(a, i, actors.length, 80) }));
   const ucPositions      = usecases.map((u, i) => ({ e: u, p: pos(u, i, usecases.length, 350) }));
-
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  
+  const header = renderConfigHeaders(diag, canvasW);
+  const totalH = canvasH + header.height;
+  
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
+  svg += header.svg;
+  svg += `  <g transform="translate(0, ${header.height})">\n`;
 
   // Draw system boundaries (backgrounds)
   if (bounds.length > 0) {
@@ -122,6 +127,7 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     svg += `  </g>`;
   }
 
+  svg += `  </g>\n`;
   svg += `</svg>`;
   return svg;
 }

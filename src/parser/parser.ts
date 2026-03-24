@@ -10,7 +10,7 @@ import type {
   PackageDecl, EntityDecl, EntityKind, Modifier, Member,
   FieldDecl, MethodDecl, EnumValueDecl, ParamDecl, TypeExpr,
   SimpleType, GenericType, NullableType, RelationDecl, RelationKind,
-  NoteDecl, StyleDecl, LayoutAnnotation, LiteralExpr, Span, Visibility,
+  NoteDecl, StyleDecl, LayoutAnnotation, LiteralExpr, ConfigDecl, Span, Visibility,
 } from './ast.js';
 
 export interface ParseError {
@@ -168,6 +168,9 @@ export class Parser {
 
     // ── Style ──
     if (t.kind === 'style') return this.parseStyleDecl();
+
+    // ── Config ──
+    if (this.atAny('title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber')) return this.parseConfigDecl();
 
     // ── Entity (class/interface/enum/actor/usecase/component/node or with abstract modifier) ──
     if (this.isEntityStart()) return this.parseEntityDecl();
@@ -525,6 +528,24 @@ export class Parser {
     }
     const close = this.expect('RPAREN');
     return { kind: 'LayoutAnnotation', entity, x, y, w, h, span: this.spanTo(at, close) };
+  }
+
+  // ── Config ──
+
+  private parseConfigDecl(): ConfigDecl {
+    const kw = this.advance();
+    const key = kw.kind as 'title' | 'subtitle' | 'caption' | 'legend' | 'direction' | 'strict' | 'autonumber';
+    let value: string | undefined;
+
+    if (key === 'direction') {
+      value = this.expect('IDENT').value;
+    } else if (['title', 'subtitle', 'caption', 'legend'].includes(key)) {
+      value = this.expect('STRING').value;
+    }
+
+    if (this.at('SEMI')) this.advance();
+
+    return { kind: 'ConfigDecl', key, value, span: this.spanTo(kw, this.peek(-1)) };
   }
 
   // ── Literals ─────────────────────────────────────────────────

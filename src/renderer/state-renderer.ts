@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders } from './utils.js';
 
 const BOX_W        = 140;
 const BOX_H        = 50;
@@ -54,8 +54,13 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     });
   }
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  const header = renderConfigHeaders(diag, maxX);
+  const totalH = maxY + header.height;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
+  svg += header.svg;
+  svg += `  <g transform="translate(0, ${header.height})">\n`;
 
   if (shouldRenderSwimlanes) {
     svg += renderActivitySwimlanes(partitionEntities, placed, maxY);
@@ -92,6 +97,7 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     svg += renderEntity(p);
   }
 
+  svg += `  </g>\n`;
   svg += `</svg>`;
   return svg;
 }

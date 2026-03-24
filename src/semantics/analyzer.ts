@@ -5,11 +5,11 @@
 // transforming the AST into the Isomorph Object Model.
 // ============================================================
 
-import type { Program, DiagramDecl, BodyItem, EntityDecl, RelationDecl, Member, TypeExpr } from '../parser/ast.js';
+import type { Program, DiagramDecl, BodyItem, EntityDecl, RelationDecl, Member, TypeExpr, ConfigDecl } from '../parser/ast.js';
 import type {
   IOM, IOMDiagram, IOMEntity, IOMRelation, IOMField, IOMMethod,
   IOMEnumValue, IOMPackage, IOMNote, IOMEntityKind, IOMRelationKind,
-  Visibility,
+  Visibility, IOMConfig
 } from './iom.js';
 import { relTokenToKind } from './iom.js';
 
@@ -44,6 +44,7 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
   const relations: IOMRelation[] = [];
   const packages:  IOMPackage[]  = [];
   const notes:     IOMNote[]     = [];
+  const config:    IOMConfig     = {};
 
   // Tracks source location of each entity declaration for error reporting
   const entitySpans = new Map<string, { line: number; col: number }>();
@@ -92,6 +93,11 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
             p.position = { x: item.x, y: item.y, w: item.w, h: item.h };
           }
         }
+      } else if (item.kind === 'ConfigDecl') {
+        const cfg = item as ConfigDecl;
+        if (cfg.key === 'strict') config.strict = true;
+        else if (cfg.key === 'autonumber') config.autonumber = true;
+        else (config as any)[cfg.key] = cfg.value;
       }
     }
   }
@@ -322,6 +328,7 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     relations,
     packages,
     notes,
+    config,
   };
 }
 

@@ -373,7 +373,7 @@ describe('Activity Diagram Renderer — swimlanes', () => {
     const svg = renderStateOrActivityDiagram(diag);
     expect(svg).toContain('data-entity-name="UserLane"');
     expect(svg).toContain('data-entity-name="SystemLane"');
-    expect(svg).toContain('stroke="#cbd5e1"');
+    expect(svg).toContain('stroke="var(--iso-border, #cbd5e1)"');
   });
 
   it('respects optional swimlane width/height from layout annotations', () => {

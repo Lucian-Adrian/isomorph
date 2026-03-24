@@ -23,6 +23,7 @@ export type TokenKind =
   | 'list'     | 'map'      | 'set'      | 'optional'
   | 'int'      | 'float'    | 'bool'     | 'string_t'
   | 'true'      | 'false'
+  | 'title'    | 'subtitle' | 'caption'  | 'legend'   | 'direction' | 'strict' | 'autonumber'
   // Relation operators (longest-match-first in lexer)
   | 'INHERIT'    // --|>
   | 'REALIZE'    // ..|>
@@ -57,7 +58,8 @@ const KEYWORDS = new Set<string>([
   'partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action',
   'state', 'composite', 'concurrent', 'choice', 'history', 'device', 'artifact',
   'environment', 'boundary', 'system', 'multiobject', 'active_object',
-  'collaboration', 'composite_object', 'activity', 'object'
+  'collaboration', 'composite_object', 'activity', 'object',
+  'title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber'
 ]);
 
 const KEYWORD_MAP: Record<string, TokenKind> = {

@@ -78,3 +78,42 @@ export function wrapText(text: string, maxLen: number): string[] {
   if (spaceNear < 0) return [text];
   return [text.slice(0, spaceNear), text.slice(spaceNear + 1)];
 }
+
+/** Render title and subtitle for a diagram. Returns { svg: string, height: number } */
+export function renderConfigHeaders(diag: import('../semantics/iom.js').IOMDiagram, width: number): { svg: string, height: number } {
+  let svg = '';
+  let y = 35;
+  if (diag.config?.title) {
+    svg += `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="20" font-weight="800" fill="var(--iso-text)" font-family="DM Sans, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.title)}</text>\n`;
+    y += 30;
+  }
+  if (diag.config?.subtitle) {
+    svg += `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="14" fill="var(--iso-text-muted)" font-family="DM Sans, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.subtitle)}</text>\n`;
+    y += 25;
+  }
+  return { svg, height: y > 35 ? y : 0 };
+}
+
+/** Render caption for a diagram. Returns { svg: string, height: number } */
+export function renderConfigCaption(diag: import('../semantics/iom.js').IOMDiagram, width: number, totalHeight: number): { svg: string, height: number } {
+  if (!diag.config?.caption) return { svg: '', height: 0 };
+  const y = totalHeight + 25;
+  const svg = `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="12" font-style="italic" fill="var(--iso-text-muted)" font-family="DM Sans, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.caption)}</text>\n`;
+  return { svg, height: 40 };
+}
+
+/** Render legend for a diagram. Returns { svg: string } */
+export function renderConfigLegend(diag: import('../semantics/iom.js').IOMDiagram, width: number, yOffset: number): { svg: string } {
+  if (!diag.config?.legend) return { svg: '' };
+  const lines = diag.config.legend.split('\\n'); // Handle literal \n as well
+  const maxChars = Math.max(...lines.map(l => l.length));
+  const frameW = Math.max(120, maxChars * 8 + 20), frameH = lines.length * 20 + 10;
+  const x = width - frameW - 20, y = yOffset + 20;
+  let svg = `  <g transform="translate(${x},${y})">\n`;
+  svg += `    <rect width="${frameW}" height="${frameH}" fill="var(--iso-bg-panel)" stroke="var(--iso-border)" stroke-width="1.5" rx="4" filter="url(#shadow)" />\n`;
+  lines.forEach((l, i) => {
+    svg += `    <text x="10" y="${20 + i * 20}" font-size="12" fill="var(--iso-text)" font-family="DM Sans, system-ui, sans-serif">${escapeXml(l)}</text>\n`;
+  });
+  svg += `  </g>\n`;
+  return { svg };
+}

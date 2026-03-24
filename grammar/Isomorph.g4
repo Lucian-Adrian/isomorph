@@ -64,12 +64,22 @@ bodyItem
     | noteDecl
     | styleDecl
     | layoutAnnotation
+    | configDecl
     ;
 
 // ─── Package ─────────────────────────────────────────────────
 
 packageDecl
     : KW_PACKAGE IDENT LBRACE diagramBody RBRACE
+    ;
+
+// ─── Config ──────────────────────────────────────────────────
+
+configDecl
+    : ( KW_TITLE | KW_SUBTITLE | KW_CAPTION | KW_LEGEND ) STRING
+    | KW_DIRECTION IDENT
+    | KW_STRICT
+    | KW_AUTONUMBER
     ;
 
 // ─── Entity ──────────────────────────────────────────────────
@@ -292,6 +302,13 @@ KW_BOOL       : 'bool' ;
 KW_STRING     : 'string' ;
 KW_TRUE       : 'true' ;
 KW_FALSE      : 'false' ;
+KW_TITLE      : 'title' ;
+KW_SUBTITLE   : 'subtitle' ;
+KW_CAPTION    : 'caption' ;
+KW_LEGEND     : 'legend' ;
+KW_DIRECTION  : 'direction' ;
+KW_STRICT     : 'strict' ;
+KW_AUTONUMBER : 'autonumber' ;
 
 // Relation operators (order matters — longest match first in ANTLR4)
 REL_INHERIT   : '--|>' ;

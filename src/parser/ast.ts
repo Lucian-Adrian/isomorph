@@ -45,7 +45,8 @@ export type BodyItem =
   | RelationDecl
   | NoteDecl
   | StyleDecl
-  | LayoutAnnotation;
+  | LayoutAnnotation
+  | ConfigDecl;
 
 // ─── Package ─────────────────────────────────────────────────
 
@@ -199,6 +200,14 @@ export interface LayoutAnnotation {
   y: number;
   w?: number;
   h?: number;
+  span: Span;
+}
+
+/** Config statement: title "...", direction LR, strict, etc. */
+export interface ConfigDecl {
+  kind: 'ConfigDecl';
+  key: 'title' | 'subtitle' | 'caption' | 'legend' | 'direction' | 'strict' | 'autonumber';
+  value?: string;
   span: Span;
 }
 

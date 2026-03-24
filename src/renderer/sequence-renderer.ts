@@ -2,7 +2,7 @@
 // Sequence Diagram SVG Renderer (Enhanced)
 // ============================================================
 import type { IOMDiagram } from '../semantics/iom.js';
-import { escapeXml, svgDefs } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders } from './utils.js';
 
 export function renderSequenceDiagram(diag: IOMDiagram): string {
   const entities = Array.from(diag.entities.values());
@@ -39,9 +39,13 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     }
   }
   const width = computedWidth;
+  const header = renderConfigHeaders(diag, width);
+  const totalH = height + header.height;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
+  svg += header.svg;
+  svg += `  <g transform="translate(0, ${header.height})">\n`;
 
   // --- Entities as columns ---
   const entityX = new Map<string, number>();
@@ -91,6 +95,9 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
 
   // --- Relations as messages ---
   let currentY = paddingY + 80;
+  let msgIndex = 1;
+  const useAutonumber = diag.config.autonumber === true;
+
   for (const rel of diag.relations) {
     const startX = entityX.get(rel.from);
     const endX = entityX.get(rel.to);
@@ -98,7 +105,8 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
 
     const isDashed = rel.kind === 'dependency' || rel.kind === 'realization';
     const dash = isDashed ? ' stroke-dasharray="6,3"' : '';
-    const labelTxt = rel.label ? escapeXml(rel.label) : '';
+    const rawLabel = rel.label ? escapeXml(rel.label) : '';
+    const labelTxt = useAutonumber ? `${msgIndex++}. ${rawLabel}` : rawLabel;
     const isSelfMessage = rel.from === rel.to;
     const styleY = Number.parseFloat(String(rel.styles?.y ?? ''));
     const relationY = Number.isFinite(styleY) ? styleY : currentY;
@@ -179,6 +187,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     svg += `  </g>\n`;
   }
 
+  svg += `  </g>\n`;
   svg += `</svg>`;
   return svg;
 }

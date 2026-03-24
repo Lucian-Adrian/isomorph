@@ -1,0 +1,43 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/uni/year2/dslpbl/repo[39m
+
+ [32mÔ£ô[39m tests/dsl_features.test.ts[2m > [22mDSL Configuration Features (Phase 1)[2m > [22mparses and analyzes global configurations
+ [32mÔ£ô[39m tests/dsl_features.test.ts[2m > [22mDSL Configuration Features (Phase 1)[2m > [22mrenders decorations in Class Diagrams
+ [31m├ù[39m tests/dsl_features.test.ts[2m > [22mDSL Configuration Features (Phase 1)[2m > [22mimplements sequence diagram autonumbering
+[31m   ÔåÆ Unexpected token 'Alice' in diagram body[39m
+ [31m├ù[39m tests/dsl_features.test.ts[2m > [22mDSL Configuration Features (Phase 1)[2m > [22mdisables autonumbering by default
+[31m   ÔåÆ Unexpected token 'Alice' in diagram body[39m
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Tests 2 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  tests/dsl_features.test.ts > DSL Configuration Features (Phase 1) > implements sequence diagram autonumbering
+Error: Unexpected token 'Alice' in diagram body
+ ÔØ» buildDiagram tests/dsl_features.test.ts:9:32
+      7| function buildDiagram(source: string) {
+      8|   const { program, errors } = parse(source);
+      9|   if (errors.length > 0) throw new Error(errors[0].message);
+       |                                ^
+     10|   const { iom } = analyze(program);
+     11|   return iom.diagrams[0];
+ ÔØ» tests/dsl_features.test.ts:50:18
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[1/2]ÔÄ»
+
+ FAIL  tests/dsl_features.test.ts > DSL Configuration Features (Phase 1) > disables autonumbering by default
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m2 passed[39m[22m[90m (4)[39m
+[2m   Start at [22m 21:52:19
+[2m   Duration [22m 2.17s[2m (transform 177ms, setup 26ms, collect 411ms, tests 12ms, environment 1.06s, prepare 298ms)[22m
+
+Error: Unexpected token 'Alice' in diagram body
+ ÔØ» buildDiagram tests/dsl_features.test.ts:9:32
+      7| function buildDiagram(source: string) {
+      8|   const { program, errors } = parse(source);
+      9|   if (errors.length > 0) throw new Error(errors[0].message);
+       |                                ^
+     10|   const { iom } = analyze(program);
+     11|   return iom.diagrams[0];
+ ÔØ» tests/dsl_features.test.ts:63:18
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[2/2]ÔÄ»
+

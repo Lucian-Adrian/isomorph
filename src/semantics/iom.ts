@@ -106,6 +106,17 @@ export interface IOMDiagram {
   relations: IOMRelation[];
   packages: IOMPackage[];
   notes: IOMNote[];
+  config: IOMConfig;
+}
+
+export interface IOMConfig {
+  title?: string;
+  subtitle?: string;
+  caption?: string;
+  legend?: string;
+  direction?: string;
+  strict?: boolean;
+  autonumber?: boolean;
 }
 
 export interface IOMPackage {

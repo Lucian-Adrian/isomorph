@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity, IOMRelation } from '../semantics/iom.js';
-import { escapeXml, visSymbolFor, svgDefs } from './utils.js';
+import { escapeXml, visSymbolFor, svgDefs, renderConfigHeaders, renderConfigCaption, renderConfigLegend } from './utils.js';
 
 // ─── Render configuration ────────────────────────────────────
 
@@ -34,10 +34,18 @@ export function renderClassDiagram(diag: IOMDiagram): string {
   const maxPkgX = diag.packages.length > 0 ? Math.max(...diag.packages.map(p => (p.position?.x ?? 100) + 160)) : 0;
   const maxPkgY = diag.packages.length > 0 ? Math.max(...diag.packages.map(p => (p.position?.y ?? 100) + 100)) : 0;
   const maxX = Math.max(maxEntityX, maxPkgX) + 40;
-  const maxY = Math.max(maxEntityY, maxPkgY) + 40;
+  const header = renderConfigHeaders(diag, maxX);
+  const legend = renderConfigLegend(diag, maxX, header.height);
+  const caption = renderConfigCaption(diag, maxX, Math.max(maxEntityY, maxPkgY) + 40 + header.height);
+  const maxY = Math.max(maxEntityY, maxPkgY) + 40 + header.height + caption.height;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif" style="background:transparent">\n`;
   svg += svgDefs();
+  svg += header.svg;
+  svg += legend.svg;
+
+  const contentY = header.height;
+  svg += `  <g transform="translate(0, ${contentY})">\n`;
 
   // Set to keep track of rendered members
   const renderedEntities = new Set<string>();
@@ -90,6 +98,8 @@ export function renderClassDiagram(diag: IOMDiagram): string {
     }
   }
 
+  svg += `  </g>\n`;
+  svg += caption.svg;
   svg += `</svg>`;
   return svg;
 }
