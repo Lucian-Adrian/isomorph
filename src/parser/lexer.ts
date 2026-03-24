@@ -24,6 +24,7 @@ export type TokenKind =
   | 'int'      | 'float'    | 'bool'     | 'string_t'
   | 'true'      | 'false'
   | 'alt' | 'else' | 'opt' | 'loop' | 'par' | 'break' | 'critical' | 'end'
+  | 'ref' | 'activate' | 'deactivate' | 'return' | 'create' | 'destroy'
   | 'title'    | 'subtitle' | 'caption'  | 'legend'   | 'direction' | 'strict' | 'autonumber'
   // Relation operators (longest-match-first in lexer)
   | 'INHERIT'    // --|>
@@ -62,6 +63,7 @@ const KEYWORDS = new Set<string>([
   'boundary', 'system', 'multiobject', 'active_object',
   'collaboration', 'composite_object', 'activity', 'object',
   'alt', 'else', 'opt', 'loop', 'par', 'break', 'critical', 'end',
+  'ref', 'activate', 'deactivate', 'return', 'create', 'destroy',
   'title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber'
 ]);
 

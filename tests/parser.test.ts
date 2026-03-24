@@ -358,7 +358,7 @@ describe('Parser', () => {
     });
 
     it('parses static method', () => {
-      const prog = parseOk('diagram D : class { class C { + static create(): C } }');
+      const prog = parseOk('diagram D : class { class C { + static make(): C } }');
       const entity = prog.diagrams[0].body[0];
       if (entity.kind === 'EntityDecl') {
         const method = entity.members[0];

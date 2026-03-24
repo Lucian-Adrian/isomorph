@@ -9,7 +9,7 @@ import type { Program, DiagramDecl, BodyItem, EntityDecl, RelationDecl, Member, 
 import type {
   IOM, IOMDiagram, IOMEntity, IOMRelation, IOMField, IOMMethod,
   IOMEnumValue, IOMPackage, IOMNote, IOMEntityKind, IOMRelationKind,
-  Visibility, IOMConfig, IOMFragment
+  Visibility, IOMConfig, IOMFragment, IOMActivation
 } from './iom.js';
 import { relTokenToKind } from './iom.js';
 
@@ -47,6 +47,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
   const config:    IOMConfig     = {};
   const styles:    Record<string, string> = {};
   const fragments: IOMFragment[] = [];
+  const activations: IOMActivation[] = [];
 
   // Tracks source location of each entity declaration for error reporting
   const entitySpans = new Map<string, { line: number; col: number }>();
@@ -168,6 +169,18 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           relationIds: mainRelIds,
           elseBlocks: elseBlocks.length > 0 ? elseBlocks : undefined,
         });
+      } else if (item.kind === 'ActivateDecl') {
+        if (!entities.has(item.entity)) {
+          errors.push({ message: `Activation references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
+        }
+        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'activate', afterRelationIdx: relations.length });
+      } else if (item.kind === 'DeactivateDecl') {
+        if (!entities.has(item.entity)) {
+          errors.push({ message: `Deactivation references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
+        }
+        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'deactivate', afterRelationIdx: relations.length });
+      } else if (item.kind === 'ReturnDecl') {
+        // Return handled in renderer via last message context
       }
     }
   }
@@ -372,6 +385,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
     config,
     styles,
     fragments,
+    activations,
   };
 }
 

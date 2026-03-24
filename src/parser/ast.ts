@@ -47,7 +47,11 @@ export type BodyItem =
   | StyleDecl
   | LayoutAnnotation
   | ConfigDecl
-  | FragmentDecl;
+  | FragmentDecl
+  | ActivateDecl
+  | DeactivateDecl
+  | ReturnDecl
+  | RefDecl;
 
 // ─── Package ─────────────────────────────────────────────────
 
@@ -228,3 +232,8 @@ export interface FragmentDecl {
   elseBlocks?: { label?: string; body: BodyItem[] }[];
   span: Span;
 }
+
+export interface ActivateDecl   { kind: 'ActivateDecl'; entity: string; span: Span; }
+export interface DeactivateDecl { kind: 'DeactivateDecl'; entity: string; span: Span; }
+export interface ReturnDecl     { kind: 'ReturnDecl'; label?: string; span: Span; }
+export interface RefDecl        { kind: 'RefDecl'; text: string; span: Span; }

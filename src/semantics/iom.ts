@@ -109,6 +109,14 @@ export interface IOMDiagram {
   config: IOMConfig;
   styles: Record<string, string>;
   fragments: IOMFragment[];
+  activations: IOMActivation[];
+}
+
+export interface IOMActivation {
+  id: string;
+  entity: string;
+  kind: 'activate' | 'deactivate';
+  afterRelationIdx: number;
 }
 
 export interface IOMFragment {

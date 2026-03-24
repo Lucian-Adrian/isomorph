@@ -163,6 +163,12 @@ export class Parser {
     // ── Sequence Fragments ──
     if (this.atAny('alt', 'loop', 'opt', 'par', 'break', 'critical')) return this.parseFragmentDecl();
 
+    // ── Sequence Lifecycle ──
+    if (this.at('ref')) return this.parseRefDecl();
+    if (this.at('activate')) return this.parseActivateDecl(false);
+    if (this.at('deactivate')) return this.parseActivateDecl(true);
+    if (this.at('return')) return this.parseReturnDecl();
+
     // ── Package ──
     if (t.kind === 'package') return this.parsePackageDecl();
 
@@ -606,6 +612,30 @@ export class Parser {
       elseBlocks: elseBlocks.length > 0 ? elseBlocks : undefined,
       span: this.spanTo(startToken, this.peek(-1)),
     };
+  }
+
+  private parseRefDecl(): import('./ast.js').RefDecl {
+    const first = this.advance();
+    const text = this.expect('STRING').value;
+    return { kind: 'RefDecl', text, span: this.spanFrom(first) };
+  }
+
+  private parseActivateDecl(isDeactivate: boolean): import('./ast.js').ActivateDecl | import('./ast.js').DeactivateDecl {
+    const first = this.advance();
+    const entity = this.expect('IDENT').value;
+    const span = this.spanFrom(first);
+    return isDeactivate 
+      ? { kind: 'DeactivateDecl', entity, span }
+      : { kind: 'ActivateDecl', entity, span };
+  }
+
+  private parseReturnDecl(): import('./ast.js').ReturnDecl {
+    const first = this.advance();
+    let label: string | undefined;
+    if (this.at('STRING')) {
+      label = this.advance().value;
+    }
+    return { kind: 'ReturnDecl', label, span: this.spanFrom(first) };
   }
 
   // ── Helpers ──────────────────────────────────────────────────
