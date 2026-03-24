@@ -107,6 +107,7 @@ export interface IOMDiagram {
   packages: IOMPackage[];
   notes: IOMNote[];
   config: IOMConfig;
+  styles: Record<string, string>;
 }
 
 export interface IOMConfig {

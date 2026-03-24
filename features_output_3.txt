@@ -1,0 +1,30 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/uni/year2/dslpbl/repo[39m
+
+ [32mÔ£ô[39m tests/dsl_features.test.ts[2m > [22mDSL Configuration Features (Phase 1)[2m > [22mparses and analyzes global configurations
+ [32mÔ£ô[39m tests/dsl_features.test.ts[2m > [22mDSL Configuration Features (Phase 1)[2m > [22mrenders decorations in Class Diagrams
+ [32mÔ£ô[39m tests/dsl_features.test.ts[2m > [22mDSL Configuration Features (Phase 1)[2m > [22mimplements sequence diagram autonumbering
+ [32mÔ£ô[39m tests/dsl_features.test.ts[2m > [22mDSL Configuration Features (Phase 1)[2m > [22mdisables autonumbering by default
+ [31m├ù[39m tests/dsl_features.test.ts[2m > [22mDSL Configuration Features (Phase 1)[2m > [22mapplies global and kind-based styles correctly
+[31m   ÔåÆ Expected 'IDENT' but got 'diagram' ('diagram')[39m
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Tests 1 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  tests/dsl_features.test.ts > DSL Configuration Features (Phase 1) > applies global and kind-based styles correctly
+Error: Expected 'IDENT' but got 'diagram' ('diagram')
+ ÔØ» buildDiagram tests/dsl_features.test.ts:9:32
+      7| function buildDiagram(source: string) {
+      8|   const { program, errors } = parse(source);
+      9|   if (errors.length > 0) throw new Error(errors[0].message);
+       |                                ^
+     10|   const { iom } = analyze(program);
+     11|   return iom.diagrams[0];
+ ÔØ» tests/dsl_features.test.ts:78:18
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[1/1]ÔÄ»
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (5)[39m
+[2m   Start at [22m 22:00:39
+[2m   Duration [22m 1.67s[2m (transform 137ms, setup 20ms, collect 336ms, tests 13ms, environment 711ms, prepare 164ms)[22m
+

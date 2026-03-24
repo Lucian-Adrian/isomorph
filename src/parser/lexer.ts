@@ -17,7 +17,7 @@ export type TokenKind =
   | 'node'     | 'sequence' | 'flow'     | 'deployment'
   | 'participant' | 'partition' | 'decision' | 'merge' | 'fork' | 'join'
   | 'start' | 'stop' | 'action' | 'state' | 'composite' | 'concurrent'
-  | 'choice' | 'history' | 'device' | 'artifact' | 'environment'
+  | 'choice' | 'history' | 'device' | 'artifact' | 'environment' | 'provided' | 'required' | 'port'
   | 'boundary' | 'system' | 'multiobject' | 'active_object' | 'collaboration'
   | 'composite_object' | 'activity' | 'object'
   | 'list'     | 'map'      | 'set'      | 'optional'
@@ -57,7 +57,8 @@ const KEYWORDS = new Set<string>([
   'bool','string','true','false','participant',
   'partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action',
   'state', 'composite', 'concurrent', 'choice', 'history', 'device', 'artifact',
-  'environment', 'boundary', 'system', 'multiobject', 'active_object',
+  'environment', 'provided', 'required', 'port',
+  'boundary', 'system', 'multiobject', 'active_object',
   'collaboration', 'composite_object', 'activity', 'object',
   'title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber'
 ]);

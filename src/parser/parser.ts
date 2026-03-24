@@ -393,7 +393,7 @@ export class Parser {
     const first = this.peek();
     let base: TypeExpr;
 
-    if (this.atAny('IDENT', 'list', 'map', 'set', 'optional', 'int', 'float', 'bool', 'string_t', 'void')) {
+    if (this.atAny('IDENT', 'list', 'map', 'set', 'optional', 'int', 'float', 'bool', 'string_t', 'void', 'provided', 'required', 'port')) {
       const name = this.advance().value;
       if (this.at('LT')) {
         const args = this.parseTypeArgList();
@@ -492,7 +492,8 @@ export class Parser {
 
   private parseStyleDecl(): StyleDecl {
     const kw = this.expect('style');
-    const target = this.expect('IDENT').value;
+    const targetToken = this.advance();
+    const target = targetToken.value;
     this.expect('LBRACE');
     const styles: Record<string, string> = {};
     while (!this.at('RBRACE') && !this.at('EOF')) {
