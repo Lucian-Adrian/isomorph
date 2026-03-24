@@ -5,7 +5,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
 
 const BOX_W        = 140;
 const BOX_H        = 50;
@@ -42,11 +42,14 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
   }
 
   const header = renderConfigHeaders(diag, maxX);
-  const totalH = maxY + header.height;
+  const legend = renderConfigLegend(diag, maxX, header.height);
+  const caption = renderConfigCaption(diag, maxX, maxY + header.height + 40);
+  const totalH = maxY + header.height + caption.height + 40;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
+  svg += legend.svg;
   svg += `  <g transform="translate(0, ${header.height})">\n`;
 
   const relationPairCounts = new Map<string, number>();
@@ -161,6 +164,7 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
   }
 
   svg += `  </g>\n`;
+  svg += caption.svg;
   svg += `</svg>`;
   return svg;
 }

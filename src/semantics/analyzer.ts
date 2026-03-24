@@ -45,6 +45,7 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
   const packages:  IOMPackage[]  = [];
   const notes:     IOMNote[]     = [];
   const config:    IOMConfig     = {};
+  const styles:    Record<string, string> = {};
 
   // Tracks source location of each entity declaration for error reporting
   const entitySpans = new Map<string, { line: number; col: number }>();
@@ -69,7 +70,7 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
           entities.set(item.name, buildEntity(item, pkgName, errors));
         }
         const nestedEntities = item.members.filter(m => m.kind === 'EntityDecl') as any;
-        collectItems(nestedEntities, pkgName);
+        collectItems(nestedEntities, item.name);
       } else if (item.kind === 'NoteDecl') {
         notes.push({ text: item.text, onEntity: item.on });
         // Attach note text to entity if 'on' is present
@@ -77,10 +78,6 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
           const e = entities.get(item.on);
           if (e) e.note = item.text;
         }
-      } else if (item.kind === 'StyleDecl') {
-        // SS-9: Apply styles — target must exist (checked in second pass)
-        const e = entities.get(item.target);
-        if (e) Object.assign(e.styles, item.styles);
       } else if (item.kind === 'LayoutAnnotation') {
         // SS-10: Layout annotations overwrite position
         const e = entities.get(item.entity);
@@ -103,6 +100,23 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
   }
 
   collectItems(diag.body);
+
+  for (const item of diag.body) {
+    if (item.kind === 'StyleDecl') {
+      if (item.target === 'diagram') {
+        Object.assign(styles, item.styles);
+      } else {
+        const e = entities.get(item.target);
+        if (e) Object.assign(e.styles, item.styles);
+        else {
+          const kind = item.target as any;
+          entities.forEach(entity => {
+            if (entity.kind === kind) Object.assign(entity.styles, item.styles);
+          });
+        }
+      }
+    }
+  }
 
   // Second pass: attach notes whose target entity was declared after the note
   // (fixes order-dependence — BUG-7)
@@ -329,6 +343,7 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     packages,
     notes,
     config,
+    styles,
   };
 }
 

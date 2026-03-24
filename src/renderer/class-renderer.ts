@@ -26,7 +26,7 @@ export function renderClassDiagram(diag: IOMDiagram): string {
   if (entities.length === 0 && diag.packages.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>';
 
   // Auto-layout: assign positions to entities that lack them
-  const positioned = assignPositions(entities);
+  const positioned = assignPositions(entities, diag.config?.direction);
 
   // Compute canvas size
   const maxEntityX = positioned.length > 0 ? Math.max(...positioned.map(p => p.pos.x + p.width)) : 0;
@@ -268,11 +268,13 @@ function markerStartFor(kind: string): string {
 
 // ─── Layout ──────────────────────────────────────────────────
 
-function assignPositions(entities: IOMEntity[]): Positioned[] {
+function assignPositions(entities: IOMEntity[], direction?: string): Positioned[] {
   const result: Positioned[] = [];
   let col = 0;
   let maxRowHeight = 0;
+  let maxColWidth = 0;
   let curX = 40, curY = 40;
+  const isLR = direction !== 'TB';
 
   for (const entity of entities) {
     const width = computeWidth(entity);
@@ -284,14 +286,28 @@ function assignPositions(entities: IOMEntity[]): Positioned[] {
 
     result.push({ entity, pos, width, height });
 
-    maxRowHeight = Math.max(maxRowHeight, height);
-    col++;
-    curX += width + GRID_COL_GAP;
-    if (col >= GRID_COLS) {
-      col = 0;
-      curX = 40;
-      curY += maxRowHeight + GRID_ROW_GAP;
-      maxRowHeight = 0;
+    if (!entity.position) {
+      if (isLR) { // Left-to-Right layout
+        maxRowHeight = Math.max(maxRowHeight, height);
+        curX += width + GRID_COL_GAP;
+        col++;
+        if (col >= GRID_COLS) {
+          curX = 40;
+          curY += maxRowHeight + GRID_ROW_GAP;
+          col = 0;
+          maxRowHeight = 0; // Reset maxRowHeight for the new row
+        }
+      } else { // Top-to-Bottom layout
+        maxColWidth = Math.max(maxColWidth, width);
+        curY += height + GRID_ROW_GAP;
+        col++;
+        if (col >= GRID_COLS) { // This condition implies a new column, not a new row
+          curY = 40; // Reset Y for the new column
+          curX += maxColWidth + GRID_COL_GAP; // Advance X by the max width of the previous column
+          col = 0;
+          maxColWidth = 0; // Reset maxColWidth for the new column
+        }
+      }
     }
   }
 

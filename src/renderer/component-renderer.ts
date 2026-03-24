@@ -7,7 +7,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
 
 const BOX_W        = 160;
 const COMP_H       = 48;
@@ -34,12 +34,43 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
   const maxY = Math.max(...placed.map(p => p.y + NODE_H + DEPTH)) + 40;
 
   const header = renderConfigHeaders(diag, maxX);
-  const totalH = maxY + header.height;
+  const legend = renderConfigLegend(diag, maxX, header.height);
+  const caption = renderConfigCaption(diag, maxX, maxY + header.height + 40);
+  const totalH = maxY + header.height + caption.height + 40;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
+  svg += legend.svg;
   svg += `  <g transform="translate(0, ${header.height})">\n`;
+  
+  // 1. Draw Package Boundaries
+  for (const pkg of diag.packages) {
+    const pkgEntities = placed.filter(p => pkg.entityNames.includes(p.entity.name));
+    if (pkgEntities.length === 0) continue;
+    const minX = Math.min(...pkgEntities.map(p => p.x)) - 30;
+    const minY = Math.min(...pkgEntities.map(p => p.y)) - 40;
+    const maxX = Math.max(...pkgEntities.map(p => p.x + BOX_W)) + 30;
+    const maxY = Math.max(...pkgEntities.map(p => p.y + NODE_H + DEPTH)) + 30;
+    svg += `  <g data-package-name="${escapeXml(pkg.name)}">\n`;
+    svg += `    <rect x="${minX}" y="${minY}" width="${maxX - minX}" height="${maxY - minY}" rx="8" fill="rgba(148, 163, 184, 0.05)" stroke="var(--iso-border, #cbd5e1)" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
+    svg += `    <text x="${minX + 8}" y="${minY + 22}" font-size="12" font-weight="600" fill="var(--iso-text-muted)">${escapeXml(pkg.name)}</text>\n`;
+    svg += `  </g>\n`;
+  }
+
+  // 1.5 Draw Entity Containment (e.g. Node containing Artifacts)
+  for (const ent of diag.entities.values()) {
+    const nested = placed.filter(p => p.entity.package === ent.name);
+    if (nested.length === 0) continue;
+    const minX = Math.min(...nested.map(p => p.x)) - 25;
+    const minY = Math.min(...nested.map(p => p.y)) - 25;
+    const maxX = Math.max(...nested.map(p => p.x + BOX_W)) + 25;
+    const maxY = Math.max(...nested.map(p => p.y + NODE_H + DEPTH)) + 25;
+    svg += `  <g data-container-name="${escapeXml(ent.name)}">\n`;
+    svg += `    <rect x="${minX}" y="${minY}" width="${maxX - minX}" height="${maxY - minY}" rx="4" fill="rgba(34, 197, 94, 0.03)" stroke="rgba(34, 197, 94, 0.4)" stroke-width="1.5" stroke-dasharray="4,2"/>\n`;
+    svg += `    <text x="${minX + 6}" y="${maxY - 8}" font-size="10" font-weight="600" fill="rgba(21, 128, 61, 0.8)">«contains ${nested.length} item(s)»</text>\n`;
+    svg += `  </g>\n`;
+  }
 
   // Relations
   for (const rel of diag.relations) {
@@ -72,6 +103,7 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
   }
 
   svg += `  </g>\n`;
+  svg += caption.svg;
   svg += `</svg>`;
   return svg;
 }

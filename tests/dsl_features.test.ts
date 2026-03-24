@@ -73,4 +73,16 @@ describe('DSL Configuration Features (Phase 1)', () => {
     expect(svg).not.toContain('1. Hello');
     expect(svg).toContain('Hello');
   });
+
+  it('applies global and kind-based styles correctly', () => {
+    const diag = buildDiagram(`
+      diagram D : class {
+        style diagram { background = "red" }
+        style class { color = "blue" }
+        class A {}
+      }
+    `);
+    expect(diag.styles.background).toBe("red");
+    expect(diag.entities.get('A')?.styles.color).toBe("blue");
+  });
 });

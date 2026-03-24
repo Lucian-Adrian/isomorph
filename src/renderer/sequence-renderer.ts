@@ -2,7 +2,7 @@
 // Sequence Diagram SVG Renderer (Enhanced)
 // ============================================================
 import type { IOMDiagram } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
 
 export function renderSequenceDiagram(diag: IOMDiagram): string {
   const entities = Array.from(diag.entities.values());
@@ -40,11 +40,14 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   }
   const width = computedWidth;
   const header = renderConfigHeaders(diag, width);
-  const totalH = height + header.height;
+  const legend = renderConfigLegend(diag, width, header.height);
+  const caption = renderConfigCaption(diag, width, height + header.height + 40);
+  const totalH = height + header.height + caption.height + 40;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
+  svg += legend.svg;
   svg += `  <g transform="translate(0, ${header.height})">\n`;
 
   // --- Entities as columns ---
@@ -188,6 +191,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   }
 
   svg += `  </g>\n`;
+  svg += caption.svg;
   svg += `</svg>`;
   return svg;
 }

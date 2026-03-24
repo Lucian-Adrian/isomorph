@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { IOMDiagram } from '../semantics/iom.js';
-import { escapeXml, wrapText, svgDefs, renderConfigHeaders } from './utils.js';
+import { escapeXml, wrapText, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
 
 export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
@@ -40,11 +40,14 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const ucPositions      = usecases.map((u, i) => ({ e: u, p: pos(u, i, usecases.length, 350) }));
   
   const header = renderConfigHeaders(diag, canvasW);
-  const totalH = canvasH + header.height;
+  const legend = renderConfigLegend(diag, canvasW, header.height);
+  const caption = renderConfigCaption(diag, canvasW, canvasH + header.height + 40);
+  const totalH = canvasH + header.height + caption.height + 40;
   
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
+  svg += legend.svg;
   svg += `  <g transform="translate(0, ${header.height})">\n`;
 
   // Draw system boundaries (backgrounds)
@@ -128,6 +131,7 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   }
 
   svg += `  </g>\n`;
+  svg += caption.svg;
   svg += `</svg>`;
   return svg;
 }
