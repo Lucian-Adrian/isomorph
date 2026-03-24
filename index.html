@@ -15,6 +15,11 @@
         const saved = localStorage.getItem('isomorph-theme');
         if (saved) document.documentElement.setAttribute('data-theme', saved);
         else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
+
+        const savedLanguage = localStorage.getItem('isomorph-language');
+        if (savedLanguage === 'ro' || savedLanguage === 'ru' || savedLanguage === 'en') {
+          document.documentElement.setAttribute('lang', savedLanguage);
+        }
       })();
     </script>
   </head>

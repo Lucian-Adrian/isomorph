@@ -7,11 +7,13 @@ import type { IOMDiagram } from '../semantics/iom.js';
 import { renderDiagram } from '../renderer/index.js';
 import { IconPointer, IconHand, IconEdge } from './Icons';
 import type { IOMEntity } from '../semantics/iom.js';
+import { tText, type Language } from '../i18n.js';
 
 export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge';
 
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
+  language?: Language;
   onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number }>) => void;
   onEntityResize?: (entityName: string, w: number, h: number) => void;
   onEntityEditRequest?: (entity: IOMEntity) => void;
@@ -30,6 +32,7 @@ interface DiagramViewProps {
 
 export function DiagramView({
   diagram,
+  language = 'en',
   onEntityMove,
   onEntityResize,
   onEntityEditRequest,
@@ -45,6 +48,7 @@ export function DiagramView({
   pendingDropKeyword,
   onConsumePendingDrop,
 }: DiagramViewProps) {
+  const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
   const containerRef  = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(100);
@@ -695,7 +699,7 @@ export function DiagramView({
       {!diagram && (
         <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none' }}>
           <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
-            <title>Empty diagram placeholder</title>
+            <title>{t('diagram.empty_placeholder')}</title>
             <rect x="2" y="3" width="9" height="7" rx="1.5"/>
             <rect x="13" y="3" width="9" height="7" rx="1.5"/>
             <rect x="7" y="14" width="10" height="7" rx="1.5"/>
@@ -705,9 +709,9 @@ export function DiagramView({
             <line x1="17.5" y1="13" x2="12" y2="13"/>
             <line x1="12" y1="13" x2="12" y2="14"/>
           </svg>
-          <span className="iso-canvas-empty-title">No diagram yet</span>
+          <span className="iso-canvas-empty-title">{t('diagram.none')}</span>
           <span className="iso-canvas-empty-sub">
-            Write Isomorph code in the editor on the left, or load an example from the toolbar.
+            {t('diagram.help_write')}
           </span>
         </div>
       )}
@@ -716,13 +720,13 @@ export function DiagramView({
       {isDiagramEmpty && (
         <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none', zIndex: 10 }}>
           <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
-            <title>Empty diagram</title>
+            <title>{t('diagram.empty')}</title>
             <circle cx="12" cy="12" r="10" strokeDasharray="4 4" />
             <path d="M8 12h8" />
           </svg>
-          <span className="iso-canvas-empty-title">Empty diagram</span>
+          <span className="iso-canvas-empty-title">{t('diagram.empty')}</span>
           <span className="iso-canvas-empty-sub">
-            Drag and drop elements from the sidebar or type to add entities.
+            {t('diagram.help_drag')}
           </span>
         </div>
       )}
@@ -732,7 +736,7 @@ export function DiagramView({
         className="iso-canvas-wrap"
         ref={canvasRef}
         role="img"
-        aria-label={diagram ? `${diagram.name} ${diagram.kind} diagram` : 'Diagram canvas'}
+        aria-label={diagram ? `${diagram.name} ${diagram.kind} ${t('welcome.diagram')}` : t('diagram.canvas_label')}
         style={{
           display: diagram ? undefined : 'none',
           backgroundPosition: `${pan.x}px ${pan.y}px`,
@@ -797,17 +801,17 @@ export function DiagramView({
       {/* Tools Array */}
       <div className="iso-canvas-tools" style={{ position: 'absolute', left: 16, top: 16, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 10 }}>
         {availableTools.includes('move') && (
-          <button className={`iso-canvas-btn ${activeTool === 'move' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('move')} title="Select / Move">
+          <button className={`iso-canvas-btn ${activeTool === 'move' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('move')} aria-label={t('tool.select_move')} data-tooltip={t('tool.select_move')}>
             <IconPointer />
           </button>
         )}
         {availableTools.includes('hand') && (
-          <button className={`iso-canvas-btn ${activeTool === 'hand' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('hand')} title="Pan Canvas">
+          <button className={`iso-canvas-btn ${activeTool === 'hand' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('hand')} aria-label={t('tool.pan_canvas')} data-tooltip={t('tool.pan_canvas')}>
             <IconHand />
           </button>
         )}
         {availableTools.includes('add-edge') && (
-          <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('add-edge')} title="Draw Edge">
+          <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('add-edge')} aria-label={t('tool.draw_edge')} data-tooltip={t('tool.draw_edge')}>
             <IconEdge />
           </button>
         )}
@@ -815,14 +819,14 @@ export function DiagramView({
 
       {/* Zoom controls */}
       {diagram && (
-        <div className="iso-canvas-toolbar" role="toolbar" aria-label="Zoom controls">
+        <div className="iso-canvas-toolbar" role="toolbar" aria-label={t('tool.zoom_controls')}>
             <button
             type="button"
             className="iso-canvas-btn"
             onClick={handleZoomOut}
-            aria-label="Zoom out"
+            aria-label={t('tool.zoom_out')}
             disabled={zoom <= 40}
-            data-tooltip="Zoom out"
+            data-tooltip={t('tool.zoom_out')}
           >
             −
           </button>
@@ -830,7 +834,7 @@ export function DiagramView({
             type="button"
             className="iso-canvas-btn"
             onClick={handleFit}
-            aria-label={`Reset zoom (currently ${zoom}%)`}
+            aria-label={t('tool.reset_zoom', { zoom })}
             style={{ width: 44, fontSize: 11 }}
           >
             {zoom}%
@@ -839,9 +843,9 @@ export function DiagramView({
             type="button"
             className="iso-canvas-btn"
             onClick={handleZoomIn}
-            aria-label="Zoom in"
+            aria-label={t('tool.zoom_in')}
             disabled={zoom >= 200}
-            data-tooltip="Zoom in"
+            data-tooltip={t('tool.zoom_in')}
           >
             +
           </button>
