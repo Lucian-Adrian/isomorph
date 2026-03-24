@@ -23,6 +23,7 @@ export type TokenKind =
   | 'list'     | 'map'      | 'set'      | 'optional'
   | 'int'      | 'float'    | 'bool'     | 'string_t'
   | 'true'      | 'false'
+  | 'alt' | 'else' | 'opt' | 'loop' | 'par' | 'break' | 'critical' | 'end'
   | 'title'    | 'subtitle' | 'caption'  | 'legend'   | 'direction' | 'strict' | 'autonumber'
   // Relation operators (longest-match-first in lexer)
   | 'INHERIT'    // --|>
@@ -60,6 +61,7 @@ const KEYWORDS = new Set<string>([
   'environment', 'provided', 'required', 'port',
   'boundary', 'system', 'multiobject', 'active_object',
   'collaboration', 'composite_object', 'activity', 'object',
+  'alt', 'else', 'opt', 'loop', 'par', 'break', 'critical', 'end',
   'title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber'
 ]);
 
@@ -230,6 +232,7 @@ export function lex(source: string): LexResult {
     if (rest.startsWith('o--'))    { advance(3); tokens.push(makeToken('AGGR_R',    'o--',   start, startLine, startCol)); continue; }
     if (rest.startsWith('*--'))    { advance(3); tokens.push(makeToken('COMPOSE_R', '*--',   start, startLine, startCol)); continue; }
     if (rest.startsWith('-->'))    { advance(3); tokens.push(makeToken('ASSOC_DIR', '-->',   start, startLine, startCol)); continue; }
+    if (rest.startsWith('->'))     { advance(2); tokens.push(makeToken('ASSOC_DIR', '->',    start, startLine, startCol)); continue; }
     if (rest.startsWith('..>'))    { advance(3); tokens.push(makeToken('DEPEND',    '..>',   start, startLine, startCol)); continue; }
     if (rest.startsWith('--o'))    { advance(3); tokens.push(makeToken('AGGR',      '--o',   start, startLine, startCol)); continue; }
     if (rest.startsWith('--*'))    { advance(3); tokens.push(makeToken('COMPOSE',   '--*',   start, startLine, startCol)); continue; }

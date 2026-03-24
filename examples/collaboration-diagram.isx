@@ -1,0 +1,17 @@
+diagram "MsgExchange" : collaboration {
+  title "Messaging Object Interaction"
+  subtitle "Object and Multiobject Coordination"
+
+  actor User
+  object "MainController" <<active>>
+  multiobject "QueueHandler" <<priority>>
+  object "Logger"
+
+  User -> "MainController" [label="push_msg"]
+  "MainController" -> "QueueHandler" [label="enqueue"]
+  "QueueHandler" -> "QueueHandler" [label="reorder"]
+  "QueueHandler" -> "Logger" [label="audit"]
+  "MainController" -> User [label="ack"]
+
+  caption "Figure 5: High-throughput message queuing interaction"
+}

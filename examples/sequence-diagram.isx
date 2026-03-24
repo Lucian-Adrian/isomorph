@@ -1,0 +1,24 @@
+diagram "AuthFlow" : sequence {
+  title "User Authentication Flow"
+  subtitle "Standard Login with Autonumbering"
+  autonumber
+
+  actor User
+  component "Auth Service" as Auth
+  database "User DB" as DB
+
+  User -> Auth [label="Login(user, pass)"]
+  Auth -> DB [label="FindUser(user)"]
+  DB --> Auth [label="UserData"]
+  Auth -> Auth [label="ValidatePassword()"]
+  Auth --> User [label="AuthToken"]
+
+  note "User is redirected to dashboard" on User
+  
+  caption "Figure 1: Sequence of authentication steps"
+  legend {
+    User = "Primary Human Actor"
+    Auth = "Microservice"
+    DB = "Relational Storage"
+  }
+}

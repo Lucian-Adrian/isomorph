@@ -1,0 +1,31 @@
+diagram "BatteryController" : state {
+  title "State Machine: Lithium Battery Control"
+  subtitle "Monitoring and Charging Logic"
+
+  state "Off"
+  state "Standby" <<monitoring>> {
+    entry / start_monitor
+    exit / stop_monitor
+  }
+  state "Charging" <<active>> {
+    do / charge_battery
+    do / check_temp
+  }
+  state "Charged"
+  state "Fault" <<critical>> {
+    do / sound_alarm
+    entry / log_error
+  }
+
+  start -> "Off"
+  "Off" -> "Standby" [label="power_on"]
+  "Standby" -> "Charging" [label="plug_in"]
+  "Charging" -> "Standby" [label="unplug"]
+  "Charging" -> "Charged" [label="complete"]
+  "Charged" -> "Standby" [label="unplug"]
+  "Standby" -> "Fault" [label="temp_high"]
+  "Charging" -> "Fault" [label="over_voltage"]
+  "Fault" -> "Off" [label="reset"]
+
+  caption "Figure 3: Lithium-ion battery protection states"
+}

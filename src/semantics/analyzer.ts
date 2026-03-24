@@ -9,7 +9,7 @@ import type { Program, DiagramDecl, BodyItem, EntityDecl, RelationDecl, Member, 
 import type {
   IOM, IOMDiagram, IOMEntity, IOMRelation, IOMField, IOMMethod,
   IOMEnumValue, IOMPackage, IOMNote, IOMEntityKind, IOMRelationKind,
-  Visibility, IOMConfig
+  Visibility, IOMConfig, IOMFragment
 } from './iom.js';
 import { relTokenToKind } from './iom.js';
 
@@ -39,13 +39,14 @@ export function analyze(program: Program): AnalysisResult {
   return { iom: { diagrams }, errors };
 }
 
-function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram {
+export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram {
   const entities  = new Map<string, IOMEntity>();
   const relations: IOMRelation[] = [];
   const packages:  IOMPackage[]  = [];
   const notes:     IOMNote[]     = [];
   const config:    IOMConfig     = {};
   const styles:    Record<string, string> = {};
+  const fragments: IOMFragment[] = [];
 
   // Tracks source location of each entity declaration for error reporting
   const entitySpans = new Map<string, { line: number; col: number }>();
@@ -141,6 +142,32 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
         relations.push(buildRelation(item, relations.length, errors));
       } else if (item.kind === 'PackageDecl') {
         collectRelations(item.body);
+      } else if (item.kind === 'FragmentDecl') {
+        const startRelIdx = relations.length;
+        collectRelations(item.body);
+        const endRelIdx = relations.length;
+        const mainRelIds = relations.slice(startRelIdx, endRelIdx).map(r => r.id);
+
+        const elseBlocks: { label?: string; relationIds: string[] }[] = [];
+        if (item.elseBlocks) {
+          for (const block of item.elseBlocks) {
+            const sIdx = relations.length;
+            collectRelations(block.body);
+            const eIdx = relations.length;
+            elseBlocks.push({
+              label: block.label,
+              relationIds: relations.slice(sIdx, eIdx).map(r => r.id),
+            });
+          }
+        }
+
+        fragments.push({
+          id: `frag_${fragments.length + 1}`,
+          kind: item.fragmentKind,
+          label: item.label,
+          relationIds: mainRelIds,
+          elseBlocks: elseBlocks.length > 0 ? elseBlocks : undefined,
+        });
       }
     }
   }
@@ -344,6 +371,7 @@ function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMDiagram 
     notes,
     config,
     styles,
+    fragments,
   };
 }
 

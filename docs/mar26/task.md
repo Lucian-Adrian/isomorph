@@ -125,7 +125,6 @@ chore(ci): add typecheck step to GitHub Actions
 
 ### What's missing ❌
 
-1. **No `dev` branch** — all work on `master`/`slides`
 2. **No deployment renderer** — marked "To Be Extracted"
 3. **No sequence fragments** (alt/else/end, loop, opt, par, break, critical)
 4. **No composite states** in state diagrams
@@ -136,7 +135,6 @@ chore(ci): add typecheck step to GitHub Actions
 9. **No title/legend/config** statement layer in grammar
 10. **No diagram-specific semantic validation** beyond generic SS rules
 11. **Major docs ↔ implementation parity gap**
-12. **Only 3 example `.isx` files** (need 8+ covering all diagram types)
 13. **No renderer tests** beyond basic smoke test
 14. **No integration/e2e tests**
 
@@ -145,7 +143,6 @@ chore(ci): add typecheck step to GitHub Actions
 ## Phase 1 — Foundation & Grammar Evolution (Priority: CRITICAL)
 
 > **Branch:** `feature/grammar-statement-layer`  
-> **Estimated effort:** 2–3 days
 
 ### 1.1 Add title/subtitle/config statements to reference grammar, modify real grammar
 
@@ -258,7 +255,6 @@ export interface IOMConfig {
 ## Phase 2 — Sequence Diagram Overhaul (Priority: HIGHEST)
 
 > **Branch:** `feature/sequence-fragments`  
-> **Estimated effort:** 3–4 days  
 > **Why highest:** Sequence diagram DSLs are judged harshest by users — Mermaid and PlantUML set the bar
 
 ### 2.1 Add fragment syntax to grammar
@@ -353,7 +349,6 @@ The renderer must draw:
 ## Phase 3 — State & Activity Diagram Maturity (Priority: HIGH)
 
 > **Branch:** `feature/state-composite`  
-> **Estimated effort:** 3 days
 
 ### 3.1 Composite/nested states
 
@@ -442,7 +437,6 @@ partitionDecl
 ## Phase 4 — Component & Deployment Diagrams (Priority: HIGH)
 
 > **Branch:** `feature/component-ports`  
-> **Estimated effort:** 2–3 days
 
 ### 4.1 Component diagram: ports & interfaces
 
@@ -531,7 +525,6 @@ entityKind
 ## Phase 5 — Use Case & Collaboration Polish (Priority: MEDIUM-HIGH)
 
 > **Branch:** `feature/usecase-boundaries`  
-> **Estimated effort:** 2 days
 
 ### 5.1 Use case diagram
 
@@ -575,7 +568,6 @@ entityKind
 ## Phase 6 — Class Diagram Refinements (Priority: MEDIUM)
 
 > **Branch:** `feature/class-enhancements`  
-> **Estimated effort:** 1–2 days
 
 ### Improvements:
 
@@ -594,7 +586,6 @@ entityKind
 ## Phase 7 — Layout Engine & Auto-Layout (Priority: HIGH)
 
 > **Branch:** `feature/auto-layout`  
-> **Estimated effort:** 3–4 days
 
 ### 7.1 Implement basic auto-layout algorithms
 
@@ -635,7 +626,6 @@ export interface LayoutEngine {
 ## Phase 8 — Testing Blitz (Priority: CRITICAL)
 
 > **Branch:** `test/comprehensive-coverage`  
-> **Estimated effort:** 2–3 days
 
 ### 8.1 Test targets
 
@@ -684,7 +674,6 @@ For EACH of the 8 diagram types:
 ## Phase 9 — Documentation, Parity & Examples (Priority: CRITICAL)
 
 > **Branch:** `docs/implementation-parity`  
-> **Estimated effort:** 2–3 days
 
 ### 9.1 Close the docs ↔ implementation gap
 
@@ -748,7 +737,6 @@ For EACH diagram spec document:
 ## Phase 10 — UI/UX & Editor Enhancements (Priority: MEDIUM)
 
 > **Branch:** `feature/editor-improvements`  
-> **Estimated effort:** 2 days
 
 ### 10.1 Editor enhancements:
 
@@ -780,7 +768,6 @@ For EACH diagram spec document:
 ## Phase 11 — Website, Demo & Presentation (Priority: MEDIUM)
 
 > **Branch:** `feature/website-showcase`  
-> **Estimated effort:** 1–2 days
 
 ### 11.1 Live demo improvements:
 
@@ -795,43 +782,9 @@ For EACH diagram spec document:
 - [ ] Interactive tutorial walkthrough
 - [ ] Comparison table: Isomorph vs Mermaid vs PlantUML
 - [ ] Performance benchmarks (parsing speed for large files)
-
 ---
-
-## Sprint Calendar
-
-> Assuming work starts immediately and runs until final submission.
-
-| Sprint       | Dates      | Focus                                | Branches                                                                           |
-| ------------ | ---------- | ------------------------------------ | ---------------------------------------------------------------------------------- |
-| **Sprint 1** | Days 1–3   | Foundation + Sequence overhaul       | `feature/grammar-statement-layer`, `feature/sequence-fragments`                    |
-| **Sprint 2** | Days 4–6   | State + Activity + Component         | `feature/state-composite`, `feature/activity-swimlanes`, `feature/component-ports` |
-| **Sprint 3** | Days 7–8   | Deployment + UseCase + Collaboration | `feature/deployment-renderer`, `feature/usecase-boundaries`                        |
-| **Sprint 4** | Days 9–10  | Testing blitz + Layout               | `test/comprehensive-coverage`, `feature/auto-layout`                               |
-| **Sprint 5** | Days 11–12 | Docs parity + Examples + Polish      | `docs/implementation-parity`, `feature/editor-improvements`                        |
-| **Sprint 6** | Day 13     | Final integration, README, website   | `feature/website-showcase`                                                         |
-
-### Daily routine:
-
-```
-09:00  Pull dev, review overnight changes
-09:30  Feature branch work
-12:00  Commit + push (meaningful conventional commit)
-12:30  Break
-13:00  Continue feature or start tests
-16:00  Push progress, open PR if feature is complete
-16:30  Code review any open PRs
-17:00  Merge completed PRs into dev
-17:30  Run full test suite, fix any regressions
-18:00  Stop
-```
-
----
-
 ## Definition of Done
-
 A feature is "done" when:
-
 - [ ] Reference Grammar `.g4` spec updated
 - [ ] AST types defined in `ast.ts`
 - [ ] Lexer handles new tokens
@@ -847,9 +800,7 @@ A feature is "done" when:
 - [ ] `npm test` passes all (including new) tests
 - [ ] `npm run typecheck` shows no errors
 - [ ] PR reviewed and merged into `dev`
-
 ---
-
 ## Risk Mitigation
 
 | Risk                                                | Impact | Mitigation                                                                                         |
@@ -863,9 +814,7 @@ A feature is "done" when:
 | Renderer tests are brittle (SVG string matching)    | Medium | Test SVG structure via DOM queries (jsdom + querySelector), not string equality.                   |
 
 ---
-
 ## Summary: Overachieve Targets
-
 | Metric                  | Current                | Target                                     | Multiplier |
 | ----------------------- | ---------------------- | ------------------------------------------ | ---------- |
 | **Test count**          | 84                     | 220+                                       | **2.6×**   |
@@ -880,5 +829,4 @@ A feature is "done" when:
 | **Auto-layout**         | No                     | Basic Sugiyama + force                     | **∞**      |
 | **Title/legend/config** | No                     | Yes                                        | **∞**      |
 | **Deployment renderer** | "To Be Extracted"      | Fully implemented                          | **∞**      |
-
-> **This plan doesn't just complete the tasks — it ships a genuinely competitive UML diagramming DSL.**
+> **This planships a genuinely competitive UML diagramming DSL.**

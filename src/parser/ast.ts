@@ -46,7 +46,8 @@ export type BodyItem =
   | NoteDecl
   | StyleDecl
   | LayoutAnnotation
-  | ConfigDecl;
+  | ConfigDecl
+  | FragmentDecl;
 
 // ─── Package ─────────────────────────────────────────────────
 
@@ -216,5 +217,14 @@ export interface ConfigDecl {
 export interface LiteralExpr {
   kind: 'Literal';
   value: string | number | boolean;
+  span: Span;
+}
+
+export interface FragmentDecl {
+  kind: 'FragmentDecl';
+  fragmentKind: 'alt' | 'loop' | 'opt' | 'par' | 'break' | 'critical';
+  label?: string;
+  body: BodyItem[];
+  elseBlocks?: { label?: string; body: BodyItem[] }[];
   span: Span;
 }

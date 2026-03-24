@@ -108,6 +108,15 @@ export interface IOMDiagram {
   notes: IOMNote[];
   config: IOMConfig;
   styles: Record<string, string>;
+  fragments: IOMFragment[];
+}
+
+export interface IOMFragment {
+  id: string;
+  kind: 'alt' | 'loop' | 'opt' | 'par' | 'break' | 'critical';
+  label?: string;
+  relationIds: string[];
+  elseBlocks?: { label?: string; relationIds: string[] }[];
 }
 
 export interface IOMConfig {
@@ -145,6 +154,7 @@ export function relTokenToKind(tok: string): IOMRelationKind {
   const map: Record<string, IOMRelationKind> = {
     '--':   'association',
     '-->':  'directed-association',
+    '->':   'directed-association',
     '--|>': 'inheritance',
     '..|>': 'realization',
     '--o':  'aggregation',

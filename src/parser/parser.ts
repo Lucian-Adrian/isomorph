@@ -10,7 +10,7 @@ import type {
   PackageDecl, EntityDecl, EntityKind, Modifier, Member,
   FieldDecl, MethodDecl, EnumValueDecl, ParamDecl, TypeExpr,
   SimpleType, GenericType, NullableType, RelationDecl, RelationKind,
-  NoteDecl, StyleDecl, LayoutAnnotation, LiteralExpr, ConfigDecl, Span, Visibility,
+  NoteDecl, StyleDecl, LayoutAnnotation, LiteralExpr, ConfigDecl, Span, Visibility, FragmentDecl,
 } from './ast.js';
 
 export interface ParseError {
@@ -159,6 +159,9 @@ export class Parser {
 
     // ── Layout annotation: @Name at (x, y) ──
     if (t.kind === 'AT') return this.parseLayoutAnnotation();
+
+    // ── Sequence Fragments ──
+    if (this.atAny('alt', 'loop', 'opt', 'par', 'break', 'critical')) return this.parseFragmentDecl();
 
     // ── Package ──
     if (t.kind === 'package') return this.parsePackageDecl();
@@ -568,6 +571,41 @@ export class Parser {
     }
     this.errors.push({ message: `Expected literal value`, ...this.currentPos() });
     return { kind: 'Literal', value: '', span: this.spanFrom(t) };
+  }
+
+  private parseFragmentDecl(): FragmentDecl {
+    const startToken = this.peek();
+    const fragmentKind = this.advance().kind as any;
+    let label: string | undefined;
+    if (this.at('STRING')) label = this.advance().value;
+
+    this.expect('LBRACE');
+    const body = this.parseDiagramBody();
+    this.expect('RBRACE');
+
+    const elseBlocks: { label?: string; body: BodyItem[] }[] = [];
+    while (this.at('else')) {
+      this.advance();
+      let elseLabel: string | undefined;
+      if (this.at('STRING')) elseLabel = this.advance().value;
+      this.expect('LBRACE');
+      const elseBody = this.parseDiagramBody();
+      this.expect('RBRACE');
+      elseBlocks.push({ label: elseLabel, body: elseBody });
+    }
+
+    // Optional 'end' to close fragment if not using braces, but Isomorph prefers braces.
+    // We'll allow 'end' as an optional terminator for PlantUML fans.
+    if (this.at('end')) this.advance();
+
+    return {
+      kind: 'FragmentDecl',
+      fragmentKind,
+      label,
+      body,
+      elseBlocks: elseBlocks.length > 0 ? elseBlocks : undefined,
+      span: this.spanTo(startToken, this.peek(-1)),
+    };
   }
 
   // ── Helpers ──────────────────────────────────────────────────
