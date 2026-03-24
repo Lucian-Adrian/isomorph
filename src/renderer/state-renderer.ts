@@ -26,7 +26,7 @@ interface Placed {
 
 export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
-  if (entities.length === 0)
+  if (entities.length === 0 && diag.partitions.length === 0)
     return `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>`;
 
   const placed = placeEntities(entities);
@@ -38,9 +38,7 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     maxY = Math.max(maxY, p.y + dim.h + 40);
   }
 
-  const partitionEntities = diag.kind === 'activity'
-    ? entities.filter(e => e.kind === 'partition')
-    : [];
+  const partitionEntities = diag.partitions;
   const shouldRenderSwimlanes = partitionEntities.length > 0;
 
   if (shouldRenderSwimlanes) {
@@ -106,7 +104,7 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
   return svg;
 }
 
-function renderActivitySwimlanes(partitions: IOMEntity[], placed: Placed[], height: number): string {
+function renderActivitySwimlanes(partitions: import('../semantics/iom.js').IOMPartition[], placed: Placed[], height: number): string {
   const headerHeight = 34;
 
   const partitionPlacements = partitions

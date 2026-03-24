@@ -168,6 +168,7 @@ export class Parser {
     if (this.at('activate')) return this.parseActivateDecl(false);
     if (this.at('deactivate')) return this.parseActivateDecl(true);
     if (this.at('return')) return this.parseReturnDecl();
+    if (this.at('partition')) return this.parsePartitionDecl();
 
     // ── Package ──
     if (t.kind === 'package') return this.parsePackageDecl();
@@ -306,6 +307,9 @@ export class Parser {
     if (this.isEntityStart()) {
       return this.parseEntityDecl();
     }
+    
+    // Concurrent regions
+    if (this.at('region')) return this.parseRegionDecl();
 
     // Enum values have no visibility/type prefix
     if (entityKind === 'enum' && this.at('IDENT') && !this.isVisibility(this.peek().kind)) {
@@ -636,6 +640,32 @@ export class Parser {
       label = this.advance().value;
     }
     return { kind: 'ReturnDecl', label, span: this.spanFrom(first) };
+  }
+
+  private parseRegionDecl(): import('./ast.js').RegionDecl {
+    const first = this.advance();
+    this.expect('LBRACE');
+    const body = this.parseDiagramBody();
+    this.expect('RBRACE');
+    return { kind: 'RegionDecl', body, span: this.spanFrom(first) };
+  }
+
+  private parsePartitionDecl(): import('./ast.js').PartitionDecl {
+    const first = this.advance();
+    let name = '';
+    if (this.atAny('IDENT', 'STRING')) {
+      name = this.advance().value;
+    } else {
+      this.expect('IDENT');
+    }
+
+    let body: BodyItem[] = [];
+    if (this.at('LBRACE')) {
+      this.expect('LBRACE');
+      body = this.parseDiagramBody();
+      this.expect('RBRACE');
+    }
+    return { kind: 'PartitionDecl', name, body, span: this.spanFrom(first) };
   }
 
   // ── Helpers ──────────────────────────────────────────────────

@@ -51,7 +51,12 @@ export type BodyItem =
   | ActivateDecl
   | DeactivateDecl
   | ReturnDecl
-  | RefDecl;
+  | RefDecl
+  | PartitionDecl;
+
+// ─── Members ─────────────────────────────────────────────────
+
+export type Member = FieldDecl | MethodDecl | EnumValueDecl | EntityDecl | RegionDecl;
 
 // ─── Package ─────────────────────────────────────────────────
 
@@ -95,7 +100,7 @@ export interface EntityDecl {
 
 // ─── Members ─────────────────────────────────────────────────
 
-export type Member = FieldDecl | MethodDecl | EnumValueDecl | EntityDecl;
+// Members are already defined above
 
 export interface FieldDecl {
   kind: 'FieldDecl';
@@ -237,3 +242,5 @@ export interface ActivateDecl   { kind: 'ActivateDecl'; entity: string; span: Sp
 export interface DeactivateDecl { kind: 'DeactivateDecl'; entity: string; span: Span; }
 export interface ReturnDecl     { kind: 'ReturnDecl'; label?: string; span: Span; }
 export interface RefDecl        { kind: 'RefDecl'; text: string; span: Span; }
+export interface RegionDecl     { kind: 'RegionDecl'; body: BodyItem[]; span: Span; }
+export interface PartitionDecl  { kind: 'PartitionDecl'; name: string; body: BodyItem[]; span: Span; }

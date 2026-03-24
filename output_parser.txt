@@ -1,0 +1,34 @@
+
+ RUN  v2.1.9 D:/uni/year2/dslpbl/repo
+
+ ÔØ» tests/parser.test.ts (73 tests | 1 failed) 31ms
+   ├ù Parser > layout annotations > parses @Entity at (x, y, w, h) 10ms
+     ÔåÆ expected [ { ÔÇª(4) }, { ÔÇª(4) }, { ÔÇª(4) }, ÔÇª(1) ] to have a length of +0 but got 4
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Tests 1 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  tests/parser.test.ts > Parser > layout annotations > parses @Entity at (x, y, w, h)
+AssertionError: expected [ { ÔÇª(4) }, { ÔÇª(4) }, { ÔÇª(4) }, ÔÇª(1) ] to have a length of +0 but got 4
+
+- Expected
++ Received
+
+- 0
++ 4
+
+ ÔØ» parseOk tests/parser.test.ts:8:25
+      6| function parseOk(source: string) {
+      7|   const result = parse(source);
+      8|   expect(result.errors).toHaveLength(0);
+       |                         ^
+      9|   return result.program;
+     10| }
+ ÔØ» tests/parser.test.ts:477:20
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[1/1]ÔÄ»
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 72 passed (73)
+   Start at  23:47:07
+   Duration  1.72s (transform 110ms, setup 18ms, collect 175ms, tests 31ms, environment 755ms, prepare 155ms)
+

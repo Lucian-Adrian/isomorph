@@ -74,6 +74,8 @@ export interface IOMEntity {
   position?: Position;     // from @Entity at (x, y) annotations
   styles: Record<string, string>;
   note?: string;
+  children: IOMEntity[];
+  regions: { id: string, entityNames: string[], relationIds: string[] }[];
 }
 
 export type IOMRelationKind =
@@ -110,6 +112,15 @@ export interface IOMDiagram {
   styles: Record<string, string>;
   fragments: IOMFragment[];
   activations: IOMActivation[];
+  partitions: IOMPartition[];
+}
+
+export interface IOMPartition {
+  id: string;
+  name: string;
+  entityNames: string[];
+  relationIds: string[];
+  position?: Position;
 }
 
 export interface IOMActivation {
