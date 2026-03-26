@@ -27,4 +27,3 @@ Error: Expected 'IDENT' but got 'diagram' ('diagram')
 [2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (5)[39m
 [2m   Start at [22m 22:00:39
 [2m   Duration [22m 1.67s[2m (transform 137ms, setup 20ms, collect 336ms, tests 13ms, environment 711ms, prepare 164ms)[22m
-

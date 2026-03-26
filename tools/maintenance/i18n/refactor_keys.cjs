@@ -186,4 +186,3 @@ filesToProcess.forEach(file => {
   }
 });
 console.log("Done refactoring strings inside source code!");
-

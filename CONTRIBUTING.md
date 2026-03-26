@@ -34,6 +34,17 @@ npm run typecheck    # TypeScript type checking
 npm run build        # Production build
 ```
 
+## Repository Hygiene
+
+Keep project root focused on runtime code, configuration, and core docs.
+
+1. Put reusable helper scripts in `tools/maintenance/`.
+2. Put one-off or historical helper scripts in `tools/archive/`.
+3. Put generated logs/debug outputs in `artifacts/debug/`.
+4. Put captured test run outputs in `artifacts/test-runs/`.
+5. Do not add temporary `.txt`/`.json` outputs to repository root.
+6. If a script mutates source files, include a short header comment describing intent and expected working directory.
+
 ## Guidelines
 
 1. **Tests first** — every new semantic rule must have at least one positive and one negative test.

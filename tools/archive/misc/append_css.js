@@ -1,6 +1,6 @@
 const fs = require('fs');
 let css = fs.readFileSync('src/index.css', 'utf8');
-css += \
+css += `
   .iso-modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;
     display: flex; align-items: center; justify-content: center;
@@ -24,5 +24,5 @@ css += \
   .iso-modal-btn.confirm:hover { background: var(--ink); }
   .iso-modal-btn.danger { background: var(--iso-error); color: white; }
   .iso-modal-btn.danger:hover { background: #e04a43; }
-\;
+`;
 fs.writeFileSync('src/index.css', css);

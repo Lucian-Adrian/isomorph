@@ -27,4 +27,3 @@ Received: "<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>"
       Tests  1 failed | 47 passed (48)
    Start at  23:49:53
    Duration  2.47s (transform 239ms, setup 38ms, collect 544ms, tests 27ms, environment 942ms, prepare 278ms)
-

@@ -105,4 +105,3 @@ AssertionError: expected [ Array(4) ] to deeply equal [ Array(4) ]
 [2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m71 passed[39m[22m[90m (72)[39m
 [2m   Start at [22m 21:50:03
 [2m   Duration [22m 1.41s[2m (transform 75ms, setup 15ms, collect 100ms, tests 21ms, environment 650ms, prepare 231ms)[22m
-
