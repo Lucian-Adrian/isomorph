@@ -952,6 +952,13 @@ body {
   right: 0;
   transform: none;
 }
+.iso-canvas-tools .iso-canvas-btn[data-tooltip]::after {
+  bottom: auto;
+  top: 50%;
+  left: calc(100% + 6px);
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
 
 .iso-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 2000;

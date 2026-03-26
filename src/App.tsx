@@ -24,6 +24,7 @@ import { exportSVG, exportPNG } from './utils/exporter.js';
 import { EXAMPLES } from './data/examples.js';
 import type { IOMDiagram, IOMEntity } from './semantics/iom.js';
 import type { ParseError } from './parser/index.js';
+import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Language } from './i18n.js';
 
 type DiagramKind = IOMDiagram['kind'];
 
@@ -562,6 +563,7 @@ function updateRelationById(
 // ── App ──────────────────────────────────────────────────────
 
 export default function App() {
+  const [language, setLanguage] = useState<Language>(() => getStoredLanguage());
   const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('');
   const [newDiagramKind, setNewDiagramKind] = useState<DiagramKind>('class');
@@ -584,6 +586,7 @@ export default function App() {
   const fileInputRef                        = useRef<HTMLInputElement>(null);
 
   const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
+  const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
 
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId]);
   const source = activeTab?.source ?? '';
@@ -666,6 +669,23 @@ export default function App() {
     }
     media.addListener(listener);
     return () => media.removeListener(listener);
+  }, []);
+
+  useEffect(() => {
+    setStoredLanguage(language);
+    document.documentElement.setAttribute('lang', language);
+  }, [language]);
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== 'isomorph-language') return;
+      const next = event.newValue;
+      if (next === 'en' || next === 'ro' || next === 'ru') {
+        setLanguage(next);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   useEffect(() => {
@@ -1176,18 +1196,22 @@ export default function App() {
       ? 'iso-status iso-status--ok'
       : 'iso-status iso-status--idle';
   const statusLabel = allErrors.length > 0
-    ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}`
+    ? allErrors.length > 1
+      ? t('status.error_many', { count: allErrors.length })
+      : t('status.error_one', { count: allErrors.length })
     : diagrams.length > 0
-      ? 'Valid'
-      : 'Ready';
+      ? t('status.valid')
+      : t('status.ready');
   const statusAriaLabel = allErrors.length > 0
-    ? `${allErrors.length} error${allErrors.length > 1 ? 's' : ''}`
-    : 'Diagram valid';
+    ? allErrors.length > 1
+      ? t('status.error_many', { count: allErrors.length })
+      : t('status.error_one', { count: allErrors.length })
+    : t('status.diagram_valid');
 
   const shapesPane = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
     <div className="iso-sidebar">
       <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-        <IconDiagram size={11} /> Shapes
+        <IconDiagram size={11} /> {t('ui.shapes')}
       </div>
       <div className="iso-sidebar-body">
         {getStencilsForKind(activeDiagram.kind).map(stencil => (
@@ -1211,15 +1235,17 @@ export default function App() {
     <div className="iso-panel" style={{ height: '100%' }}>
       <div className="iso-panel-header">
         <IconCode size={11} />
-        Source
+        {t('ui.source')}
         <span className="iso-panel-info" aria-live="polite">
           {parseErrors.length > 0
-            ? ` — ${parseErrors.length} parse error${parseErrors.length > 1 ? 's' : ''}`
-            : source.trim() ? ' — OK' : ''}
+            ? parseErrors.length > 1
+              ? ` - ${t('status.parse_error_many', { count: parseErrors.length })}`
+              : ` - ${t('status.parse_error_one', { count: parseErrors.length })}`
+            : source.trim() ? ` - ${t('ui.ok')}` : ''}
         </span>
         <span className="iso-panel-spacer" />
         <span style={{ fontSize: 10, color: 'var(--iso-text-faint)', fontFamily: 'monospace' }}>
-          {source.split('\n').length} lines
+          {t('status.lines', { count: source.split('\n').length })}
         </span>
       </div>
       <div className="iso-panel-body">
@@ -1230,7 +1256,7 @@ export default function App() {
         />
       </div>
       {allErrors.length > 0 && (
-        <div className="iso-error-panel" role="log" aria-label="Errors">
+        <div className="iso-error-panel" role="log" aria-label={t('ui.errors')}>
           {allErrors.slice(0, 8).map((msg, i) => (
             <div key={`err-${msg.slice(0, 20)}-${i}`} className="iso-error-item">
               <span className="iso-error-icon" aria-hidden="true">✖</span>
@@ -1241,7 +1267,9 @@ export default function App() {
             <div className="iso-error-item">
               <span className="iso-error-icon" aria-hidden="true">…</span>
               <span className="iso-error-msg" style={{ color: 'var(--iso-text-muted)' }}>
-                +{allErrors.length - 8} more error{allErrors.length - 8 > 1 ? 's' : ''}
+                {allErrors.length - 8 > 1
+                  ? t('status.more_error_many', { count: allErrors.length - 8 })
+                  : t('status.more_error_one', { count: allErrors.length - 8 })}
               </span>
             </div>
           )}
@@ -1254,22 +1282,23 @@ export default function App() {
     <div className="iso-panel iso-panel--canvas" style={{ height: '100%' }}>
       <div className="iso-panel-header">
         <IconDiagram size={11} />
-        Canvas
+        {t('ui.canvas')}
         <span className="iso-panel-info" aria-live="polite">
           {activeDiagram
-            ? ` — ${activeDiagram.name} · ${activeDiagram.entities.size} entities · ${activeDiagram.relations.length} relations`
+            ? ` - ${activeDiagram.name} · ${t('status.entities', { count: activeDiagram.entities.size })} · ${t('status.relations', { count: activeDiagram.relations.length })}`
             : ''}
         </span>
         <span className="iso-panel-spacer" />
         {diagrams.length > 0 && (
           <span style={{ fontSize: 10, color: '#6e7781', fontFamily: 'monospace' }}>
-            drag to reposition
+            {t('ui.drag_reposition')}
           </span>
         )}
       </div>
       <div className="iso-panel-body">
         <DiagramView
           diagram={activeDiagram}
+          language={language}
           onEntityMove={handleEntityMove}
           onEntityResize={handleEntityResize}
           onRelationVerticalMove={handleRelationVerticalMove}
@@ -1290,7 +1319,7 @@ export default function App() {
   );
 
   const mobileStencilRail = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
-    <div className="iso-mobile-stencil-rail" role="toolbar" aria-label="Insert shapes">
+    <div className="iso-mobile-stencil-rail" role="toolbar" aria-label={t('ui.insert_shapes')}>
       {getStencilsForKind(activeDiagram.kind).map(stencil => (
         <button
           key={stencil.label}
@@ -1333,13 +1362,13 @@ export default function App() {
         }}
         aria-haspopup="menu"
         aria-expanded={examplesOpen}
-        aria-label="Load example diagram"
+        aria-label={t('ui.load_example')}
       >
-        Examples
+        {t('ui.examples')}
         <IconChevron dir={examplesOpen ? 'up' : 'down'} />
       </button>
       {examplesOpen && (
-        <div className="iso-dropdown-menu" role="menu" aria-label="Example diagrams">
+        <div className="iso-dropdown-menu" role="menu" aria-label={t('ui.example_diagrams')}>
           {EXAMPLES.map(ex => (
             <button
               key={ex.label}
@@ -1368,28 +1397,28 @@ export default function App() {
     return (
       <div className="iso-shell">
         <header className="iso-header">
-          <button type="button" className="iso-logo" aria-label="Isomorph home">
+          <button type="button" className="iso-logo" aria-label={t('ui.isomorph_home')}>
             <span className="iso-logo-name">Isomorph</span>
           </button>
         </header>
         <div className="iso-empty-state">
-          <h1 className="iso-empty-title">Welcome to Isomorph</h1>
-          <p className="iso-empty-copy">Open an existing diagram or create a new one to get started.</p>
+          <h1 className="iso-empty-title">{t('welcome.title')}</h1>
+          <p className="iso-empty-copy">{t('welcome.description')}</p>
           <div className="iso-empty-actions">
             <div className="iso-empty-group">
                 <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
                   {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                    <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} Diagram</option>
+                    <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
                   ))}
                 </select>
                 <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={() => executeNewDiagram(newDiagramKind)}>
-                  Create New Diagram
+                  {t('welcome.create_new')}
                 </button>
               </div>
             <div className="iso-empty-divider" aria-hidden="true"></div>
             <div className="iso-empty-group iso-empty-group--secondary">
               <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
-                Open Existing File...
+                {t('welcome.open_existing')}
               </button>
             </div>
           </div>
@@ -1400,16 +1429,16 @@ export default function App() {
         {isNewModalOpen && (
           <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
             <div className="iso-modal" onClick={e => e.stopPropagation()}>
-              <h2 className="iso-modal-title">Create New Diagram</h2>
-              <p className="iso-modal-desc">Select the type of diagram you'd like to create.</p>
+              <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
+              <p className="iso-modal-desc">{t('Select the type of diagram you\'d like to create.')}</p>
               <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
                 {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                  <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} Diagram</option>
+                  <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
                 ))}
               </select>
               <div className="iso-modal-actions">
-                <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>Cancel</button>
-                <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>Create</button>
+                <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+                <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
               </div>
             </div>
           </div>
@@ -1422,7 +1451,7 @@ export default function App() {
       {/* ──────────────── HEADER ──────────────────────────── */}
       <header className="iso-header">
         {/* Logo */}
-        <button type="button" className="iso-logo" aria-label="Isomorph home" onClick={e => e.preventDefault()}>
+        <button type="button" className="iso-logo" aria-label={t('ui.isomorph_home')} onClick={e => e.preventDefault()}>
           <span className="iso-logo-name">Isomorph</span>
         </button>
 
@@ -1482,7 +1511,7 @@ export default function App() {
 
         {/* Diagram tabs */}
         {diagrams.length > 1 && (
-          <nav className="iso-tabs iso-mobile-hide" aria-label="Diagrams" style={{ flex: '1 1 auto', minWidth: 0, overflowX: 'auto' }}>
+          <nav className="iso-tabs iso-mobile-hide" aria-label={t('ui.diagrams')} style={{ flex: '1 1 auto', minWidth: 0, overflowX: 'auto' }}>
             {filteredDiagrams.map((d, i) => (
               <button
                 key={d.name}
@@ -1490,7 +1519,7 @@ export default function App() {
                 type="button"
                 onClick={() => updateActiveTab(tab => ({ ...tab, activeDiagramIdx: i }))}
                 aria-pressed={i === safeDiagramIdx}
-                aria-label={`Switch to ${d.name} (${d.kind} diagram)`}
+                aria-label={t('tabs.switch', { name: d.name, kind: d.kind })}
               >
                 {d.name}
                 <span className="iso-tab-kind">{d.kind}</span>
@@ -1511,14 +1540,14 @@ export default function App() {
           >
             ◀
           </button>
-          <nav className="iso-tabs" aria-label="Open files" style={{ flex: '1 1 auto', overflowX: 'auto', display: 'flex', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <nav className="iso-tabs" aria-label={t('tabs.open_files')} style={{ flex: '1 1 auto', overflowX: 'auto', display: 'flex', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {tabs.map(tab => (
               <div
                 key={tab.id}
                 className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
                 onClick={() => setActiveTabId(tab.id)}
                 onDoubleClick={() => setRenamingTabId(tab.id)}
-                aria-label={`Open ${tab.name}`}
+                aria-label={t('tabs.open_name', { name: tab.name })}
                 style={{ paddingRight: tabs.length > 1 ? '4px' : '10px' }}
               >
                 {renamingTabId === tab.id ? (
@@ -1581,14 +1610,14 @@ export default function App() {
 
         {!isMobileLayout && (
           <div className="iso-header-actions">
-            <button type="button" className="iso-btn" onClick={handleNew} aria-label="New diagram (Ctrl+N)" data-tooltip="New (Ctrl+N)">
+            <button type="button" className="iso-btn" onClick={handleNew} aria-label={t('menu.new_diagram')} data-tooltip={t('menu.new_shortcut')}>
               <IconNew />
-              New
+              {t('menu.new')}
             </button>
 
-            <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()} aria-label="Open .isx file (Ctrl+O)" data-tooltip="Open (Ctrl+O)">
+            <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()} aria-label={t('menu.open_isx')} data-tooltip={t('menu.open_shortcut')}>
               <IconOpen />
-              Open
+              {t('menu.open')}
             </button>
 
             {examplesDropdown}
@@ -1598,11 +1627,11 @@ export default function App() {
                 type="button"
                 className="iso-btn"
                 onClick={handleTransformToCollaboration}
-                aria-label="Transform sequence diagram to collaboration in a new tab"
-                data-tooltip="Transform to Collaboration"
+                aria-label={t('menu.transform_seq_collab')}
+                data-tooltip={t('menu.transform_collab')}
               >
                 <IconDiagram />
-                Transform
+                {t('menu.transform')}
               </button>
             )}
 
@@ -1620,11 +1649,11 @@ export default function App() {
                 URL.revokeObjectURL(url);
               }}
               disabled={!activeTab}
-              aria-label="Export source code (.isx)"
-              data-tooltip="Save ISX"
+              aria-label={t('menu.export_source')}
+              data-tooltip={t('menu.save_isx')}
             >
               <IconSave />
-              Save .isx
+              {t('menu.save_isx_ext')}
             </button>
 
             <button
@@ -1632,8 +1661,8 @@ export default function App() {
               className="iso-btn"
               onClick={handleExportSVG}
               disabled={!activeDiagram}
-              aria-label="Export diagram as SVG (Ctrl+E)"
-              data-tooltip="Export SVG (Ctrl+E)"
+              aria-label={t('menu.export_svg_shortcut')}
+              data-tooltip={t('menu.export_svg_short')}
             >
               <IconExport />
               SVG
@@ -1643,8 +1672,8 @@ export default function App() {
               className="iso-btn"
               onClick={handleExportPNG}
               disabled={!activeDiagram}
-              aria-label="Export diagram as PNG (Ctrl+Shift+E)"
-              data-tooltip="Export PNG (Ctrl+Shift+E)"
+              aria-label={t('menu.export_png_shortcut')}
+              data-tooltip={t('menu.export_png_short')}
             >
               <IconExport />
               PNG
@@ -1656,8 +1685,8 @@ export default function App() {
               type="button"
               className="iso-btn iso-btn--icon"
               onClick={() => setShortcutsOpen(o => !o)}
-              aria-label="Keyboard shortcuts (Ctrl+/)"
-              data-tooltip="Shortcuts (Ctrl+/)"
+              aria-label={t('ui.shortcuts')}
+              data-tooltip={t('menu.shortcuts')}
             >
               <IconKeyboard />
             </button>
@@ -1665,6 +1694,18 @@ export default function App() {
         )}
 
         <input ref={fileInputRef} type="file" accept=".isx,.iso,.txt" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
+
+        <select
+          className="iso-select iso-mobile-hide"
+          aria-label={t('ui.language')}
+          value={language}
+          onChange={e => setLanguage(e.target.value as Language)}
+          style={{ width: 'auto', marginLeft: 'auto', marginRight: '8px' }}
+        >
+          {LANGUAGE_OPTIONS.map(option => (
+            <option key={option.code} value={option.code}>{option.label}</option>
+          ))}
+        </select>
 
         <button
           type="button"
@@ -1675,9 +1716,9 @@ export default function App() {
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('isomorph-theme', next);
           }}
-          aria-label="Toggle theme"
-          data-tooltip={themeMode === 'light' ? 'Dark mode' : 'Light mode'}
-          style={{ marginLeft: 'auto', marginRight: '8px' }}
+          aria-label={t('ui.toggle_theme')}
+          data-tooltip={themeMode === 'light' ? t('ui.dark_mode') : t('ui.light_mode')}
+          style={{ marginRight: '8px' }}
         >
           <IconTheme />
         </button>
@@ -1695,7 +1736,7 @@ export default function App() {
         <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
         <label className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '13px', color: 'var(--iso-text)' }}>
           <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
-          Strict UML
+          {t('ui.strict_uml')}
         </label>
       </header>
 
@@ -1719,7 +1760,7 @@ export default function App() {
 
           {tabs.length > 1 && (
             <div className="iso-mobile-strip">
-              <nav className="iso-tabs" aria-label="Open files">
+              <nav className="iso-tabs" aria-label={t('tabs.open_files')}>
                 {tabs.map(tab => (
                   <div
                     key={tab.id}
@@ -1757,7 +1798,7 @@ export default function App() {
                         {tabs.length > 1 && (
                           <button
                             type="button"
-                            aria-label={`Close ${tab.name}`}
+                            aria-label={t('tabs.close_name', { name: tab.name })}
                             style={{ all: 'unset', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: 4, opacity: 0.75, fontSize: 13, lineHeight: 1, cursor: 'pointer' }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1777,7 +1818,7 @@ export default function App() {
 
           {diagrams.length > 1 && (
             <div className="iso-mobile-strip iso-mobile-strip--muted">
-              <nav className="iso-tabs" aria-label="Diagrams">
+              <nav className="iso-tabs" aria-label={t('ui.diagrams')}>
                 {filteredDiagrams.map((d, i) => (
                   <button
                     key={d.name}
@@ -1797,17 +1838,17 @@ export default function App() {
             <div className="iso-mobile-actions-group">
               <button type="button" className="iso-btn" onClick={handleNew}>
                 <IconNew />
-                New
+                {t('menu.new')}
               </button>
               <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()}>
                 <IconOpen />
-                Open
+                {t('menu.open')}
               </button>
               {examplesDropdown}
               {activeDiagram?.kind === 'sequence' && (
                 <button type="button" className="iso-btn" onClick={handleTransformToCollaboration}>
                   <IconDiagram />
-                  Transform
+                  {t('menu.transform')}
                 </button>
               )}
             </div>
@@ -1828,7 +1869,7 @@ export default function App() {
                 disabled={!activeTab}
               >
                 <IconSave />
-                Save
+                {t('menu.save')}
               </button>
               <button
                 type="button"
@@ -1858,9 +1899,20 @@ export default function App() {
                 <IconExport />
                 PNG
               </button>
-              <button type="button" className="iso-btn iso-btn--icon" onClick={() => setShortcutsOpen(o => !o)} aria-label="Keyboard shortcuts">
+              <button type="button" className="iso-btn iso-btn--icon" onClick={() => setShortcutsOpen(o => !o)} aria-label={t('ui.shortcuts')}>
                 <IconKeyboard />
               </button>
+              <select
+                className="iso-select"
+                aria-label={t('ui.language')}
+                value={language}
+                onChange={e => setLanguage(e.target.value as Language)}
+                style={{ width: 'auto', minHeight: 32 }}
+              >
+                {LANGUAGE_OPTIONS.map(option => (
+                  <option key={option.code} value={option.code}>{option.label}</option>
+                ))}
+              </select>
               <button
                 type="button"
                 className="iso-btn iso-btn--icon"
@@ -1870,13 +1922,13 @@ export default function App() {
                   document.documentElement.setAttribute('data-theme', next);
                   localStorage.setItem('isomorph-theme', next);
                 }}
-                aria-label="Toggle theme"
+                aria-label={t('ui.toggle_theme')}
               >
                 <IconTheme />
               </button>
               <label className="iso-mobile-toggle">
                 <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
-                Strict UML
+                {t('ui.strict_uml')}
               </label>
             </div>
           </div>
@@ -1890,14 +1942,14 @@ export default function App() {
             className={`iso-mobile-tab${mobilePane === 'code' ? ' iso-mobile-tab--active' : ''}`}
             onClick={() => setMobilePane('code')}
           >
-            Source
+            {t('ui.source')}
           </button>
           <button
             type="button"
             className={`iso-mobile-tab${mobilePane === 'diagram' ? ' iso-mobile-tab--active' : ''}`}
             onClick={() => setMobilePane('diagram')}
           >
-            Canvas
+            {t('ui.canvas')}
           </button>
         </div>
       )}
@@ -1912,7 +1964,7 @@ export default function App() {
         ) : (
           <>
             {shapesPane}
-            <SplitPane left={sourcePane} right={canvasPane} />
+            <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
           </>
         )}
       </main>
@@ -1920,24 +1972,24 @@ export default function App() {
       {editingEntity && (
         <div className="iso-modal-overlay" onClick={() => setEditingEntity(null)}>
           <div className="iso-modal" onClick={e => e.stopPropagation()}>
-            <h3>Edit Entity</h3>
+            <h3>{t('edit.entity_title')}</h3>
             <div className="iso-modal-field">
-              <label>Name</label>
+              <label>{t('edit.name')}</label>
               <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus={!isMobileLayout} />
             </div>
             <div className="iso-modal-field">
-              <label>Kind</label>
+              <label>{t('edit.kind')}</label>
               <span style={{ padding: '0.4rem', border: '1px solid transparent' }}>{editingEntity.kind}</span>
             </div>
             <div className="iso-modal-field">
-              <label>Stereotype</label>
-              <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder="e.g. device" />
+              <label>{t('edit.stereotype')}</label>
+              <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={t('edit.eg_device')} />
             </div>
             {['class', 'interface'].includes(editingEntity.kind) && (
               <div className="iso-modal-field">
                 <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
                   <input type="checkbox" checked={editingEntity.isAbstract} onChange={e => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })} style={{ margin: 0 }} />
-                  Abstract
+                  {t('edit.abstract')}
                 </label>
               </div>
             )}
@@ -1948,35 +2000,35 @@ export default function App() {
             ].includes(editingEntity.kind) && (
               <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
-                  <label>Body</label>
+                  <label>{t('edit.body')}</label>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {['enum'].includes(editingEntity.kind) && (
-                       <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'NEW_VALUE' } : null); }}>+ Enum Value</button>
+                        <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'NEW_VALUE' } : null); }}>{t('edit.enum_value')}</button>
                     )}
                     {['usecase'].includes(editingEntity.kind) && (
-                       <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'extensionPoint' } : null); }}>+ Ext Pt</button>
+                        <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'extensionPoint' } : null); }}>{t('edit.ext_pt')}</button>
                     )}
                     {['class', 'interface'].includes(editingEntity.kind) && (
                        <>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newField : string' } : null); }}>+ Pub Field</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '- newField : string' } : null); }}>+ Priv Field</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newMethod() : void' } : null); }}>+ Pub Method</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newField : string' } : null); }}>{t('edit.pub_field')}</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '- newField : string' } : null); }}>{t('edit.priv_field')}</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newMethod() : void' } : null); }}>{t('edit.pub_method')}</button>
                        </>
                     )}
                     {['node', 'device', 'environment', 'component'].includes(editingEntity.kind) && (
                        <>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'node NewNode' } : null); }}>+ Node</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'artifact NewArtifact' } : null); }}>+ Artifact</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port1 : provided' } : null); }}>+ Port (prov)</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port2 : required' } : null); }}>+ Port (req)</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'node NewNode' } : null); }}>{t('edit.node')}</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'artifact NewArtifact' } : null); }}>{t('edit.artifact')}</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port1 : provided' } : null); }}>{t('edit.port_prov')}</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port2 : required' } : null); }}>{t('edit.port_req')}</button>
                        </>
                     )}
                     {['state', 'composite', 'concurrent'].includes(editingEntity.kind) && (
                        <>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'entry() : void' } : null); }}>+ Entry</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'exit() : void' } : null); }}>+ Exit</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'do() : void' } : null); }}>+ Do</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'state SubState' } : null); }}>+ SubState</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'entry() : void' } : null); }}>{t('edit.entry')}</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'exit() : void' } : null); }}>{t('edit.exit')}</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'do() : void' } : null); }}>{t('edit.do')}</button>
+                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'state SubState' } : null); }}>{t('edit.substate')}</button>
                        </>
                     )}
                   </div>
@@ -1989,8 +2041,8 @@ export default function App() {
               </div>
             )}
             <div className="iso-modal-actions">
-              <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>Cancel</button>
-              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText }); }}>Save</button>
+              <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>{t('ui.cancel')}</button>
+              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText }); }}>{t('menu.save')}</button>
             </div>
           </div>
         </div>
@@ -1999,72 +2051,72 @@ export default function App() {
       {editingRelation && (
         <div className="iso-modal-overlay" onClick={() => setEditingRelation(null)}>
           <div className="iso-modal" onClick={e => e.stopPropagation()}>
-            <h3>Edit Relation</h3>
+            <h3>{t('edit.relation_title')}</h3>
             <div className="iso-modal-field">
-              <label>Role / Label</label>
+              <label>{t('edit.role_label')}</label>
               <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
                 <input type="text" style={{ flex: 1 }} value={editingRelation.label} onChange={e => setEditingRelation({ ...editingRelation, label: e.target.value })} autoFocus={!isMobileLayout} />
                 {['state', 'activity'].includes(activeDiagram?.kind || '') && (
-                  <button className="iso-btn" onClick={() => setEditingRelation(r => r ? { ...r, label: r.label.includes('[') ? r.label : `[${r.label || 'guard'}]` } : null)}>+ Guard</button>
+                  <button className="iso-btn" onClick={() => setEditingRelation(r => r ? { ...r, label: r.label.includes('[') ? r.label : `[${r.label || 'guard'}]` } : null)}>{t('edit.guard')}</button>
                 )}
               </div>
             </div>
             {['class'].includes(activeDiagram?.kind || '') && (
               <div style={{ display: 'flex', gap: '16px', width: '100%' }}>
                 <div className="iso-modal-field" style={{ flex: 1, minWidth: 0 }}>
-                  <label>From Mult (e.g. 1)</label>
+                  <label>{t('edit.from_mult')}</label>
                   <input type="text" value={editingRelation.fromMult || ''} onChange={e => setEditingRelation({ ...editingRelation, fromMult: e.target.value })} />
                 </div>
                 <div className="iso-modal-field" style={{ flex: 1, minWidth: 0 }}>
-                  <label>To Mult (e.g. 0..*)</label>
+                  <label>{t('edit.to_mult')}</label>
                   <input type="text" value={editingRelation.toMult || ''} onChange={e => setEditingRelation({ ...editingRelation, toMult: e.target.value })} />
                 </div>
               </div>
             )}
             <div className="iso-modal-field">
-              <label>Kind</label>
+              <label>{t('edit.kind')}</label>
               <select className="iso-select" value={editingRelation.kind} onChange={e => setEditingRelation({ ...editingRelation, kind: e.target.value })}>
-                <option value="association">Association</option>
-                <option value="directed-association">Directed Association</option>
-                <option value="inheritance">Inheritance</option>
-                <option value="realization">Realization</option>
-                <option value="aggregation">Aggregation</option>
-                <option value="composition">Composition</option>
-                <option value="dependency">Dependency</option>
-                <option value="restriction">Restriction</option>
+                <option value="association">{t('rel.association')}</option>
+                <option value="directed-association">{t('rel.directed_association')}</option>
+                <option value="inheritance">{t('rel.inheritance')}</option>
+                <option value="realization">{t('rel.realization')}</option>
+                <option value="aggregation">{t('rel.aggregation')}</option>
+                <option value="composition">{t('rel.composition')}</option>
+                <option value="dependency">{t('rel.dependency')}</option>
+                <option value="restriction">{t('rel.restriction')}</option>
               </select>
             </div>
             <div className="iso-modal-field">
-              <label>Direction</label>
+              <label>{t('edit.direction')}</label>
               <select className="iso-select" value={editingRelation.direction} onChange={e => setEditingRelation({ ...editingRelation, direction: e.target.value as 'forward' | 'reverse' })}>
-                <option value="forward">Forward</option>
-                <option value="reverse">Reverse</option>
+                <option value="forward">{t('edit.forward')}</option>
+                <option value="reverse">{t('edit.reverse')}</option>
               </select>
             </div>
             <div className="iso-modal-actions">
-              <button className="iso-btn" onClick={() => setEditingRelation(null)}>Cancel</button>
-              <button className="iso-btn iso-btn--primary" onClick={() => handleRelationEdit(editingRelation.relationId, { label: editingRelation.label, kind: editingRelation.kind, direction: editingRelation.direction, fromMult: editingRelation.fromMult, toMult: editingRelation.toMult })}>Save</button>
+              <button className="iso-btn" onClick={() => setEditingRelation(null)}>{t('ui.cancel')}</button>
+              <button className="iso-btn iso-btn--primary" onClick={() => handleRelationEdit(editingRelation.relationId, { label: editingRelation.label, kind: editingRelation.kind, direction: editingRelation.direction, fromMult: editingRelation.fromMult, toMult: editingRelation.toMult })}>{t('menu.save')}</button>
             </div>
           </div>
         </div>
       )}
 
-      {editingText && ( <div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>Edit {editingText.type === 'diagram' ? 'Diagram Name' : 'Package Name'}</h3> <div className="iso-modal-field"> <label>Name</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>Cancel</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>Save</button> </div> </div> </div> )} {/* ──────────────── STATUS BAR ──────────────────────── */}
+      {editingText && ( <div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div> )} {/* ──────────────── STATUS BAR ──────────────────────── */}
       <footer className="iso-statusbar">
-        <span className="iso-statusbar-item">Isomorph DSL</span>
+        <span className="iso-statusbar-item">{t('ui.isomorph_dsl')}</span>
         <span className="iso-statusbar-sep">·</span>
         <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {source.split('\n').length} lines
+          {t('status.lines', { count: source.split('\n').length })}
         </span>
         {activeDiagram && (
           <>
             <span className="iso-statusbar-sep">·</span>
             <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {activeDiagram.entities.size} entities
+              {t('status.entities', { count: activeDiagram.entities.size })}
             </span>
             <span className="iso-statusbar-sep">·</span>
             <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {activeDiagram.relations.length} relations
+              {t('status.relations', { count: activeDiagram.relations.length })}
             </span>
             <span className="iso-statusbar-sep">·</span>
             <span className="iso-statusbar-item">{activeDiagram.kind}</span>
@@ -2075,22 +2127,22 @@ export default function App() {
       </footer>
 
       {/* ──────────────── SHORTCUTS OVERLAY ───────────────── */}
-      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+      <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} t={t} />
 
       {/* ──────────────── MODALS ───────────────── */}
       {isNewModalOpen && (
         <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
           <div className="iso-modal" onClick={e => e.stopPropagation()}>
-            <h2 className="iso-modal-title">Create New Diagram</h2>
-            <p className="iso-modal-desc">Select the type of diagram you'd like to create.</p>
+            <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
+            <p className="iso-modal-desc">{t('Select the type of diagram you\'d like to create.')}</p>
             <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
               {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)} Diagram</option>
+                <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
               ))}
             </select>
             <div className="iso-modal-actions">
-              <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>Cancel</button>
-              <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>Create</button>
+              <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+              <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
             </div>
           </div>
         </div>
@@ -2099,10 +2151,10 @@ export default function App() {
       {tabToClose && (
         <div className="iso-modal-overlay" onClick={() => setTabToClose(null)}>
           <div className="iso-modal" onClick={e => e.stopPropagation()}>
-            <h2 className="iso-modal-title">Close Diagram?</h2>
-            <p className="iso-modal-desc">Are you sure you want to close "{tabs.find(t => t.id === tabToClose)?.name}"? Unsaved changes may be lost.</p>
+            <h2 className="iso-modal-title">{t('dialog.close_title')}</h2>
+            <p className="iso-modal-desc">{t('dialog.close_desc', { name: tabs.find(t => t.id === tabToClose)?.name ?? '' })}</p>
             <div className="iso-modal-actions">
-              <button className="iso-modal-btn cancel" onClick={() => setTabToClose(null)}>Cancel</button>
+              <button className="iso-modal-btn cancel" onClick={() => setTabToClose(null)}>{t('ui.cancel')}</button>
               <button className="iso-modal-btn danger" onClick={() => {
                 setTabs(prev => {
                   const next = prev.filter(t => t.id !== tabToClose);
@@ -2110,7 +2162,7 @@ export default function App() {
                   return next;
                 });
                 setTabToClose(null);
-              }}>Close</button>
+              }}>{t('ui.close')}</button>
             </div>
           </div>
         </div>
