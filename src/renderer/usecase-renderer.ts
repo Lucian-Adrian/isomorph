@@ -5,6 +5,19 @@
 import type { IOMDiagram } from '../semantics/iom.js';
 import { escapeXml, wrapText, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect } from './utils.js';
 
+function pickDefaultBoundaryName(diag: IOMDiagram): string {
+  const used = new Set([...diag.entities.keys()]);
+  if (!used.has('System')) return 'System';
+  if (!used.has('SystemBoundary')) return 'SystemBoundary';
+  let idx = 1;
+  let candidate = `SystemBoundary${idx}`;
+  while (used.has(candidate)) {
+    idx++;
+    candidate = `SystemBoundary${idx}`;
+  }
+  return candidate;
+}
+
 export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
   if (entities.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>';
@@ -55,17 +68,29 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     for (const b of bounds) {
       const bx = b.position ? b.position.x : 280;
       const by = b.position ? b.position.y : 30;
-      const bw = 500, bh = 400; // default large size
-      svg += `  <g transform="translate(${bx},${by})" data-entity-name="${escapeXml(b.name)}">\n`;
-      svg += `    <rect x="0" y="0" width="${bw}" height="${bh}" fill="var(--iso-bg-panel, #fafafa)" stroke="var(--iso-border, #cbd5e1)" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
-      svg += `    <text x="10" y="20" font-size="13" font-weight="600" fill="var(--iso-text-muted)">${escapeXml(b.name)}</text>\n`;
+      const bw = Number.isFinite(b.position?.w) ? Math.max(180, Number(b.position!.w)) : 500;
+      const bh = Number.isFinite(b.position?.h) ? Math.max(140, Number(b.position!.h)) : 400;
+      svg += `  <g transform="translate(${bx},${by})" data-entity-name="${escapeXml(b.name)}" data-boundary-entity="true" data-entity-width="${Math.round(bw)}" data-entity-height="${Math.round(bh)}">\n`;
+      svg += `    <rect data-boundary-body="true" x="0" y="0" width="${bw}" height="${bh}" fill="var(--iso-bg-panel, #fafafa)" stroke="var(--iso-border, #cbd5e1)" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
+      svg += `    <text data-boundary-title="true" x="10" y="20" font-size="13" font-weight="600" fill="var(--iso-text-muted)">${escapeXml(b.name)}</text>\n`;
+      svg += `    <rect data-resize-handle="e" x="${bw - 4}" y="${bh / 2 - 10}" width="8" height="20" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ew-resize"/>\n`;
+      svg += `    <rect data-resize-handle="s" x="${bw / 2 - 10}" y="${bh - 4}" width="20" height="8" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ns-resize"/>\n`;
+      svg += `    <rect data-resize-handle="se" x="${bw - 6}" y="${bh - 6}" width="12" height="12" rx="3" fill="#2563eb" opacity="0.75" style="cursor: nwse-resize"/>\n`;
       svg += `  </g>\n`;
     }
   } else {
-    // Default system boundary if none explicitly defined
-    svg += `  <g data-diagram-name="${escapeXml(diag.name)}">\n`;
-    svg += `    <rect x="280" y="30" width="580" height="${canvasH - 60}" rx="8" fill="var(--iso-bg-panel, #fafafa)" stroke="var(--iso-border, #cbd5e1)" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
-    svg += `    <text x="300" y="52" font-size="13" fill="var(--iso-text-muted)" font-style="italic">${escapeXml(diag.name)} : System</text>\n`;
+    // Default boundary is exposed as a pseudo-system entity so it can be edited/moved and then promoted to source.
+    const defaultBoundaryName = pickDefaultBoundaryName(diag);
+    const defaultX = 280;
+    const defaultY = 30;
+    const defaultW = 580;
+    const defaultH = Math.max(220, canvasH - 60);
+    svg += `  <g transform="translate(${defaultX},${defaultY})" data-entity-name="${escapeXml(defaultBoundaryName)}" data-boundary-entity="true" data-default-usecase-boundary="true" data-entity-width="${defaultW}" data-entity-height="${defaultH}">\n`;
+    svg += `    <rect data-boundary-body="true" x="0" y="0" width="${defaultW}" height="${defaultH}" rx="8" fill="var(--iso-bg-panel, #fafafa)" stroke="var(--iso-border, #cbd5e1)" stroke-width="1.5" stroke-dasharray="8,4"/>\n`;
+    svg += `    <text data-boundary-title="true" x="10" y="22" font-size="13" fill="var(--iso-text-muted)" font-style="italic">${escapeXml(defaultBoundaryName)}</text>\n`;
+    svg += `    <rect data-resize-handle="e" x="${defaultW - 4}" y="${defaultH / 2 - 10}" width="8" height="20" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ew-resize"/>\n`;
+    svg += `    <rect data-resize-handle="s" x="${defaultW / 2 - 10}" y="${defaultH - 4}" width="20" height="8" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ns-resize"/>\n`;
+    svg += `    <rect data-resize-handle="se" x="${defaultW - 6}" y="${defaultH - 6}" width="12" height="12" rx="3" fill="#2563eb" opacity="0.75" style="cursor: nwse-resize"/>\n`;
     svg += `  </g>\n`;
   }
 

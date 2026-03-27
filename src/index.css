@@ -262,6 +262,9 @@ body {
   font-weight: 500;
   padding: 3px 10px;
   border-radius: 20px;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all var(--iso-duration) var(--iso-ease);
 }
 .iso-status--ok {

@@ -259,7 +259,7 @@ High-confidence current state:
   - ensure strings and controls are fully localized (EN/RO/RU) and compatible with both dark/light themes.
 - [x] Standardize arrow anchoring in non-class renderers.
   - implement shape-edge intersection helpers in shared renderer utils and apply in usecase/component/flow/state/collaboration.
-- [ ] Stabilize source rewriting around relation y updates and annotation spacing.
+- [x] Stabilize source rewriting around relation y updates and annotation spacing.
   - preserve section separators and avoid destructive normalization side effects.
 - [x] Fix package horizontal drag jitter and snap-back.
   - package drags with nested items should track cursor 1:1 on X and persist final drop position without backward snap.
@@ -293,8 +293,9 @@ High-confidence current state:
   - source rewrite formatting idempotence
 
 ## P3 UX and Quality
-- [ ] Improve use case boundary model from plain entity to explicit container syntax support.
-  - persist default boundary as a real editable entity with optional width/height coordinates (similar to partitions).
+- [x] Improve use case boundary model from plain entity toward explicit container behavior.
+  - persist default boundary as a real editable system entity on first interaction, with optional width/height coordinates (similar to partitions).
+  - boundary edit modal is restricted to name changes (no stereotype/body editing) for system/boundary entities.
 - [ ] Add collaboration auto numbering and sub-numbering logic (in modal selection) (1, 1.1, 1.1.1).
 - [x] Add Escape-to-close behavior for all modals.
   - Escape should close the active modal, consistent with click-outside close and Enter save behavior.

@@ -124,7 +124,7 @@ diagram LibraryUseCase : usecase {
 
   actor Student
   actor Librarian
-  actor System
+  actor ReportScheduler
 
   usecase SearchBooks
   usecase BorrowBook
@@ -137,11 +137,11 @@ diagram LibraryUseCase : usecase {
   Student --> ReturnBook
   Librarian --> ManageCatalog
   Librarian --> GenerateReport
-  System --> GenerateReport [label="schedules"]
+  ReportScheduler --> GenerateReport [label="schedules"]
 
   @Student at (100, 300)
   @Librarian at (100, 480)
-  @System at (100, 600)
+  @ReportScheduler at (100, 600)
   @SearchBooks at (450, 180)
   @BorrowBook at (450, 300)
   @ReturnBook at (450, 420)

@@ -174,30 +174,28 @@ function insertAtEnd(source: string, insertion: string): string {
   return prefix + insertion + '\n' + source.slice(lastBrace);
 }
 
-/** Normalize indentation and ordering inside diagram blocks. */
+/**
+ * Canvas-operation formatter:
+ * keep one blank line between header, relations, and footer annotations.
+ * This intentionally runs only on canvas-triggered rewrites, not manual typing.
+ */
 function formatDiagramSource(source: string): string {
-  // Replace tabs with 2 spaces globally
-  let s = source.replace(/\t/g, '  ');
-  // Find the diagram block
+  const s = source.replace(/\t/g, '  ');
   const diagramMatch = s.match(/^(diagram\s+\S+\s*:\s*\S+\s*\{)([\s\S]*)(\n\s*\})\s*$/);
   if (!diagramMatch) return s;
   const header = diagramMatch[1];
   const body = diagramMatch[2];
 
-  const entityLines: string[] = [];
+  const headerLines: string[] = [];
   const relationLines: string[] = [];
   const annotationLines: string[] = [];
-  const commentLines: string[] = [];
-  const otherLines: string[] = [];
 
   const entityDeclRx = new RegExp(`^\\s*(?:abstract\\s+|static\\s+|final\\s+)*${ENTITY_KINDS_RX}\\s+`, 'm');
   const relRx = /^\s*[A-Za-z_]\w*\s+(--|-->|--\|>|\.\.\|>|<\|-|-|<\|\.\.|<\.\.|o--|\*--|\.\.>|--o|--\*|--x)\s+[A-Za-z_]\w*/;
   const annoRx = /^\s*@[A-Za-z_]\w*\s+at\s*\(/;
-  const commentRx = /^\s*\/\//;
   const packageRx = /^\s*package\s+/;
   const closeBraceRx = /^\s*\}\s*$/;
 
-  // Collect multi-line entity blocks (with braces)
   const lines = body.split('\n');
   let i = 0;
   while (i < lines.length) {
@@ -208,14 +206,10 @@ function formatDiagramSource(source: string): string {
     if (annoRx.test(line)) {
       annotationLines.push('  ' + trimmed);
       i++;
-    } else if (commentRx.test(line)) {
-      commentLines.push('  ' + trimmed);
-      i++;
     } else if (relRx.test(line)) {
       relationLines.push('  ' + trimmed);
       i++;
     } else if (entityDeclRx.test(line) || packageRx.test(line)) {
-      // Collect the entity including its brace block if present
       let block = '  ' + trimmed;
       if (trimmed.includes('{') && !trimmed.includes('}')) {
         let braceCount = (trimmed.match(/\{/g) || []).length - (trimmed.match(/\}/g) || []).length;
@@ -229,21 +223,17 @@ function formatDiagramSource(source: string): string {
       } else {
         i++;
       }
-      entityLines.push(block);
+      headerLines.push(block);
     } else if (closeBraceRx.test(line)) {
-      // Stray closing brace — skip
       i++;
     } else {
-      otherLines.push('  ' + trimmed);
+      headerLines.push('  ' + trimmed);
       i++;
     }
   }
 
-  // Rebuild body
   const sections: string[][] = [];
-  if (commentLines.length > 0) sections.push(commentLines);
-  if (entityLines.length > 0) sections.push(entityLines);
-  if (otherLines.length > 0) sections.push(otherLines);
+  if (headerLines.length > 0) sections.push(headerLines);
   if (relationLines.length > 0) sections.push(relationLines);
   if (annotationLines.length > 0) sections.push(annotationLines);
 
@@ -366,12 +356,17 @@ function updateRelationVerticalPosition(source: string, relationId: string, y: n
   if (!match || match.index == null) return source;
 
   const [full, indent, fromRaw, opRaw, toRaw, attrsRaw = ''] = match;
-  const attrs = attrsRaw.trim().replace(/^\[|\]$/g, '');
-  const attrMap = parseRelationAttrs(attrs);
-  attrMap.set('y', String(Math.max(0, Math.round(y))));
+  const yValue = String(Math.max(0, Math.round(y)));
+  let suffix = attrsRaw || '';
 
-  const attrsSerialized = [...attrMap.entries()].map(([k, v]) => `${k}="${v}"`).join(', ');
-  const suffix = attrsSerialized ? ` [${attrsSerialized}]` : '';
+  if (!suffix.trim()) {
+    suffix = ` [y="${yValue}"]`;
+  } else if (/\by\s*=\s*"(?:\\"|[^"])*"/.test(suffix)) {
+    suffix = suffix.replace(/(\by\s*=\s*")((?:\\"|[^"])*)"/, `$1${yValue}"`);
+  } else {
+    suffix = suffix.replace(/\]\s*$/, `, y="${yValue}"]`);
+  }
+
   const replacement = `${indent}${fromRaw} ${opRaw} ${toRaw}${suffix}`;
 
   return source.slice(0, match.index) + replacement + source.slice(match.index + full.length);
@@ -394,6 +389,43 @@ function parseRelationAttrs(attrs: string): Map<string, string> {
     match = attrRx.exec(attrs);
   }
   return attrMap;
+}
+
+function hasEntityDeclaration(source: string, entityName: string): boolean {
+  const declRx = new RegExp(`^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+${escapeRegex(entityName)}\\b`, 'm');
+  return declRx.test(source);
+}
+
+function getEntityDeclarationKind(source: string, entityName: string): string | null {
+  const declRx = new RegExp(`^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*(${ENTITY_KINDS_RX})[ \\t]+${escapeRegex(entityName)}\\b`, 'm');
+  const match = source.match(declRx);
+  return match?.[1] ?? null;
+}
+
+function nextAvailableName(source: string, baseName: string): string {
+  let idx = 1;
+  let candidate = baseName;
+  while (hasEntityDeclaration(source, candidate)) {
+    candidate = `${baseName}${idx}`;
+    idx++;
+  }
+  return candidate;
+}
+
+function ensureUseCaseBoundaryDeclaration(source: string, preferredName: string): { source: string; name: string } {
+  const raw = preferredName.trim();
+  const safePreferred = /^[A-Za-z_]\w*$/.test(raw) ? raw : 'System';
+  const existingKind = getEntityDeclarationKind(source, safePreferred);
+  if (existingKind === 'system' || existingKind === 'boundary') return { source, name: safePreferred };
+  const name = hasEntityDeclaration(source, safePreferred)
+    ? nextAvailableName(source, `${safePreferred}Boundary`)
+    : safePreferred;
+  return { source: insertBeforeAnnotations(source, `  system ${name}`), name };
+}
+
+function removeLayoutAnnotation(source: string, entityName: string): string {
+  const annoRx = new RegExp(`^[ \\t]*@${escapeRegex(entityName)}[ \\t]+at[ \\t]*\\([^)]+\\)[ \\t]*\\n?`, 'gm');
+  return source.replace(annoRx, '');
 }
 
 const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object)';
@@ -485,6 +517,7 @@ function updateEntityDeclaration(
   next = next.replace(entityLine, (_match, prefix: string, rest: string) => {
     let newPrefix = prefix;
     const isPartition = updates.kind === 'partition';
+    const isBoundaryKind = updates.kind === 'system' || updates.kind === 'boundary';
     if (updates.isAbstract !== undefined) {
       if (updates.isAbstract && !/abstract\s+/.test(newPrefix)) {
         newPrefix = newPrefix.replace(/^(\s*)/, '$1abstract ');
@@ -512,6 +545,9 @@ function updateEntityDeclaration(
     if (isPartition) {
       nextRest = nextRest.replace(/\s*<<[^>]+>>/g, '').replace(/\s*\{\s*$/, '');
     }
+    if (isBoundaryKind) {
+      nextRest = nextRest.replace(/\s*<<[^>]+>>/g, '').replace(/\s*\{\s*$/, '');
+    }
     return `${newPrefix}${updates.name || entityName}${nextRest}`;
   });
 
@@ -533,6 +569,19 @@ function normalizePartitionDeclaration(source: string, partitionName: string): s
   if (!nameMatch) return source;
 
   const normalized = `${indent}partition ${nameMatch[1]}\n`;
+  return source.slice(0, bounds.start) + normalized + source.slice(bounds.end);
+}
+
+function normalizeBoundaryDeclaration(source: string, boundaryName: string, boundaryKind: 'system' | 'boundary'): string {
+  const bounds = findEntityBounds(source, boundaryName);
+  if (!bounds) return source;
+
+  const declNoBody = source.slice(bounds.start, bounds.bodyStart === -1 ? bounds.end : bounds.bodyStart - 1);
+  const indent = declNoBody.match(/^\s*/)?.[0] ?? '';
+  const nameMatch = declNoBody.match(/\b(?:system|boundary)\s+([A-Za-z_][\w]*)\b/);
+  if (!nameMatch) return source;
+
+  const normalized = `${indent}${boundaryKind} ${nameMatch[1]}\n`;
   return source.slice(0, bounds.start) + normalized + source.slice(bounds.end);
 }
 
@@ -724,14 +773,22 @@ export default function App() {
   }, [activeDiagram]);
 
   // ── Bidirectional: drag entity → update @Entity at ───────
-  const handleEntityMove = useCallback((name: string, x: number, y: number, dragDx?: number, dragDy?: number, seedPositions?: Record<string, { x: number; y: number }>) => {
+  const handleEntityMove = useCallback((name: string, x: number, y: number, dragDx?: number, dragDy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => {
     updateActiveTab(tab => {
       let src = tab.source;
 
       if (seedPositions) {
         for (const [entityName, pos] of Object.entries(seedPositions)) {
           const current = getPlacedItemPosition(entityName);
-          src = updateEntityPosition(src, entityName, Math.round(pos.x), Math.round(pos.y), current?.w, current?.h);
+          if (!current) continue;
+          src = updateEntityPosition(
+            src,
+            entityName,
+            Math.round(pos.x),
+            Math.round(pos.y),
+            Number.isFinite(pos.w) ? Math.round(pos.w as number) : current?.w,
+            Number.isFinite(pos.h) ? Math.round(pos.h as number) : current?.h,
+          );
         }
       }
 
@@ -759,27 +816,47 @@ export default function App() {
               }
             }
           }
-          return { ...tab, source: src };
+          return { ...tab, source: formatDiagramSource(src) };
         }
       }
+      let targetName = name;
+      if (activeDiagram?.kind === 'usecase' && !activeDiagram.entities.has(name)) {
+        const promoted = ensureUseCaseBoundaryDeclaration(src, name);
+        src = removeLayoutAnnotation(promoted.source, name);
+        targetName = promoted.name;
+      }
+
+      const moved = seedPositions?.[name];
+      const movedW = Number.isFinite(moved?.w) ? Math.round(moved!.w as number) : getPlacedItemPosition(name)?.w;
+      const movedH = Number.isFinite(moved?.h) ? Math.round(moved!.h as number) : getPlacedItemPosition(name)?.h;
+
       return {
         ...tab,
-        source: updateEntityPosition(src, name, x, y, getPlacedItemPosition(name)?.w, getPlacedItemPosition(name)?.h),
+        source: formatDiagramSource(updateEntityPosition(src, targetName, x, y, movedW, movedH)),
       };
     });
   }, [updateActiveTab, activeDiagram, getPlacedItemPosition]);
 
-  const handleEntityResize = useCallback((name: string, w: number, h: number) => {
+  const handleEntityResize = useCallback((name: string, w: number, h: number, x?: number, y?: number) => {
     updateActiveTab(tab => {
+      let src = tab.source;
+      let targetName = name;
+
+      if (activeDiagram?.kind === 'usecase' && !activeDiagram.entities.has(name)) {
+        const promoted = ensureUseCaseBoundaryDeclaration(src, name);
+        src = removeLayoutAnnotation(promoted.source, name);
+        targetName = promoted.name;
+      }
+
       const current = getPlacedItemPosition(name);
-      const x = current?.x ?? 40;
-      const y = current?.y ?? 40;
+      const resizeX = Number.isFinite(x) ? Math.round(x as number) : Math.round(current?.x ?? 40);
+      const resizeY = Number.isFinite(y) ? Math.round(y as number) : Math.round(current?.y ?? 40);
       return {
         ...tab,
-        source: updateEntityPosition(tab.source, name, Math.round(x), Math.round(y), Math.round(w), Math.round(h)),
+        source: formatDiagramSource(updateEntityPosition(src, targetName, resizeX, resizeY, Math.round(w), Math.round(h))),
       };
     });
-  }, [updateActiveTab, getPlacedItemPosition]);
+  }, [updateActiveTab, getPlacedItemPosition, activeDiagram]);
 
   const handleRelationVerticalMove = useCallback((relationId: string, y: number, seedRelationYs?: Record<string, number>) => {
     updateActiveTab(tab => {
@@ -788,7 +865,7 @@ export default function App() {
         src = updateRelationVerticalPositions(src, seedRelationYs);
       }
       src = updateRelationVerticalPosition(src, relationId, y);
-      return { ...tab, source: src };
+      return { ...tab, source: formatDiagramSource(src) };
     });
   }, [updateActiveTab]);
 
@@ -866,9 +943,18 @@ export default function App() {
 
   const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean; bodyText?: string; kind?: string }) => {
     updateActiveTab(tab => {
-      let source = updateEntityDeclaration(tab.source, entityName, updates);
+      let sourceIn = tab.source;
+      const nextName = updates.name || entityName;
+      if ((updates.kind === 'system' || updates.kind === 'boundary') && !hasEntityDeclaration(sourceIn, entityName)) {
+        const promoted = ensureUseCaseBoundaryDeclaration(sourceIn, nextName);
+        sourceIn = removeLayoutAnnotation(promoted.source, entityName);
+      }
+
+      let source = updateEntityDeclaration(sourceIn, entityName, updates);
       if (updates.kind === 'partition') {
         source = normalizePartitionDeclaration(source, updates.name || entityName);
+      } else if (updates.kind === 'system' || updates.kind === 'boundary') {
+        source = normalizeBoundaryDeclaration(source, updates.name || entityName, updates.kind);
       } else if (updates.bodyText !== undefined) {
         source = replaceEntityBody(source, updates.name || entityName, updates.bodyText);
       }
@@ -1218,9 +1304,10 @@ export default function App() {
 
       if (editingEntity) {
         e.preventDefault();
+        const isNameOnlyBoundary = editingEntity.kind === 'partition' || editingEntity.kind === 'system' || editingEntity.kind === 'boundary';
         handleEntityEdit(editingEntity.origName || editingEntity.id, {
           name: editingEntity.name,
-          stereotype: editingEntity.kind === 'partition' ? undefined : editingEntity.stereotype,
+          stereotype: isNameOnlyBoundary ? undefined : editingEntity.stereotype,
           isAbstract: editingEntity.isAbstract,
           bodyText: editingEntity.bodyText,
           kind: editingEntity.kind,
@@ -2073,7 +2160,7 @@ export default function App() {
               <label>{t('edit.kind')}</label>
               <span style={{ padding: '0.4rem', border: '1px solid transparent' }}>{editingEntity.kind}</span>
             </div>
-            {editingEntity.kind !== 'partition' && (
+            {!['partition', 'system', 'boundary'].includes(editingEntity.kind) && (
               <div className="iso-modal-field">
                 <label>{t('edit.stereotype')}</label>
                 <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={t('edit.eg_device')} />
@@ -2136,7 +2223,7 @@ export default function App() {
             )}
             <div className="iso-modal-actions">
               <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>{t('ui.cancel')}</button>
-              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: editingEntity.kind === 'partition' ? undefined : editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText, kind: editingEntity.kind }); }}>{t('menu.save')}</button>
+              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); const isNameOnlyBoundary = editingEntity.kind === 'partition' || editingEntity.kind === 'system' || editingEntity.kind === 'boundary'; handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: isNameOnlyBoundary ? undefined : editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText, kind: editingEntity.kind }); }}>{t('menu.save')}</button>
             </div>
           </div>
         </div>

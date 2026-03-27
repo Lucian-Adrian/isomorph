@@ -320,6 +320,52 @@ describe('UseCase Diagram Renderer — advanced', () => {
     const svg = renderUseCaseDiagram(diag);
     expect(svg).toContain('data-entity-name="Student"');
   });
+
+  it('renders default boundary as editable pseudo-system entity', () => {
+    const diag = buildDiagram('diagram D : usecase { actor User usecase Login }');
+    const svg = renderUseCaseDiagram(diag);
+    expect(svg).toContain('data-default-usecase-boundary="true"');
+    expect(svg).toContain('data-entity-name="System"');
+  });
+
+  it('respects optional width and height on explicit system boundary', () => {
+    const diag = buildDiagram(`diagram D : usecase {
+      actor User
+      usecase Login
+      system MainSystem
+      @MainSystem at (210, 30, 640, 420)
+    }`);
+    const svg = renderUseCaseDiagram(diag);
+    expect(svg).toContain('data-entity-width="640"');
+    expect(svg).toContain('data-entity-height="420"');
+  });
+
+  it('renders resize handles for explicit system boundaries', () => {
+    const diag = buildDiagram(`diagram D : usecase {
+      actor User
+      usecase Login
+      system MainSystem
+      @MainSystem at (210, 30, 640, 420)
+    }`);
+    const svg = renderUseCaseDiagram(diag);
+    expect(svg).toContain('data-boundary-entity="true"');
+    expect(svg).toContain('data-resize-handle="e"');
+    expect(svg).toContain('data-resize-handle="s"');
+    expect(svg).toContain('data-resize-handle="se"');
+  });
+
+  it('avoids default boundary name collisions with existing entities', () => {
+    const diag = buildDiagram(`diagram D : usecase {
+      actor System
+      actor User
+      usecase Login
+      System --> Login
+      User --> Login
+    }`);
+    const svg = renderUseCaseDiagram(diag);
+    expect(svg).toContain('data-default-usecase-boundary="true"');
+    expect(svg).toContain('data-entity-name="SystemBoundary"');
+  });
 });
 
 describe('Component Diagram Renderer — advanced', () => {

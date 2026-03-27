@@ -14,8 +14,8 @@ export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
   language?: Language;
-  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number }>) => void;
-  onEntityResize?: (entityName: string, w: number, h: number) => void;
+  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => void;
+  onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number) => void;
   onEntityEditRequest?: (entity: IOMEntity) => void;
   onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string) => void;
   onRelationVerticalMove?: (relationId: string, y: number, seedRelationYs?: Record<string, number>) => void;
@@ -256,6 +256,40 @@ export function DiagramView({
             e.preventDefault();
             e.stopPropagation();
             onEntityEditRequest(current);
+            return;
+          }
+
+          const isDefaultUsecaseBoundary = diagram.kind === 'usecase' && entityGroup.getAttribute('data-default-usecase-boundary') === 'true';
+          if (isDefaultUsecaseBoundary) {
+            const tf = entityGroup.getAttribute('transform') ?? '';
+            const tm = tf.match(/translate\(([^,]+),([^)]+)\)/);
+            const fallbackRect = entityGroup.querySelector('rect');
+            const x = tm ? parseFloat(tm[1]) : parseFloat(fallbackRect?.getAttribute('x') || '280');
+            const y = tm ? parseFloat(tm[2]) : parseFloat(fallbackRect?.getAttribute('y') || '30');
+            const w = parseFloat(entityGroup.getAttribute('data-entity-width') || fallbackRect?.getAttribute('width') || '580');
+            const h = parseFloat(entityGroup.getAttribute('data-entity-height') || fallbackRect?.getAttribute('height') || '400');
+            e.preventDefault();
+            e.stopPropagation();
+            onEntityEditRequest({
+              id: entityName,
+              name: entityName,
+              kind: 'system',
+              isAbstract: false,
+              fields: [],
+              methods: [],
+              enumValues: [],
+              extendsNames: [],
+              implementsNames: [],
+              styles: {},
+              children: [],
+              regions: [],
+              position: {
+                x: Number.isFinite(x) ? x : 280,
+                y: Number.isFinite(y) ? y : 30,
+                w: Number.isFinite(w) ? w : 580,
+                h: Number.isFinite(h) ? h : 400,
+              },
+            });
             return;
           }
 
@@ -592,6 +626,12 @@ export function DiagramView({
         handleSE.setAttribute('x', String(nextW - 6));
         handleSE.setAttribute('y', String(nextH - 6));
       }
+
+      const boundaryRect = drag.entityGroup.querySelector('rect[data-boundary-body]') as SVGRectElement | null;
+      if (boundaryRect) {
+        boundaryRect.setAttribute('width', String(nextW));
+        boundaryRect.setAttribute('height', String(nextH));
+      }
       return;
     }
 
@@ -679,7 +719,11 @@ export function DiagramView({
       const w = parseFloat(drag.entityGroup.getAttribute('data-entity-width') || '0');
       const h = parseFloat(drag.entityGroup.getAttribute('data-entity-height') || '0');
       if (w > 0 && h > 0) {
-        onEntityResize(drag.entityName, Math.round(w), Math.round(h));
+        const tf = drag.entityGroup.getAttribute('transform') ?? '';
+        const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
+        const x = m ? Math.round(parseFloat(m[1])) : undefined;
+        const y = m ? Math.round(parseFloat(m[2])) : undefined;
+        onEntityResize(drag.entityName, Math.round(w), Math.round(h), x, y);
       }
     }
 
@@ -708,7 +752,7 @@ export function DiagramView({
           }
         }
 
-        const seededPositions: Record<string, { x: number; y: number }> = {};
+        const seededPositions: Record<string, { x: number; y: number; w?: number; h?: number }> = {};
         const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
         for (const group of allEntityGroups) {
           const entityName = group.getAttribute('data-entity-name');
@@ -727,7 +771,14 @@ export function DiagramView({
               yAll += Math.round(parseFloat(pm[2]));
             }
           }
-          seededPositions[entityName] = { x: xAll, y: yAll };
+          const wAll = Number.parseFloat(group.getAttribute('data-entity-width') ?? '');
+          const hAll = Number.parseFloat(group.getAttribute('data-entity-height') ?? '');
+          seededPositions[entityName] = {
+            x: xAll,
+            y: yAll,
+            w: Number.isFinite(wAll) ? Math.round(wAll) : undefined,
+            h: Number.isFinite(hAll) ? Math.round(hAll) : undefined,
+          };
         }
 
         onEntityMove(drag.entityName, updatedX, updatedY, cursorDx, cursorDy, seededPositions);
