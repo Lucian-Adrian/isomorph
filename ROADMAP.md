@@ -1,5 +1,9 @@
 # Isomorph Roadmap
 
+## Implementation Policy
+- Every new feature/fix must be documented (roadmap/docs/TODO parity) as part of delivery.
+- Every new feature/fix must respect the existing design language and include EN/RO/RU i18n + dark/light mode support from the start.
+
 ### Phase 1: Core Enhancements (High Priority)
 - **Verify UML Compliance**: Ensure all diagrams adhere to UML standards for accuracy and consistency.
 - **Custom Colors**: Allow users to customize element colors in diagrams. Hex color input with live preview and color picker. (UI: color swatch next to color input field, defaults to predefined colours).

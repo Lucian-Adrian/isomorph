@@ -1,5 +1,9 @@
 # Isomorph TODO
 
+## Implementation Policy
+- Every new/fixed item must be documented (TODO/docs/roadmap parity).
+- Every new/fixed item must follow existing design language and support EN/RO/RU i18n + dark/light mode from the start.
+
 ---
 
 ## Executive Reality Check
@@ -245,11 +249,11 @@ High-confidence current state:
 ## P0 Critical Fixes
 - [x] Fix SS-10 for partitions in semantic layout validation.
   - update analyzer layout target check to include known partition names.
-- [ ] Fix partition coordinate persistence and resize stability.
+- [x] Fix partition coordinate persistence and resize stability.
   - when moving/resizing partitions, read/write coordinates from activeDiagram.partitions instead of activeDiagram.entities.
   - preserve w/h on drag and preserve x/y on resize commits.
   - ensure dual-partition resize/snap does not cause jump artifacts.
-- [ ] Add partition rename/edit modal path.
+- [x] Add partition rename/edit modal path.
   - support partition rename through existing edit UX.
   - ensure label updates persist in source and renderer.
   - ensure strings and controls are fully localized (EN/RO/RU) and compatible with both dark/light themes.

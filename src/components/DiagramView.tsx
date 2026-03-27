@@ -255,8 +255,34 @@ export function DiagramView({
             e.preventDefault();
             e.stopPropagation();
             onEntityEditRequest(current);
+            return;
           }
-          return;
+
+          // Partitions are modeled separately from diagram.entities; still allow edit modal for rename.
+          const isPartitionLane = entityGroup.getAttribute('data-partition-lane') === 'true';
+          if (isPartitionLane) {
+            const part = diagram.partitions.find(p => p.name === entityName);
+            if (part) {
+              e.preventDefault();
+              e.stopPropagation();
+              onEntityEditRequest({
+                id: part.id,
+                name: part.name,
+                kind: 'partition',
+                isAbstract: false,
+                fields: [],
+                methods: [],
+                enumValues: [],
+                extendsNames: [],
+                implementsNames: [],
+                styles: {},
+                children: [],
+                regions: [],
+                position: part.position,
+              });
+              return;
+            }
+          }
         }
       }
 

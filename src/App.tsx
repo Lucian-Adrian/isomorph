@@ -477,19 +477,24 @@ function replaceEntityBody(source: string, entityName: string, newBody: string):
 function updateEntityDeclaration(
   source: string,
   entityName: string,
-  updates: { name?: string; stereotype?: string; isAbstract?: boolean },
+  updates: { name?: string; stereotype?: string; isAbstract?: boolean; kind?: string },
 ): string {
   const entityLine = new RegExp(`(^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+)${escapeRegex(entityName)}(\\b[^\\n]*)`, 'm');
   let next = source;
 
   next = next.replace(entityLine, (_match, prefix: string, rest: string) => {
     let newPrefix = prefix;
+    const isPartition = updates.kind === 'partition';
     if (updates.isAbstract !== undefined) {
       if (updates.isAbstract && !/abstract\s+/.test(newPrefix)) {
         newPrefix = newPrefix.replace(/^(\s*)/, '$1abstract ');
       } else if (!updates.isAbstract) {
         newPrefix = newPrefix.replace(/abstract\s+/, '');
       }
+    }
+    if (isPartition) {
+      const indent = newPrefix.match(/^\s*/)?.[0] ?? '';
+      newPrefix = `${indent}partition `;
     }
     const hasStereo = /<<[^>]+>>/.test(rest);
     let nextRest = rest;
@@ -504,6 +509,9 @@ function updateEntityDeclaration(
         nextRest = nextRest.replace(/\s*<<[^>]+>>/, '');
       }
     }
+    if (isPartition) {
+      nextRest = nextRest.replace(/\s*<<[^>]+>>/g, '').replace(/\s*\{\s*$/, '');
+    }
     return `${newPrefix}${updates.name || entityName}${nextRest}`;
   });
 
@@ -513,6 +521,19 @@ function updateEntityDeclaration(
   }
 
   return next;
+}
+
+function normalizePartitionDeclaration(source: string, partitionName: string): string {
+  const bounds = findEntityBounds(source, partitionName);
+  if (!bounds) return source;
+
+  const declNoBody = source.slice(bounds.start, bounds.bodyStart === -1 ? bounds.end : bounds.bodyStart - 1);
+  const indent = declNoBody.match(/^\s*/)?.[0] ?? '';
+  const nameMatch = declNoBody.match(/\bpartition\s+([A-Za-z_][\w]*)\b/);
+  if (!nameMatch) return source;
+
+  const normalized = `${indent}partition ${nameMatch[1]}\n`;
+  return source.slice(0, bounds.start) + normalized + source.slice(bounds.end);
 }
 
 function updateRelationById(
@@ -695,6 +716,12 @@ export default function App() {
     }
   }, [activeTab, safeDiagramIdx, activeDiagramIdx, updateActiveTab]);
 
+  const getPlacedItemPosition = useCallback((name: string) => {
+    const partitionPos = activeDiagram?.partitions.find(p => p.name === name)?.position;
+    if (partitionPos) return partitionPos;
+    return activeDiagram?.entities.get(name)?.position;
+  }, [activeDiagram]);
+
   // ── Bidirectional: drag entity → update @Entity at ───────
   const handleEntityMove = useCallback((name: string, x: number, y: number, dragDx?: number, dragDy?: number, seedPositions?: Record<string, { x: number; y: number }>) => {
     updateActiveTab(tab => {
@@ -702,7 +729,7 @@ export default function App() {
 
       if (seedPositions) {
         for (const [entityName, pos] of Object.entries(seedPositions)) {
-          const current = activeDiagram?.entities.get(entityName)?.position;
+          const current = getPlacedItemPosition(entityName);
           src = updateEntityPosition(src, entityName, Math.round(pos.x), Math.round(pos.y), current?.w, current?.h);
         }
       }
@@ -729,14 +756,14 @@ export default function App() {
       }
       return {
         ...tab,
-        source: updateEntityPosition(src, name, x, y, activeDiagram?.entities.get(name)?.position?.w, activeDiagram?.entities.get(name)?.position?.h),
+        source: updateEntityPosition(src, name, x, y, getPlacedItemPosition(name)?.w, getPlacedItemPosition(name)?.h),
       };
     });
-  }, [updateActiveTab, activeDiagram]);
+  }, [updateActiveTab, activeDiagram, getPlacedItemPosition]);
 
   const handleEntityResize = useCallback((name: string, w: number, h: number) => {
     updateActiveTab(tab => {
-      const current = activeDiagram?.entities.get(name)?.position;
+      const current = getPlacedItemPosition(name);
       const x = current?.x ?? 40;
       const y = current?.y ?? 40;
       return {
@@ -744,7 +771,7 @@ export default function App() {
         source: updateEntityPosition(tab.source, name, Math.round(x), Math.round(y), Math.round(w), Math.round(h)),
       };
     });
-  }, [activeDiagram, updateActiveTab]);
+  }, [updateActiveTab, getPlacedItemPosition]);
 
   const handleRelationVerticalMove = useCallback((relationId: string, y: number, seedRelationYs?: Record<string, number>) => {
     updateActiveTab(tab => {
@@ -793,10 +820,12 @@ export default function App() {
     });
   }, [updateActiveTab]);
 
-  const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean; bodyText?: string }) => {
+  const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean; bodyText?: string; kind?: string }) => {
     updateActiveTab(tab => {
       let source = updateEntityDeclaration(tab.source, entityName, updates);
-      if (updates.bodyText !== undefined) {
+      if (updates.kind === 'partition') {
+        source = normalizePartitionDeclaration(source, updates.name || entityName);
+      } else if (updates.bodyText !== undefined) {
         source = replaceEntityBody(source, updates.name || entityName, updates.bodyText);
       }
       source = formatDiagramSource(source);
@@ -1140,9 +1169,10 @@ export default function App() {
         e.preventDefault();
         handleEntityEdit(editingEntity.origName || editingEntity.id, {
           name: editingEntity.name,
-          stereotype: editingEntity.stereotype,
+          stereotype: editingEntity.kind === 'partition' ? undefined : editingEntity.stereotype,
           isAbstract: editingEntity.isAbstract,
           bodyText: editingEntity.bodyText,
+          kind: editingEntity.kind,
         });
         return;
       }
@@ -1981,10 +2011,12 @@ export default function App() {
               <label>{t('edit.kind')}</label>
               <span style={{ padding: '0.4rem', border: '1px solid transparent' }}>{editingEntity.kind}</span>
             </div>
-            <div className="iso-modal-field">
-              <label>{t('edit.stereotype')}</label>
-              <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={t('edit.eg_device')} />
-            </div>
+            {editingEntity.kind !== 'partition' && (
+              <div className="iso-modal-field">
+                <label>{t('edit.stereotype')}</label>
+                <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={t('edit.eg_device')} />
+              </div>
+            )}
             {['class', 'interface'].includes(editingEntity.kind) && (
               <div className="iso-modal-field">
                 <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
@@ -2042,7 +2074,7 @@ export default function App() {
             )}
             <div className="iso-modal-actions">
               <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>{t('ui.cancel')}</button>
-              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText }); }}>{t('menu.save')}</button>
+              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: editingEntity.kind === 'partition' ? undefined : editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText, kind: editingEntity.kind }); }}>{t('menu.save')}</button>
             </div>
           </div>
         </div>
