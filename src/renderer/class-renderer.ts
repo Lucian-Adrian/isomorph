@@ -57,9 +57,9 @@ export function renderClassDiagram(diag: IOMDiagram): string {
       let px, py, pw, ph;
       if (pkg.position) {
         // Explicit annotation takes priority — prevents snap-back after drag
-        px = pkg.position.x;
-        py = pkg.position.y;
         if (members.length === 0) {
+          px = pkg.position.x;
+          py = pkg.position.y;
           pw = pkg.position.w ?? 160;
           ph = pkg.position.h ?? 100;
         } else {
@@ -67,8 +67,13 @@ export function renderClassDiagram(diag: IOMDiagram): string {
           const ys  = members.map(p => p.pos.y);
           const x2s = members.map(p => p.pos.x + p.width);
           const y2s = members.map(p => p.pos.y + p.height);
-          pw = pkg.position.w ?? Math.max(...x2s) - px + 20;
-          ph = pkg.position.h ?? Math.max(...y2s) - py + 20;
+          // Expand to wrap all entities on all four sides
+          px = Math.min(pkg.position.x, Math.min(...xs) - 20);
+          py = Math.min(pkg.position.y, Math.min(...ys) - 30);
+          const right  = Math.max(pkg.position.x + (pkg.position.w ?? 0), Math.max(...x2s) + 20);
+          const bottom = Math.max(pkg.position.y + (pkg.position.h ?? 0), Math.max(...y2s) + 20);
+          pw = pkg.position.w ?? right - px;
+          ph = pkg.position.h ?? bottom - py;
         }
       } else if (members.length === 0) {
         px = 100;
