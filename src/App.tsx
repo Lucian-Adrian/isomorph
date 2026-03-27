@@ -132,7 +132,7 @@ function templateFor(kind: DiagramKind): string {
 }
 
 function insertIntoPackage(source: string, targetPackage: string, declaration: string) {
-  const rx = new RegExp('package\s+' + targetPackage + '\\s*\\{', 'g');
+  const rx = new RegExp('package\\s+' + targetPackage + '\\s*\\{', 'g');
   const match = rx.exec(source);
   if (!match) return insertBeforeAnnotations(source, declaration);
   let depth = 1;
@@ -150,20 +150,104 @@ function insertIntoPackage(source: string, targetPackage: string, declaration: s
   return insertBeforeAnnotations(source, declaration);
 }
 
-function insertBeforeAnnotations(source: string, insertion: string): string {
-  const lastBrace = source.lastIndexOf('}');
-  if (lastBrace < 0) return source;
-  const diagramBody = source.slice(0, lastBrace);
-  const firstAtMatch = diagramBody.match(/^[ \t]*@[A-Za-z0-9_]+[ \t]+at[ \t]+\(/m);
-  
-  if (firstAtMatch && firstAtMatch.index !== undefined) {
-    let prefix = source.slice(0, firstAtMatch.index);
-    if (!prefix.endsWith('\n')) prefix += '\n';
-    return prefix + insertion + '\n' + source.slice(firstAtMatch.index);
+function findDiagramBlock(source: string): { start: number; openBrace: number; closeBrace: number } | null {
+  const headerRx = /(^|\n)[ \t]*diagram\s+\S+\s*:\s*\S+\s*\{/m;
+  const match = headerRx.exec(source);
+  if (!match) return null;
+
+  const start = (match.index ?? 0) + (match[1]?.length ?? 0);
+  const openBrace = source.indexOf('{', start);
+  if (openBrace < 0) return null;
+
+  let depth = 1;
+  for (let i = openBrace + 1; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    if (source[i] === '}') {
+      depth--;
+      if (depth === 0) return { start, openBrace, closeBrace: i };
+    }
   }
-  let prefix = source.slice(0, lastBrace);
-  if (!prefix.endsWith('\n')) prefix += '\n';
-  return prefix + insertion + '\n' + source.slice(lastBrace);
+  return null;
+}
+
+function insertBeforeAnnotations(source: string, insertion: string): string {
+  const block = findDiagramBlock(source);
+  if (!block) return source;
+
+  const header = source.slice(block.start, block.openBrace + 1);
+  const body = source.slice(block.openBrace + 1, block.closeBrace);
+  const suffix = source.slice(block.closeBrace);
+  const lines = body.split('\n');
+  const entityDeclRx = new RegExp(`^\\s*(?:abstract\\s+|static\\s+|final\\s+)*${ENTITY_KINDS_RX}\\s+`, 'm');
+  const packageRx = /^\s*package\s+/;
+  const relRx = /^\s*[A-Za-z_]\w*\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+[A-Za-z_]\w*/;
+  const annoRx = /^\s*@[A-Za-z_]\w*\s+at\s*\(/;
+
+  let lastDeclEnd = -1;
+  let firstRel = -1;
+  let firstAnno = -1;
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    if (firstRel === -1 && relRx.test(line)) firstRel = i;
+    if (firstAnno === -1 && annoRx.test(line)) firstAnno = i;
+
+    if (entityDeclRx.test(line) || packageRx.test(line)) {
+      let end = i + 1;
+      if (trimmed.includes('{') && !trimmed.includes('}')) {
+        let braceCount = (trimmed.match(/\{/g) || []).length - (trimmed.match(/\}/g) || []).length;
+        end = i + 1;
+        while (end < lines.length && braceCount > 0) {
+          const inner = lines[end].trim();
+          braceCount += (inner.match(/\{/g) || []).length - (inner.match(/\}/g) || []).length;
+          end++;
+        }
+      }
+      lastDeclEnd = end;
+      i = end;
+      continue;
+    }
+
+    i++;
+  }
+
+  const insertAt = lastDeclEnd >= 0
+    ? lastDeclEnd
+    : (firstRel >= 0 ? firstRel : (firstAnno >= 0 ? firstAnno : lines.length));
+
+  const nextLines = [...lines.slice(0, insertAt), insertion, ...lines.slice(insertAt)];
+  return source.slice(0, block.start) + header + nextLines.join('\n') + suffix;
+}
+
+function insertRelation(source: string, insertion: string): string {
+  const block = findDiagramBlock(source);
+  if (!block) return source;
+
+  const header = source.slice(block.start, block.openBrace + 1);
+  const body = source.slice(block.openBrace + 1, block.closeBrace);
+  const suffix = source.slice(block.closeBrace);
+  const lines = body.split('\n');
+  const relRx = /^\s*[A-Za-z_]\w*\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+[A-Za-z_]\w*/;
+  const annoRx = /^\s*@[A-Za-z_]\w*\s+at\s*\(/;
+
+  let lastRel = -1;
+  let firstAnno = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (firstAnno === -1 && annoRx.test(line)) firstAnno = i;
+    if (relRx.test(line)) lastRel = i;
+  }
+
+  const insertAt = lastRel >= 0 ? lastRel + 1 : (firstAnno >= 0 ? firstAnno : lines.length);
+  const nextLines = [...lines.slice(0, insertAt), insertion, ...lines.slice(insertAt)];
+  return source.slice(0, block.start) + header + nextLines.join('\n') + suffix;
 }
 
 function insertAtEnd(source: string, insertion: string): string {
@@ -181,17 +265,18 @@ function insertAtEnd(source: string, insertion: string): string {
  */
 function formatDiagramSource(source: string): string {
   const s = source.replace(/\t/g, '  ');
-  const diagramMatch = s.match(/^(diagram\s+\S+\s*:\s*\S+\s*\{)([\s\S]*)(\n\s*\})\s*$/);
-  if (!diagramMatch) return s;
-  const header = diagramMatch[1];
-  const body = diagramMatch[2];
+  const block = findDiagramBlock(s);
+  if (!block) return s;
+  const header = s.slice(block.start, block.openBrace + 1);
+  const body = s.slice(block.openBrace + 1, block.closeBrace);
+  const suffix = s.slice(block.closeBrace);
 
   const headerLines: string[] = [];
   const relationLines: string[] = [];
   const annotationLines: string[] = [];
 
   const entityDeclRx = new RegExp(`^\\s*(?:abstract\\s+|static\\s+|final\\s+)*${ENTITY_KINDS_RX}\\s+`, 'm');
-  const relRx = /^\s*[A-Za-z_]\w*\s+(--|-->|--\|>|\.\.\|>|<\|-|-|<\|\.\.|<\.\.|o--|\*--|\.\.>|--o|--\*|--x)\s+[A-Za-z_]\w*/;
+  const relRx = /^\s*[A-Za-z_]\w*\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+[A-Za-z_]\w*/;
   const annoRx = /^\s*@[A-Za-z_]\w*\s+at\s*\(/;
   const packageRx = /^\s*package\s+/;
   const closeBraceRx = /^\s*\}\s*$/;
@@ -239,7 +324,7 @@ function formatDiagramSource(source: string): string {
 
   const newBody = sections.map(sec => sec.join('\n')).join('\n\n');
 
-  return header + '\n\n' + newBody + '\n\n}';
+  return s.slice(0, block.start) + header + '\n\n' + newBody + '\n\n' + suffix;
 }
 
 function toolsetFor(kind?: DiagramKind): CanvasTool[] {
@@ -350,7 +435,7 @@ function updateRelationVerticalPosition(source: string, relationId: string, y: n
   const relationIdx = Number.parseInt(idxRaw, 10);
   if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
 
-  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
   const matches = [...source.matchAll(relRegex)];
   const match = matches[relationIdx];
   if (!match || match.index == null) return source;
@@ -594,7 +679,7 @@ function updateRelationById(
   const relationIdx = Number.parseInt(idxRaw, 10);
   if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
 
-  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
   const matches = [...source.matchAll(relRegex)];
   const match = matches[relationIdx];
   if (!match || match.index == null) return source;
@@ -935,7 +1020,7 @@ export default function App() {
   const handleTextRenameRequest = useCallback((oldName: string, _newName: string, type: 'diagram' | 'package') => { setEditingText({ oldName, newName: oldName, type }); }, []);
   const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string) => {
     updateActiveTab(tab => {
-      let newSource = insertBeforeAnnotations(tab.source, `  ${fromEntity} --> ${toEntity}`);
+      let newSource = insertRelation(tab.source, `  ${fromEntity} --> ${toEntity}`);
       newSource = formatDiagramSource(newSource);
       return { ...tab, source: newSource };
     });
@@ -1043,13 +1128,13 @@ export default function App() {
                 const rxAnno = new RegExp(`^[ \\t]*@${escapeRegex(item.id)}[ \\t]+at[ \\t]*\\([^)]+\\)[ \\t]*\\n?`, 'gm');
                 nextSource = nextSource.replace(rxAnno, '');
                 // Wipe relations connected to this
-                const rxRel = new RegExp(`^[ \\t]*(?:${escapeRegex(item.id)}[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+${escapeRegex(item.id)})(?:[ \\t]*\\[[^\\]]*\\])?[ \\t]*\\n?`, 'gm');
+                const rxRel = new RegExp(`^[ \\t]*(?:${escapeRegex(item.id)}[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+${escapeRegex(item.id)})(?:[ \\t]*\\[[^\\]]*\\])?[ \\t]*\\n?`, 'gm');
                 nextSource = nextSource.replace(rxRel, '');
               } else if (item.type === 'relation') {
                 const idxRaw = item.id.replace('rel_', '');
                 const relationIdx = Number.parseInt(idxRaw, 10);
                 if (Number.isInteger(relationIdx) && relationIdx >= 0) {
-                  const relRegex = /^([ \t]*)([A-Za-z_][\w]*)[ \t]+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|\.\.>|--o|--\*|--x|--)[ \t]+([A-Za-z_][\w]*)([ \t]*\[[^\]]*\])?[ \t]*$/gm;
+                  const relRegex = /^([ \t]*)([A-Za-z_][\w]*)[ \t]+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)[ \t]+([A-Za-z_][\w]*)([ \t]*\[[^\]]*\])?[ \t]*$/gm;
                   const matches = [...nextSource.matchAll(relRegex)];
                   const match = matches[relationIdx];
                   if (match && match.index != null) {
@@ -1182,7 +1267,7 @@ export default function App() {
                 nextSource = nextSource.replace(annoRx, '');
                 
                 // Wipe relations connected to this
-                const rxRel = new RegExp(`^[ \\t]*(?:${escapeRegex(item.id)}[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+${escapeRegex(item.id)})(?:[ \\t]*\\[[^\\]]*\\])?[ \\t]*\\n?`, 'gm');
+                const rxRel = new RegExp(`^[ \\t]*(?:${escapeRegex(item.id)}[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+${escapeRegex(item.id)})(?:[ \\t]*\\[[^\\]]*\\])?[ \\t]*\\n?`, 'gm');
                 nextSource = nextSource.replace(rxRel, '');
               }
             }
