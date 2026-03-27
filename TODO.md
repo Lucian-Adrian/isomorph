@@ -61,6 +61,25 @@ High-confidence current state:
   - state-renderer renders lanes with resize handles and width/height.
   - Bug: SS-10 validation checks unknown layout targets against entities/packages only and forgets partitions, causing false error for partition layout annotations.
 
+### 4.1) Partition drag/resize instability and coordinate loss
+- user report: partition drag/resize is hit-or-miss; width/height get dropped, lane auto-stretches, resizing can jump lane outside activity canvas; with two lanes snapping/resizing behaves erratically.
+- code reality: confirmed with concrete state synchronization gaps.
+- verdict: confirmed bug cluster.
+- why:
+  - Move path in App persists coords via activeDiagram.entities.get(name), but partitions live in diag.partitions, so w/h are often omitted and annotation is rewritten as @Lane at (x, y).
+  - Resize path in App also reads x/y from activeDiagram.entities.get(name); for partitions this falls back to defaults (40,40), causing lane jumps on resize commit.
+  - Renderer auto-expands lane dimensions when partition.position.w/h are missing, which looks like auto-stretch over the full activity area.
+  - With two lanes, resize snapping runs in DiagramView against transformed lane groups while persisted source coords are stale/misaligned, amplifying jumps.
+
+### 4.2) Partition rename/edit modal missing
+- user report: partitions do not open rename/edit modal.
+- code reality: confirmed.
+- verdict: confirmed.
+- why:
+  - Activity lanes are rendered from diag.partitions and expose data-entity-name.
+  - Double-click edit path resolves entity through diagram.entities.get(name); partitions are not in diagram.entities, so modal never opens.
+  - This creates feature inconsistency vs other draggable elements.
+
 ### 5) System boundaries in use case
 - task.md says: missing.
 - chat.md says: present but drag behavior bug exists in some cases.
@@ -201,6 +220,9 @@ High-confidence current state:
 - Sequence interaction:
   - relation vertical move infrastructure exists.
   - participant/entity select-drag is broken in sequence due to missing data-entity-name attributes.
+- Activity partition UX:
+  - lanes are interactive (drag/resize handles) but persistence layer is entity-centric and does not reliably persist partition x/y/w/h.
+  - rename flow is missing for partitions.
 
 ### Broken or inconsistent
 - SS-10 partition annotation false positives (layout validation does not include partitions in target check).
@@ -221,13 +243,21 @@ High-confidence current state:
 ## Prioritized TODO (Reality-Based)
 
 ## P0 Critical Fixes
-- [ ] Fix SS-10 for partitions in semantic layout validation.
+- [x] Fix SS-10 for partitions in semantic layout validation.
   - update analyzer layout target check to include known partition names.
+- [ ] Fix partition coordinate persistence and resize stability.
+  - when moving/resizing partitions, read/write coordinates from activeDiagram.partitions instead of activeDiagram.entities.
+  - preserve w/h on drag and preserve x/y on resize commits.
+  - ensure dual-partition resize/snap does not cause jump artifacts.
+- [ ] Add partition rename/edit modal path.
+  - support partition rename through existing edit UX.
+  - ensure label updates persist in source and renderer.
+  - ensure strings and controls are fully localized (EN/RO/RU) and compatible with both dark/light themes.
 - [ ] Standardize arrow anchoring in non-class renderers.
   - implement shape-edge intersection helpers in shared renderer utils and apply in usecase/component/flow/state/collaboration.
 - [ ] Stabilize source rewriting around relation y updates and annotation spacing.
   - preserve section separators and avoid destructive normalization side effects.
-- [ ] Restore sequence interaction parity.
+- [x] Restore sequence interaction parity.
   - add data-entity-name attributes for sequence participants/actors.
   - add transparent relation hit-lines for reliable relation selection/drag.
 - [ ] Resolve config keyword collisions with common member names.
@@ -259,7 +289,7 @@ High-confidence current state:
 ## P3 UX and Quality
 - [ ] Improve use case boundary model from plain entity to explicit container syntax support.
   - persist default boundary as a real editable entity with optional width/height coordinates (similar to partitions).
-- [ ] Add collaboration auto numbering and sub-numbering logic (1, 1.1, 1.1.1).
+- [ ] Add collaboration auto numbering and sub-numbering logic (in modal selection) (1, 1.1, 1.1.1).
 - [ ] Consider touch pinch zoom support in DiagramView for mobile.
 
 ---

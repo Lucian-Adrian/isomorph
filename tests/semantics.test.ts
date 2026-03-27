@@ -196,6 +196,11 @@ describe('Semantic Analyzer', () => {
       const ss10 = result.errors.filter(e => e.rule === 'SS-10');
       expect(ss10.length).toBeGreaterThan(0);
     });
+
+    it('accepts layout on activity partition', () => {
+      const { errors } = analyzeOk('diagram D : activity { partition Lane @Lane at (10, 20, 300, 500) }');
+      expect(errors.filter(e => e.rule === 'SS-10')).toHaveLength(0);
+    });
   });
 
   describe('SS-11: abstract + final conflict', () => {
