@@ -138,6 +138,19 @@ describe('Class Diagram Renderer', () => {
     const svg = renderClassDiagram(diag);
     expect(svg).toContain('translate(300,400)');
   });
+
+  it('respects package position annotation over member bounding box', () => {
+    const diag = buildDiagram(`diagram D : class {
+      package core {
+        class Entity {}
+      }
+      @Entity at (100, 100)
+      @core at (50, 40)
+    }`);
+    const svg = renderClassDiagram(diag);
+    expect(svg).toContain('data-package-name="core"');
+    expect(svg).toContain('translate(50,40)');
+  });
 });
 
 describe('UseCase Diagram Renderer', () => {

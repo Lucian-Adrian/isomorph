@@ -436,6 +436,16 @@ export function DiagramView({
         }
       }
 
+      // For packages with children: temporarily strip SVG filters from nested
+      // entity rects to avoid expensive per-frame filter re-rendering during drag
+      if (entityGroup.hasAttribute('data-package-name')) {
+        const filteredEls = entityGroup.querySelectorAll('[filter]');
+        filteredEls.forEach(el => {
+          el.setAttribute('data-drag-filter', el.getAttribute('filter') || '');
+          el.removeAttribute('filter');
+        });
+      }
+
       dragRef.current = {
         mode: 'entity',
         pointerId: e.pointerId,
@@ -676,10 +686,18 @@ export function DiagramView({
     if (drag.mode === 'entity' && drag.entityGroup && drag.entityName && onEntityMove) {
       const isPackageDrag = drag.entityGroup.hasAttribute('data-package-name');
       const scale = zoom / 100;
-      let updatedX = Math.round((drag.entityOrigX ?? 0) + (e.clientX - drag.startClientX) / scale);
-      let updatedY = Math.round((drag.entityOrigY ?? 0) + (e.clientY - drag.startClientY) / scale);
+      // Raw cursor delta in canvas coordinates
+      const cursorDx = Math.round((e.clientX - drag.startClientX) / scale);
+      const cursorDy = Math.round((e.clientY - drag.startClientY) / scale);
 
-      if (!isPackageDrag) {
+      if (isPackageDrag) {
+        // For packages: pass 0,0 as position and cursor delta as dx/dy.
+        // App.tsx handleEntityMove will compute final positions from IOM data + delta.
+        onEntityMove(drag.entityName, 0, 0, cursorDx, cursorDy, undefined);
+      } else {
+        let updatedX = Math.round((drag.entityOrigX ?? 0) + cursorDx);
+        let updatedY = Math.round((drag.entityOrigY ?? 0) + cursorDy);
+
         const pkgGroup = drag.entityGroup.closest('g[data-package-name]') as SVGGElement | null;
         if (pkgGroup) {
           const ptf = pkgGroup.getAttribute('transform') ?? '';
@@ -689,11 +707,8 @@ export function DiagramView({
             updatedY += Math.round(parseFloat(pm[2]));
           }
         }
-      }
 
-      let seededPositions: Record<string, { x: number; y: number }> | undefined;
-      if (!isPackageDrag) {
-        seededPositions = {};
+        const seededPositions: Record<string, { x: number; y: number }> = {};
         const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
         for (const group of allEntityGroups) {
           const entityName = group.getAttribute('data-entity-name');
@@ -703,9 +718,9 @@ export function DiagramView({
           if (!mAll) continue;
           let xAll = Math.round(parseFloat(mAll[1]));
           let yAll = Math.round(parseFloat(mAll[2]));
-          const pkgGroup = group.closest('g[data-package-name]') as SVGGElement | null;
-          if (pkgGroup) {
-            const ptf = pkgGroup.getAttribute('transform') ?? '';
+          const ePkgGroup = group.closest('g[data-package-name]') as SVGGElement | null;
+          if (ePkgGroup) {
+            const ptf = ePkgGroup.getAttribute('transform') ?? '';
             const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
             if (pm) {
               xAll += Math.round(parseFloat(pm[1]));
@@ -714,15 +729,20 @@ export function DiagramView({
           }
           seededPositions[entityName] = { x: xAll, y: yAll };
         }
-      }
 
-      const origX = Math.round(drag.entityOrigX ?? 0);
-      const origY = Math.round(drag.entityOrigY ?? 0);
-      onEntityMove(drag.entityName, updatedX, updatedY, updatedX - origX, updatedY - origY, seededPositions);
+        onEntityMove(drag.entityName, updatedX, updatedY, cursorDx, cursorDy, seededPositions);
+      }
     }
 
     if (drag.entityGroup) {
       drag.entityGroup.style.willChange = '';
+      // Restore SVG filters that were stripped during package drag
+      const stripped = drag.entityGroup.querySelectorAll('[data-drag-filter]');
+      stripped.forEach(el => {
+        const origFilter = el.getAttribute('data-drag-filter') || '';
+        if (origFilter) el.setAttribute('filter', origFilter);
+        el.removeAttribute('data-drag-filter');
+      });
     }
 
     if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
@@ -826,7 +846,9 @@ export function DiagramView({
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})`,
             transformOrigin: 'top left',
-            display: 'inline-block',
+            position: 'absolute',
+            top: 0,
+            left: 0,
             transition: isInteracting ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)',
           }}
         />

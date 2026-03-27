@@ -55,9 +55,24 @@ export function renderClassDiagram(diag: IOMDiagram): string {
     const members = pkg.entityNames.map(n => positioned.find(p => p.entity.name === n)).filter((p): p is Positioned => p !== undefined);
       
       let px, py, pw, ph;
-      if (members.length === 0) {
-        px = pkg.position ? pkg.position.x : 100;
-        py = pkg.position ? pkg.position.y : 100;
+      if (pkg.position) {
+        // Explicit annotation takes priority — prevents snap-back after drag
+        px = pkg.position.x;
+        py = pkg.position.y;
+        if (members.length === 0) {
+          pw = pkg.position.w ?? 160;
+          ph = pkg.position.h ?? 100;
+        } else {
+          const xs  = members.map(p => p.pos.x);
+          const ys  = members.map(p => p.pos.y);
+          const x2s = members.map(p => p.pos.x + p.width);
+          const y2s = members.map(p => p.pos.y + p.height);
+          pw = pkg.position.w ?? Math.max(...x2s) - px + 20;
+          ph = pkg.position.h ?? Math.max(...y2s) - py + 20;
+        }
+      } else if (members.length === 0) {
+        px = 100;
+        py = 100;
         pw = 160;
         ph = 100;
       } else {

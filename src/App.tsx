@@ -741,14 +741,21 @@ export default function App() {
           const dx = dragDx ?? 0;
           const dy = dragDy ?? 0;
 
+          // Compute final package position from IOM annotation + cursor delta
+          const oldPkgX = pkg.position?.x ?? 100;
+          const oldPkgY = pkg.position?.y ?? 100;
+          const newPkgX = Math.round(oldPkgX + dx);
+          const newPkgY = Math.round(oldPkgY + dy);
           const pkgW = pkg.position?.w;
           const pkgH = pkg.position?.h;
-          src = updateEntityPosition(src, name, x, y, pkgW, pkgH);
-          if (!seedPositions && (dx !== 0 || dy !== 0)) {
+          src = updateEntityPosition(src, name, newPkgX, newPkgY, pkgW, pkgH);
+
+          // Shift all nested entities by the same cursor delta
+          if (dx !== 0 || dy !== 0) {
             for (const eName of pkg.entityNames) {
               const ent = activeDiagram.entities.get(eName);
               if (ent && ent.position) {
-                src = updateEntityPosition(src, eName, ent.position.x + dx, ent.position.y + dy, ent.position.w, ent.position.h);
+                src = updateEntityPosition(src, eName, Math.round(ent.position.x + dx), Math.round(ent.position.y + dy), ent.position.w, ent.position.h);
               }
             }
           }

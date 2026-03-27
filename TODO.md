@@ -261,7 +261,7 @@ High-confidence current state:
   - implement shape-edge intersection helpers in shared renderer utils and apply in usecase/component/flow/state/collaboration.
 - [ ] Stabilize source rewriting around relation y updates and annotation spacing.
   - preserve section separators and avoid destructive normalization side effects.
-- [ ] Fix package horizontal drag jitter and snap-back.
+- [x] Fix package horizontal drag jitter and snap-back.
   - package drags with nested items should track cursor 1:1 on X and persist final drop position without backward snap.
 - [x] Restore sequence interaction parity.
   - add data-entity-name attributes for sequence participants/actors.
