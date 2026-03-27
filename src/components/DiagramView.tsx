@@ -66,6 +66,7 @@ export function DiagramView({
     entityGroup?: SVGGElement;
     entityOrigX?: number;
     entityOrigY?: number;
+    entityUsesDeltaTransform?: boolean;
     entityOrigW?: number;
     entityOrigH?: number;
     resizeHandle?: 'e' | 's' | 'se';
@@ -420,6 +421,7 @@ export function DiagramView({
       if (!entityName) return;
       const tf = entityGroup.getAttribute('transform') ?? '';
       const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
+      const usesDeltaTransform = !m;
       
       let entityOrigX = m ? parseFloat(m[1]) : 0;
       let entityOrigY = m ? parseFloat(m[2]) : 0;
@@ -443,7 +445,9 @@ export function DiagramView({
         entityGroup,
         entityOrigX,
         entityOrigY,
+        entityUsesDeltaTransform: usesDeltaTransform,
       };
+      entityGroup.style.willChange = 'transform';
       setIsInteracting(true);
       canvasRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
@@ -615,7 +619,11 @@ export function DiagramView({
         }
       }
 
-      drag.entityGroup.setAttribute('transform', `translate(${nextX},${nextY})`);
+      if (drag.entityUsesDeltaTransform) {
+        drag.entityGroup.setAttribute('transform', `translate(${dx},${dy})`);
+      } else {
+        drag.entityGroup.setAttribute('transform', `translate(${nextX},${nextY})`);
+      }
     }
   }, [diagram, zoom, pan]);
 
@@ -666,56 +674,63 @@ export function DiagramView({
     }
 
     if (drag.mode === 'entity' && drag.entityGroup && drag.entityName && onEntityMove) {
-      const seededPositions: Record<string, { x: number; y: number }> = {};
-      const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
-      for (const group of allEntityGroups) {
-        const entityName = group.getAttribute('data-entity-name');
-        if (!entityName) continue;
-        const tfAll = group.getAttribute('transform') ?? '';
-        const mAll = tfAll.match(/translate\(([^,]+),([^)]+)\)/);
-        if (!mAll) continue;
-        let xAll = Math.round(parseFloat(mAll[1]));
-        let yAll = Math.round(parseFloat(mAll[2]));
-        const pkgGroup = group.closest('g[data-package-name]') as SVGGElement | null;
+      const isPackageDrag = drag.entityGroup.hasAttribute('data-package-name');
+      const scale = zoom / 100;
+      let updatedX = Math.round((drag.entityOrigX ?? 0) + (e.clientX - drag.startClientX) / scale);
+      let updatedY = Math.round((drag.entityOrigY ?? 0) + (e.clientY - drag.startClientY) / scale);
+
+      if (!isPackageDrag) {
+        const pkgGroup = drag.entityGroup.closest('g[data-package-name]') as SVGGElement | null;
         if (pkgGroup) {
           const ptf = pkgGroup.getAttribute('transform') ?? '';
           const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
           if (pm) {
-            xAll += Math.round(parseFloat(pm[1]));
-            yAll += Math.round(parseFloat(pm[2]));
+            updatedX += Math.round(parseFloat(pm[1]));
+            updatedY += Math.round(parseFloat(pm[2]));
           }
         }
-        seededPositions[entityName] = { x: xAll, y: yAll };
       }
 
-      const tf = drag.entityGroup.getAttribute('transform') ?? '';
-      const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
-      if (m) {
-          let updatedX = Math.round(parseFloat(m[1]));
-          let updatedY = Math.round(parseFloat(m[2]));
-          
-          if (!drag.entityGroup.hasAttribute('data-package-name')) {
-            const pkgGroup = drag.entityGroup.closest('g[data-package-name]') as SVGGElement | null;
-            if (pkgGroup) {
-              const ptf = pkgGroup.getAttribute('transform') ?? '';
-              const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
-              if (pm) {
-                 updatedX += Math.round(parseFloat(pm[1]));
-                 updatedY += Math.round(parseFloat(pm[2]));
-              }
+      let seededPositions: Record<string, { x: number; y: number }> | undefined;
+      if (!isPackageDrag) {
+        seededPositions = {};
+        const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
+        for (const group of allEntityGroups) {
+          const entityName = group.getAttribute('data-entity-name');
+          if (!entityName) continue;
+          const tfAll = group.getAttribute('transform') ?? '';
+          const mAll = tfAll.match(/translate\(([^,]+),([^)]+)\)/);
+          if (!mAll) continue;
+          let xAll = Math.round(parseFloat(mAll[1]));
+          let yAll = Math.round(parseFloat(mAll[2]));
+          const pkgGroup = group.closest('g[data-package-name]') as SVGGElement | null;
+          if (pkgGroup) {
+            const ptf = pkgGroup.getAttribute('transform') ?? '';
+            const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
+            if (pm) {
+              xAll += Math.round(parseFloat(pm[1]));
+              yAll += Math.round(parseFloat(pm[2]));
             }
           }
-          
-          const origX = Math.round(drag.entityOrigX ?? 0); const origY = Math.round(drag.entityOrigY ?? 0); onEntityMove(drag.entityName, updatedX, updatedY, updatedX - origX, updatedY - origY, seededPositions);
+          seededPositions[entityName] = { x: xAll, y: yAll };
         }
       }
+
+      const origX = Math.round(drag.entityOrigX ?? 0);
+      const origY = Math.round(drag.entityOrigY ?? 0);
+      onEntityMove(drag.entityName, updatedX, updatedY, updatedX - origX, updatedY - origY, seededPositions);
+    }
+
+    if (drag.entityGroup) {
+      drag.entityGroup.style.willChange = '';
+    }
 
     if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
       canvasRef.current.releasePointerCapture(e.pointerId);
     }
     setIsInteracting(false);
     dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
-  }, [diagram, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
+  }, [diagram, zoom, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
 
   const isDiagramEmpty = diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
 

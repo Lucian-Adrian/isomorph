@@ -7,7 +7,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter } from './utils.js';
 
 const BOX_W        = 160;
 const COMP_H       = 48;
@@ -21,6 +21,11 @@ interface Placed {
   entity: IOMEntity;
   x: number;
   y: number;
+}
+
+function entityHeight(entity: IOMEntity): number {
+  const k = entity.kind;
+  return (k === 'node' || k === 'device' || k === 'environment') ? NODE_H + DEPTH : COMP_H;
 }
 
 export function renderComponentDiagram(diag: IOMDiagram): string {
@@ -77,8 +82,14 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
     const f = placed.find(p => p.entity.name === rel.from);
     const t = placed.find(p => p.entity.name === rel.to);
     if (!f || !t) continue;
-    const x1 = f.x + BOX_W / 2, y1 = f.y + COMP_H / 2;
-    const x2 = t.x + BOX_W / 2, y2 = t.y + COMP_H / 2;
+    const fH = entityHeight(f.entity);
+    const tH = entityHeight(t.entity);
+    const fromCenter = rectCenter(f.x, f.y, BOX_W, fH);
+    const toCenter = rectCenter(t.x, t.y, BOX_W, tH);
+    const fromEdge = edgePointOnRect(f.x, f.y, BOX_W, fH, toCenter.x, toCenter.y);
+    const toEdge = edgePointOnRect(t.x, t.y, BOX_W, tH, fromCenter.x, fromCenter.y);
+    const x1 = fromEdge.x, y1 = fromEdge.y;
+    const x2 = toEdge.x, y2 = toEdge.y;
     const dash = rel.kind === 'dependency' ? ' stroke-dasharray="6,3"' : '';
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
     svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;      svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dash}/>`;

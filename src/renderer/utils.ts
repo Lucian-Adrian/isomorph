@@ -117,3 +117,27 @@ export function renderConfigLegend(diag: import('../semantics/iom.js').IOMDiagra
   svg += `  </g>\n`;
   return { svg };
 }
+
+/** Returns the center point of a rectangle. */
+export function rectCenter(x: number, y: number, w: number, h: number): { x: number; y: number } {
+  return { x: x + w / 2, y: y + h / 2 };
+}
+
+/**
+ * Projects a point from the rectangle center to its border in the direction of a target point.
+ * This gives cleaner edge-anchored relation lines than center-to-center drawing.
+ */
+export function edgePointOnRect(x: number, y: number, w: number, h: number, targetX: number, targetY: number): { x: number; y: number } {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const dx = targetX - cx;
+  const dy = targetY - cy;
+
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+  const sx = dx !== 0 ? (w / 2) / Math.abs(dx) : Number.POSITIVE_INFINITY;
+  const sy = dy !== 0 ? (h / 2) / Math.abs(dy) : Number.POSITIVE_INFINITY;
+  const t = Math.min(sx, sy);
+
+  return { x: cx + dx * t, y: cy + dy * t };
+}

@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter } from './utils.js';
 
 const BOX_W        = 160;
 const BOX_H        = 50;
@@ -57,8 +57,12 @@ export function renderFlowDiagram(diag: IOMDiagram): string {
     const fDim = getDimensions(f.entity);
     const tDim = getDimensions(t.entity);
 
-    const x1 = f.x + fDim.w / 2, y1 = f.y + fDim.h / 2;
-    const x2 = t.x + tDim.w / 2, y2 = t.y + tDim.h / 2;
+    const fromCenter = rectCenter(f.x, f.y, fDim.w, fDim.h);
+    const toCenter = rectCenter(t.x, t.y, tDim.w, tDim.h);
+    const fromEdge = edgePointOnRect(f.x, f.y, fDim.w, fDim.h, toCenter.x, toCenter.y);
+    const toEdge = edgePointOnRect(t.x, t.y, tDim.w, tDim.h, fromCenter.x, fromCenter.y);
+    const x1 = fromEdge.x, y1 = fromEdge.y;
+    const x2 = toEdge.x, y2 = toEdge.y;
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
     const dash = rel.kind === 'dependency' ? ' stroke-dasharray="6,3"' : '';
 

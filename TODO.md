@@ -257,10 +257,12 @@ High-confidence current state:
   - support partition rename through existing edit UX.
   - ensure label updates persist in source and renderer.
   - ensure strings and controls are fully localized (EN/RO/RU) and compatible with both dark/light themes.
-- [ ] Standardize arrow anchoring in non-class renderers.
+- [x] Standardize arrow anchoring in non-class renderers.
   - implement shape-edge intersection helpers in shared renderer utils and apply in usecase/component/flow/state/collaboration.
 - [ ] Stabilize source rewriting around relation y updates and annotation spacing.
   - preserve section separators and avoid destructive normalization side effects.
+- [ ] Fix package horizontal drag jitter and snap-back.
+  - package drags with nested items should track cursor 1:1 on X and persist final drop position without backward snap.
 - [x] Restore sequence interaction parity.
   - add data-entity-name attributes for sequence participants/actors.
   - add transparent relation hit-lines for reliable relation selection/drag.
@@ -294,6 +296,8 @@ High-confidence current state:
 - [ ] Improve use case boundary model from plain entity to explicit container syntax support.
   - persist default boundary as a real editable entity with optional width/height coordinates (similar to partitions).
 - [ ] Add collaboration auto numbering and sub-numbering logic (in modal selection) (1, 1.1, 1.1.1).
+- [x] Add Escape-to-close behavior for all modals.
+  - Escape should close the active modal, consistent with click-outside close and Enter save behavior.
 - [ ] Consider touch pinch zoom support in DiagramView for mobile.
 
 ---

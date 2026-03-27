@@ -1185,16 +1185,23 @@ export default function App() {
   // ── Global keyboard shortcuts ─────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (editingEntity) { setEditingEntity(null); return; }
+        if (editingRelation) { setEditingRelation(null); return; }
+        if (editingText) { setEditingText(null); return; }
+        if (isNewModalOpen) { setIsNewModalOpen(false); return; }
+        if (tabToClose) { setTabToClose(null); return; }
+        if (shortcutsOpen) { setShortcutsOpen(false); return; }
+      }
       if (e.ctrlKey && !e.shiftKey && e.key === 'n') { e.preventDefault(); handleNew(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'o') { e.preventDefault(); fileInputRef.current?.click(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'e') { e.preventDefault(); handleExportSVG(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); handleExportPNG(); }
       if (e.ctrlKey && e.key === '/') { e.preventDefault(); setShortcutsOpen(o => !o); }
-      if (e.key === 'Escape' && shortcutsOpen) setShortcutsOpen(false);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleNew, handleExportSVG, handleExportPNG, shortcutsOpen]);
+  }, [handleNew, handleExportSVG, handleExportPNG, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose]);
 
   useEffect(() => {
     const handleModalEnter = (e: KeyboardEvent) => {

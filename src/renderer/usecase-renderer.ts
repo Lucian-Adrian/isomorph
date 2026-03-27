@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { IOMDiagram } from '../semantics/iom.js';
-import { escapeXml, wrapText, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
+import { escapeXml, wrapText, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect } from './utils.js';
 
 export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
@@ -74,12 +74,22 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     const f = [...actorPositions, ...ucPositions].find(p => p.e.name === rel.from);
     const t = [...actorPositions, ...ucPositions].find(p => p.e.name === rel.to);
     if (!f || !t) continue;
+    const fIsActor = f.e.kind === 'actor';
+    const tIsActor = t.e.kind === 'actor';
+    const fBox = fIsActor
+      ? { x: f.p.x - 18, y: f.p.y - 57, w: 36, h: 72 }
+      : { x: f.p.x - UC_RX, y: f.p.y - UC_RY, w: UC_RX * 2, h: UC_RY * 2 };
+    const tBox = tIsActor
+      ? { x: t.p.x - 18, y: t.p.y - 57, w: 36, h: 72 }
+      : { x: t.p.x - UC_RX, y: t.p.y - UC_RY, w: UC_RX * 2, h: UC_RY * 2 };
+    const fromEdge = edgePointOnRect(fBox.x, fBox.y, fBox.w, fBox.h, t.p.x, t.p.y);
+    const toEdge = edgePointOnRect(tBox.x, tBox.y, tBox.w, tBox.h, f.p.x, f.p.y);
     const strokeDash = rel.kind === 'dependency' ? '6,3' : '';
     const dashAttr = strokeDash ? ` stroke-dasharray="${strokeDash}"` : '';
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
-    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;      svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;    svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="1.5"${dashAttr}/>\n`;
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;      svg += `    <line x1="${fromEdge.x}" y1="${fromEdge.y}" x2="${toEdge.x}" y2="${toEdge.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;    svg += `    <line x1="${fromEdge.x}" y1="${fromEdge.y}" x2="${toEdge.x}" y2="${toEdge.y}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="1.5"${dashAttr}/>\n`;
     if (rel.label) {
-      const mx = (f.p.x + t.p.x) / 2, my = (f.p.y + t.p.y) / 2 - 6;
+      const mx = (fromEdge.x + toEdge.x) / 2, my = (fromEdge.y + toEdge.y) / 2 - 6;
       const labelW = safeLabel.length * 6 + 10;
       svg += `    <rect x="${mx - labelW/2}" y="${my - 12}" width="${labelW}" height="14" rx="2" fill="var(--iso-bg-panel)" opacity="0.9"/>\n`;
       svg += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text-muted)">«${safeLabel}»</text>\n`;
