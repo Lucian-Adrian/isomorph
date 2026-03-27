@@ -30,6 +30,7 @@ export interface ParseResult {
 export class Parser {
   private pos = 0;
   private errors: ParseError[] = [];
+  private readonly contextualIdentifierKinds: TokenKind[] = ['title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber', 'return'];
 
   constructor(private tokens: Token[]) {}
 
@@ -62,6 +63,22 @@ export class Parser {
         line: t.line, col: t.col, pos: t.start,
       });
       // Error recovery: return the invalid token but don't consume it
+      return t;
+    }
+    return this.advance();
+  }
+
+  private isIdentifierLikeToken(kind: TokenKind): boolean {
+    return kind === 'IDENT' || this.contextualIdentifierKinds.includes(kind);
+  }
+
+  private expectIdentifierLike(): Token {
+    const t = this.peek();
+    if (!this.isIdentifierLikeToken(t.kind)) {
+      this.errors.push({
+        message: `Expected identifier but got '${t.kind}' ('${t.value}')`,
+        line: t.line, col: t.col, pos: t.start,
+      });
       return t;
     }
     return this.advance();
@@ -312,14 +329,14 @@ export class Parser {
     if (this.at('region')) return this.parseRegionDecl();
 
     // Enum values have no visibility/type prefix
-    if (entityKind === 'enum' && this.at('IDENT') && !this.isVisibility(this.peek().kind)) {
+    if (entityKind === 'enum' && this.isIdentifierLikeToken(this.peek().kind) && !this.isVisibility(this.peek().kind)) {
       return this.parseEnumValue();
     }
 
     const vis = this.parseVisibility();
     const mods = this.parseMemberModifiers();
 
-    const name = this.expect('IDENT').value;
+    const name = this.expectIdentifierLike().value;
     const nameStart = this.peek(-1);
 
     // Method: name ( ...
@@ -388,14 +405,14 @@ export class Parser {
   }
 
   private parseParam(): ParamDecl {
-    const name = this.expect('IDENT').value;
+    const name = this.expectIdentifierLike().value;
     this.expect('COLON');
     const type = this.parseTypeExpr();
     return { name, type };
   }
 
   private parseEnumValue(): EnumValueDecl {
-    const t = this.expect('IDENT');
+    const t = this.expectIdentifierLike();
     if (this.at('SEMI')) this.advance();
     return { kind: 'EnumValueDecl', name: t.value, span: this.spanFrom(t) };
   }
@@ -653,10 +670,19 @@ export class Parser {
   private parsePartitionDecl(): import('./ast.js').PartitionDecl {
     const first = this.advance();
     let name = '';
-    if (this.atAny('IDENT', 'STRING')) {
+    if (this.at('STRING')) {
       name = this.advance().value;
     } else {
-      this.expect('IDENT');
+      name = this.expectIdentifierLike().value;
+    }
+
+    // Partitions do not support stereotypes semantically, but we consume accidental
+    // stereotype tokens to avoid cascading parse failures from malformed input.
+    if (this.at('STEREO_O')) {
+      this.advance();
+      if (this.isIdentifierLikeToken(this.peek().kind)) this.advance();
+      if (this.at('GT')) this.advance(); else this.expect('GT');
+      if (this.at('GT')) this.advance(); else this.expect('GT');
     }
 
     let body: BodyItem[] = [];

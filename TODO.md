@@ -264,9 +264,9 @@ High-confidence current state:
 - [x] Restore sequence interaction parity.
   - add data-entity-name attributes for sequence participants/actors.
   - add transparent relation hit-lines for reliable relation selection/drag.
-- [ ] Resolve config keyword collisions with common member names.
-  - allow title/subtitle/caption/legend as identifiers in member context (or implement contextual keyword parsing).
-- [ ] Document true deployment renderer architecture.
+- [x] Resolve config keyword collisions with common member names.
+  - allow title/subtitle/caption/legend/return as identifiers in member context (or implement contextual keyword parsing).
+- [x] Document true deployment renderer architecture.
   - update README table to reflect shared renderer implementation instead of To Be Extracted.
 
 ## P1 High Value Functional Completion

@@ -601,6 +601,7 @@ export default function App() {
   const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
   const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string } | null>(null);
+  const [errorsCopied, setErrorsCopied] = useState(false);
   const [renamingTabId, setRenamingTabId]   = useState<string | null>(null);
   const [pendingMobileDropKeyword, setPendingMobileDropKeyword] = useState<string | null>(null);
   const examplesRef                         = useRef<HTMLDivElement>(null);
@@ -783,6 +784,42 @@ export default function App() {
       return { ...tab, source: src };
     });
   }, [updateActiveTab]);
+
+  const handleCopyErrors = useCallback(async () => {
+    if (allErrors.length === 0) return;
+    const text = allErrors.join('\n');
+    let copied = false;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      }
+    } catch {
+      copied = false;
+    }
+
+    if (!copied) {
+      try {
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', 'true');
+        area.style.position = 'fixed';
+        area.style.left = '-9999px';
+        document.body.appendChild(area);
+        area.select();
+        copied = document.execCommand('copy');
+        document.body.removeChild(area);
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (copied) {
+      setErrorsCopied(true);
+      window.setTimeout(() => setErrorsCopied(false), 1400);
+    }
+  }, [allErrors]);
 
   const handleEntityEditRequest = useCallback((entity: IOMEntity) => {
     let body = '';
@@ -1287,6 +1324,17 @@ export default function App() {
       </div>
       {allErrors.length > 0 && (
         <div className="iso-error-panel" role="log" aria-label={t('ui.errors')}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+            <strong style={{ fontSize: '0.78rem', color: 'var(--iso-text-muted)' }}>{t('ui.errors')}</strong>
+            <button
+              type="button"
+              className="iso-btn"
+              onClick={handleCopyErrors}
+              style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+            >
+              {errorsCopied ? t('ui.copied') : t('ui.copy_errors')}
+            </button>
+          </div>
           {allErrors.slice(0, 8).map((msg, i) => (
             <div key={`err-${msg.slice(0, 20)}-${i}`} className="iso-error-item">
               <span className="iso-error-icon" aria-hidden="true">✖</span>
