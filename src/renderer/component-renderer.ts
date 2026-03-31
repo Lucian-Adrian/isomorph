@@ -7,7 +7,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter, computePortPositions } from './utils.js';
 
 const BOX_W        = 160;
 const COMP_H       = 48;
@@ -77,25 +77,139 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
     svg += `  </g>\n`;
   }
 
+  const relationPairCounts = new Map<string, number>();
+  const relationPairIndexes = new Map<string, number>();
+  for (const rel of diag.relations) {
+    const key = [rel.from, rel.to].sort().join('::');
+    relationPairCounts.set(key, (relationPairCounts.get(key) ?? 0) + 1);
+  }
+
   // Relations
   for (const rel of diag.relations) {
     const f = placed.find(p => p.entity.name === rel.from);
     const t = placed.find(p => p.entity.name === rel.to);
     if (!f || !t) continue;
+
+    const isProvides = rel.kind === 'provides';
+    const isRequires = rel.kind === 'requires';
+
+    const fIsLollipop = f.entity.kind === 'interface' && f.entity.stereotype === 'lollipop';
+    const tIsLollipop = t.entity.kind === 'interface' && t.entity.stereotype === 'lollipop';
+
+    let x1: number, y1: number, x2: number, y2: number;
+
     const fH = entityHeight(f.entity);
     const tH = entityHeight(t.entity);
-    const fromCenter = rectCenter(f.x, f.y, BOX_W, fH);
-    const toCenter = rectCenter(t.x, t.y, BOX_W, tH);
-    const fromEdge = edgePointOnRect(f.x, f.y, BOX_W, fH, toCenter.x, toCenter.y);
-    const toEdge = edgePointOnRect(t.x, t.y, BOX_W, tH, fromCenter.x, fromCenter.y);
-    const x1 = fromEdge.x, y1 = fromEdge.y;
-    const x2 = toEdge.x, y2 = toEdge.y;
+    const fCenter = fIsLollipop ? { x: f.x + BOX_W/2, y: f.y + COMP_H/2 - 5 } : rectCenter(f.x, f.y, BOX_W, fH);
+    const tCenter = tIsLollipop ? { x: t.x + BOX_W/2, y: t.y + COMP_H/2 - 5 } : rectCenter(t.x, t.y, BOX_W, tH);
+
+    const getEdge = (p: Placed, isLoll: boolean, h: number, targetInfo: {x: number, y: number}, radius: number = 16) => {
+        if (!isLoll) return edgePointOnRect(p.x, p.y, BOX_W, h, targetInfo.x, targetInfo.y);
+        const cx = p.x + BOX_W / 2;
+        const cy = p.y + COMP_H / 2 - 5;
+        const dx = targetInfo.x - cx;
+        const dy = targetInfo.y - cy;
+        const dist = Math.hypot(dx, dy);
+        if (dist === 0) return { x: cx, y: cy };
+        return { x: cx + (dx / dist) * radius, y: cy + (dy / dist) * radius };
+    };
+
+    let fromEdge = getEdge(f, fIsLollipop, fH, tCenter);
+    let toEdge   = getEdge(t, tIsLollipop, tH, fCenter);
+
+    if (isProvides || isRequires) {
+      const fromPorts = computePortPositions(f.entity.fields, BOX_W, COMP_H);
+      const toPorts = computePortPositions(t.entity.fields, BOX_W, COMP_H);
+
+      if (isProvides) {
+         if (!fIsLollipop) {
+            const provPort = [...fromPorts.entries()].find(([, p]) => p.side === 'right');
+            if (provPort) { fromEdge = { x: f.x + provPort[1].x, y: f.y + provPort[1].y }; }
+            else { fromEdge = { x: f.x + BOX_W, y: f.y + COMP_H / 2 }; }
+            toEdge = getEdge(t, tIsLollipop, tH, fromEdge);
+         }
+         if (!tIsLollipop) {
+            const reqPort = [...toPorts.entries()].find(([, p]) => p.side === 'left');
+            if (reqPort) { toEdge = { x: t.x + reqPort[1].x, y: t.y + reqPort[1].y }; }
+         }
+      } else {
+         if (!fIsLollipop) {
+            const reqPort = [...fromPorts.entries()].find(([, p]) => p.side === 'left');
+            if (reqPort) { fromEdge = { x: f.x + reqPort[1].x, y: f.y + reqPort[1].y }; }
+            else { fromEdge = { x: f.x, y: f.y + COMP_H / 2 }; }
+            toEdge = getEdge(t, tIsLollipop, tH, fromEdge, tIsLollipop && isRequires ? 22 : 16);
+         }
+         if (!tIsLollipop) {
+            const provPort = [...toPorts.entries()].find(([, p]) => p.side === 'right');
+            if (provPort) { toEdge = { x: t.x + provPort[1].x, y: t.y + provPort[1].y }; }
+         }
+      }
+    }
+
+    x1 = fromEdge.x; y1 = fromEdge.y;
+    x2 = toEdge.x; y2 = toEdge.y;
+
     const dash = rel.kind === 'dependency' ? ' stroke-dasharray="6,3"' : '';
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
-    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;      svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dash}/>`;
+    
+    const pairKey = [rel.from, rel.to].sort().join('::');
+    const pairCount = relationPairCounts.get(pairKey) ?? 1;
+    const pairIndex = relationPairIndexes.get(pairKey) ?? 0;
+    relationPairIndexes.set(pairKey, pairIndex + 1);
+
+    const hasOverlap = pairCount > 1;
+    const offsetRank = pairIndex - (pairCount - 1) / 2;
+    // ensure consistent bulge direction regardless of edge direction
+    const sign = rel.from > rel.to ? -1 : 1;
+    const curveOffset = hasOverlap ? offsetRank * 24 * sign : 0;
+
+    const vx = x2 - x1;
+    const vy = y2 - y1;
+    const len = Math.max(1, Math.hypot(vx, vy));
+    const nx = -vy / len;
+    const ny = vx / len;
+    const cx = (x1 + x2) / 2 + nx * curveOffset;
+    const cy = (y1 + y2) / 2 + ny * curveOffset;
+
+    const linePath = hasOverlap
+      ? `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
+      : `M ${x1} ${y1} L ${x2} ${y2}`;
+
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
+    svg += `<path d="${linePath}" stroke="transparent" stroke-width="15" fill="none" style="cursor: pointer"/>`;
+    svg += `<path d="${linePath}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dash} fill="none"/>`;
+
+    // Draw semantic endpoint markers for provides/requires
+    if (isProvides) {
+      if (!tIsLollipop && !fIsLollipop) {
+        // Lollipop circle at source end (normal view)
+        svg += `<circle cx="${x1}" cy="${y1}" r="6" fill="var(--iso-bg-panel)" stroke="#3b82f6" stroke-width="1.5"/>`;
+      }
+    } else if (isRequires) {
+      if (tIsLollipop) {
+        // Socket arc at TARGET end, cupping the lollipop
+        const angle = Math.atan2(fCenter.y - tCenter.y, fCenter.x - tCenter.x);
+        const arcStartAngle = angle - Math.PI / 4.5;
+        const arcEndAngle = angle + Math.PI / 4.5;
+        const sx1 = tCenter.x + 22 * Math.cos(arcStartAngle);
+        const sy1 = tCenter.y + 22 * Math.sin(arcStartAngle);
+        const sx2 = tCenter.x + 22 * Math.cos(arcEndAngle);
+        const sy2 = tCenter.y + 22 * Math.sin(arcEndAngle);
+        svg += `<path d="M ${sx1} ${sy1} A 22 22 0 0 1 ${sx2} ${sy2}" fill="none" stroke="#3b82f6" stroke-width="1.5"/>`;
+      } else if (!fIsLollipop) {
+        // Socket arc at source end based on start tangent
+        const angle = hasOverlap ? Math.atan2(cy - y1, cx - x1) : Math.atan2(y2 - y1, x2 - x1);
+        const arcX = x1 + Math.cos(angle) * 3;
+        const arcY = y1 + Math.sin(angle) * 3;
+        svg += `<path d="M ${arcX - 5 * Math.sin(angle)} ${arcY + 5 * Math.cos(angle)} A 5 5 0 0 1 ${arcX + 5 * Math.sin(angle)} ${arcY - 5 * Math.cos(angle)}" fill="none" stroke="#3b82f6" stroke-width="1.5"/>`;
+      }
+    }
+
     if (rel.label) {
-      const mx = (x1 + x2) / 2;
-      const my = (y1 + y2) / 2 - 6;
+      const mx = hasOverlap ? cx : (x1 + x2) / 2;
+      const my = (hasOverlap ? cy : (y1 + y2) / 2) - 8;
+      const labelWidth = safeLabel.length * 7 + 6;
+      svg += `<rect x="${mx - labelWidth/2}" y="${my - 10}" width="${labelWidth}" height="14" fill="var(--iso-bg-panel)" opacity="0.9" rx="3"/>`;
       svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text-muted)" font-style="italic">${safeLabel}</text>`;
     }
     svg += `</g>\n`;
@@ -104,7 +218,9 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
   // Entities
   for (const p of placed) {
     const k = p.entity.kind;
-    if (k === 'node' || k === 'device' || k === 'environment') {
+    if (k === 'interface' && p.entity.stereotype === 'lollipop') {
+      svg += renderLollipopInterface(p);
+    } else if (k === 'node' || k === 'device' || k === 'environment') {
       svg += renderNode(p);
     } else if (k === 'artifact') {
       svg += renderArtifact(p);
@@ -169,6 +285,19 @@ function renderArtifact(p: Placed): string {
   // Icon outline
   s += `    <text x="${BOX_W / 2}" y="18" text-anchor="middle" font-size="10" fill="var(--iso-text-muted)" font-style="italic">${escapeXml(label)}</text>\n`;
   s += `    <text x="${BOX_W / 2}" y="36" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">${escapeXml(entity.name)}</text>\n`;
+  s += `  </g>\n`;
+  return s;
+}
+
+function renderLollipopInterface(p: Placed): string {
+  const { entity, x, y } = p;
+  const label = entity.name;
+  let s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(entity.name)}">\n`;
+  const cx = BOX_W / 2;
+  const cy = COMP_H / 2 - 5;
+  const r = 16;
+  s += `    <circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--iso-bg-panel)" stroke="#3b82f6" stroke-width="2" filter="url(#shadow)"/>\n`;
+  s += `    <text x="${cx}" y="${cy + r + 15}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--iso-text)">${escapeXml(label)}</text>\n`;
   s += `  </g>\n`;
   return s;
 }

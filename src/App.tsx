@@ -49,6 +49,8 @@ const REL_TOKENS_BY_KIND: Record<string, string> = {
   composition: '--*',
   dependency: '..>',
   restriction: '--x',
+  provides: '--()',
+  requires: '--(',
 };
 
 function slugId() {
@@ -679,7 +681,7 @@ function updateRelationById(
   const relationIdx = Number.parseInt(idxRaw, 10);
   if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
 
-  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\(\)|--\(|--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
   const matches = [...source.matchAll(relRegex)];
   const match = matches[relationIdx];
   if (!match || match.index == null) return source;
@@ -2259,6 +2261,14 @@ export default function App() {
                 </label>
               </div>
             )}
+            {editingEntity.kind === 'interface' && ['component', 'deployment'].includes(activeDiagram?.kind || '') && (
+              <div className="iso-modal-field">
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
+                  <input type="checkbox" checked={editingEntity.stereotype === 'lollipop'} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.checked ? 'lollipop' : '' })} style={{ margin: 0 }} />
+                  {t('edit.lollipop')}
+                </label>
+              </div>
+            )}
             {[
               'class', 'interface', 'enum', 'struct', 'component', 'node', 'device', 
               'environment', 'state', 'activity', 'usecase', 'actor', 'multiobject', 
@@ -2350,6 +2360,12 @@ export default function App() {
                 <option value="composition">{t('rel.composition')}</option>
                 <option value="dependency">{t('rel.dependency')}</option>
                 <option value="restriction">{t('rel.restriction')}</option>
+                {['component', 'deployment'].includes(activeDiagram?.kind || '') && (
+                  <>
+                    <option value="provides">{t('rel.provides')}</option>
+                    <option value="requires">{t('rel.requires')}</option>
+                  </>
+                )}
               </select>
             </div>
             <div className="iso-modal-field">

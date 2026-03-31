@@ -185,6 +185,8 @@ export class Parser {
     if (this.at('activate')) return this.parseActivateDecl(false);
     if (this.at('deactivate')) return this.parseActivateDecl(true);
     if (this.at('return')) return this.parseReturnDecl();
+    if (this.at('create')) return this.parseCreateDecl();
+    if (this.at('destroy')) return this.parseDestroyDecl();
     if (this.at('partition')) return this.parsePartitionDecl();
 
     // ── Package ──
@@ -197,7 +199,7 @@ export class Parser {
     if (t.kind === 'style') return this.parseStyleDecl();
 
     // ── Config ──
-    if (this.atAny('title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber')) return this.parseConfigDecl();
+    if (this.atAny('title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber', 'autoactivation')) return this.parseConfigDecl();
 
     // ── Entity (class/interface/enum/actor/usecase/component/node or with abstract modifier) ──
     if (this.isEntityStart()) return this.parseEntityDecl();
@@ -225,7 +227,8 @@ export class Parser {
 
   private isRelationOperator(k: TokenKind): boolean {
     return ['ASSOC','ASSOC_DIR','INHERIT','REALIZE','AGGR','COMPOSE','RESTR',
-            'DEPEND','INHERIT_R','REALIZE_R','DEPEND_R','AGGR_R','COMPOSE_R'].includes(k);
+            'DEPEND','INHERIT_R','REALIZE_R','DEPEND_R','AGGR_R','COMPOSE_R',
+            'PROVIDES','REQUIRES_R'].includes(k);
   }
 
   // ── Rule 9: package-decl ────────────────────────────────────
@@ -501,6 +504,7 @@ export class Parser {
       ASSOC: '--', ASSOC_DIR: '-->', INHERIT: '--|>', REALIZE: '..|>',
       AGGR: '--o', COMPOSE: '--*', RESTR: '--x', DEPEND: '..>',
       INHERIT_R: '<|--', REALIZE_R: '<|..', DEPEND_R: '<..', AGGR_R: 'o--', COMPOSE_R: '*--',
+      PROVIDES: '--()', REQUIRES_R: '--(',
     };
     return map[k] ?? '--';
   }
@@ -565,7 +569,7 @@ export class Parser {
 
   private parseConfigDecl(): ConfigDecl {
     const kw = this.advance();
-    const key = kw.kind as 'title' | 'subtitle' | 'caption' | 'legend' | 'direction' | 'strict' | 'autonumber';
+    const key = kw.kind as 'title' | 'subtitle' | 'caption' | 'legend' | 'direction' | 'strict' | 'autonumber' | 'autoactivation';
     let value: string | undefined;
 
     if (key === 'direction') {
@@ -657,6 +661,18 @@ export class Parser {
       label = this.advance().value;
     }
     return { kind: 'ReturnDecl', label, span: this.spanFrom(first) };
+  }
+
+  private parseCreateDecl(): import('./ast.js').CreateDecl {
+    const first = this.advance();
+    const entity = this.expect('IDENT').value;
+    return { kind: 'CreateDecl', entity, span: this.spanFrom(first) };
+  }
+
+  private parseDestroyDecl(): import('./ast.js').DestroyDecl {
+    const first = this.advance();
+    const entity = this.expect('IDENT').value;
+    return { kind: 'DestroyDecl', entity, span: this.spanFrom(first) };
   }
 
   private parseRegionDecl(): import('./ast.js').RegionDecl {

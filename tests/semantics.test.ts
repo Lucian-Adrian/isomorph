@@ -600,4 +600,78 @@ describe('Semantic Analyzer', () => {
       expect(errors).toHaveLength(0);
     });
   });
+
+  describe('SS-16: provides/requires relations', () => {
+    it('accepts provides relation in component diagram', () => {
+      const { errors } = analyzeOk('diagram D : component { component A {} component B {} A --() B }');
+      expect(errors.filter(e => e.rule === 'SS-16')).toHaveLength(0);
+    });
+
+    it('accepts requires relation in component diagram', () => {
+      const { errors } = analyzeOk('diagram D : component { component A {} component B {} A --( B }');
+      expect(errors.filter(e => e.rule === 'SS-16')).toHaveLength(0);
+    });
+
+    it('accepts provides relation in deployment diagram', () => {
+      const { errors } = analyzeOk('diagram D : deployment { component A component B A --() B }');
+      expect(errors.filter(e => e.rule === 'SS-16')).toHaveLength(0);
+    });
+
+    it('rejects provides relation in class diagram', () => {
+      const result = analyze(parse('diagram D : class { class A {} class B {} A --() B }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16.length).toBeGreaterThan(0);
+    });
+
+    it('rejects requires relation in sequence diagram', () => {
+      const result = analyze(parse('diagram D : sequence { participant A participant B A --( B }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16.length).toBeGreaterThan(0);
+    });
+
+    it('builds provides IOM relation kind', () => {
+      const { iom } = analyzeOk('diagram D : component { component A {} component B {} A --() B }');
+      expect(iom.diagrams[0].relations[0].kind).toBe('provides');
+    });
+
+    it('builds requires IOM relation kind', () => {
+      const { iom } = analyzeOk('diagram D : component { component A {} component B {} A --( B }');
+      expect(iom.diagrams[0].relations[0].kind).toBe('requires');
+    });
+  });
+
+  describe('create/destroy activations', () => {
+    it('create generates activation with create kind', () => {
+      const { iom } = analyzeOk('diagram D : sequence { participant A create A }');
+      const act = iom.diagrams[0].activations.find(a => a.kind === 'create');
+      expect(act).toBeDefined();
+      expect(act?.entity).toBe('A');
+    });
+
+    it('destroy generates activation with destroy kind', () => {
+      const { iom } = analyzeOk('diagram D : sequence { participant A destroy A }');
+      const act = iom.diagrams[0].activations.find(a => a.kind === 'destroy');
+      expect(act).toBeDefined();
+      expect(act?.entity).toBe('A');
+    });
+
+    it('create on unknown entity reports SS-17 error', () => {
+      const result = analyze(parse('diagram D : sequence { create Ghost }').program);
+      const ss17 = result.errors.filter(e => e.rule === 'SS-17');
+      expect(ss17.length).toBeGreaterThan(0);
+    });
+
+    it('destroy on unknown entity reports SS-17 error', () => {
+      const result = analyze(parse('diagram D : sequence { destroy Ghost }').program);
+      const ss17 = result.errors.filter(e => e.rule === 'SS-17');
+      expect(ss17.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('autoactivation config', () => {
+    it('parses autoactivation config keyword', () => {
+      const { iom } = analyzeOk('diagram D : sequence { autoactivation participant A }');
+      expect(iom.diagrams[0].config.autoactivation).toBe(true);
+    });
+  });
 });

@@ -78,6 +78,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         const cfg = item as ConfigDecl;
         if (cfg.key === 'strict') config.strict = true;
         else if (cfg.key === 'autonumber') config.autonumber = true;
+        else if (cfg.key === 'autoactivation') config.autoactivation = true;
         else (config as any)[cfg.key] = cfg.value;
       }
     }
@@ -162,6 +163,16 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           entityNames: pContent.entityNames,
           relationIds: pContent.relationIds,
         });
+      } else if (item.kind === 'CreateDecl') {
+        if (!entities.has(item.entity)) {
+          errors.push({ message: `Create references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
+        }
+        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'create', afterRelationIdx: relations.length });
+      } else if (item.kind === 'DestroyDecl') {
+        if (!entities.has(item.entity)) {
+          errors.push({ message: `Destroy references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
+        }
+        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'destroy', afterRelationIdx: relations.length });
       }
     }
   }
@@ -326,6 +337,15 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
       } else if (!target) {
           const sp = entitySpans.get(name);
           errors.push({ message: `Entity '${name}' implements unknown entity '${iface}'`, entity: name, rule: 'SS-14', ...sp });
+      }
+    }
+  }
+
+  // SS-16: provides/requires relations only valid in component/deployment diagrams
+  if (diag.diagramKind !== 'component' && diag.diagramKind !== 'deployment') {
+    for (const rel of relations) {
+      if (rel.kind === 'provides' || rel.kind === 'requires') {
+        errors.push({ message: `'${rel.kind}' relation operator is only valid in component/deployment diagrams`, rule: 'SS-16' });
       }
     }
   }

@@ -52,7 +52,9 @@ export type BodyItem =
   | DeactivateDecl
   | ReturnDecl
   | RefDecl
-  | PartitionDecl;
+  | PartitionDecl
+  | CreateDecl
+  | DestroyDecl;
 
 // ─── Members ─────────────────────────────────────────────────
 
@@ -172,7 +174,9 @@ export type RelationKind =
   | '<|..'  // realization (reversed)
   | '<..'   // dependency (reversed)
   | 'o--'   // aggregation (reversed)
-  | '*--';  // composition (reversed)
+  | '*--'  // composition (reversed)
+  | '--()'  // provides (lollipop)
+  | '--('   // requires (socket);
 
 export interface RelationDecl {
   kind: 'RelationDecl';
@@ -216,7 +220,7 @@ export interface LayoutAnnotation {
 /** Config statement: title "...", direction LR, strict, etc. */
 export interface ConfigDecl {
   kind: 'ConfigDecl';
-  key: 'title' | 'subtitle' | 'caption' | 'legend' | 'direction' | 'strict' | 'autonumber';
+  key: 'title' | 'subtitle' | 'caption' | 'legend' | 'direction' | 'strict' | 'autonumber' | 'autoactivation';
   value?: string;
   span: Span;
 }
@@ -244,3 +248,5 @@ export interface ReturnDecl     { kind: 'ReturnDecl'; label?: string; span: Span
 export interface RefDecl        { kind: 'RefDecl'; text: string; span: Span; }
 export interface RegionDecl     { kind: 'RegionDecl'; body: BodyItem[]; span: Span; }
 export interface PartitionDecl  { kind: 'PartitionDecl'; name: string; body: BodyItem[]; span: Span; }
+export interface CreateDecl     { kind: 'CreateDecl'; entity: string; span: Span; }
+export interface DestroyDecl    { kind: 'DestroyDecl'; entity: string; span: Span; }

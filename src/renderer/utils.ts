@@ -141,3 +141,34 @@ export function edgePointOnRect(x: number, y: number, w: number, h: number, targ
 
   return { x: cx + dx * t, y: cy + dy * t };
 }
+
+/**
+ * Compute the absolute positions of provided/required/port interface points on a component entity.
+ * Returns a map from port field name to { x, y } in entity-local coordinates (add entity x/y for absolute).
+ */
+export function computePortPositions(
+  fields: { name: string; type: string }[], 
+  boxW: number, 
+  compH: number
+): Map<string, { x: number; y: number; side: 'right' | 'left' | 'bottom' }> {
+  const ports = new Map<string, { x: number; y: number; side: 'right' | 'left' | 'bottom' }>();
+
+  let provIdx = 0, reqIdx = 0, portIdx = 0;
+  for (const f of fields) {
+    if (f.type === 'provided') {
+      const py = 12 + provIdx * 20;
+      ports.set(f.name, { x: boxW + 20, y: py, side: 'right' });
+      provIdx++;
+    } else if (f.type === 'required') {
+      const py = 12 + reqIdx * 20;
+      ports.set(f.name, { x: -20, y: py, side: 'left' });
+      reqIdx++;
+    } else if (f.type === 'port') {
+      const px = 20 + portIdx * 20;
+      ports.set(f.name, { x: px, y: compH + 4, side: 'bottom' });
+      portIdx++;
+    }
+  }
+
+  return ports;
+}

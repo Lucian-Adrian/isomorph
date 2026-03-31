@@ -779,4 +779,55 @@ describe('Parser', () => {
       expect(prog.diagrams[0].body.filter(b => b.kind === 'RelationDecl')).toHaveLength(1);
     });
   });
+
+  describe('provides/requires relation operators', () => {
+    it('parses provides relation --()', () => {
+      const prog = parseOk('diagram D : component { component A {} component B {} A --() B }');
+      const rel = prog.diagrams[0].body.find(b => b.kind === 'RelationDecl');
+      if (rel?.kind === 'RelationDecl') {
+        expect(rel.relKind).toBe('--()');
+        expect(rel.from).toBe('A');
+        expect(rel.to).toBe('B');
+      }
+    });
+
+    it('parses requires relation --(', () => {
+      const prog = parseOk('diagram D : component { component A {} component B {} A --( B }');
+      const rel = prog.diagrams[0].body.find(b => b.kind === 'RelationDecl');
+      if (rel?.kind === 'RelationDecl') {
+        expect(rel.relKind).toBe('--(');
+        expect(rel.from).toBe('A');
+        expect(rel.to).toBe('B');
+      }
+    });
+
+    it('parses provides with label', () => {
+      const prog = parseOk('diagram D : component { component A {} component B {} A --() B [label="REST API"] }');
+      const rel = prog.diagrams[0].body.find(b => b.kind === 'RelationDecl');
+      if (rel?.kind === 'RelationDecl') {
+        expect(rel.relKind).toBe('--()');
+        expect(rel.label).toBe('REST API');
+      }
+    });
+  });
+
+  describe('create/destroy declarations', () => {
+    it('parses create command', () => {
+      const prog = parseOk('diagram D : sequence { participant A create A }');
+      const create = prog.diagrams[0].body.find(b => b.kind === 'CreateDecl');
+      expect(create).toBeDefined();
+      if (create?.kind === 'CreateDecl') {
+        expect(create.entity).toBe('A');
+      }
+    });
+
+    it('parses destroy command', () => {
+      const prog = parseOk('diagram D : sequence { participant A destroy A }');
+      const destroy = prog.diagrams[0].body.find(b => b.kind === 'DestroyDecl');
+      expect(destroy).toBeDefined();
+      if (destroy?.kind === 'DestroyDecl') {
+        expect(destroy.entity).toBe('A');
+      }
+    });
+  });
 });

@@ -86,7 +86,9 @@ export type IOMRelationKind =
   | 'aggregation'
   | 'composition'
   | 'dependency'
-  | 'restriction';
+  | 'restriction'
+  | 'provides'
+  | 'requires';
 
 /** Resolved relation between two entities */
 export interface IOMRelation {
@@ -126,7 +128,7 @@ export interface IOMPartition {
 export interface IOMActivation {
   id: string;
   entity: string;
-  kind: 'activate' | 'deactivate';
+  kind: 'activate' | 'deactivate' | 'create' | 'destroy';
   afterRelationIdx: number;
 }
 
@@ -146,6 +148,7 @@ export interface IOMConfig {
   direction?: string;
   strict?: boolean;
   autonumber?: boolean;
+  autoactivation?: boolean;
 }
 
 export interface IOMPackage {
@@ -185,6 +188,8 @@ export function relTokenToKind(tok: string): IOMRelationKind {
     '<..':  'dependency',
     'o--':  'aggregation',
     '*--':  'composition',
+    '--()': 'provides',
+    '--(': 'requires',
   };
   return map[tok] ?? 'association';
 }

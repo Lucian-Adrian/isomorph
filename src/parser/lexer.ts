@@ -26,7 +26,7 @@ export type TokenKind =
   | 'alt' | 'else' | 'opt' | 'loop' | 'par' | 'break' | 'critical' | 'end'
   | 'ref' | 'activate' | 'deactivate' | 'return' | 'create' | 'destroy'
   | 'region' | 'partition'
-  | 'title'    | 'subtitle' | 'caption'  | 'legend'   | 'direction' | 'strict' | 'autonumber'
+  | 'title'    | 'subtitle' | 'caption'  | 'legend'   | 'direction' | 'strict' | 'autonumber' | 'autoactivation'
   // Relation operators (longest-match-first in lexer)
   | 'INHERIT'    // --|>
   | 'REALIZE'    // ..|>
@@ -40,6 +40,8 @@ export type TokenKind =
   | 'AGGR'       // --o
   | 'COMPOSE'    // --*
   | 'RESTR'      // --x
+  | 'PROVIDES'   // --()
+  | 'REQUIRES_R' // --(  (requires/socket)
   | 'ASSOC'      // --
   | 'STEREO_O'   // << (stereotype open; >> is always two GT tokens — see lexer note)
   | 'DOTDOT'     // ..
@@ -66,7 +68,7 @@ const KEYWORDS = new Set<string>([
   'alt', 'else', 'opt', 'loop', 'par', 'break', 'critical', 'end',
   'ref', 'activate', 'deactivate', 'return', 'create', 'destroy',
   'region', 'partition',
-  'title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber'
+  'title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber', 'autoactivation'
 ]);
 
 const KEYWORD_MAP: Record<string, TokenKind> = {
@@ -241,6 +243,8 @@ export function lex(source: string): LexResult {
     if (rest.startsWith('--o'))    { advance(3); tokens.push(makeToken('AGGR',      '--o',   start, startLine, startCol)); continue; }
     if (rest.startsWith('--*'))    { advance(3); tokens.push(makeToken('COMPOSE',   '--*',   start, startLine, startCol)); continue; }
     if (rest.startsWith('--x'))    { advance(3); tokens.push(makeToken('RESTR',     '--x',   start, startLine, startCol)); continue; }
+    if (rest.startsWith('--()'))   { advance(4); tokens.push(makeToken('PROVIDES',  '--()',   start, startLine, startCol)); continue; }
+    if (rest.startsWith('--('))    { advance(3); tokens.push(makeToken('REQUIRES_R','--(',    start, startLine, startCol)); continue; }
     if (rest.startsWith('--'))     { advance(2); tokens.push(makeToken('ASSOC',     '--',    start, startLine, startCol)); continue; }
     if (rest.startsWith('<<'))     { advance(2); tokens.push(makeToken('STEREO_O',  '<<',    start, startLine, startCol)); continue; }
     // NOTE: '>>' is NOT lexed as STEREO_C here — always emit two GT tokens.
