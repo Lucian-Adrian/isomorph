@@ -317,6 +317,20 @@ describe('Parser', () => {
         }
       }
     });
+
+    it('parses contextual keyword as member name', () => {
+      const prog = parseOk('diagram D : class { class Book { + title: string + caption: string } }');
+      const entity = prog.diagrams[0].body[0];
+      if (entity.kind === 'EntityDecl') {
+        expect(entity.members).toHaveLength(2);
+        const first = entity.members[0];
+        const second = entity.members[1];
+        if (first.kind === 'FieldDecl' && second.kind === 'FieldDecl') {
+          expect(first.name).toBe('title');
+          expect(second.name).toBe('caption');
+        }
+      }
+    });
   });
 
   describe('method declarations', () => {
@@ -342,6 +356,18 @@ describe('Parser', () => {
           expect(method.params).toHaveLength(2);
           expect(method.params[0].name).toBe('id');
           expect(method.params[1].name).toBe('name');
+        }
+      }
+    });
+
+    it('parses contextual keyword as parameter name', () => {
+      const prog = parseOk('diagram D : class { class C { + setMeta(title: string): void } }');
+      const entity = prog.diagrams[0].body[0];
+      if (entity.kind === 'EntityDecl') {
+        const method = entity.members[0];
+        if (method.kind === 'MethodDecl') {
+          expect(method.params).toHaveLength(1);
+          expect(method.params[0].name).toBe('title');
         }
       }
     });

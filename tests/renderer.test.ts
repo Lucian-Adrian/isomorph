@@ -337,6 +337,13 @@ describe('Component Diagram Renderer — advanced', () => {
 });
 
 describe('Sequence Diagram Renderer — advanced', () => {
+  it('includes data-entity-name for participants and actors', () => {
+    const diag = buildDiagram('diagram D : sequence { actor User participant Service }');
+    const svg = renderSequenceDiagram(diag);
+    expect(svg).toContain('data-entity-name="User"');
+    expect(svg).toContain('data-entity-name="Service"');
+  });
+
   it('renders self-referencing messages as loop paths', () => {
     const diag = buildDiagram('diagram D : sequence { participant A A --> A [label="self"] }');
     const svg = renderSequenceDiagram(diag);
@@ -349,6 +356,13 @@ describe('Sequence Diagram Renderer — advanced', () => {
     const diag = buildDiagram('diagram D : sequence { participant A participant B A --> B [label="ping", y="260"] }');
     const svg = renderSequenceDiagram(diag);
     expect(svg).toContain('data-relation-y="260"');
+  });
+
+  it('includes relation label metadata and transparent hitline', () => {
+    const diag = buildDiagram('diagram D : sequence { participant A participant B A --> B [label="ping"] }');
+    const svg = renderSequenceDiagram(diag);
+    expect(svg).toContain('data-relation-label="ping"');
+    expect(svg).toContain('stroke="transparent" stroke-width="14"');
   });
 });
 

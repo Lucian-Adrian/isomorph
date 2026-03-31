@@ -274,8 +274,13 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
 
   function checkLayoutTargets(items: BodyItem[]) {
     for (const item of items) {
-      if (item.kind === 'LayoutAnnotation' && !entities.has(item.entity) && !packages.some(p => p.name === item.entity)) {
-        errors.push({ message: `Layout annotation references unknown entity or package '${item.entity}'`, rule: 'SS-10', line: item.span.line, col: item.span.col });
+      if (
+        item.kind === 'LayoutAnnotation' &&
+        !entities.has(item.entity) &&
+        !packages.some(p => p.name === item.entity) &&
+        !partitions.some(p => p.name === item.entity)
+      ) {
+        errors.push({ message: `Layout annotation references unknown entity, package, or partition '${item.entity}'`, rule: 'SS-10', line: item.span.line, col: item.span.col });
       }
       if (item.kind === 'PackageDecl') checkLayoutTargets(item.body);
     }

@@ -319,7 +319,7 @@ export class Parser {
     const vis = this.parseVisibility();
     const mods = this.parseMemberModifiers();
 
-    const name = this.expect('IDENT').value;
+    const name = this.parseIdentifierLike('member name').value;
     const nameStart = this.peek(-1);
 
     // Method: name ( ...
@@ -388,10 +388,27 @@ export class Parser {
   }
 
   private parseParam(): ParamDecl {
-    const name = this.expect('IDENT').value;
+    const name = this.parseIdentifierLike('parameter name').value;
     this.expect('COLON');
     const type = this.parseTypeExpr();
     return { name, type };
+  }
+
+  private parseIdentifierLike(expected: string): Token {
+    const t = this.peek();
+    // Contextual keywords (e.g. title/caption) should still be valid names
+    // inside member and parameter positions.
+    if (t.kind === 'IDENT' || /^[a-z_]/.test(t.kind)) {
+      return this.advance();
+    }
+
+    this.errors.push({
+      message: `Expected ${expected} but got '${t.kind}' ('${t.value}')`,
+      line: t.line,
+      col: t.col,
+      pos: t.start,
+    });
+    return t;
   }
 
   private parseEnumValue(): EnumValueDecl {

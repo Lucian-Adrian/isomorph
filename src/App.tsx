@@ -1430,7 +1430,7 @@ export default function App() {
           <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
             <div className="iso-modal" onClick={e => e.stopPropagation()}>
               <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
-              <p className="iso-modal-desc">{t('Select the type of diagram you\'d like to create.')}</p>
+              <p className="iso-modal-desc">{t('welcome.select_type')}</p>
               <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
                 {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
                   <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
@@ -2134,7 +2134,7 @@ export default function App() {
         <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
           <div className="iso-modal" onClick={e => e.stopPropagation()}>
             <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
-            <p className="iso-modal-desc">{t('Select the type of diagram you\'d like to create.')}</p>
+            <p className="iso-modal-desc">{t('welcome.select_type')}</p>
             <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
               {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
                 <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>

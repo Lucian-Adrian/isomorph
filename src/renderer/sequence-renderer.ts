@@ -88,7 +88,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     const isActor = ent.kind === 'actor' || ent.stereotype === 'actor';
     const label = escapeXml(ent.name);
 
-    svg += `    <g transform="translate(${xPos},${paddingY})">\n`;
+    svg += `    <g transform="translate(${xPos},${paddingY})" data-entity-name="${escapeXml(ent.name)}">\n`;
     if (isActor) {
       svg += `      <circle cx="0" cy="-4" r="10" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" />\n`;
       svg += `      <path d="M0,6 v14 M-10,12 h20 M-6,30 l6,-10 l6,10" stroke="#3b82f6" stroke-width="1.5" fill="none" />\n`;
@@ -147,16 +147,19 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     const labelTxt = useAutonumber ? `${msgIndex++}. ${rel.label || ''}` : (rel.label || '');
     const isSelf = rel.from === rel.to;
 
-    svg += `    <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-y="${Math.round(relationY)}">\n`;
+    const safeLabel = escapeXml(rel.label || '');
+    svg += `    <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}" data-relation-y="${Math.round(relationY)}">\n`;
 
     if (isSelf) {
       const y1 = relationY;
       const y2 = relationY + selfLoopHeight;
       const loopRight = startX + selfLoopWidth;
+      svg += `      <path d="M${startX},${y1} H${loopRight} V${y2} H${startX}" stroke="transparent" stroke-width="14" fill="none" style="cursor: pointer" />\n`;
       svg += `      <path d="M${startX},${y1} H${loopRight} V${y2} H${startX}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none"${dash} />\n`;
       svg += `      <polygon points="${startX},${y2} ${startX + 8},${y2 - 4} ${startX + 8},${y2 + 4}" fill="var(--iso-text-muted)" />\n`;
       if (labelTxt) svg += `      <text x="${loopRight + 6}" y="${y1 + selfLoopHeight / 2 + 4}" font-size="11" fill="var(--iso-text-muted)">${labelTxt}</text>\n`;
     } else {
+      svg += `      <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="transparent" stroke-width="14" style="cursor: pointer" />\n`;
       svg += `      <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dash} />\n`;
       const isRight = endX > startX;
       if (isDashed) {
