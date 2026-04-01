@@ -444,12 +444,12 @@ function updateRelationVerticalPosition(source: string, relationId: string, y: n
   const relationIdx = Number.parseInt(idxRaw, 10);
   if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
 
-  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\(\)|--\(|--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+(?:(create|destroy|new|delete)\s+)?([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
   const matches = [...source.matchAll(relRegex)];
   const match = matches[relationIdx];
   if (!match || match.index == null) return source;
 
-  const [full, indent, fromRaw, opRaw, toRaw, attrsRaw = ''] = match;
+  const [full, indent, fromRaw, opRaw, actionRaw, toRaw, attrsRaw = ''] = match;
   const yValue = String(Math.max(0, Math.round(y)));
   let suffix = attrsRaw || '';
 
@@ -461,7 +461,8 @@ function updateRelationVerticalPosition(source: string, relationId: string, y: n
     suffix = suffix.replace(/\]\s*$/, `, y="${yValue}"]`);
   }
 
-  const replacement = `${indent}${fromRaw} ${opRaw} ${toRaw}${suffix}`;
+  const actionStr = actionRaw ? `${actionRaw} ` : '';
+  const replacement = `${indent}${fromRaw} ${opRaw} ${actionStr}${toRaw}${suffix}`;
 
   return source.slice(0, match.index) + replacement + source.slice(match.index + full.length);
 }
@@ -699,12 +700,12 @@ function updateRelationById(
   const relationIdx = Number.parseInt(idxRaw, 10);
   if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
 
-  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\(\)|--\(|--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\(\)|--\(|--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+(?:(create|destroy|new|delete)\s+)?([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
   const matches = [...source.matchAll(relRegex)];
   const match = matches[relationIdx];
   if (!match || match.index == null) return source;
 
-  const [full, indent, fromRaw, opRaw, toRaw, attrsRaw = ''] = match;
+  const [full, indent, fromRaw, opRaw, actionRaw, toRaw, attrsRaw = ''] = match;
   let from = fromRaw;
   let to = toRaw;
 
@@ -745,7 +746,8 @@ function updateRelationById(
 
   const attrsSerialized = [...attrMap.entries()].map(([k, v]) => `${k}="${v}"`).join(', ');
   const suffix = attrsSerialized ? ` [${attrsSerialized}]` : '';
-  const replacement = `${indent}${from} ${op} ${to}${suffix}`;
+  const actionPart = actionRaw ? `${actionRaw} ` : '';
+  const replacement = `${indent}${from} ${op} ${actionPart}${to}${suffix}`;
 
   return source.slice(0, match.index) + replacement + source.slice(match.index + full.length);
 }
@@ -759,15 +761,16 @@ function insertSequenceLifecycleAfterRelation(
   const relationIdx = Number.parseInt(idxRaw, 10);
   if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
 
-  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\(\)|--\(|--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\(\)|--\(|--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+(?:create\s+|destroy\s+|new\s+|delete\s+)?([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
   const matches = [...source.matchAll(relRegex)];
   const match = matches[relationIdx];
   if (!match || match.index == null) return source;
 
-  const [full, indent, _from, _op, to] = match;
-  const insertion = `\n${indent}${action} ${to}`;
-  const insertPos = match.index + full.length;
-  return source.slice(0, insertPos) + insertion + source.slice(insertPos);
+  const [full, indent, from, op, to, attrs] = match;
+  
+  const replacement = `${indent}${from} ${op} ${action} ${to}${attrs || ''}`;
+  const insertPos = match.index;
+  return source.slice(0, insertPos) + replacement + source.slice(insertPos + full.length);
 }
 
 // ── App ──────────────────────────────────────────────────────

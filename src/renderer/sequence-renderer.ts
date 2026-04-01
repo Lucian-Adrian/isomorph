@@ -94,6 +94,10 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     if (act.kind === 'create') createYs.set(act.entity, activationYCoords.get(act.id) || 0);
     if (act.kind === 'destroy') destroyYs.set(act.entity, activationYCoords.get(act.id) || 0);
   }
+  for (const rel of diag.relations) {
+    if (rel.styles?.action === 'create') createYs.set(rel.to, relationYCoords.get(rel.id) || 0);
+    if (rel.styles?.action === 'destroy') destroyYs.set(rel.to, relationYCoords.get(rel.id) || 0);
+  }
 
   for (const ent of entities) {
     let xPos = currentXArr;
@@ -142,7 +146,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     const hasDestroy = destY !== undefined;
     
     // Map absolute coords back to the translated coordinate space of this group
-    const absoluteEnd = hasDestroy ? destY : diagramHeight - 30;
+    const absoluteEnd = hasDestroy ? destY + 40 : diagramHeight - 30;
     const lifelineEnd = absoluteEnd - boxAbsoluteY;
 
     svg += `      <line x1="0" y1="${lifelineStart}" x2="0" y2="${lifelineEnd}" stroke="transparent" stroke-width="20" style="cursor: pointer" />\n`;

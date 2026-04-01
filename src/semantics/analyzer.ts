@@ -141,6 +141,13 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         relations.push(rel);
 
         if (diag.diagramKind === 'sequence') {
+          if (item.style?.action === 'destroy') {
+            destroyedEntities.add(item.to);
+            activations.push({ id: `act_${activations.length}`, entity: item.to, kind: 'destroy', afterRelationIdx: relations.length, source: 'lifecycle' });
+          } else if (item.style?.action === 'create') {
+            activations.push({ id: `act_${activations.length}`, entity: item.to, kind: 'create', afterRelationIdx: relations.length, source: 'lifecycle' });
+          }
+
           const seqType = resolveSequenceRelationType(rel);
 
           if (!['directed-association', 'association', 'inheritance', 'dependency'].includes(rel.kind)) {

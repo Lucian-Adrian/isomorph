@@ -470,16 +470,31 @@ export class Parser {
   // ── Rules 31-38: relations ──────────────────────────────────
 
   private parseRelationDecl(): RelationDecl {
-    const fromToken = this.expect('IDENT');
+    const fromToken = this.expectIdentifierLike();
     const from = fromToken.value;
-    const relOp = this.advance();
-    const relKind = this.tokenToRelKind(relOp.kind);
-    const to = this.expect('IDENT').value;
+    const relOpToken = this.advance();
+    const relKind = this.tokenToRelKind(relOpToken.kind);
+
+    let isCreate = false;
+    let isDestroy = false;
+    
+    if (this.at('create') || (this.at('IDENT') && this.peek().value === 'new')) {
+      this.advance();
+      isCreate = true;
+    } else if (this.at('destroy') || (this.at('IDENT') && this.peek().value === 'delete')) {
+      this.advance();
+      isDestroy = true;
+    }
+
+    const to = this.expectIdentifierLike().value;
 
     let label: string | undefined;
     let fromMult: string | undefined;
     let toMult: string | undefined;
     const style: Record<string, string> = {};
+
+    if (isCreate) style['action'] = 'create';
+    if (isDestroy) style['action'] = 'destroy';
 
     // Optional attrs: [label="...", fromMult="...", toMult="...", color="#..."]
     if (this.at('LBRACKET')) {
