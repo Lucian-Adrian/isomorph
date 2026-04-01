@@ -6,7 +6,17 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
+import {
+  escapeXml,
+  svgDefs,
+  renderConfigHeaders,
+  renderConfigLegend,
+  renderConfigCaption,
+  rectBoundaryPoint,
+  dashForRelation,
+  markerEndForRelation,
+  markerStartForRelation,
+} from './utils.js';
 
 const BOX_W        = 140;
 const BOX_H        = 50;
@@ -75,17 +85,27 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     const fDim = getDimensions(f.entity);
     const tDim = getDimensions(t.entity);
     
-    const x1 = f.x + fDim.w / 2, y1 = f.y + fDim.h / 2;
-    const x2 = t.x + tDim.w / 2, y2 = t.y + tDim.h / 2;
+    const c1x = f.x + fDim.w / 2;
+    const c1y = f.y + fDim.h / 2;
+    const c2x = t.x + tDim.w / 2;
+    const c2y = t.y + tDim.h / 2;
+    const sp = rectBoundaryPoint(f.x, f.y, fDim.w, fDim.h, c2x, c2y);
+    const ep = rectBoundaryPoint(t.x, t.y, tDim.w, tDim.h, c1x, c1y);
+    const dash = dashForRelation(rel.kind);
+    const markerEnd = markerEndForRelation(rel.kind);
+    const markerStart = markerStartForRelation(rel.kind);
+    const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+    const markerEndAttr = markerEnd ? ` marker-end="url(#${markerEnd})"` : '';
+    const markerStartAttr = markerStart ? ` marker-start="url(#${markerStart})"` : '';
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
     
     svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
-    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;
-    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--iso-text-muted)" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+    svg += `<line x1="${sp.x}" y1="${sp.y}" x2="${ep.x}" y2="${ep.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;
+    svg += `<line x1="${sp.x}" y1="${sp.y}" x2="${ep.x}" y2="${ep.y}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dashAttr}${markerEndAttr}${markerStartAttr}/>`;
     
     if (rel.label) {
-      const mx = (x1 + x2) / 2;
-      const my = (y1 + y2) / 2 - 8;
+      const mx = (sp.x + ep.x) / 2;
+      const my = (sp.y + ep.y) / 2 - 8;
       svg += `<rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="var(--iso-bg-panel)" opacity="0.9"/>`;
       svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text)">${safeLabel}</text>`;
     }

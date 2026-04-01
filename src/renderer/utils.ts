@@ -79,6 +79,83 @@ export function wrapText(text: string, maxLen: number): string[] {
   return [text.slice(0, spaceNear), text.slice(spaceNear + 1)];
 }
 
+export function dashForRelation(kind: string): string {
+  return kind === 'realization' || kind === 'dependency' ? '6,3' : '';
+}
+
+export function markerEndForRelation(kind: string): string {
+  switch (kind) {
+    case 'directed-association':
+    case 'dependency':
+      return 'arrow';
+    case 'inheritance':
+    case 'realization':
+      return 'hollow-arrow';
+    default:
+      return '';
+  }
+}
+
+export function markerStartForRelation(kind: string): string {
+  switch (kind) {
+    case 'aggregation':
+      return 'diamond';
+    case 'composition':
+      return 'filled-diamond';
+    default:
+      return '';
+  }
+}
+
+export function rectBoundaryPoint(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  towardX: number,
+  towardY: number,
+): { x: number; y: number } {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const dx = towardX - cx;
+  const dy = towardY - cy;
+
+  if (dx === 0 && dy === 0) {
+    return { x: cx, y: cy };
+  }
+
+  const tx = dx === 0 ? Number.POSITIVE_INFINITY : (w / 2) / Math.abs(dx);
+  const ty = dy === 0 ? Number.POSITIVE_INFINITY : (h / 2) / Math.abs(dy);
+  const t = Math.min(tx, ty);
+
+  return {
+    x: cx + dx * t,
+    y: cy + dy * t,
+  };
+}
+
+export function ellipseBoundaryPoint(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  towardX: number,
+  towardY: number,
+): { x: number; y: number } {
+  const dx = towardX - cx;
+  const dy = towardY - cy;
+
+  if (dx === 0 && dy === 0) {
+    return { x: cx + rx, y: cy };
+  }
+
+  const denom = Math.sqrt((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry)) || 1;
+  return {
+    x: cx + dx / denom,
+    y: cy + dy / denom,
+  };
+}
+
 /** Render title and subtitle for a diagram. Returns { svg: string, height: number } */
 export function renderConfigHeaders(diag: import('../semantics/iom.js').IOMDiagram, width: number): { svg: string, height: number } {
   let svg = '';

@@ -572,6 +572,47 @@ describe('Semantic Analyzer', () => {
       expect(ss14).toHaveLength(1);
     });
 
+    it('SS-16 enforces sequence endpoints as actor/participant', () => {
+      const result = analyze(parse('diagram D : sequence { actor User class Service {} User --> Service }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16.length).toBeGreaterThan(0);
+    });
+
+    it('SS-18 rejects else blocks on non-alt fragments', () => {
+      const result = analyze(parse('diagram D : sequence { participant A participant B loop "retry" { A --> B } else { B --> A } }').program);
+      const ss18 = result.errors.filter(e => e.rule === 'SS-18');
+      expect(ss18.length).toBeGreaterThan(0);
+    });
+
+    it('SS-19 rejects empty fragments', () => {
+      const result = analyze(parse('diagram D : sequence { participant A alt "condition" {} }').program);
+      const ss19 = result.errors.filter(e => e.rule === 'SS-19');
+      expect(ss19.length).toBeGreaterThan(0);
+    });
+
+    it('SS-20 requires at least one actor and one usecase', () => {
+      const result = analyze(parse('diagram D : usecase { usecase Login }').program);
+      const ss20 = result.errors.filter(e => e.rule === 'SS-20');
+      expect(ss20.length).toBeGreaterThan(0);
+    });
+
+    it('SS-21 rejects duplicate activity partitions', () => {
+      const result = analyze(parse('diagram D : activity { partition LaneA partition LaneA }').program);
+      const ss21 = result.errors.filter(e => e.rule === 'SS-21');
+      expect(ss21.length).toBeGreaterThan(0);
+    });
+
+    it('SS-22 rejects port fields in non-component diagrams', () => {
+      const result = analyze(parse('diagram D : class { class A { + p: provided } }').program);
+      const ss22 = result.errors.filter(e => e.rule === 'SS-22');
+      expect(ss22.length).toBeGreaterThan(0);
+    });
+
+    it('SS-22 allows port fields in component diagrams', () => {
+      const { errors } = analyzeOk('diagram D : component { component A { + p: provided } }');
+      expect(errors.filter(e => e.rule === 'SS-22')).toHaveLength(0);
+    });
+
     it('complex diagram with packages passes all rules', () => {
       const { errors } = analyzeOk(`diagram D : class {
         package core {

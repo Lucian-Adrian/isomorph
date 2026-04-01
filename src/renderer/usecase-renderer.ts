@@ -3,7 +3,22 @@
 // ============================================================
 
 import type { IOMDiagram } from '../semantics/iom.js';
-import { escapeXml, wrapText, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
+import {
+  escapeXml,
+  wrapText,
+  svgDefs,
+  renderConfigHeaders,
+  renderConfigLegend,
+  renderConfigCaption,
+  ellipseBoundaryPoint,
+  rectBoundaryPoint,
+  dashForRelation,
+  markerEndForRelation,
+  markerStartForRelation,
+} from './utils.js';
+
+const USECASE_RX = 80;
+const USECASE_RY = 40;
 
 export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
@@ -13,8 +28,6 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const actors   = entities.filter(e => e.kind === 'actor');
   const usecases = entities.filter(e => e.kind === 'usecase');
   const bounds   = entities.filter(e => e.kind === 'system' || e.kind === 'boundary');
-
-  const UC_RX = 80, UC_RY = 40;
 
   let canvasW = 900;
   let canvasH = 600;
@@ -74,12 +87,22 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     const f = [...actorPositions, ...ucPositions].find(p => p.e.name === rel.from);
     const t = [...actorPositions, ...ucPositions].find(p => p.e.name === rel.to);
     if (!f || !t) continue;
-    const strokeDash = rel.kind === 'dependency' ? '6,3' : '';
-    const dashAttr = strokeDash ? ` stroke-dasharray="${strokeDash}"` : '';
+    const fromCenter = { x: f.p.x, y: f.p.y };
+    const toCenter = { x: t.p.x, y: t.p.y };
+    const fromPoint = relationEdgeForUsecaseEntity(f.e.kind, fromCenter.x, fromCenter.y, toCenter.x, toCenter.y, f.e);
+    const toPoint = relationEdgeForUsecaseEntity(t.e.kind, toCenter.x, toCenter.y, fromCenter.x, fromCenter.y, t.e);
+    const dash = dashForRelation(rel.kind);
+    const markerEnd = markerEndForRelation(rel.kind);
+    const markerStart = markerStartForRelation(rel.kind);
+    const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+    const markerEndAttr = markerEnd ? ` marker-end="url(#${markerEnd})"` : '';
+    const markerStartAttr = markerStart ? ` marker-start="url(#${markerStart})"` : '';
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
-    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;      svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;    svg += `    <line x1="${f.p.x}" y1="${f.p.y}" x2="${t.p.x}" y2="${t.p.y}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="1.5"${dashAttr}/>\n`;
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;
+    svg += `    <line x1="${fromPoint.x}" y1="${fromPoint.y}" x2="${toPoint.x}" y2="${toPoint.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;
+    svg += `    <line x1="${fromPoint.x}" y1="${fromPoint.y}" x2="${toPoint.x}" y2="${toPoint.y}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="1.5"${dashAttr}${markerEndAttr}${markerStartAttr}/>\n`;
     if (rel.label) {
-      const mx = (f.p.x + t.p.x) / 2, my = (f.p.y + t.p.y) / 2 - 6;
+      const mx = (fromPoint.x + toPoint.x) / 2, my = (fromPoint.y + toPoint.y) / 2 - 6;
       const labelW = safeLabel.length * 6 + 10;
       svg += `    <rect x="${mx - labelW/2}" y="${my - 12}" width="${labelW}" height="14" rx="2" fill="var(--iso-bg-panel)" opacity="0.9"/>\n`;
       svg += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text-muted)">«${safeLabel}»</text>\n`;
@@ -110,9 +133,9 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     svg += `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(e.name)}">`;
     const exts = [...e.fields, ...e.methods];
     const hasExts = exts.length > 0;
-    const ry = hasExts ? UC_RY + exts.length * 8 : UC_RY;
+    const ry = hasExts ? USECASE_RY + exts.length * 8 : USECASE_RY;
     
-    svg += `    <ellipse cx="0" cy="0" rx="${UC_RX}" ry="${ry}" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)"/>`;
+    svg += `    <ellipse cx="0" cy="0" rx="${USECASE_RX}" ry="${ry}" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)"/>`;
     const lines = wrapText(e.name, 20);
     const textStart = hasExts ? -(ry / 2) : 0;
     lines.forEach((line, i) => {
@@ -121,7 +144,7 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     });
     
     if (hasExts) {
-      svg += `    <line x1="${-UC_RX + 10}" y1="${5}" x2="${UC_RX - 10}" y2="${5}" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,2"/>`;
+      svg += `    <line x1="${-USECASE_RX + 10}" y1="${5}" x2="${USECASE_RX - 10}" y2="${5}" stroke="#3b82f6" stroke-width="1" stroke-dasharray="4,2"/>`;
       svg += `    <text x="0" y="18" text-anchor="middle" font-size="10" font-style="italic" fill="var(--iso-text-muted)">extension points</text>`;
       exts.forEach((ext, i) => {
         svg += `    <text x="0" y="${30 + i * 12}" text-anchor="middle" font-size="10" fill="var(--iso-text-body)">${escapeXml(ext.name)}</text>`;
@@ -134,4 +157,22 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   svg += caption.svg;
   svg += `</svg>`;
   return svg;
+}
+
+function relationEdgeForUsecaseEntity(
+  kind: string,
+  cx: number,
+  cy: number,
+  towardX: number,
+  towardY: number,
+  entity: { fields: Array<{ name: string }>; methods: Array<{ name: string }> },
+): { x: number; y: number } {
+  if (kind === 'actor') {
+    // Approximate stick figure footprint as a rectangle centered around its vertical body.
+    return rectBoundaryPoint(cx - 18, cy - 55, 36, 70, towardX, towardY);
+  }
+
+  const exts = [...entity.fields, ...entity.methods];
+  const ry = exts.length > 0 ? USECASE_RY + exts.length * 8 : USECASE_RY;
+  return ellipseBoundaryPoint(cx, cy, USECASE_RX, ry, towardX, towardY);
 }

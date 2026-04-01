@@ -10,9 +10,9 @@
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
   [![CodeMirror](https://img.shields.io/badge/CodeMirror-6.x-green)](https://codemirror.net/)
-  [![Tests](https://img.shields.io/badge/Tests-84%20passing-brightgreen)](#-testing--validation)
+  [![Tests](https://img.shields.io/badge/Tests-310%2B%20passing-brightgreen)](#-testing--validation)
 
-  [**Live Demo**](https://team02-faf241.github.io/isomorph/) • [**Language Spec**](grammar/Isomorph.g4) • [**Examples**](examples/) • [**Contributing**](CONTRIBUTING.md)
+  [**Live Demo**](https://team02-faf241.github.io/isomorph/) • [**Language Spec**](grammar/Isomorph.g4) • [**Examples**](examples/) • [**LLM Navigation**](docs/llm-navigation.md) • [**llms.txt**](llms.txt) • [**Contributing**](CONTRIBUTING.md)
 </div>
 
 <br/>
@@ -45,7 +45,7 @@ Isomorph’s standard library handles an array of software architecture blueprin
 | **State Diagrams** | ✅ | `state-renderer.ts` | [state.md](docs/state.md) |
 | **Flow/Activity Diagrams**| ✅ | `flow-renderer.ts` | [activity.md](docs/activity.md) |
 | **Collaboration** | ✅ | `collaboration-renderer.ts`| [collaboration.md](docs/collaboration.md) |
-| **Deployment Diagrams** | ✅ | To Be Extracted | [deployment.md](docs/deployment.md) |
+| **Deployment Diagrams** | ✅ | `component-renderer.ts` (deployment mode) | [deployment.md](docs/deployment.md) |
 
 ---
 
@@ -116,7 +116,7 @@ graph LR
 
 ## Static Semantics & Safety
 
-Before any rendering occurs, the AST is validated against **10 core Rules (SS-1 to SS-10)** to enforce architectural correctness:
+Before any rendering occurs, the AST is validated against **an extended semantic rule set (SS-1 through SS-22)** to enforce architectural correctness:
 
 | Rule   | Constraint Evaluated               | Protective Function                                          |
 |--------|------------------------------------|--------------------------------------------------------------|
@@ -148,7 +148,7 @@ Before any rendering occurs, the AST is validated against **10 core Rules (SS-1 
 
 ## Testing & Validation
 
-The core of the Isomorph parser and semantics analyzer passes 84 isolated tests natively.
+The Isomorph parser, semantics engine, and renderer stack pass 310+ automated tests.
 
 ```bash
 # Run the test suite
@@ -161,9 +161,11 @@ npm run typecheck      # Trigger strict TypeScript linting (tsc --noEmit)
 ```
 
 **Coverage Breakdown:**
-- `lexer.test.ts`: Keywords, operators, literals, error recovery (24 tests)
-- `parser.test.ts`: Entities, relationships, generative types (28 tests)
-- `semantics.test.ts`: IOM verification and SS-1 through SS-10 constraint validation (32 tests)
+- `lexer.test.ts`: Keywords, operators, literals, comments, recovery.
+- `parser.test.ts`: Entities, relationships, fragments, generics, contextual keywords.
+- `semantics.test.ts`: IOM verification and SS-1 through SS-22 constraints.
+- `renderer.test.ts`: SVG generation, metadata hooks, relation geometry behavior.
+- `examples.test.ts`: Smoke coverage for built-in class/usecase/component/deployment/sequence/activity/state/collaboration/flow examples.
 
 ---
 

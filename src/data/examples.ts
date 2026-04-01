@@ -356,6 +356,123 @@ diagram OrderFlow : flow {
 
 }
 `
+  },
+  {
+    label: 'Advanced Sequence Fragments',
+    kind: 'sequence',
+    source: `// Advanced sequence with fragments and activation control
+diagram CheckoutFlow : sequence {
+
+  actor User
+  participant WebApp
+  participant PaymentService
+  participant BankGateway
+
+  User --> WebApp [label="checkout()"]
+  activate WebApp
+
+  alt "valid card"
+  {
+    WebApp --> PaymentService [label="authorize(amount)"]
+    activate PaymentService
+    PaymentService --> BankGateway [label="charge(card)"]
+    BankGateway ..> PaymentService [label="approved"]
+    PaymentService ..> WebApp [label="ok"]
+    deactivate PaymentService
+  }
+  else "invalid card"
+  {
+    WebApp ..> User [label="showError()"]
+  }
+
+  loop "retry up to 3"
+  {
+    User --> WebApp [label="retryPayment()"]
+  }
+
+  deactivate WebApp
+
+  @User at (80, 60)
+  @WebApp at (260, 60)
+  @PaymentService at (460, 60)
+  @BankGateway at (660, 60)
+
+}
+`
+  },
+  {
+    label: 'Component Ports Topology',
+    kind: 'component',
+    source: `// Component ports and interface contracts
+diagram PaymentsPlatform : component {
+
+  component API {
+    + publicHttp : provided
+    + authRequired : required
+    + edgePort : port
+  }
+
+  component Identity {
+    + tokenIssuer : provided
+    + inbound : required
+  }
+
+  component Ledger {
+    + persistence : provided
+    + inbound : required
+  }
+
+  interface AuditContract
+
+  API --> Identity [label="validate JWT"]
+  API --> Ledger [label="write transaction"]
+  Ledger ..> AuditContract [label="publishes events"]
+
+  @API at (120, 120)
+  @Identity at (430, 80)
+  @Ledger at (430, 260)
+  @AuditContract at (720, 180)
+
+}
+`
+  },
+  {
+    label: 'Activity Swimlanes',
+    kind: 'activity',
+    source: `// Activity workflow using explicit partitions
+diagram IncidentResponse : activity {
+
+  partition UserLane
+  partition OpsLane
+
+  start Begin
+  action ReportIssue
+  action Diagnose
+  decision Critical
+  action Escalate
+  action Resolve
+  stop End
+
+  Begin --> ReportIssue
+  ReportIssue --> Diagnose
+  Diagnose --> Critical
+  Critical --> Escalate [label="yes"]
+  Critical --> Resolve [label="no"]
+  Escalate --> Resolve
+  Resolve --> End
+
+  @UserLane at (40, 20, 260, 520)
+  @OpsLane at (330, 20, 260, 520)
+  @Begin at (130, 80)
+  @ReportIssue at (90, 160)
+  @Diagnose at (380, 160)
+  @Critical at (390, 260)
+  @Escalate at (380, 340)
+  @Resolve at (380, 430)
+  @End at (420, 500)
+
+}
+`
   }
 ];
 

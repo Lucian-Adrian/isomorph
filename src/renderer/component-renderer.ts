@@ -7,7 +7,17 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
+import {
+  escapeXml,
+  svgDefs,
+  renderConfigHeaders,
+  renderConfigLegend,
+  renderConfigCaption,
+  rectBoundaryPoint,
+  dashForRelation,
+  markerEndForRelation,
+  markerStartForRelation,
+} from './utils.js';
 
 const BOX_W        = 160;
 const COMP_H       = 48;
@@ -77,14 +87,27 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
     const f = placed.find(p => p.entity.name === rel.from);
     const t = placed.find(p => p.entity.name === rel.to);
     if (!f || !t) continue;
-    const x1 = f.x + BOX_W / 2, y1 = f.y + COMP_H / 2;
-    const x2 = t.x + BOX_W / 2, y2 = t.y + COMP_H / 2;
-    const dash = rel.kind === 'dependency' ? ' stroke-dasharray="6,3"' : '';
+    const fBox = relationBoundsForEntity(f.entity);
+    const tBox = relationBoundsForEntity(t.entity);
+    const c1x = f.x + fBox.w / 2;
+    const c1y = f.y + fBox.h / 2;
+    const c2x = t.x + tBox.w / 2;
+    const c2y = t.y + tBox.h / 2;
+    const sp = rectBoundaryPoint(f.x, f.y, fBox.w, fBox.h, c2x, c2y);
+    const ep = rectBoundaryPoint(t.x, t.y, tBox.w, tBox.h, c1x, c1y);
+    const dash = dashForRelation(rel.kind);
+    const markerEnd = markerEndForRelation(rel.kind);
+    const markerStart = markerStartForRelation(rel.kind);
+    const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+    const markerEndAttr = markerEnd ? ` marker-end="url(#${markerEnd})"` : '';
+    const markerStartAttr = markerStart ? ` marker-start="url(#${markerStart})"` : '';
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
-    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;      svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dash}/>`;
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
+    svg += `<line x1="${sp.x}" y1="${sp.y}" x2="${ep.x}" y2="${ep.y}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;
+    svg += `<line x1="${sp.x}" y1="${sp.y}" x2="${ep.x}" y2="${ep.y}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dashAttr}${markerEndAttr}${markerStartAttr}/>`;
     if (rel.label) {
-      const mx = (x1 + x2) / 2;
-      const my = (y1 + y2) / 2 - 6;
+      const mx = (sp.x + ep.x) / 2;
+      const my = (sp.y + ep.y) / 2 - 6;
       svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text-muted)" font-style="italic">${safeLabel}</text>`;
     }
     svg += `</g>\n`;
@@ -236,6 +259,13 @@ function placeEntities(entities: IOMEntity[]): Placed[] {
   }
 
   return result;
+}
+
+function relationBoundsForEntity(entity: IOMEntity): { w: number; h: number } {
+  if (entity.kind === 'node' || entity.kind === 'device' || entity.kind === 'environment') {
+    return { w: BOX_W + DEPTH, h: NODE_H + DEPTH };
+  }
+  return { w: BOX_W, h: COMP_H };
 }
 
 function emptyDiagram(_name: string): string {

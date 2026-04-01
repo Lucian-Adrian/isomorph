@@ -118,10 +118,39 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         if (!entities.has(item.to)) {
           errors.push({ message: `Relation references unknown entity '${item.to}'`, rule: 'SS-3', line: item.span.line, col: item.span.col });
         }
+        if (diag.diagramKind === 'sequence') {
+          const fromEntity = entities.get(item.from);
+          const toEntity = entities.get(item.to);
+          const allowed = new Set(['actor', 'participant']);
+          if (fromEntity && !allowed.has(fromEntity.kind)) {
+            errors.push({
+              message: `Sequence relation source '${item.from}' must be actor or participant`,
+              rule: 'SS-16',
+              line: item.span.line,
+              col: item.span.col,
+            });
+          }
+          if (toEntity && !allowed.has(toEntity.kind)) {
+            errors.push({
+              message: `Sequence relation target '${item.to}' must be actor or participant`,
+              rule: 'SS-16',
+              line: item.span.line,
+              col: item.span.col,
+            });
+          }
+        }
         relations.push(buildRelation(item, relations.length, errors));
       } else if (item.kind === 'PackageDecl') {
         collectRelationsInner(item.body);
       } else if (item.kind === 'FragmentDecl') {
+        if (item.fragmentKind !== 'alt' && item.elseBlocks && item.elseBlocks.length > 0) {
+          errors.push({
+            message: `Fragment '${item.fragmentKind}' cannot contain else blocks; use 'alt' for branching`,
+            rule: 'SS-18',
+            line: item.span.line,
+            col: item.span.col,
+          });
+        }
         const startRelIdx = relations.length;
         collectRelationsInner(item.body);
         const endRelIdx = relations.length;
@@ -144,6 +173,16 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           relationIds: mainRelIds,
           elseBlocks: elseBlocks.length > 0 ? elseBlocks : undefined,
         });
+
+        const elseCount = elseBlocks.reduce((acc, b) => acc + b.relationIds.length, 0);
+        if (mainRelIds.length + elseCount === 0) {
+          errors.push({
+            message: `Fragment '${item.fragmentKind}' must include at least one relation`,
+            rule: 'SS-19',
+            line: item.span.line,
+            col: item.span.col,
+          });
+        }
       } else if (item.kind === 'ActivateDecl') {
         if (!entities.has(item.entity)) {
           errors.push({ message: `Activation references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
@@ -272,6 +311,27 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
     }
   }
 
+  if (diag.diagramKind === 'usecase') {
+    const actorCount = [...entities.values()].filter(e => e.kind === 'actor').length;
+    const usecaseCount = [...entities.values()].filter(e => e.kind === 'usecase').length;
+    if (actorCount === 0) {
+      errors.push({ message: `Use-case diagrams must declare at least one actor`, rule: 'SS-20', line: diag.span.line, col: diag.span.col });
+    }
+    if (usecaseCount === 0) {
+      errors.push({ message: `Use-case diagrams must declare at least one usecase`, rule: 'SS-20', line: diag.span.line, col: diag.span.col });
+    }
+  }
+
+  if (diag.diagramKind === 'activity') {
+    const seenPartitions = new Set<string>();
+    for (const p of partitions) {
+      if (seenPartitions.has(p.name)) {
+        errors.push({ message: `Duplicate partition name '${p.name}'`, rule: 'SS-21', line: diag.span.line, col: diag.span.col });
+      }
+      seenPartitions.add(p.name);
+    }
+  }
+
   function checkLayoutTargets(items: BodyItem[]) {
     for (const item of items) {
       if (
@@ -301,6 +361,32 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           errors.push({ message: `Naming Convention: '${entity.kind}' names must be Verbs, but '${name}' does not start with a recognized verb.`, entity: name, rule: 'SS-15', ...sp });
         }
       }
+    }
+  }
+
+  const portKinds = new Set(['provided', 'required', 'port']);
+  const portHostKinds = new Set(['component', 'interface', 'node', 'device', 'environment']);
+  const allowsPorts = diag.diagramKind === 'component' || diag.diagramKind === 'deployment';
+  for (const [name, entity] of entities) {
+    const badPortField = entity.fields.find(f => portKinds.has(f.type));
+    if (!badPortField) continue;
+    const sp = entitySpans.get(name);
+    if (!allowsPorts) {
+      errors.push({
+        message: `Port-style fields are only valid in component/deployment diagrams (found '${badPortField.type}' in '${name}')`,
+        entity: name,
+        rule: 'SS-22',
+        ...sp,
+      });
+      continue;
+    }
+    if (!portHostKinds.has(entity.kind)) {
+      errors.push({
+        message: `Entity kind '${entity.kind}' cannot declare '${badPortField.type}' ports`,
+        entity: name,
+        rule: 'SS-22',
+        ...sp,
+      });
     }
   }
 

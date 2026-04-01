@@ -2,9 +2,9 @@ name: Deploy site
 
 on:
   push:
-    branches: [master, website]
+    branches: [dev, master, website]
   pull_request:
-    branches: [master]
+    branches: [dev, master]
 
 permissions:
   contents: write
@@ -31,6 +31,7 @@ jobs:
             ${{ runner.os }}-node-
 
       - run: npm ci
+      - run: npm run test
       - run: npm run build
 
       - name: Prepare landing page
