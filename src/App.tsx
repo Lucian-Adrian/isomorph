@@ -53,6 +53,14 @@ const REL_TOKENS_BY_KIND: Record<string, string> = {
   requires: '--(',
 };
 
+type SequenceMessageType = 'synchronous' | 'asynchronous' | 'response';
+
+function inferSequenceMessageType(kind: string): SequenceMessageType {
+  if (kind === 'dependency') return 'response';
+  if (kind === 'inheritance') return 'asynchronous';
+  return 'synchronous';
+}
+
 function slugId() {
   return `${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
@@ -673,7 +681,8 @@ function normalizeBoundaryDeclaration(source: string, boundaryName: string, boun
 function updateRelationById(
   source: string,
   relationId: string,
-  updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse'; fromMult?: string; toMult?: string },
+  updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse'; fromMult?: string; toMult?: string; seqMessageType?: SequenceMessageType },
+  diagramKind?: DiagramKind,
 ): string {
   const idxRaw = relationId.replace('rel_', '');
   const relationIdx = Number.parseInt(idxRaw, 10);
@@ -687,7 +696,6 @@ function updateRelationById(
   const [full, indent, fromRaw, opRaw, toRaw, attrsRaw = ''] = match;
   let from = fromRaw;
   let to = toRaw;
-  let op = REL_TOKENS_BY_KIND[updates.kind ?? ''] ?? opRaw;
 
   if (updates.direction === 'reverse') {
     const tmp = from;
@@ -697,6 +705,18 @@ function updateRelationById(
 
   const attrs = attrsRaw.trim().replace(/^\[|\]$/g, '');
   const attrMap = parseRelationAttrs(attrs);
+  const isSequence = diagramKind === 'sequence';
+
+  let op = REL_TOKENS_BY_KIND[updates.kind ?? ''] ?? opRaw;
+  if (isSequence) {
+    const inferredKind = (opRaw === '..>' || opRaw === '<..')
+      ? 'dependency'
+      : (opRaw === '--|>' || opRaw === '<|--' ? 'inheritance' : 'directed-association');
+    const nextType = updates.seqMessageType ?? inferSequenceMessageType(inferredKind);
+    if (nextType === 'response') op = '..>';
+    else if (nextType === 'asynchronous') op = '--|>';
+    else op = '-->';
+  }
 
   if (updates.label !== undefined) {
     if (updates.label) attrMap.set('label', updates.label);
@@ -713,6 +733,26 @@ function updateRelationById(
   const replacement = `${indent}${from} ${op} ${to}${suffix}`;
 
   return source.slice(0, match.index) + replacement + source.slice(match.index + full.length);
+}
+
+function insertSequenceLifecycleAfterRelation(
+  source: string,
+  relationId: string,
+  action: 'create' | 'destroy',
+): string {
+  const idxRaw = relationId.replace('rel_', '');
+  const relationIdx = Number.parseInt(idxRaw, 10);
+  if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
+
+  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\(\)|--\(|--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
+  const matches = [...source.matchAll(relRegex)];
+  const match = matches[relationIdx];
+  if (!match || match.index == null) return source;
+
+  const [full, indent, _from, _op, to] = match;
+  const insertion = `\n${indent}${action} ${to}`;
+  const insertPos = match.index + full.length;
+  return source.slice(0, insertPos) + insertion + source.slice(insertPos);
 }
 
 // ── App ──────────────────────────────────────────────────────
@@ -734,7 +774,7 @@ export default function App() {
   const [mobilePane, setMobilePane] = useState<'code' | 'diagram'>('code');
   const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
   const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
-  const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string } | null>(null);
+  const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string, seqMessageType?: SequenceMessageType } | null>(null);
   const [errorsCopied, setErrorsCopied] = useState(false);
   const [renamingTabId, setRenamingTabId]   = useState<string | null>(null);
   const [pendingMobileDropKeyword, setPendingMobileDropKeyword] = useState<string | null>(null);
@@ -1014,17 +1054,28 @@ export default function App() {
   const handleRelationEditRequest = useCallback((relationId: string, label: string, kind: string) => {
     // Also extract multiplicities from the source for editing
     const rel = activeDiagram?.relations.find(r => r.id === relationId);
-    setEditingRelation({ relationId, label, kind, direction: 'forward', fromMult: rel?.fromMult || '', toMult: rel?.toMult || '' });
+    setEditingRelation({
+      relationId,
+      label,
+      kind,
+      direction: 'forward',
+      fromMult: rel?.fromMult || '',
+      toMult: rel?.toMult || '',
+      seqMessageType: activeDiagram?.kind === 'sequence' ? inferSequenceMessageType(kind) : undefined,
+    });
   }, [activeDiagram]);
 
   const handleTextRenameRequest = useCallback((oldName: string, _newName: string, type: 'diagram' | 'package') => { setEditingText({ oldName, newName: oldName, type }); }, []);
   const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string) => {
     updateActiveTab(tab => {
-      let newSource = insertRelation(tab.source, `  ${fromEntity} --> ${toEntity}`);
+      const relationLine = activeDiagram?.kind === 'sequence'
+        ? `  ${fromEntity} --> ${toEntity}`
+        : `  ${fromEntity} --> ${toEntity}`;
+      let newSource = insertRelation(tab.source, relationLine);
       newSource = formatDiagramSource(newSource);
       return { ...tab, source: newSource };
     });
-  }, [updateActiveTab]);
+  }, [updateActiveTab, activeDiagram]);
 
   const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean; bodyText?: string; kind?: string }) => {
     updateActiveTab(tab => {
@@ -1051,15 +1102,15 @@ export default function App() {
 
   const handleRelationEdit = useCallback((
     relationId: string,
-    updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse'; fromMult?: string; toMult?: string },
+    updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse'; fromMult?: string; toMult?: string; seqMessageType?: SequenceMessageType },
   ) => {
     updateActiveTab(tab => {
-      let src = updateRelationById(tab.source, relationId, updates);
+      let src = updateRelationById(tab.source, relationId, updates, activeDiagram?.kind);
       src = formatDiagramSource(src);
       return { ...tab, source: src };
     });
     setEditingRelation(null);
-  }, [updateActiveTab]);
+  }, [updateActiveTab, activeDiagram]);
 
   const handleDropEntity = useCallback((keyword: string, x: number, y: number, targetPackage?: string) => {
     updateActiveTab(tab => {
@@ -1408,6 +1459,7 @@ export default function App() {
           direction: editingRelation.direction,
           fromMult: editingRelation.fromMult,
           toMult: editingRelation.toMult,
+          seqMessageType: editingRelation.seqMessageType,
         });
         return;
       }
@@ -2351,25 +2403,40 @@ export default function App() {
                 </div>
               </div>
             )}
-            <div className="iso-modal-field">
-              <label>{t('edit.kind')}</label>
-              <select className="iso-select" value={editingRelation.kind} onChange={e => setEditingRelation({ ...editingRelation, kind: e.target.value })}>
-                <option value="association">{t('rel.association')}</option>
-                <option value="directed-association">{t('rel.directed_association')}</option>
-                <option value="inheritance">{t('rel.inheritance')}</option>
-                <option value="realization">{t('rel.realization')}</option>
-                <option value="aggregation">{t('rel.aggregation')}</option>
-                <option value="composition">{t('rel.composition')}</option>
-                <option value="dependency">{t('rel.dependency')}</option>
-                <option value="restriction">{t('rel.restriction')}</option>
-                {['component', 'deployment'].includes(activeDiagram?.kind || '') && (
-                  <>
-                    <option value="provides">{t('rel.provides')}</option>
-                    <option value="requires">{t('rel.requires')}</option>
-                  </>
-                )}
-              </select>
-            </div>
+            {activeDiagram?.kind === 'sequence' ? (
+              <div className="iso-modal-field">
+                <label>{t('edit.seq_message_type')}</label>
+                <select
+                  className="iso-select"
+                  value={editingRelation.seqMessageType || 'synchronous'}
+                  onChange={e => setEditingRelation({ ...editingRelation, seqMessageType: e.target.value as SequenceMessageType })}
+                >
+                  <option value="synchronous">{t('rel.seq_synchronous')}</option>
+                  <option value="asynchronous">{t('rel.seq_asynchronous')}</option>
+                  <option value="response">{t('rel.seq_response')}</option>
+                </select>
+              </div>
+            ) : (
+              <div className="iso-modal-field">
+                <label>{t('edit.kind')}</label>
+                <select className="iso-select" value={editingRelation.kind} onChange={e => setEditingRelation({ ...editingRelation, kind: e.target.value })}>
+                  <option value="association">{t('rel.association')}</option>
+                  <option value="directed-association">{t('rel.directed_association')}</option>
+                  <option value="inheritance">{t('rel.inheritance')}</option>
+                  <option value="realization">{t('rel.realization')}</option>
+                  <option value="aggregation">{t('rel.aggregation')}</option>
+                  <option value="composition">{t('rel.composition')}</option>
+                  <option value="dependency">{t('rel.dependency')}</option>
+                  <option value="restriction">{t('rel.restriction')}</option>
+                  {['component', 'deployment'].includes(activeDiagram?.kind || '') && (
+                    <>
+                      <option value="provides">{t('rel.provides')}</option>
+                      <option value="requires">{t('rel.requires')}</option>
+                    </>
+                  )}
+                </select>
+              </div>
+            )}
             <div className="iso-modal-field">
               <label>{t('edit.direction')}</label>
               <select className="iso-select" value={editingRelation.direction} onChange={e => setEditingRelation({ ...editingRelation, direction: e.target.value as 'forward' | 'reverse' })}>
@@ -2377,9 +2444,38 @@ export default function App() {
                 <option value="reverse">{t('edit.reverse')}</option>
               </select>
             </div>
+            {activeDiagram?.kind === 'sequence' && (
+              <div className="iso-modal-field">
+                <label>{t('edit.seq_lifecycle')}</label>
+                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                  <button
+                    className="iso-btn"
+                    onClick={() => {
+                      updateActiveTab(tab => ({
+                        ...tab,
+                        source: formatDiagramSource(insertSequenceLifecycleAfterRelation(tab.source, editingRelation.relationId, 'create')),
+                      }));
+                    }}
+                  >
+                    {t('edit.seq_create_target')}
+                  </button>
+                  <button
+                    className="iso-btn"
+                    onClick={() => {
+                      updateActiveTab(tab => ({
+                        ...tab,
+                        source: formatDiagramSource(insertSequenceLifecycleAfterRelation(tab.source, editingRelation.relationId, 'destroy')),
+                      }));
+                    }}
+                  >
+                    {t('edit.seq_destroy_target')}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="iso-modal-actions">
               <button className="iso-btn" onClick={() => setEditingRelation(null)}>{t('ui.cancel')}</button>
-              <button className="iso-btn iso-btn--primary" onClick={() => handleRelationEdit(editingRelation.relationId, { label: editingRelation.label, kind: editingRelation.kind, direction: editingRelation.direction, fromMult: editingRelation.fromMult, toMult: editingRelation.toMult })}>{t('menu.save')}</button>
+              <button className="iso-btn iso-btn--primary" onClick={() => handleRelationEdit(editingRelation.relationId, { label: editingRelation.label, kind: editingRelation.kind, direction: editingRelation.direction, fromMult: editingRelation.fromMult, toMult: editingRelation.toMult, seqMessageType: editingRelation.seqMessageType })}>{t('menu.save')}</button>
             </div>
           </div>
         </div>

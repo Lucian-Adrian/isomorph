@@ -410,6 +410,14 @@ describe('Sequence Diagram Renderer — advanced', () => {
     expect(svg).toContain('stroke="transparent"');
   });
 
+    it('renders asynchronous as open arrow and response as dashed open arrow', () => {
+      const diag = buildDiagram('diagram D : sequence { participant A participant B A --|> B [label="req"] B ..> A [label="ack"] A --> B [label="sync"] }');
+      const svg = renderSequenceDiagram(diag);
+      expect(svg).toContain('data-seq-rel-type="asynchronous"');
+      expect(svg).toContain('data-seq-rel-type="response"');
+      expect(svg).toContain('stroke-dasharray="6,3"');
+    });
+
   it('renders self-referencing messages as loop paths', () => {
     const diag = buildDiagram('diagram D : sequence { participant A A --> A [label="self"] }');
     const svg = renderSequenceDiagram(diag);

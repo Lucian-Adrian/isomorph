@@ -4,6 +4,12 @@
 import type { IOMDiagram } from '../semantics/iom.js';
 import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
 
+function getSequenceRelationType(rel: { kind: string }): 'synchronous' | 'asynchronous' | 'response' {
+  if (rel.kind === 'dependency') return 'response';
+  if (rel.kind === 'inheritance') return 'asynchronous';
+  return 'synchronous';
+}
+
 export function renderSequenceDiagram(diag: IOMDiagram): string {
   const entities = Array.from(diag.entities.values());
   if (entities.length === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>`;
@@ -193,13 +199,14 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     const relationY = relationYCoords.get(rel.id);
     if (startX === undefined || endX === undefined || relationY === undefined) continue;
 
-    const isDashed = rel.kind === 'dependency' || rel.kind === 'realization';
+    const seqType = getSequenceRelationType(rel);
+    const isDashed = seqType === 'response';
     const dash = isDashed ? ' stroke-dasharray="6,3"' : '';
     const labelTxt = useAutonumber ? `${msgIndex++}. ${rel.label || ''}` : (rel.label || '');
     const isSelf = rel.from === rel.to;
 
     const safeLabel = escapeXml(rel.label || '');
-    svg += `    <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}" data-relation-y="${Math.round(relationY)}">\n`;
+    svg += `    <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-seq-rel-type="${seqType}" data-relation-label="${safeLabel}" data-relation-y="${Math.round(relationY)}">\n`;
 
     if (isSelf) {
       const y1 = relationY;
@@ -207,13 +214,17 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       const loopRight = startX + selfLoopWidth;
       svg += `      <path d="M${startX},${y1} H${loopRight} V${y2} H${startX}" stroke="transparent" stroke-width="15" fill="none" style="cursor: pointer" />\n`;
       svg += `      <path d="M${startX},${y1} H${loopRight} V${y2} H${startX}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none"${dash} />\n`;
-      svg += `      <polygon points="${startX},${y2} ${startX + 8},${y2 - 4} ${startX + 8},${y2 + 4}" fill="var(--iso-text-muted)" />\n`;
+      if (seqType === 'synchronous') {
+        svg += `      <polygon points="${startX},${y2} ${startX + 8},${y2 - 4} ${startX + 8},${y2 + 4}" fill="var(--iso-text-muted)" />\n`;
+      } else {
+        svg += `      <path d="M${startX + 9},${y2 - 5} L${startX},${y2} L${startX + 9},${y2 + 5}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none" />\n`;
+      }
       if (labelTxt) svg += `      <text x="${loopRight + 6}" y="${y1 + selfLoopHeight / 2 + 4}" font-size="11" fill="var(--iso-text-muted)">${labelTxt}</text>\n`;
     } else {
       svg += `      <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="transparent" stroke-width="15" style="cursor: pointer" />\n`;
       svg += `      <line x1="${startX}" y1="${relationY}" x2="${endX}" y2="${relationY}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dash} />\n`;
       const isRight = endX > startX;
-      if (isDashed) {
+      if (seqType !== 'synchronous') {
         if (isRight) svg += `      <path d="M${endX - 10},${relationY - 4} L${endX},${relationY} L${endX - 10},${relationY + 4}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none" />\n`;
         else svg += `      <path d="M${endX + 10},${relationY - 4} L${endX},${relationY} L${endX + 10},${relationY + 4}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none" />\n`;
       } else {

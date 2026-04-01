@@ -274,8 +274,11 @@ High-confidence current state:
 ## P1 High Value Functional Completion
 - [x] Add first-class relation operators for provides/requires in parser + AST + semantics.
 - [x] Implement port-to-port connector routing and endpoint anchoring in component/deployment rendering.
-- [ ] Implement sequence return/create/destroy semantics and visuals.
+- [x] Implement sequence return/create/destroy semantics and visuals.
   - return dashed back arrow, create at participant birth point, destroy marker.
+- [x] Enforce sequence message model: call/response/return.
+  - call requires a matching response, response must close the latest open call, return is one-way and does not require response.
+  - sequence relation modal now exposes synchronous/asynchronous/response types mapped to relation operators (`-->`, `--|>`, `..>`) and provides UI actions to insert create/destroy lifecycle commands for the target participant.
 - [ ] Reintroduce optional auto activation bars for sequence call messages.
   - preserve explicit activate/deactivate support while offering legacy-compatible auto behavior.
 - [ ] Add sequence fragment semantic constraints aligned with intended SS-15+ rules.

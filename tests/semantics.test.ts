@@ -695,10 +695,28 @@ describe('Semantic Analyzer', () => {
       expect(deact?.entity).toBe('B');
     });
 
-    it('flags return without caller context as SS-16', () => {
-      const result = analyze(parse('diagram D : sequence { participant A return }').program);
+    it('flags response without caller context as SS-16', () => {
+      const result = analyze(parse('diagram D : sequence { participant A participant B B ..> A }').program);
       const ss16 = result.errors.filter(e => e.rule === 'SS-16');
       expect(ss16.length).toBeGreaterThan(0);
+    });
+
+    it('flags unmatched calls without response as SS-16', () => {
+      const result = analyze(parse('diagram D : sequence { participant A participant B A --> B }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16.length).toBeGreaterThan(0);
+    });
+
+    it('allows one-way asynchronous message without requiring response', () => {
+      const result = analyze(parse('diagram D : sequence { participant A participant B A --|> B }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16).toHaveLength(0);
+    });
+
+    it('matches call and response relation pairs in sequence order', () => {
+      const result = analyze(parse('diagram D : sequence { participant A participant B A --> B B ..> A }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16).toHaveLength(0);
     });
   });
 });

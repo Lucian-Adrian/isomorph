@@ -13,6 +13,14 @@ import type {
 } from './iom.js';
 import { relTokenToKind } from './iom.js';
 
+type SequenceRelationType = 'synchronous' | 'asynchronous' | 'response';
+
+function resolveSequenceRelationType(rel: IOMRelation): SequenceRelationType {
+  if (rel.kind === 'dependency') return 'response';
+  if (rel.kind === 'inheritance') return 'asynchronous';
+  return 'synchronous';
+}
+
 export interface SemanticError {
   message: string;
   rule: string;
@@ -133,10 +141,37 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         relations.push(rel);
 
         if (diag.diagramKind === 'sequence') {
-          if (rel.kind === 'directed-association' || rel.kind === 'association') {
+          const seqType = resolveSequenceRelationType(rel);
+
+          if (!['directed-association', 'association', 'inheritance', 'dependency'].includes(rel.kind)) {
+            errors.push({
+              message: `Sequence diagrams support only synchronous (-->) asynchronous (--|>) and response (..>) relations`,
+              rule: 'SS-16',
+              line: item.span.line,
+              col: item.span.col,
+            });
+            continue;
+          }
+
+          if (seqType === 'synchronous') {
             callStack.push({ from: rel.from, to: rel.to, id: rel.id });
             if (config.autoactivation && rel.from !== rel.to) {
               activations.push({ id: `act_${activations.length}`, entity: rel.to, kind: 'activate', afterRelationIdx: relations.length - 1 });
+            }
+          } else if (seqType === 'response') {
+            const lastCall = callStack[callStack.length - 1];
+            if (!lastCall || lastCall.from !== rel.to || lastCall.to !== rel.from) {
+              errors.push({
+                message: `Response must match the latest call direction (${rel.from} -> ${rel.to} does not match an open call)`,
+                rule: 'SS-16',
+                line: item.span.line,
+                col: item.span.col,
+              });
+            } else {
+              callStack.pop();
+              if (config.autoactivation && rel.from !== rel.to) {
+                activations.push({ id: `act_${activations.length}`, entity: rel.from, kind: 'deactivate', afterRelationIdx: relations.length - 1 });
+              }
             }
           }
         }
@@ -222,6 +257,15 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
   }
 
   collectRelationsInner(diag.body);
+
+  if (diag.diagramKind === 'sequence' && callStack.length > 0) {
+    for (const openCall of callStack) {
+      errors.push({
+        message: `Call '${openCall.from} -> ${openCall.to}' requires a matching response message`,
+        rule: 'SS-16',
+      });
+    }
+  }
 
   // Third pass: Layout annotations (ensure partitions/entities/packages exist)
   function applyLayout(items: BodyItem[]) {
