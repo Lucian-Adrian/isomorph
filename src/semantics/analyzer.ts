@@ -42,7 +42,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
   const relations: IOMRelation[] = [];
   const packages:  IOMPackage[]  = [];
   const notes:     IOMNote[]     = [];
-  const config:    IOMConfig     = {};
+  const config:    IOMConfig     = { autoactivation: diag.diagramKind === 'sequence' };
   const styles:    Record<string, string> = {};
   const fragments: IOMFragment[] = [];
   const activations: IOMActivation[] = [];
@@ -110,16 +110,59 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
     }
   }
 
+  const callStack: { from: string, to: string, id: string }[] = [];
+  const destroyedEntities = new Set<string>();
+  let relationDeclCount = 0;
+  let returnDeclCount = 0;
+
   function collectRelationsInner(items: BodyItem[]) {
     for (const item of items) {
       if (item.kind === 'RelationDecl') {
         if (!entities.has(item.from)) {
           errors.push({ message: `Relation references unknown entity '${item.from}'`, rule: 'SS-3', line: item.span.line, col: item.span.col });
+        } else if (destroyedEntities.has(item.from)) {
+          errors.push({ message: `Cannot route relation from a destroyed entity '${item.from}'`, rule: 'SS-24', line: item.span.line, col: item.span.col });
         }
+        
         if (!entities.has(item.to)) {
           errors.push({ message: `Relation references unknown entity '${item.to}'`, rule: 'SS-3', line: item.span.line, col: item.span.col });
+        } else if (destroyedEntities.has(item.to)) {
+          errors.push({ message: `Cannot route relation to a destroyed entity '${item.to}'`, rule: 'SS-24', line: item.span.line, col: item.span.col });
         }
-        relations.push(buildRelation(item, relations.length, errors));
+        const rel = buildRelation(item, relationDeclCount++, errors);
+        relations.push(rel);
+
+        if (diag.diagramKind === 'sequence') {
+          if (rel.kind === 'directed-association' || rel.kind === 'association') {
+            callStack.push({ from: rel.from, to: rel.to, id: rel.id });
+            if (config.autoactivation && rel.from !== rel.to) {
+              activations.push({ id: `act_${activations.length}`, entity: rel.to, kind: 'activate', afterRelationIdx: relations.length - 1 });
+            }
+          }
+        }
+      } else if (item.kind === 'ReturnDecl') {
+        const lastCall = callStack.pop();
+        if (lastCall) {
+          if (destroyedEntities.has(lastCall.to)) {
+             errors.push({ message: `Cannot return from a destroyed entity '${lastCall.to}'`, rule: 'SS-24', line: item.span.line, col: item.span.col });
+          }
+          if (destroyedEntities.has(lastCall.from)) {
+             errors.push({ message: `Cannot return to a destroyed entity '${lastCall.from}'`, rule: 'SS-24', line: item.span.line, col: item.span.col });
+          }
+          relations.push({
+            id: `ret_${returnDeclCount++}`,
+            from: lastCall.to,
+            to: lastCall.from,
+            kind: 'dependency',
+            label: item.label,
+            styles: {}
+          });
+          if (config.autoactivation && lastCall.from !== lastCall.to) {
+            activations.push({ id: `act_${activations.length}`, entity: lastCall.to, kind: 'deactivate', afterRelationIdx: relations.length - 1 });
+          }
+        } else {
+          errors.push({ message: `Return statement without an active caller context`, rule: 'SS-16', line: item.span.line, col: item.span.col });
+        }
       } else if (item.kind === 'PackageDecl') {
         collectRelationsInner(item.body);
       } else if (item.kind === 'FragmentDecl') {
@@ -169,6 +212,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         }
         activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'create', afterRelationIdx: relations.length });
       } else if (item.kind === 'DestroyDecl') {
+        destroyedEntities.add(item.entity);
         if (!entities.has(item.entity)) {
           errors.push({ message: `Destroy references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
         }

@@ -668,10 +668,37 @@ describe('Semantic Analyzer', () => {
     });
   });
 
-  describe('autoactivation config', () => {
+  describe('sequence autoactivation and return', () => {
     it('parses autoactivation config keyword', () => {
       const { iom } = analyzeOk('diagram D : sequence { autoactivation participant A }');
       expect(iom.diagrams[0].config.autoactivation).toBe(true);
+    });
+
+    it('generates activate record for sync calls when autoactivation is true', () => {
+      const { iom } = analyzeOk('diagram D : sequence { autoactivation participant A participant B A --> B }');
+      const act = iom.diagrams[0].activations.find(a => a.kind === 'activate');
+      expect(act).toBeDefined();
+      expect(act?.entity).toBe('B');
+    });
+
+    it('generates dashed relation and deactivate record for return', () => {
+      const { iom } = analyzeOk('diagram D : sequence { autoactivation participant A participant B A --> B return "ok" }');
+      const R = iom.diagrams[0].relations[1];
+      expect(R).toBeDefined();
+      expect(R.from).toBe('B');
+      expect(R.to).toBe('A');
+      expect(R.kind).toBe('dependency');
+      expect(R.label).toBe('ok');
+
+      const deact = iom.diagrams[0].activations.find(a => a.kind === 'deactivate');
+      expect(deact).toBeDefined();
+      expect(deact?.entity).toBe('B');
+    });
+
+    it('flags return without caller context as SS-16', () => {
+      const result = analyze(parse('diagram D : sequence { participant A return }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16.length).toBeGreaterThan(0);
     });
   });
 });

@@ -354,8 +354,6 @@ function getStencilsForKind(kind?: DiagramKind) {
       return [
         { label: 'Component', keyword: 'component' },
         { label: 'Interface', keyword: 'interface' },
-        { label: 'Artifact', keyword: 'artifact' },
-        { label: 'Node', keyword: 'node' },
       ];
     case 'deployment':
       return [
@@ -2293,8 +2291,12 @@ export default function App() {
                     )}
                     {['node', 'device', 'environment', 'component'].includes(editingEntity.kind) && (
                        <>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'node NewNode' } : null); }}>{t('edit.node')}</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'artifact NewArtifact' } : null); }}>{t('edit.artifact')}</button>
+                         {activeDiagram?.kind !== 'component' && (
+                           <>
+                             <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'node NewNode' } : null); }}>{t('edit.node')}</button>
+                             <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'artifact NewArtifact' } : null); }}>{t('edit.artifact')}</button>
+                           </>
+                         )}
                          <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port1 : provided' } : null); }}>{t('edit.port_prov')}</button>
                          <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port2 : required' } : null); }}>{t('edit.port_req')}</button>
                        </>

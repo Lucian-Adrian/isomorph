@@ -272,14 +272,16 @@ High-confidence current state:
   - update README table to reflect shared renderer implementation instead of To Be Extracted.
 
 ## P1 High Value Functional Completion
-- [ ] Add first-class relation operators for provides/requires in parser + AST + semantics.
-- [ ] Implement port-to-port connector routing and endpoint anchoring in component/deployment rendering.
+- [x] Add first-class relation operators for provides/requires in parser + AST + semantics.
+- [x] Implement port-to-port connector routing and endpoint anchoring in component/deployment rendering.
 - [ ] Implement sequence return/create/destroy semantics and visuals.
   - return dashed back arrow, create at participant birth point, destroy marker.
 - [ ] Reintroduce optional auto activation bars for sequence call messages.
   - preserve explicit activate/deactivate support while offering legacy-compatible auto behavior.
 - [ ] Add sequence fragment semantic constraints aligned with intended SS-15+ rules.
-- [ ] Upgrade circle/lollipop notation from decorative to semantic.
+- [ ] Implement visual UI controls/dragging for Sequence Diagram Fragments (alt, loop, opt, etc.) with custom coloring support.
+- [ ] Implement visual tooling context menus or specialized drag modes to draw `create` and `destroy` arrows directly via the canvas UI mapping.
+- [x] Upgrade circle/lollipop notation from decorative to semantic.
   - add operator-level semantics and endpoint routing for lollipop/socket connectors.
 
 ## P2 Correctness and Parity

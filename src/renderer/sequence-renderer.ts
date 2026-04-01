@@ -75,6 +75,13 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   const entityX = new Map<string, number>();
   let currentXArr = paddingX;
 
+  const createYs = new Map<string, number>();
+  const destroyYs = new Map<string, number>();
+  for (const act of diag.activations) {
+    if (act.kind === 'create') createYs.set(act.entity, activationYCoords.get(act.id) || 0);
+    if (act.kind === 'destroy') destroyYs.set(act.entity, activationYCoords.get(act.id) || 0);
+  }
+
   for (const ent of entities) {
     let xPos = currentXArr;
     if (ent.position && ent.position.x !== undefined) {
@@ -88,7 +95,10 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     const isActor = ent.kind === 'actor' || ent.stereotype === 'actor';
     const label = escapeXml(ent.name);
 
-    svg += `    <g transform="translate(${xPos},${paddingY})" data-entity-name="${label}">\n`;
+    const createY = createYs.get(ent.name);
+    const boxAbsoluteY = createY !== undefined ? createY - 18 : paddingY;
+
+    svg += `    <g transform="translate(${xPos},${boxAbsoluteY})" data-entity-name="${label}">\n`;
     if (isActor) {
       svg += `      <circle cx="0" cy="-4" r="10" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" />\n`;
       svg += `      <path d="M0,6 v14 M-10,12 h20 M-6,30 l6,-10 l6,10" stroke="#3b82f6" stroke-width="1.5" fill="none" />\n`;
@@ -99,38 +109,79 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     }
 
     const lifelineStart = isActor ? 52 : 20;
-    svg += `      <line x1="0" y1="${lifelineStart}" x2="0" y2="${diagramHeight - paddingY - 30}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="1" stroke-dasharray="6,4" />\n`;
+    const destY = destroyYs.get(ent.name);
+    const hasDestroy = destY !== undefined;
+    
+    // Map absolute coords back to the translated coordinate space of this group
+    const absoluteEnd = hasDestroy ? destY : diagramHeight - 30;
+    const lifelineEnd = absoluteEnd - boxAbsoluteY;
 
-    if (!isActor) {
-      const bottomY = diagramHeight - paddingY - 30;
+    svg += `      <line x1="0" y1="${lifelineStart}" x2="0" y2="${lifelineEnd}" stroke="transparent" stroke-width="20" style="cursor: pointer" />\n`;
+    svg += `      <line x1="0" y1="${lifelineStart}" x2="0" y2="${lifelineEnd}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="1" stroke-dasharray="6,4" />\n`;
+
+    if (hasDestroy) {
+      const crossSize = 10;
+      svg += `      <path d="M${-crossSize},${lifelineEnd - crossSize} L${crossSize},${lifelineEnd + crossSize} M${crossSize},${lifelineEnd - crossSize} L${-crossSize},${lifelineEnd + crossSize}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="2" />\n`;
+    }
+
+    if (!isActor && !hasDestroy) {
+      const bottomY = diagramHeight - 30 - boxAbsoluteY;
       svg += `      <rect x="-60" y="${bottomY}" width="120" height="30" rx="6" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" />\n`;
       svg += `      <text x="0" y="${bottomY + 19}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
     }
     svg += `    </g>\n`;
   }
 
+  // Track the last action Y for each entity to truncate open activations cleanly
+  const entityLastY = new Map<string, number>();
+  for (const rel of diag.relations) {
+      if (rel.styles && typeof rel.styles.y !== 'undefined') {
+          const y = Number.parseInt(String(rel.styles.y), 10);
+          if (Number.isFinite(y)) {
+              if (!entityLastY.has(rel.from) || y > entityLastY.get(rel.from)!) entityLastY.set(rel.from, y);
+              if (!entityLastY.has(rel.to) || y > entityLastY.get(rel.to)!) entityLastY.set(rel.to, y);
+          }
+      }
+  }
+
   // --- Activation Bars ---
-  const activeRanges = new Map<string, number>(); // entity -> startY
+  const activeRanges = new Map<string, number[]>(); // entity -> array of startYs
   for (const act of diag.activations) {
     const x = entityX.get(act.entity);
     if (x === undefined) continue;
     const y = activationYCoords.get(act.id) || 0;
     
+    // Also track activation interaction Y so it's a valid stopping point
+    if (!entityLastY.has(act.entity) || y > entityLastY.get(act.entity)!) entityLastY.set(act.entity, y);
+
     if (act.kind === 'activate') {
-        activeRanges.set(act.entity, y);
-    } else {
-        const startY = activeRanges.get(act.entity);
-        if (startY !== undefined) {
-             svg += `    <rect x="${x - activationWidth/2}" y="${startY - 5}" width="${activationWidth}" height="${y - startY + 10}" rx="2" fill="var(--iso-bg-blue, #e0e7ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" />\n`;
-             activeRanges.delete(act.entity);
+        let startY = y;
+        const createY = createYs.get(act.entity);
+        const boxAbsY = createY !== undefined ? createY : paddingY;
+        const boxBottom = boxAbsY + 16;
+        if (startY < boxBottom) {
+           startY = boxBottom + 4;
+        }
+        const stack = activeRanges.get(act.entity) || [];
+        stack.push(startY);
+        activeRanges.set(act.entity, stack);
+    } else if (act.kind === 'deactivate') {
+        const stack = activeRanges.get(act.entity);
+        if (stack && stack.length > 0) {
+             const startY = stack.pop()!;
+             svg += `    <rect x="${x - activationWidth/2}" y="${startY - 5}" width="${activationWidth}" height="${Math.max(10, y - startY + 10)}" rx="2" fill="var(--iso-bg-blue, #e0e7ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" style="pointer-events: none" />\n`;
         }
     }
   }
   // Close unclosed activations
-  for (const [entity, startY] of activeRanges.entries()) {
+  for (const [entity, stack] of activeRanges.entries()) {
      const x = entityX.get(entity);
      if (x !== undefined) {
-        svg += `    <rect x="${x - activationWidth/2}" y="${startY - 5}" width="${activationWidth}" height="${diagramHeight - startY - 20}" rx="2" fill="var(--iso-bg-blue, #e0e7ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" />\n`;
+         for (let i = 0; i < stack.length; i++) {
+             const startY = stack[i];
+             const endY = entityLastY.has(entity) ? Math.max(startY + 30, entityLastY.get(entity)! + 20) : diagramHeight - 30;
+             svg += `    <rect x="${x - activationWidth/2}" y="${startY - 5}" width="${activationWidth}" height="${Math.max(10, endY - startY + 5)}" rx="2" fill="var(--iso-bg-blue, #e0e7ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" style="pointer-events: none" />\n`;
+         }
      }
   }
 

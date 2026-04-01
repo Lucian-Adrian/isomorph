@@ -256,14 +256,14 @@ function renderComponent(p: Placed): string {
     const py = 12 + i * 20;
     s += `    <line x1="${BOX_W}" y1="${py}" x2="${BOX_W + 15}" y2="${py}" stroke="#3b82f6" stroke-width="1.5"/>\n`;
     s += `    <circle cx="${BOX_W + 20}" cy="${py}" r="5" fill="var(--iso-bg-panel)" stroke="#3b82f6" stroke-width="1.5"/>\n`;
-    s += `    <text x="${BOX_W + 28}" y="${py + 3}" font-size="10" fill="var(--iso-text-body)">${escapeXml(f.name)}</text>\n`;
+    s += `    <text x="${BOX_W + 10}" y="${py - 6}" text-anchor="middle" font-size="10" fill="var(--iso-text-body)">${escapeXml(f.name)}</text>\n`;
   });
   
   required.forEach((f, i) => {
     const py = 12 + i * 20;
     s += `    <line x1="0" y1="${py}" x2="-15" y2="${py}" stroke="#3b82f6" stroke-width="1.5"/>\n`;
     s += `    <path d="M -20 ${py - 5} A 5 5 0 0 0 -20 ${py + 5}" fill="none" stroke="#3b82f6" stroke-width="1.5"/>\n`;
-    s += `    <text x="-24" y="${py + 3}" text-anchor="end" font-size="10" fill="var(--iso-text-body)">${escapeXml(f.name)}</text>\n`;
+    s += `    <text x="-10" y="${py - 6}" text-anchor="middle" font-size="10" fill="var(--iso-text-body)">${escapeXml(f.name)}</text>\n`;
   });
   
   ports.forEach((f, i) => {

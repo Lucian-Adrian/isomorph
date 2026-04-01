@@ -423,6 +423,32 @@ describe('Sequence Diagram Renderer — advanced', () => {
     const svg = renderSequenceDiagram(diag);
     expect(svg).toContain('data-relation-y="260"');
   });
+
+  it('renders create participant offset by its activation Y coordinate', () => {
+    const diag = buildDiagram('diagram D : sequence { participant A participant B participant C A --> B create C B --> C }');
+    const svg = renderSequenceDiagram(diag);
+    const createYMatch = svg.match(/<g transform="translate\(\d+,(\d+)\)" data-entity-name="C"/);
+    expect(createYMatch).not.toBeNull();
+    // Padding Y is 60, create Y should be > 0.
+    const createdY = parseInt(createYMatch![1]);
+    expect(createdY).toBeGreaterThan(60);
+  });
+
+  it('renders destroy marker and shortens lifeline', () => {
+    const diag = buildDiagram('diagram D : sequence { participant A participant B A --> B destroy B }');
+    const svg = renderSequenceDiagram(diag);
+    // Destroys draw an "X" path and terminate line early
+    expect(svg).toContain('M-10,');
+    expect(svg).toContain('L10,');
+  });
+
+  it('renders return relations with dashed lines', () => {
+    const diag = buildDiagram('diagram D : sequence { autoactivation participant A participant B A --> B return "data" }');
+    const svg = renderSequenceDiagram(diag);
+    expect(svg).toContain('data-relation-kind="dependency"');
+    // dash array check for dependency relations
+    expect(svg).toContain('stroke-dasharray="6,3"');
+  });
 });
 
 describe('Activity Diagram Renderer — swimlanes', () => {
