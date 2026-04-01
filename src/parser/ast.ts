@@ -50,7 +50,6 @@ export type BodyItem =
   | FragmentDecl
   | ActivateDecl
   | DeactivateDecl
-  | ReturnDecl
   | RefDecl
   | PartitionDecl
   | CreateDecl
@@ -244,7 +243,6 @@ export interface FragmentDecl {
 
 export interface ActivateDecl   { kind: 'ActivateDecl'; entity: string; span: Span; }
 export interface DeactivateDecl { kind: 'DeactivateDecl'; entity: string; span: Span; }
-export interface ReturnDecl     { kind: 'ReturnDecl'; label?: string; span: Span; }
 export interface RefDecl        { kind: 'RefDecl'; text: string; span: Span; }
 export interface RegionDecl     { kind: 'RegionDecl'; body: BodyItem[]; span: Span; }
 export interface PartitionDecl  { kind: 'PartitionDecl'; name: string; body: BodyItem[]; span: Span; }

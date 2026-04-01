@@ -151,6 +151,15 @@ describe('Parser', () => {
       }
     });
 
+    it('parses participant with keyword stereotype without cascading errors', () => {
+      const prog = parseOk('diagram D : sequence { participant AuthService <<device>> participant B AuthService --> B }');
+      const first = prog.diagrams[0].body[0];
+      if (first.kind === 'EntityDecl') {
+        expect(first.name).toBe('AuthService');
+        expect(first.stereotype).toBe('device');
+      }
+    });
+
     it('parses extends clause', () => {
       const prog = parseOk('diagram D : class { class Dog extends Animal {} }');
       const entity = prog.diagrams[0].body[0];

@@ -279,8 +279,6 @@ High-confidence current state:
 - [x] Enforce sequence message model: call/response/return.
   - call requires a matching response, response must close the latest open call, return is one-way and does not require response.
   - sequence relation modal now exposes synchronous/asynchronous/response types mapped to relation operators (`-->`, `--|>`, `..>`) and provides UI actions to insert create/destroy lifecycle commands for the target participant.
-- [ ] Reintroduce optional auto activation bars for sequence call messages.
-  - preserve explicit activate/deactivate support while offering legacy-compatible auto behavior.
 - [ ] Add sequence fragment semantic constraints aligned with intended SS-15+ rules.
 - [ ] Implement visual UI controls/dragging for Sequence Diagram Fragments (alt, loop, opt, etc.) with custom coloring support.
 - [ ] Implement visual tooling context menus or specialized drag modes to draw `create` and `destroy` arrows directly via the canvas UI mapping.
@@ -317,6 +315,15 @@ Instead of restarting from task.md Phase 1, use this corrected sequence:
 4. Polish UX and advanced notation (P3).
 
 This avoids re-implementing features that already exist while targeting the real pain points from chat.md.
+
+---
+
+## Known Current Limitations (Confirmed)
+
+- [ ] Sequence create/destroy UI path is modal-assisted only.
+  - Current flow inserts lifecycle commands from relation edit modal actions; dedicated canvas draw tools for create/destroy are still pending.
+- [ ] Sequence call/response pairing is strict LIFO.
+  - Response validation closes only the latest open synchronous call, which can be stricter than free-form sequence drafting.
 
 ---
 

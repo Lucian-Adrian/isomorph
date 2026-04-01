@@ -450,8 +450,8 @@ describe('Sequence Diagram Renderer — advanced', () => {
     expect(svg).toContain('L10,');
   });
 
-  it('renders return relations with dashed lines', () => {
-    const diag = buildDiagram('diagram D : sequence { autoactivation participant A participant B A --> B return "data" }');
+  it('renders explicit response relations with dashed lines', () => {
+    const diag = buildDiagram('diagram D : sequence { autoactivation participant A participant B A --> B B ..> A [label="data"] }');
     const svg = renderSequenceDiagram(diag);
     expect(svg).toContain('data-relation-kind="dependency"');
     // dash array check for dependency relations

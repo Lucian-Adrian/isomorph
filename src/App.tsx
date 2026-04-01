@@ -53,9 +53,10 @@ const REL_TOKENS_BY_KIND: Record<string, string> = {
   requires: '--(',
 };
 
-type SequenceMessageType = 'synchronous' | 'asynchronous' | 'response';
+type SequenceMessageType = 'synchronous' | 'asynchronous' | 'response' | 'self-call';
 
-function inferSequenceMessageType(kind: string): SequenceMessageType {
+function inferSequenceMessageType(kind: string, from?: string, to?: string): SequenceMessageType {
+  if (from && to && from === to) return 'self-call';
   if (kind === 'dependency') return 'response';
   if (kind === 'inheritance') return 'asynchronous';
   return 'synchronous';
@@ -597,6 +598,16 @@ function replaceEntityBody(source: string, entityName: string, newBody: string):
   return source.slice(0, bounds.bodyStart) + innerBody + source.slice(bounds.bodyEnd);
 }
 
+function entitySupportsBody(kind?: string): boolean {
+  if (!kind) return false;
+  return ['class', 'interface', 'enum', 'component', 'node', 'device', 'artifact', 'environment', 'state', 'composite', 'concurrent', 'usecase', 'package'].includes(kind);
+}
+
+function entitySupportsStereotype(kind?: string): boolean {
+  if (!kind) return false;
+  return !['partition', 'system', 'boundary'].includes(kind);
+}
+
 
 
 function updateEntityDeclaration(
@@ -712,10 +723,14 @@ function updateRelationById(
     const inferredKind = (opRaw === '..>' || opRaw === '<..')
       ? 'dependency'
       : (opRaw === '--|>' || opRaw === '<|--' ? 'inheritance' : 'directed-association');
-    const nextType = updates.seqMessageType ?? inferSequenceMessageType(inferredKind);
+    const nextType = updates.seqMessageType ?? inferSequenceMessageType(inferredKind, from, to);
     if (nextType === 'response') op = '..>';
     else if (nextType === 'asynchronous') op = '--|>';
     else op = '-->';
+    if (nextType === 'self-call') {
+      to = from;
+      op = '-->';
+    }
   }
 
   if (updates.label !== undefined) {
@@ -1061,15 +1076,15 @@ export default function App() {
       direction: 'forward',
       fromMult: rel?.fromMult || '',
       toMult: rel?.toMult || '',
-      seqMessageType: activeDiagram?.kind === 'sequence' ? inferSequenceMessageType(kind) : undefined,
+      seqMessageType: activeDiagram?.kind === 'sequence' ? inferSequenceMessageType(kind, rel?.from, rel?.to) : undefined,
     });
   }, [activeDiagram]);
 
   const handleTextRenameRequest = useCallback((oldName: string, _newName: string, type: 'diagram' | 'package') => { setEditingText({ oldName, newName: oldName, type }); }, []);
-  const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string) => {
+  const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string, y?: number) => {
     updateActiveTab(tab => {
-      const relationLine = activeDiagram?.kind === 'sequence'
-        ? `  ${fromEntity} --> ${toEntity}`
+      const relationLine = activeDiagram?.kind === 'sequence' && y !== undefined
+        ? `  ${fromEntity} --> ${toEntity} [y="${y}"]`
         : `  ${fromEntity} --> ${toEntity}`;
       let newSource = insertRelation(tab.source, relationLine);
       newSource = formatDiagramSource(newSource);
@@ -1091,7 +1106,7 @@ export default function App() {
         source = normalizePartitionDeclaration(source, updates.name || entityName);
       } else if (updates.kind === 'system' || updates.kind === 'boundary') {
         source = normalizeBoundaryDeclaration(source, updates.name || entityName, updates.kind);
-      } else if (updates.bodyText !== undefined) {
+      } else if (updates.bodyText !== undefined && entitySupportsBody(updates.kind)) {
         source = replaceEntityBody(source, updates.name || entityName, updates.bodyText);
       }
       source = formatDiagramSource(source);
@@ -2297,7 +2312,7 @@ export default function App() {
               <label>{t('edit.kind')}</label>
               <span style={{ padding: '0.4rem', border: '1px solid transparent' }}>{editingEntity.kind}</span>
             </div>
-            {!['partition', 'system', 'boundary'].includes(editingEntity.kind) && (
+            {entitySupportsStereotype(editingEntity.kind) && (
               <div className="iso-modal-field">
                 <label>{t('edit.stereotype')}</label>
                 <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={t('edit.eg_device')} />
@@ -2414,6 +2429,7 @@ export default function App() {
                   <option value="synchronous">{t('rel.seq_synchronous')}</option>
                   <option value="asynchronous">{t('rel.seq_asynchronous')}</option>
                   <option value="response">{t('rel.seq_response')}</option>
+                  <option value="self-call">{t('rel.seq_self_call')}</option>
                 </select>
               </div>
             ) : (

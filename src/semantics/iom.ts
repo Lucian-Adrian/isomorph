@@ -130,6 +130,7 @@ export interface IOMActivation {
   entity: string;
   kind: 'activate' | 'deactivate' | 'create' | 'destroy';
   afterRelationIdx: number;
+  source?: 'auto' | 'manual' | 'lifecycle';
 }
 
 export interface IOMFragment {

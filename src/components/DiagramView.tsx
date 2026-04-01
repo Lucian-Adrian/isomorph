@@ -19,7 +19,7 @@ interface DiagramViewProps {
   onEntityEditRequest?: (entity: IOMEntity) => void;
   onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string) => void;
   onRelationVerticalMove?: (relationId: string, y: number, seedRelationYs?: Record<string, number>) => void;
-  onRelationAddRequest?: (fromEntity: string, toEntity: string) => void;
+  onRelationAddRequest?: (fromEntity: string, toEntity: string, y?: number) => void;
   onExportSVG?: () => void;
   onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string) => void;
   onTextRenameRequest?: (oldText: string, newText: string, type: 'diagram' | 'package') => void;
@@ -691,7 +691,14 @@ export function DiagramView({
         && diagram?.kind === 'sequence';
       if (drag.entityName && toEntityName && (drag.entityName !== toEntityName || isSequenceSelfReference)) {
         if (onRelationAddRequest) {
-          onRelationAddRequest(drag.entityName, toEntityName);
+          const rect = canvasRef.current?.getBoundingClientRect();
+          let y: number | undefined = undefined;
+          if (rect && canvasRef.current) {
+            const scale = zoom / 100;
+            const wrap = canvasRef.current;
+            y = Math.round((drag.startClientY - rect.top + (wrap.scrollTop || 0) - pan.y) / scale);
+          }
+          onRelationAddRequest(drag.entityName, toEntityName, y);
         }
       }
     }

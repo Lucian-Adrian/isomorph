@@ -30,7 +30,7 @@ export interface ParseResult {
 export class Parser {
   private pos = 0;
   private errors: ParseError[] = [];
-  private readonly contextualIdentifierKinds: TokenKind[] = ['title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber', 'return'];
+  private readonly contextualIdentifierKinds: TokenKind[] = ['title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber'];
 
   constructor(private tokens: Token[]) {}
 
@@ -184,7 +184,6 @@ export class Parser {
     if (this.at('ref')) return this.parseRefDecl();
     if (this.at('activate')) return this.parseActivateDecl(false);
     if (this.at('deactivate')) return this.parseActivateDecl(true);
-    if (this.at('return')) return this.parseReturnDecl();
     if (this.at('create')) return this.parseCreateDecl();
     if (this.at('destroy')) return this.parseDestroyDecl();
     if (this.at('partition')) return this.parsePartitionDecl();
@@ -257,7 +256,12 @@ export class Parser {
     let stereotype: string | undefined;
     if (this.at('STEREO_O')) {
       this.advance();
-      stereotype = this.expect('IDENT').value;
+      const st = this.peek();
+      if (st.kind !== 'GT' && st.kind !== 'EOF') {
+        stereotype = this.advance().value;
+      } else {
+        this.errors.push({ message: `Expected stereotype name after '<<'`, ...this.currentPos() });
+      }
       this.expect('GT');
       this.expect('GT');
     }
@@ -652,15 +656,6 @@ export class Parser {
     return isDeactivate 
       ? { kind: 'DeactivateDecl', entity, span }
       : { kind: 'ActivateDecl', entity, span };
-  }
-
-  private parseReturnDecl(): import('./ast.js').ReturnDecl {
-    const first = this.advance();
-    let label: string | undefined;
-    if (this.at('STRING')) {
-      label = this.advance().value;
-    }
-    return { kind: 'ReturnDecl', label, span: this.spanFrom(first) };
   }
 
   private parseCreateDecl(): import('./ast.js').CreateDecl {

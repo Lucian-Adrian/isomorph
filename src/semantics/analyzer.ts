@@ -13,9 +13,10 @@ import type {
 } from './iom.js';
 import { relTokenToKind } from './iom.js';
 
-type SequenceRelationType = 'synchronous' | 'asynchronous' | 'response';
+type SequenceRelationType = 'synchronous' | 'asynchronous' | 'response' | 'self-call';
 
 function resolveSequenceRelationType(rel: IOMRelation): SequenceRelationType {
+  if (rel.from === rel.to) return 'self-call';
   if (rel.kind === 'dependency') return 'response';
   if (rel.kind === 'inheritance') return 'asynchronous';
   return 'synchronous';
@@ -121,7 +122,6 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
   const callStack: { from: string, to: string, id: string }[] = [];
   const destroyedEntities = new Set<string>();
   let relationDeclCount = 0;
-  let returnDeclCount = 0;
 
   function collectRelationsInner(items: BodyItem[]) {
     for (const item of items) {
@@ -156,7 +156,12 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           if (seqType === 'synchronous') {
             callStack.push({ from: rel.from, to: rel.to, id: rel.id });
             if (config.autoactivation && rel.from !== rel.to) {
-              activations.push({ id: `act_${activations.length}`, entity: rel.to, kind: 'activate', afterRelationIdx: relations.length - 1 });
+              activations.push({ id: `act_${activations.length}`, entity: rel.to, kind: 'activate', afterRelationIdx: relations.length, source: 'auto' });
+            }
+          } else if (seqType === 'asynchronous' || seqType === 'self-call') {
+            if (config.autoactivation) {
+              activations.push({ id: `act_${activations.length}`, entity: rel.to, kind: 'activate', afterRelationIdx: relations.length, source: 'auto' });
+              activations.push({ id: `act_${activations.length}`, entity: rel.to, kind: 'deactivate', afterRelationIdx: relations.length, source: 'auto' });
             }
           } else if (seqType === 'response') {
             const lastCall = callStack[callStack.length - 1];
@@ -170,33 +175,10 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
             } else {
               callStack.pop();
               if (config.autoactivation && rel.from !== rel.to) {
-                activations.push({ id: `act_${activations.length}`, entity: rel.from, kind: 'deactivate', afterRelationIdx: relations.length - 1 });
+                activations.push({ id: `act_${activations.length}`, entity: rel.from, kind: 'deactivate', afterRelationIdx: relations.length, source: 'auto' });
               }
             }
           }
-        }
-      } else if (item.kind === 'ReturnDecl') {
-        const lastCall = callStack.pop();
-        if (lastCall) {
-          if (destroyedEntities.has(lastCall.to)) {
-             errors.push({ message: `Cannot return from a destroyed entity '${lastCall.to}'`, rule: 'SS-24', line: item.span.line, col: item.span.col });
-          }
-          if (destroyedEntities.has(lastCall.from)) {
-             errors.push({ message: `Cannot return to a destroyed entity '${lastCall.from}'`, rule: 'SS-24', line: item.span.line, col: item.span.col });
-          }
-          relations.push({
-            id: `ret_${returnDeclCount++}`,
-            from: lastCall.to,
-            to: lastCall.from,
-            kind: 'dependency',
-            label: item.label,
-            styles: {}
-          });
-          if (config.autoactivation && lastCall.from !== lastCall.to) {
-            activations.push({ id: `act_${activations.length}`, entity: lastCall.to, kind: 'deactivate', afterRelationIdx: relations.length - 1 });
-          }
-        } else {
-          errors.push({ message: `Return statement without an active caller context`, rule: 'SS-16', line: item.span.line, col: item.span.col });
         }
       } else if (item.kind === 'PackageDecl') {
         collectRelationsInner(item.body);
@@ -227,12 +209,12 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         if (!entities.has(item.entity)) {
           errors.push({ message: `Activation references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
         }
-        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'activate', afterRelationIdx: relations.length });
+        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'activate', afterRelationIdx: relations.length, source: 'manual' });
       } else if (item.kind === 'DeactivateDecl') {
         if (!entities.has(item.entity)) {
           errors.push({ message: `Deactivation references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
         }
-        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'deactivate', afterRelationIdx: relations.length });
+        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'deactivate', afterRelationIdx: relations.length, source: 'manual' });
       } else if (item.kind === 'PartitionDecl') {
         const pContent = collectRegionItems(item.body);
         partitions.push({
@@ -245,13 +227,13 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         if (!entities.has(item.entity)) {
           errors.push({ message: `Create references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
         }
-        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'create', afterRelationIdx: relations.length });
+        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'create', afterRelationIdx: relations.length, source: 'lifecycle' });
       } else if (item.kind === 'DestroyDecl') {
         destroyedEntities.add(item.entity);
         if (!entities.has(item.entity)) {
           errors.push({ message: `Destroy references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
         }
-        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'destroy', afterRelationIdx: relations.length });
+        activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'destroy', afterRelationIdx: relations.length, source: 'lifecycle' });
       }
     }
   }

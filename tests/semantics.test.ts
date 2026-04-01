@@ -668,7 +668,7 @@ describe('Semantic Analyzer', () => {
     });
   });
 
-  describe('sequence autoactivation and return', () => {
+  describe('sequence autoactivation and response', () => {
     it('parses autoactivation config keyword', () => {
       const { iom } = analyzeOk('diagram D : sequence { autoactivation participant A }');
       expect(iom.diagrams[0].config.autoactivation).toBe(true);
@@ -681,15 +681,8 @@ describe('Semantic Analyzer', () => {
       expect(act?.entity).toBe('B');
     });
 
-    it('generates dashed relation and deactivate record for return', () => {
-      const { iom } = analyzeOk('diagram D : sequence { autoactivation participant A participant B A --> B return "ok" }');
-      const R = iom.diagrams[0].relations[1];
-      expect(R).toBeDefined();
-      expect(R.from).toBe('B');
-      expect(R.to).toBe('A');
-      expect(R.kind).toBe('dependency');
-      expect(R.label).toBe('ok');
-
+    it('generates deactivate record for explicit response relation', () => {
+      const { iom } = analyzeOk('diagram D : sequence { autoactivation participant A participant B A --> B B ..> A [label="ok"] }');
       const deact = iom.diagrams[0].activations.find(a => a.kind === 'deactivate');
       expect(deact).toBeDefined();
       expect(deact?.entity).toBe('B');
@@ -699,6 +692,12 @@ describe('Semantic Analyzer', () => {
       const result = analyze(parse('diagram D : sequence { participant A participant B B ..> A }').program);
       const ss16 = result.errors.filter(e => e.rule === 'SS-16');
       expect(ss16.length).toBeGreaterThan(0);
+    });
+
+    it('treats return as plain identifier (command removed)', () => {
+      const result = analyze(parse('diagram D : sequence { participant A return }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16).toHaveLength(0);
     });
 
     it('flags unmatched calls without response as SS-16', () => {
@@ -715,6 +714,12 @@ describe('Semantic Analyzer', () => {
 
     it('matches call and response relation pairs in sequence order', () => {
       const result = analyze(parse('diagram D : sequence { participant A participant B A --> B B ..> A }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16).toHaveLength(0);
+    });
+
+    it('allows self-call without requiring response', () => {
+      const result = analyze(parse('diagram D : sequence { participant A A --> A }').program);
       const ss16 = result.errors.filter(e => e.rule === 'SS-16');
       expect(ss16).toHaveLength(0);
     });

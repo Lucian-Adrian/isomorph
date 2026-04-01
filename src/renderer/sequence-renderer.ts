@@ -4,7 +4,8 @@
 import type { IOMDiagram } from '../semantics/iom.js';
 import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
 
-function getSequenceRelationType(rel: { kind: string }): 'synchronous' | 'asynchronous' | 'response' {
+function getSequenceRelationType(rel: { kind: string; from?: string; to?: string }): 'synchronous' | 'asynchronous' | 'response' | 'self-call' {
+  if (rel.from && rel.to && rel.from === rel.to) return 'self-call';
   if (rel.kind === 'dependency') return 'response';
   if (rel.kind === 'inheritance') return 'asynchronous';
   return 'synchronous';
@@ -21,22 +22,15 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   const selfLoopWidth = 40;
   const selfLoopHeight = 30;
   const activationWidth = 12;
+  const nestedActivationOffset = 4;
 
   // Track relation and activation positions
   const relationYCoords = new Map<string, number>();
   const activationYCoords = new Map<string, number>();
   let currentY = paddingY + 80;
 
-  // 1. Position relations and activations sequentially
-  for (let i = 0; i <= diag.relations.length; i++) {
-    // Process activations at this slot
-    for (const act of diag.activations) {
-      if (act.afterRelationIdx === i) {
-        activationYCoords.set(act.id, currentY);
-        // activations don't consume space usually, just markers
-      }
-    }
-    
+  // 1. Position relations sequentially
+  for (let i = 0; i < diag.relations.length; i++) {
     if (i < diag.relations.length) {
       const rel = diag.relations[i];
       const styleY = Number.parseFloat(String(rel.styles?.y ?? ''));
@@ -52,6 +46,19 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
         currentY = Math.max(currentY, relY + step);
       }
     }
+  }
+
+  // 2. Anchor activation events to the previous relation Y in their slot.
+  for (const act of diag.activations) {
+    if (diag.relations.length === 0 || act.afterRelationIdx <= 0) {
+      activationYCoords.set(act.id, paddingY + 80);
+      continue;
+    }
+
+    const relIdx = Math.min(diag.relations.length - 1, act.afterRelationIdx - 1);
+    const rel = diag.relations[relIdx];
+    const y = relationYCoords.get(rel.id);
+    activationYCoords.set(act.id, Number.isFinite(y) ? (y as number) : paddingY + 80);
   }
 
   const useAutonumber = diag.config.autonumber === true;
@@ -99,6 +106,11 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     entityX.set(ent.name, xPos);
 
     const isActor = ent.kind === 'actor' || ent.stereotype === 'actor';
+    const stereotype = (ent.stereotype || '').toLowerCase();
+    const isBoundaryIcon = !isActor && stereotype === 'boundary';
+    const isControlIcon = !isActor && stereotype === 'control';
+    const isEntityIcon = !isActor && stereotype === 'entity';
+    const hasStereotypeIcon = isBoundaryIcon || isControlIcon || isEntityIcon;
     const label = escapeXml(ent.name);
 
     const createY = createYs.get(ent.name);
@@ -109,12 +121,23 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       svg += `      <circle cx="0" cy="-4" r="10" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" />\n`;
       svg += `      <path d="M0,6 v14 M-10,12 h20 M-6,30 l6,-10 l6,10" stroke="#3b82f6" stroke-width="1.5" fill="none" />\n`;
       svg += `      <text x="0" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
+    } else if (hasStereotypeIcon) {
+      svg += `      <circle cx="0" cy="0" r="16" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" />\n`;
+      if (isBoundaryIcon) {
+        svg += `      <line x1="-20" y1="-20" x2="-20" y2="20" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="2" />\n`;
+        svg += `      <line x1="-20" y1="0" x2="-16" y2="0" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="2" />\n`;
+      } else if (isControlIcon) {
+        svg += `      <path d="M-1,-17 l9,-7 M-1,-17 l9,7" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="2" fill="none" stroke-linecap="round" />\n`;
+      } else if (isEntityIcon) {
+        svg += `      <line x1="-16" y1="17" x2="16" y2="17" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="2" />\n`;
+      }
+      svg += `      <text x="0" y="48" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
     } else {
       svg += `      <rect x="-60" y="-20" width="120" height="36" rx="6" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" />\n`;
       svg += `      <text x="0" y="4" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
     }
 
-    const lifelineStart = isActor ? 52 : 20;
+    const lifelineStart = (isActor || hasStereotypeIcon) ? 52 : 20;
     const destY = destroyYs.get(ent.name);
     const hasDestroy = destY !== undefined;
     
@@ -130,7 +153,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       svg += `      <path d="M${-crossSize},${lifelineEnd - crossSize} L${crossSize},${lifelineEnd + crossSize} M${crossSize},${lifelineEnd - crossSize} L${-crossSize},${lifelineEnd + crossSize}" stroke="var(--iso-text-muted, #94a3b8)" stroke-width="2" />\n`;
     }
 
-    if (!isActor && !hasDestroy) {
+    if (!isActor && !hasStereotypeIcon && !hasDestroy) {
       const bottomY = diagramHeight - 30 - boxAbsoluteY;
       svg += `      <rect x="-60" y="${bottomY}" width="120" height="30" rx="6" fill="var(--iso-bg-blue, #eff6ff)" stroke="#3b82f6" stroke-width="1.5" />\n`;
       svg += `      <text x="0" y="${bottomY + 19}" text-anchor="middle" font-size="12" font-weight="600" fill="var(--iso-text)">${label}</text>\n`;
@@ -151,44 +174,107 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   }
 
   // --- Activation Bars ---
-  const activeRanges = new Map<string, number[]>(); // entity -> array of startYs
-  for (const act of diag.activations) {
-    const x = entityX.get(act.entity);
-    if (x === undefined) continue;
-    const y = activationYCoords.get(act.id) || 0;
-    
-    // Also track activation interaction Y so it's a valid stopping point
+  type ActivationBar = { entity: string; startY: number; endY: number; depth: number };
+  const bars: ActivationBar[] = [];
+
+  // Auto activation behaves like bracket matching by rendered Y order:
+  // synchronous call opens, response closes, nested calls increase depth.
+  if (diag.config.autoactivation) {
+    const orderedRelations = diag.relations
+      .map((rel, index) => ({ rel, index, y: relationYCoords.get(rel.id) ?? 0 }))
+      .sort((a, b) => (a.y - b.y) || (a.index - b.index));
+
+    const callStack: Array<{ from: string; to: string; startY: number; depth: number }> = [];
+    const depthByEntity = new Map<string, number>();
+
+    for (const entry of orderedRelations) {
+      const rel = entry.rel;
+      const y = entry.y;
+      const seqType = getSequenceRelationType(rel);
+
+      if (rel.label?.toLowerCase() === 'create' || rel.label?.toLowerCase() === 'new') {
+        // "create" is treated as an asynchronous call that doesn't push to the call stack.
+        // It's handled by drawing the lifeline box lower at `createY`.
+        // We do *not* start an activation bar for `rel.to` by default, but we could if we wanted.
+      } else if (rel.label?.toLowerCase() === 'destroy' || rel.label?.toLowerCase() === 'delete') {
+        // "destroy" is treated as an asynchronous call.
+        // It's handled by drawing an X at the `destroyY` location.
+      } else if (seqType === 'synchronous' && rel.from !== rel.to) {
+        const depth = depthByEntity.get(rel.to) ?? 0;
+        callStack.push({ from: rel.from, to: rel.to, startY: y, depth });
+        depthByEntity.set(rel.to, depth + 1);
+      } else if (seqType === 'response') {
+        const top = callStack[callStack.length - 1];
+        if (top && top.from === rel.to && top.to === rel.from) {
+          callStack.pop();
+          depthByEntity.set(rel.to, Math.max(0, (depthByEntity.get(rel.to) ?? 1) - 1));
+          bars.push({ entity: rel.to, startY: top.startY, endY: y, depth: top.depth });
+        }
+      } else if (seqType === 'asynchronous' || seqType === 'self-call') {
+        const depth = depthByEntity.get(rel.to) ?? 0;
+        bars.push({ entity: rel.to, startY: y, endY: y + 24, depth });
+      }
+    }
+
+    while (callStack.length > 0) {
+      const unclosed = callStack.pop()!;
+      const fallback = entityLastY.has(unclosed.to)
+        ? Math.max(unclosed.startY + 30, entityLastY.get(unclosed.to)! + 20)
+        : diagramHeight - 30;
+      bars.push({ entity: unclosed.to, startY: unclosed.startY, endY: fallback, depth: unclosed.depth });
+    }
+  }
+
+  // Manual activate/deactivate should still work even with autoactivation enabled.
+  const manualEvents = diag.activations
+    .filter(act => act.kind === 'activate' || act.kind === 'deactivate')
+    .filter(act => act.source === 'manual' || !diag.config.autoactivation)
+    .map((act, idx) => ({
+      act,
+      idx,
+      y: activationYCoords.get(act.id) ?? 0,
+    }))
+    .sort((a, b) => (a.y - b.y) || (a.idx - b.idx));
+
+  const manualStacks = new Map<string, number[]>();
+  for (const entry of manualEvents) {
+    const act = entry.act;
+    const y = entry.y;
+
     if (!entityLastY.has(act.entity) || y > entityLastY.get(act.entity)!) entityLastY.set(act.entity, y);
 
     if (act.kind === 'activate') {
-        let startY = y;
-        const createY = createYs.get(act.entity);
-        const boxAbsY = createY !== undefined ? createY : paddingY;
-        const boxBottom = boxAbsY + 16;
-        if (startY < boxBottom) {
-           startY = boxBottom + 4;
-        }
-        const stack = activeRanges.get(act.entity) || [];
-        stack.push(startY);
-        activeRanges.set(act.entity, stack);
+      let startY = y;
+      const createY = createYs.get(act.entity);
+      const boxAbsY = createY !== undefined ? createY : paddingY;
+      const boxBottom = boxAbsY + 16;
+      if (startY < boxBottom) {
+        startY = boxBottom + 4;
+      }
+      const stack = manualStacks.get(act.entity) || [];
+      stack.push(startY);
+      manualStacks.set(act.entity, stack);
     } else if (act.kind === 'deactivate') {
-        const stack = activeRanges.get(act.entity);
-        if (stack && stack.length > 0) {
-             const startY = stack.pop()!;
-             svg += `    <rect x="${x - activationWidth/2}" y="${startY - 5}" width="${activationWidth}" height="${Math.max(10, y - startY + 10)}" rx="2" fill="var(--iso-bg-blue, #e0e7ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" style="pointer-events: none" />\n`;
-        }
+      const stack = manualStacks.get(act.entity);
+      if (stack && stack.length > 0) {
+        const startY = stack.pop()!;
+        bars.push({ entity: act.entity, startY, endY: y, depth: 0 });
+      }
     }
   }
-  // Close unclosed activations
-  for (const [entity, stack] of activeRanges.entries()) {
-     const x = entityX.get(entity);
-     if (x !== undefined) {
-         for (let i = 0; i < stack.length; i++) {
-             const startY = stack[i];
-             const endY = entityLastY.has(entity) ? Math.max(startY + 30, entityLastY.get(entity)! + 20) : diagramHeight - 30;
-             svg += `    <rect x="${x - activationWidth/2}" y="${startY - 5}" width="${activationWidth}" height="${Math.max(10, endY - startY + 5)}" rx="2" fill="var(--iso-bg-blue, #e0e7ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" style="pointer-events: none" />\n`;
-         }
-     }
+
+  for (const [entity, stack] of manualStacks.entries()) {
+    for (const startY of stack) {
+      const endY = entityLastY.has(entity) ? Math.max(startY + 30, entityLastY.get(entity)! + 20) : diagramHeight - 30;
+      bars.push({ entity, startY, endY, depth: 0 });
+    }
+  }
+
+  for (const bar of bars) {
+    const x = entityX.get(bar.entity);
+    if (x === undefined) continue;
+    const shiftedX = x + (bar.depth * nestedActivationOffset);
+    svg += `    <rect x="${shiftedX - activationWidth/2}" y="${bar.startY - 5}" width="${activationWidth}" height="${Math.max(10, bar.endY - bar.startY + 10)}" rx="2" fill="var(--iso-bg-blue, #e0e7ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" style="pointer-events: none" />\n`;
   }
 
   // --- Messages (Relations) ---
@@ -214,7 +300,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       const loopRight = startX + selfLoopWidth;
       svg += `      <path d="M${startX},${y1} H${loopRight} V${y2} H${startX}" stroke="transparent" stroke-width="15" fill="none" style="cursor: pointer" />\n`;
       svg += `      <path d="M${startX},${y1} H${loopRight} V${y2} H${startX}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none"${dash} />\n`;
-      if (seqType === 'synchronous') {
+      if (seqType === 'synchronous' || seqType === 'self-call') {
         svg += `      <polygon points="${startX},${y2} ${startX + 8},${y2 - 4} ${startX + 8},${y2 + 4}" fill="var(--iso-text-muted)" />\n`;
       } else {
         svg += `      <path d="M${startX + 9},${y2 - 5} L${startX},${y2} L${startX + 9},${y2 + 5}" stroke="var(--iso-text-muted)" stroke-width="1.5" fill="none" />\n`;
