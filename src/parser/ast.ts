@@ -235,6 +235,8 @@ export interface LiteralExpr {
 export interface FragmentDecl {
   kind: 'FragmentDecl';
   fragmentKind: 'alt' | 'loop' | 'opt' | 'par' | 'break' | 'critical';
+  name?: string;
+  conditionCount?: number;
   label?: string;
   body: BodyItem[];
   elseBlocks?: { label?: string; body: BodyItem[] }[];

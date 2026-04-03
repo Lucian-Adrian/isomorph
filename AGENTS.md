@@ -58,7 +58,4 @@ Any new feature/fix must include documentation updates when applicable:
 - diagram-specific docs updates if user-visible behavior changed,
 - examples/tests updated for parity.
 
-## Current Session Focus (from this chat)
-- Prioritize P0 stabilization first.
-- Partition stability and rename/edit behavior are in active scope.
 - Keep verification strict: old + new tests, build pass, and manual test instructions after each batch.

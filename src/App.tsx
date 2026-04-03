@@ -529,7 +529,7 @@ function removeLayoutAnnotation(source: string, entityName: string): string {
   return source.replace(annoRx, '');
 }
 
-const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object)';
+const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object|alt|loop|opt|break|critical|par)';
 
 function findEntityBounds(source: string, entityName: string): { start: number, end: number, bodyStart: number, bodyEnd: number } | null {
   const sigRx = new RegExp(`^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+${escapeRegex(entityName)}\\b`, 'm');
@@ -559,16 +559,28 @@ function findEntityBounds(source: string, entityName: string): { start: number, 
   }
 
   let braceCount = 1;
+  let finalEnd = -1;
   for (let i = searchStart; i < source.length; i++) {
     if (source[i] === '{') {
       braceCount++;
     } else if (source[i] === '}') {
       braceCount--;
       if (braceCount === 0) {
-        let end = i + 1;
-        if (source[end] === '\r') end++;
-        if (source[end] === '\n') end++;
-        return { start: match.index, end, bodyStart, bodyEnd: i };
+        let currentEnd = i + 1;
+        // Check for 'else' block immediately following the closing brace
+        const afterBrace = source.slice(currentEnd);
+        const elseMatch = afterBrace.match(/^\s*else\s*\{/);
+        if (elseMatch) {
+          // Move the search forward to inside the 'else' block's brace
+          i = currentEnd + elseMatch.index! + elseMatch[0].length - 1;
+          braceCount = 1;
+          continue;
+        }
+
+        finalEnd = currentEnd;
+        if (source[finalEnd] === '\r') finalEnd++;
+        if (source[finalEnd] === '\n') finalEnd++;
+        return { start: match.index, end: finalEnd, bodyStart, bodyEnd: i };
       }
     }
   }

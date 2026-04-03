@@ -258,6 +258,25 @@ export function DiagramView({
             onEntityEditRequest(current);
             return;
           }
+          
+          const frag = diagram.fragments?.find(f => f.id === entityName);
+          if (frag) {
+            e.preventDefault();
+            e.stopPropagation();
+            onEntityEditRequest({
+              id: frag.id,
+              name: frag.id,
+              kind: frag.kind,
+              isAbstract: false,
+              fields: [],
+              methods: [],
+              enumValues: [],
+              extendsNames: [],
+              implementsNames: [],
+              styles: {},
+            } as any);
+            return;
+          }
 
           const isDefaultUsecaseBoundary = diagram.kind === 'usecase' && entityGroup.getAttribute('data-default-usecase-boundary') === 'true';
           if (isDefaultUsecaseBoundary) {

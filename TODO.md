@@ -293,6 +293,7 @@ High-confidence current state:
   - partition layout semantic check regression
   - non-class edge anchoring geometry
   - deployment nested node rendering
+  - nested component port routing
   - source rewrite formatting idempotence
 
 ## P3 UX and Quality

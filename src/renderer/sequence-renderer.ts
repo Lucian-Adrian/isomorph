@@ -330,6 +330,26 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   }
 
   // --- Fragments ---
+  // Pre-calculate subset depths for nicely nested rendering of overlapping fragments
+  const fragDepths = new Map<string, number>();
+  for (let i = 0; i < diag.fragments.length; i++) {
+    let depth = 0;
+    const f1 = diag.fragments[i];
+    const rels1 = new Set([...f1.relationIds, ...(f1.elseBlocks?.flatMap(b => b.relationIds) ?? [])]);
+    for (let j = 0; j < diag.fragments.length; j++) {
+      if (i === j) continue;
+      const f2 = diag.fragments[j];
+      const rels2 = new Set([...f2.relationIds, ...(f2.elseBlocks?.flatMap(b => b.relationIds) ?? [])]);
+      
+      // If f1's relations are a strict subset of f2's, or if they are identical but j < i (tie breaker)
+      let isSubset = f1.relationIds.length > 0 && Array.from(rels1).every(r => rels2.has(r));
+      if (isSubset && (rels1.size < rels2.size || (rels1.size === rels2.size && j < i))) {
+        depth++;
+      }
+    }
+    fragDepths.set(f1.id, depth);
+  }
+
   for (const frag of diag.fragments) {
     let minY = Infinity;
     let maxY = -Infinity;
@@ -339,10 +359,13 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       if (y !== undefined) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
     }
     
-    let fragTop = minY !== Infinity ? minY - 35 : 50;
-    let fragBottom = maxY !== -Infinity ? maxY + 35 : 150;
-    let fragLeft = 15;
-    let fragRight = width - 15;
+const depth = fragDepths.get(frag.id) || 0;
+      const inset = 15 + (depth * 8);
+
+      let fragTop = minY !== Infinity ? minY - 35 + (depth * 6) : 50;
+      let fragBottom = maxY !== -Infinity ? maxY + 35 - (depth * 6) : 150;
+      let fragLeft = inset;
+      let fragRight = width - inset;
     let fWidth = fragRight - fragLeft;
     let fHeight = fragBottom - fragTop;
     
@@ -383,23 +406,36 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
     svg += `      <text x="6" y="12" font-size="9" font-weight="bold" fill="${textFill}" style="pointer-events: none;">${escapeXml(tabText)}</text>\n`;
     
     if (frag.elseBlocks && frag.elseBlocks.length > 0) {
-      let lastY = -Infinity;
-      for (const rid of frag.relationIds) {
-         const y = relationYCoords.get(rid);
-         if (y !== undefined) lastY = Math.max(lastY, y);
+        let currentRels = frag.relationIds;
+        let lastValidSepY = 30; // fallback inside the fragment
+
+        for (const block of frag.elseBlocks) {
+          let lastY = -Infinity;
+          for (const rid of currentRels) {
+             const y = relationYCoords.get(rid);
+             if (y !== undefined) lastY = Math.max(lastY, y);
+          }
+          
+          let sepY = lastValidSepY;
+          if (lastY !== -Infinity && !frag.position) {
+            sepY = lastY + 28 - fragTop;
+            lastValidSepY = sepY + 30; // advance fallback
+          } else if (!frag.position) {
+            sepY = lastValidSepY;
+            lastValidSepY += 30;
+          }
+
+          if (!frag.position) {
+            svg += `      <line x1="0" y1="${sepY}" x2="${fWidth}" y2="${sepY}" stroke="${strokeColor}" stroke-width="1" stroke-dasharray="8,4" style="pointer-events: none;" />\n`;
+            if (block.label) svg += `      <text x="10" y="${sepY + 15}" font-size="9" font-style="italic" fill="${textFill}" style="pointer-events: none;">[${escapeXml(block.label)}]</text>\n`;
+          }
+          
+          currentRels = block.relationIds;
+        }
       }
-      if (lastY !== -Infinity && !frag.position) {
-        const sepY = lastY + 28 - fragTop;
-        svg += `      <line x1="0" y1="${sepY}" x2="${fWidth}" y2="${sepY}" stroke="${strokeColor}" stroke-width="1" stroke-dasharray="8,4" style="pointer-events: none;" />\n`;
-        if (frag.elseBlocks[0].label) svg += `      <text x="10" y="${sepY + 15}" font-size="9" font-style="italic" fill="${textFill}" style="pointer-events: none;">[${escapeXml(frag.elseBlocks[0].label)}]</text>\n`;
-      }
-    }
     
-    svg += `      <rect data-resize-handle="e" x="${fWidth - 4}" y="${fHeight / 2 - 10}" width="8" height="20" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ew-resize"/>\n`;
-    svg += `      <rect data-resize-handle="s" x="${fWidth / 2 - 10}" y="${fHeight - 4}" width="20" height="8" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ns-resize"/>\n`;
-    svg += `      <rect data-resize-handle="se" x="${fWidth - 6}" y="${fHeight - 6}" width="12" height="12" rx="3" fill="#2563eb" opacity="0.75" style="cursor: nwse-resize"/>\n`;
-    svg += `    </g>\n`;
-  }
+      svg += `    </g>\n`;
+    }
 
   svg += `  </g>\n`;
   svg += caption.svg;

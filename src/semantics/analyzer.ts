@@ -206,7 +206,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         }
 
         fragments.push({
-          id: `frag_${fragments.length + 1}`,
+          id: item.name || `frag_${fragments.length + 1}`,
           kind: item.fragmentKind,
           label: item.label,
           relationIds: mainRelIds,

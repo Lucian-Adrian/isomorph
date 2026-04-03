@@ -626,22 +626,55 @@ export class Parser {
   private parseFragmentDecl(): FragmentDecl {
     const startToken = this.peek();
     const fragmentKind = this.advance().kind as any;
+    
+    let name: string | undefined;
+    if (this.isIdentifierLikeToken(this.peek().kind)) {
+      name = this.advance().value;
+    }
+
+    let conditionCount: number | undefined;
+    if (this.at('LPAREN') && this.peek(1).kind === 'NUMBER' && this.peek(2).kind === 'RPAREN') {
+      this.advance(); // (
+      conditionCount = parseInt(this.advance().value, 10);
+      this.advance(); // )
+    }
+
     let label: string | undefined;
-    if (this.at('STRING')) label = this.advance().value;
+    if (this.at('STEREO_O')) {
+      this.advance();
+      if (this.peek().kind !== 'GT' && this.peek().kind !== 'EOF') {
+        label = this.advance().value;
+      }
+      if (this.at('GT')) this.advance(); else this.expect('GT');
+      if (this.at('GT')) this.advance(); else this.expect('GT');
+    } else if (this.at('STRING')) {
+      label = this.advance().value;
+    }
 
     this.expect('LBRACE');
     const body = this.parseDiagramBody();
     this.expect('RBRACE');
 
     const elseBlocks: { label?: string; body: BodyItem[] }[] = [];
-    while (this.at('else')) {
-      this.advance();
+    let count = 1;
+    while (this.at('else') || this.at('STEREO_O') || (!this.at('else') && !this.at('STEREO_O') && conditionCount !== undefined && count < conditionCount && (this.at('LBRACE') || this.at('STRING')))) {
+      if (this.at('else')) this.advance();
       let elseLabel: string | undefined;
-      if (this.at('STRING')) elseLabel = this.advance().value;
+      if (this.at('STEREO_O')) {
+        this.advance();
+        if (this.peek().kind !== 'GT' && this.peek().kind !== 'EOF') {
+          elseLabel = this.advance().value;
+        }
+        if (this.at('GT')) this.advance(); else this.expect('GT');
+        if (this.at('GT')) this.advance(); else this.expect('GT');
+      } else if (this.at('STRING')) {
+        elseLabel = this.advance().value;
+      }
       this.expect('LBRACE');
       const elseBody = this.parseDiagramBody();
       this.expect('RBRACE');
       elseBlocks.push({ label: elseLabel, body: elseBody });
+      count++;
     }
 
     // Optional 'end' to close fragment if not using braces, but Isomorph prefers braces.
@@ -651,6 +684,8 @@ export class Parser {
     return {
       kind: 'FragmentDecl',
       fragmentKind,
+      name,
+      conditionCount,
       label,
       body,
       elseBlocks: elseBlocks.length > 0 ? elseBlocks : undefined,
