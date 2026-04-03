@@ -139,6 +139,7 @@ export interface IOMFragment {
   label?: string;
   relationIds: string[];
   elseBlocks?: { label?: string; relationIds: string[] }[];
+  position?: Position;
 }
 
 export interface IOMConfig {

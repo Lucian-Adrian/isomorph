@@ -211,8 +211,8 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
         const top = callStack[callStack.length - 1];
         if (top && top.from === rel.to && top.to === rel.from) {
           callStack.pop();
-          depthByEntity.set(rel.to, Math.max(0, (depthByEntity.get(rel.to) ?? 1) - 1));
-          bars.push({ entity: rel.to, startY: top.startY, endY: y, depth: top.depth });
+          depthByEntity.set(top.to, Math.max(0, (depthByEntity.get(top.to) ?? 1) - 1));
+          bars.push({ entity: top.to, startY: top.startY, endY: y, depth: top.depth });
         }
       } else if (seqType === 'asynchronous' || seqType === 'self-call') {
         const depth = depthByEntity.get(rel.to) ?? 0;
@@ -338,30 +338,67 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
       const y = relationYCoords.get(rid);
       if (y !== undefined) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
     }
-    if (minY !== Infinity) {
-      const fragTop = minY - 35;
-      const fragBottom = maxY + 35;
-      const fragLeft = 15;
-      const fragRight = width - 15;
-      svg += `    <rect x="${fragLeft}" y="${fragTop}" width="${fragRight - fragLeft}" height="${fragBottom - fragTop}" fill="rgba(99, 102, 241, 0.03)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" rx="4" />\n`;
-      const tabText = `${frag.kind.toUpperCase()} ${frag.label ? `[${frag.label}]` : ''}`.trim();
-      const tabW = Math.max(40, tabText.length * 6 + 12);
-      svg += `    <path d="M${fragLeft},${fragTop} h${tabW} l5,5 v12 h-${tabW + 5} z" fill="var(--iso-bg-blue, #eff6ff)" stroke="var(--iso-pkg-border, #6366f1)" stroke-width="1" />\n`;
-      svg += `    <text x="${fragLeft + 6}" y="${fragTop + 12}" font-size="9" font-weight="bold" fill="var(--iso-pkg-text, #3730a3)">${escapeXml(tabText)}</text>\n`;
-      
-      if (frag.elseBlocks && frag.elseBlocks.length > 0) {
-        let lastY = -Infinity;
-        for (const rid of frag.relationIds) {
-           const y = relationYCoords.get(rid);
-           if (y !== undefined) lastY = Math.max(lastY, y);
-        }
-        if (lastY !== -Infinity) {
-          const sepY = lastY + 28;
-          svg += `    <line x1="${fragLeft}" y1="${sepY}" x2="${fragRight}" y2="${sepY}" stroke="var(--iso-pkg-border)" stroke-width="1" stroke-dasharray="8,4" />\n`;
-          if (frag.elseBlocks[0].label) svg += `    <text x="${fragLeft + 10}" y="${sepY + 15}" font-size="9" font-style="italic" fill="var(--iso-text-muted)">[${escapeXml(frag.elseBlocks[0].label)}]</text>\n`;
-        }
+    
+    let fragTop = minY !== Infinity ? minY - 35 : 50;
+    let fragBottom = maxY !== -Infinity ? maxY + 35 : 150;
+    let fragLeft = 15;
+    let fragRight = width - 15;
+    let fWidth = fragRight - fragLeft;
+    let fHeight = fragBottom - fragTop;
+    
+    if (frag.position) {
+      fragLeft = frag.position.x;
+      fragTop = frag.position.y;
+      if (frag.position.w !== undefined) fWidth = frag.position.w;
+      if (frag.position.h !== undefined) fHeight = frag.position.h;
+      fragRight = fragLeft + fWidth;
+      fragBottom = fragTop + fHeight;
+    }
+    
+    let strokeColor = "#6366f1";
+    let fillColor = "rgba(99, 102, 241, 0.05)";
+    let textFill = "#3730a3";
+    let tabFill = "#eff6ff";
+    
+    switch (frag.kind) {
+      case 'alt':
+        strokeColor = "#0ea5e9"; fillColor = "rgba(14, 165, 233, 0.05)"; textFill = "#0369a1"; tabFill = "#e0f2fe"; break;
+      case 'loop':
+        strokeColor = "#f59e0b"; fillColor = "rgba(245, 158, 11, 0.05)"; textFill = "#b45309"; tabFill = "#fef3c7"; break;
+      case 'opt':
+        strokeColor = "#22c55e"; fillColor = "rgba(34, 197, 94, 0.05)"; textFill = "#15803d"; tabFill = "#dcfce7"; break;
+      case 'break':
+      case 'critical':
+        strokeColor = "#ef4444"; fillColor = "rgba(239, 68, 68, 0.05)"; textFill = "#b91c1c"; tabFill = "#fee2e2"; break;
+      case 'par':
+        strokeColor = "#8b5cf6"; fillColor = "rgba(139, 92, 246, 0.05)"; textFill = "#6d28d9"; tabFill = "#f3e8ff"; break;
+    }
+
+    svg += `    <g data-entity-name="${frag.id}" transform="translate(${fragLeft},${fragTop})">\n`;
+    svg += `      <rect fill="transparent" x="0" y="0" width="${fWidth}" height="${fHeight}" style="cursor: move; pointer-events: all;" />\n`;
+    svg += `      <rect x="0" y="0" width="${fWidth}" height="${fHeight}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1.5" rx="4" style="pointer-events: none;" />\n`;
+    const tabText = `${frag.kind.toUpperCase()} ${frag.label ? `[${frag.label}]` : ''}`.trim();
+    const tabW = Math.max(40, tabText.length * 6 + 12);
+    svg += `      <path d="M0,0 h${tabW} l5,5 v12 h-${tabW + 5} z" fill="${tabFill}" stroke="${strokeColor}" stroke-width="1.5" style="pointer-events: none;" />\n`;
+    svg += `      <text x="6" y="12" font-size="9" font-weight="bold" fill="${textFill}" style="pointer-events: none;">${escapeXml(tabText)}</text>\n`;
+    
+    if (frag.elseBlocks && frag.elseBlocks.length > 0) {
+      let lastY = -Infinity;
+      for (const rid of frag.relationIds) {
+         const y = relationYCoords.get(rid);
+         if (y !== undefined) lastY = Math.max(lastY, y);
+      }
+      if (lastY !== -Infinity && !frag.position) {
+        const sepY = lastY + 28 - fragTop;
+        svg += `      <line x1="0" y1="${sepY}" x2="${fWidth}" y2="${sepY}" stroke="${strokeColor}" stroke-width="1" stroke-dasharray="8,4" style="pointer-events: none;" />\n`;
+        if (frag.elseBlocks[0].label) svg += `      <text x="10" y="${sepY + 15}" font-size="9" font-style="italic" fill="${textFill}" style="pointer-events: none;">[${escapeXml(frag.elseBlocks[0].label)}]</text>\n`;
       }
     }
+    
+    svg += `      <rect data-resize-handle="e" x="${fWidth - 4}" y="${fHeight / 2 - 10}" width="8" height="20" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ew-resize"/>\n`;
+    svg += `      <rect data-resize-handle="s" x="${fWidth / 2 - 10}" y="${fHeight - 4}" width="20" height="8" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ns-resize"/>\n`;
+    svg += `      <rect data-resize-handle="se" x="${fWidth - 6}" y="${fHeight - 6}" width="12" height="12" rx="3" fill="#2563eb" opacity="0.75" style="cursor: nwse-resize"/>\n`;
+    svg += `    </g>\n`;
   }
 
   svg += `  </g>\n`;

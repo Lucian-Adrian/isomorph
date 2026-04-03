@@ -376,6 +376,12 @@ function getStencilsForKind(kind?: DiagramKind) {
       return [
         { label: 'Actor', keyword: 'actor' },
         { label: 'Participant', keyword: 'participant' },
+        { label: 'Alt Fragment', keyword: 'alt' },
+        { label: 'Loop Fragment', keyword: 'loop' },
+        { label: 'Opt Fragment', keyword: 'opt' },
+        { label: 'Par Fragment', keyword: 'par' },
+        { label: 'Break Fragment', keyword: 'break' },
+        { label: 'Critical Fragment', keyword: 'critical' },
       ];
     case 'state':
       return [
@@ -912,6 +918,8 @@ export default function App() {
   const getPlacedItemPosition = useCallback((name: string) => {
     const partitionPos = activeDiagram?.partitions.find(p => p.name === name)?.position;
     if (partitionPos) return partitionPos;
+    const fragmentPos = activeDiagram?.fragments?.find(f => f.id === name)?.position;
+    if (fragmentPos) return fragmentPos;
     return activeDiagram?.entities.get(name)?.position;
   }, [activeDiagram]);
 

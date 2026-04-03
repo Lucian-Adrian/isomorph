@@ -261,13 +261,20 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
     for (const item of items) {
       if (item.kind === 'LayoutAnnotation') {
         const e = entities.get(item.entity);
-        if (e) e.position = { x: item.x, y: item.y, w: item.w, h: item.h };
-        else {
+        if (e) {
+          e.position = { x: item.x, y: item.y, w: item.w, h: item.h };
+        } else {
           const p = packages.find(pkg => pkg.name === item.entity);
-          if (p) p.position = { x: item.x, y: item.y, w: item.w, h: item.h };
-          else {
+          if (p) {
+            p.position = { x: item.x, y: item.y, w: item.w, h: item.h };
+          } else {
             const part = partitions.find(part => part.name === item.entity);
-            if (part) part.position = { x: item.x, y: item.y, w: item.w, h: item.h };
+            if (part) {
+              part.position = { x: item.x, y: item.y, w: item.w, h: item.h };
+            } else {
+              const frag = fragments.find(f => f.id === item.entity);
+              if (frag) frag.position = { x: item.x, y: item.y, w: item.w, h: item.h };
+            }
           }
         }
       } else if (item.kind === 'PackageDecl') {
@@ -367,6 +374,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         && !entities.has(item.entity)
         && !packages.some(p => p.name === item.entity)
         && !partitions.some(part => part.name === item.entity)
+        && !fragments.some(f => f.id === item.entity)
       ) {
         errors.push({ message: `Layout annotation references unknown entity or package '${item.entity}'`, rule: 'SS-10', line: item.span.line, col: item.span.col });
       }

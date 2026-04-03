@@ -281,7 +281,7 @@ High-confidence current state:
   - sequence relation modal now exposes synchronous/asynchronous/response types mapped to relation operators (`-->`, `--|>`, `..>`) and provides UI actions to insert create/destroy lifecycle commands for the target participant.
 - [ ] Add sequence fragment semantic constraints aligned with intended SS-15+ rules.
 - [ ] Implement visual UI controls/dragging for Sequence Diagram Fragments (alt, loop, opt, etc.) with custom coloring support.
-- [ ] Implement visual tooling context menus or specialized drag modes to draw `create` and `destroy` arrows directly via the canvas UI mapping.
+- [-] Implement visual tooling context menus or specialized drag modes to draw `create` and `destroy` arrows directly via the canvas UI mapping.
 - [x] Upgrade circle/lollipop notation from decorative to semantic.
   - add operator-level semantics and endpoint routing for lollipop/socket connectors.
 
