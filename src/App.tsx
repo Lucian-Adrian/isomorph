@@ -813,7 +813,7 @@ export default function App() {
   });
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [mobilePane, setMobilePane] = useState<'code' | 'diagram'>('code');
-  const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string }) | null>(null);
+  const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string; elseBlocks?: { label?: string }[] }) | null>(null);
   const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string, seqMessageType?: SequenceMessageType } | null>(null);
   const [errorsCopied, setErrorsCopied] = useState(false);
@@ -1120,7 +1120,7 @@ export default function App() {
     });
   }, [updateActiveTab, activeDiagram]);
 
-  const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean; bodyText?: string; kind?: string }) => {
+  const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean; bodyText?: string; kind?: string; elseBlocks?: { label?: string }[] }) => {
     updateActiveTab(tab => {
       let sourceIn = tab.source;
       const nextName = updates.name || entityName;
@@ -1129,7 +1129,70 @@ export default function App() {
         sourceIn = removeLayoutAnnotation(promoted.source, entityName);
       }
 
-      let source = updateEntityDeclaration(sourceIn, entityName, updates);
+      let source = sourceIn;
+      const isFragment = ['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(updates.kind || '');
+      if (isFragment) {
+        try {
+          const ast = parse(sourceIn);
+          let foundFrag: any = null;
+          let fragIndex = 0;
+          const walk = (items: any[]) => {
+            if (foundFrag) return;
+            for (const item of items) {
+              if (item.kind === 'PackageDecl') walk(item.body);
+              else if (item.kind === 'FragmentDecl') {
+                const id = item.name || `frag_${fragIndex + 1}`;
+                fragIndex++;
+                if (id === entityName) { foundFrag = item; }
+                walk(item.body);
+                if (item.elseBlocks) {
+                  for (const b of item.elseBlocks) walk(b.body);
+                }
+              }
+            }
+          };
+          walk(ast.program.diagrams[tab.activeDiagramIdx]?.body || []);
+          if (foundFrag && foundFrag.span) {
+            const extractBodyTextSafe = (src: string, body: any[]) => {
+              if (!body || body.length === 0) return '';
+              let minStart = Infinity;
+              let maxEnd = -1;
+              for (const item of body) {
+                if (item.span) {
+                  if (item.span.start < minStart) minStart = item.span.start;
+                  if (item.span.end > maxEnd) maxEnd = item.span.end;
+                }
+              }
+              if (minStart === Infinity || maxEnd === -1) return '';
+              return src.slice(minStart, maxEnd);
+            };
+
+            const stereo = updates.stereotype ? ` <<${updates.stereotype}>>` : '';
+            let newText = `${updates.kind} ${nextName}${stereo} {\n  `;
+            newText += extractBodyTextSafe(sourceIn, foundFrag.body) + '\n';
+            const newElseBlocks = updates.elseBlocks || [];
+            newElseBlocks.forEach((newB: any, i: number) => {
+              const oldB = foundFrag.elseBlocks?.[i];
+              const bodyText = oldB ? extractBodyTextSafe(sourceIn, oldB.body) : '';
+              newText += `} else${newB.label ? ` <<${newB.label}>>` : ''} {\n  ${bodyText}\n`;
+            });
+            newText += `}`;
+            source = sourceIn.slice(0, foundFrag.span.start) + newText + sourceIn.slice(foundFrag.span.end);
+            
+            if (nextName !== entityName) {
+              const identPattern = new RegExp(`\\b${escapeRegex(entityName)}\\b`, 'g');
+              source = source.replace(identPattern, nextName);
+            }
+          } else {
+             source = updateEntityDeclaration(sourceIn, entityName, updates);
+          }
+        } catch (e) {
+          source = updateEntityDeclaration(sourceIn, entityName, updates);
+        }
+      } else {
+        source = updateEntityDeclaration(sourceIn, entityName, updates);
+      }
+
       if (updates.kind === 'partition') {
         source = normalizePartitionDeclaration(source, updates.name || entityName);
       } else if (updates.kind === 'system' || updates.kind === 'boundary') {
@@ -1174,13 +1237,23 @@ export default function App() {
       }
 
       const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum'];
+      const FRAGMENT_KINDS = ['alt', 'loop', 'opt', 'par', 'break', 'critical'];
       let declaration = `  ${keyword} ${name}`;
       if (BRACE_KINDS.includes(baseName)) {
         declaration += ' {\n\n  }';
       }
 
+      if (FRAGMENT_KINDS.includes(baseName)) {
+        if (baseName === 'alt' || baseName === 'par') {
+          declaration += ' {\n    \n  } else {\n    \n  }';
+        } else {
+          declaration += ' {\n    \n  }';
+        }
+        src = insertBeforeAnnotations(src, declaration);
+      } else {
         if (targetPackage) { src = insertIntoPackage(src, targetPackage, declaration); } else { src = insertBeforeAnnotations(src, declaration); }
-      src = insertAtEnd(src, `  @${name} at (${Math.round(x)}, ${Math.round(y)})`);
+        src = insertAtEnd(src, `  @${name} at (${Math.round(x)}, ${Math.round(y)})`);
+      }
       src = formatDiagramSource(src);
       return { ...tab, source: src };
     });
@@ -1490,6 +1563,7 @@ export default function App() {
           isAbstract: editingEntity.isAbstract,
           bodyText: editingEntity.bodyText,
           kind: editingEntity.kind,
+          elseBlocks: editingEntity.elseBlocks
         });
         return;
       }
@@ -2342,8 +2416,48 @@ export default function App() {
             </div>
             {entitySupportsStereotype(editingEntity.kind) && (
               <div className="iso-modal-field">
-                <label>{t('edit.stereotype')}</label>
-                <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={t('edit.eg_device')} />
+                <label>{['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind) ? 'Caption' : t('edit.stereotype')}</label>
+                <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind) ? 'e.g. cond' : t('edit.eg_device')} />
+              </div>
+            )}
+            {['alt', 'par'].includes(editingEntity.kind) && (
+              <div className="iso-modal-field" style={{ flexDirection: 'column', alignItems: 'flex-start', paddingTop: '0.5rem' }}>
+                <label style={{ marginBottom: '0.5rem' }}>Substates (Else Branches)</label>
+                {(editingEntity.elseBlocks || []).map((b, i) => (
+                  <div key={i} style={{ display: 'flex', gap: '0.5rem', width: '100%', marginBottom: '0.5rem' }}>
+                    <input 
+                      type="text" 
+                      value={b.label || ''} 
+                      onChange={e => {
+                        const newBlocks = [...(editingEntity.elseBlocks || [])];
+                        newBlocks[i] = { ...newBlocks[i], label: e.target.value };
+                        setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
+                      }} 
+                      placeholder="Caption" 
+                      style={{ flex: 1 }} 
+                    />
+                    <button 
+                      type="button" 
+                      className="iso-btn" 
+                      title="Remove Substate"
+                      onClick={() => {
+                        const newBlocks = (editingEntity.elseBlocks || []).filter((_, idx) => idx !== i);
+                        setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
+                      }}
+                    >-</button>
+                  </div>
+                ))}
+                <button 
+                  type="button" 
+                  className="iso-btn" 
+                  onClick={() => {
+                    const newBlocks = [...(editingEntity.elseBlocks || []), { label: '' }];
+                    setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
+                  }}
+                  style={{ width: '100%', marginTop: '0.2rem' }}
+                >
+                  + Add Substate
+                </button>
               </div>
             )}
             {['class', 'interface'].includes(editingEntity.kind) && (
@@ -2415,7 +2529,7 @@ export default function App() {
             )}
             <div className="iso-modal-actions">
               <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>{t('ui.cancel')}</button>
-              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); const isNameOnlyBoundary = editingEntity.kind === 'partition' || editingEntity.kind === 'system' || editingEntity.kind === 'boundary'; handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: isNameOnlyBoundary ? undefined : editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText, kind: editingEntity.kind }); }}>{t('menu.save')}</button>
+              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); const isNameOnlyBoundary = editingEntity.kind === 'partition' || editingEntity.kind === 'system' || editingEntity.kind === 'boundary'; handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: isNameOnlyBoundary ? undefined : editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText, kind: editingEntity.kind, elseBlocks: editingEntity.elseBlocks }); }}>{t('menu.save')}</button>
             </div>
           </div>
         </div>

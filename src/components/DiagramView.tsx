@@ -267,13 +267,8 @@ export function DiagramView({
               id: frag.id,
               name: frag.id,
               kind: frag.kind,
-              isAbstract: false,
-              fields: [],
-              methods: [],
-              enumValues: [],
-              extendsNames: [],
-              implementsNames: [],
-              styles: {},
+                stereotype: frag.label,
+                elseBlocks: frag.elseBlocks, // Inject elseBlocks into custom property
             } as any);
             return;
           }

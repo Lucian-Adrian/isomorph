@@ -353,30 +353,40 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
   for (const frag of diag.fragments) {
     let minY = Infinity;
     let maxY = -Infinity;
+let minX = Infinity;
+    let maxX = -Infinity;
     const allRelIds = [...frag.relationIds, ...(frag.elseBlocks?.flatMap(b => b.relationIds) ?? [])];
     for (const rid of allRelIds) {
       const y = relationYCoords.get(rid);
       if (y !== undefined) { minY = Math.min(minY, y); maxY = Math.max(maxY, y); }
+      const rel = diag.relations.find(r => r.id === rid);
+      if (rel) {
+        const fromX = entityX.get(rel.from);
+        const toX = entityX.get(rel.to);
+        if (fromX !== undefined) { minX = Math.min(minX, fromX); maxX = Math.max(maxX, fromX); }
+        if (toX !== undefined) { minX = Math.min(minX, toX); maxX = Math.max(maxX, toX); }
+      }
     }
     
-const depth = fragDepths.get(frag.id) || 0;
-      const inset = 15 + (depth * 8);
+    // Give fragments a minimum width based on participants (centered around 60px wide columns usually)
+    const depth = fragDepths.get(frag.id) || 0;
+    const inset = 15 + (depth * 8);
 
-      let fragTop = minY !== Infinity ? minY - 35 + (depth * 6) : 50;
-      let fragBottom = maxY !== -Infinity ? maxY + 35 - (depth * 6) : 150;
-      let fragLeft = inset;
-      let fragRight = width - inset;
+    let fragTop = minY !== Infinity ? minY - 35 + (depth * 6) : 50;
+    let fragBottom = maxY !== -Infinity ? maxY + 35 - (depth * 6) : 150;
+    
+    let fragLeft;
+    let fragRight;
+    if (minX !== Infinity && maxX !== -Infinity) {
+      fragLeft = minX - 50 - (depth * 8); // Extra generous border around lifelines
+      fragRight = maxX + 50 + (depth * 8);
+    } else {
+      fragLeft = inset;
+      fragRight = width - inset;
+    }
+
     let fWidth = fragRight - fragLeft;
     let fHeight = fragBottom - fragTop;
-    
-    if (frag.position) {
-      fragLeft = frag.position.x;
-      fragTop = frag.position.y;
-      if (frag.position.w !== undefined) fWidth = frag.position.w;
-      if (frag.position.h !== undefined) fHeight = frag.position.h;
-      fragRight = fragLeft + fWidth;
-      fragBottom = fragTop + fHeight;
-    }
     
     let strokeColor = "#6366f1";
     let fillColor = "rgba(99, 102, 241, 0.05)";
@@ -420,18 +430,16 @@ const tabText = `${frag.kind.toUpperCase()}`.trim();
           }
           
           let sepY = lastValidSepY;
-          if (lastY !== -Infinity && !frag.position) {
+          if (lastY !== -Infinity) {
             sepY = lastY + 28 - fragTop;
             lastValidSepY = sepY + 30; // advance fallback
-          } else if (!frag.position) {
+          } else {
             sepY = lastValidSepY;
             lastValidSepY += 30;
           }
 
-          if (!frag.position) {
-            svg += `      <line x1="0" y1="${sepY}" x2="${fWidth}" y2="${sepY}" stroke="${strokeColor}" stroke-width="1" stroke-dasharray="8,4" style="pointer-events: none;" />\n`;
-            if (block.label) svg += `      <text x="10" y="${sepY + 15}" font-size="9" font-style="italic" fill="${textFill}" style="pointer-events: none;">[${escapeXml(block.label)}]</text>\n`;
-          }
+          svg += `      <line x1="0" y1="${sepY}" x2="${fWidth}" y2="${sepY}" stroke="${strokeColor}" stroke-width="1" stroke-dasharray="8,4" style="pointer-events: none;" />\n`;
+          if (block.label) svg += `      <text x="10" y="${sepY + 15}" font-size="9" font-style="italic" fill="${textFill}" style="pointer-events: none;">[${escapeXml(block.label)}]</text>\n`;
           
           currentRels = block.relationIds;
         }
