@@ -398,11 +398,11 @@ const depth = fragDepths.get(frag.id) || 0;
     }
 
     svg += `    <g data-entity-name="${frag.id}" transform="translate(${fragLeft},${fragTop})">\n`;
-    svg += `      <rect fill="transparent" x="0" y="0" width="${fWidth}" height="${fHeight}" style="cursor: move; pointer-events: all;" />\n`;
+    svg += `      <rect fill="transparent" x="0" y="0" width="${fWidth}" height="${fHeight}" style="pointer-events: none;" />\n`;
     svg += `      <rect x="0" y="0" width="${fWidth}" height="${fHeight}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1.5" rx="4" style="pointer-events: none;" />\n`;
 const tabText = `${frag.kind.toUpperCase()}`.trim();
       const tabW = Math.max(40, tabText.length * 6 + 12);
-      svg += `      <path d="M0,0 h${tabW} l5,5 v12 h-${tabW + 5} z" fill="${tabFill}" stroke="${strokeColor}" stroke-width="1.5" style="pointer-events: none;" />\n`;
+      svg += `      <path d="M0,0 h${tabW} l5,5 v12 h-${tabW + 5} z" fill="${tabFill}" stroke="${strokeColor}" stroke-width="1.5" style="cursor: pointer; pointer-events: all;" />\n`;
       svg += `      <text x="6" y="12" font-size="9" font-weight="bold" fill="${textFill}" style="pointer-events: none;">${escapeXml(tabText)}</text>\n`;
       if (frag.label) {
         svg += `      <text x="10" y="26" font-size="9" font-style="italic" fill="${textFill}" style="pointer-events: none;">[${escapeXml(frag.label)}]</text>\n`;

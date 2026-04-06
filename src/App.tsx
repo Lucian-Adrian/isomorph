@@ -305,21 +305,26 @@ function formatDiagramSource(source: string): string {
     } else if (relRx.test(line)) {
       relationLines.push('  ' + trimmed);
       i++;
-    } else if (entityDeclRx.test(line) || packageRx.test(line)) {
+    } else if (trimmed.includes('{') && !trimmed.includes('}')) {
       let block = '  ' + trimmed;
-      if (trimmed.includes('{') && !trimmed.includes('}')) {
-        let braceCount = (trimmed.match(/\{/g) || []).length - (trimmed.match(/\}/g) || []).length;
-        i++;
-        while (i < lines.length && braceCount > 0) {
-          const innerLine = lines[i].trim();
-          braceCount += (innerLine.match(/\{/g) || []).length - (innerLine.match(/\}/g) || []).length;
-          block += '\n    ' + innerLine;
-          i++;
-        }
-      } else {
+      let braceCount = (trimmed.match(/\{/g) || []).length - (trimmed.match(/\}/g) || []).length;
+      i++;
+      while (i < lines.length && braceCount > 0) {
+        const innerLine = lines[i].trim();
+        braceCount += (innerLine.match(/\{/g) || []).length - (innerLine.match(/\}/g) || []).length;
+        block += '\n    ' + innerLine;
         i++;
       }
-      headerLines.push(block);
+      
+      const isFragment = /^\s*(?:alt|loop|opt|par|break|critical)\b/.test(trimmed);
+      if (isFragment) {
+        relationLines.push(block);
+      } else {
+        headerLines.push(block);
+      }
+    } else if (entityDeclRx.test(line) || packageRx.test(line)) {
+      headerLines.push('  ' + trimmed);
+      i++;
     } else if (closeBraceRx.test(line)) {
       i++;
     } else {
