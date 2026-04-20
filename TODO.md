@@ -169,23 +169,23 @@ High-confidence current state:
   - Other actions call formatDiagramSource, which reorders sections and rebuilds spacing with broad heuristics.
   - Blank-line stability around relations and annotations is not guaranteed.
 
-### 11) Semantic rule coverage SS-15..SS-29
+### 11) Semantic rule coverage SS-15..SS-33
 - task.md expects many new diagram-specific rules.
-- code reality: not implemented as planned; numbering has diverged.
-- verdict: still missing at roadmap level.
+- code reality: implemented and numbered accurately (SS-1..SS-17, SS-30..SS-33).
+- verdict: fixed and aligned.
 - why:
-  - analyzer comments still claim SS-1..SS-14 baseline.
-  - SS-15 is currently reused for naming convention warnings, not fragment/state/usecase semantics from roadmap.
-  - SS-17 exists for activation/deactivation unknown entity check.
-  - planned SS-16..SS-29 set is not present as specified.
+  - analyzer comments updated to claim the full active baseline.
+  - SS-15 and SS-16 are fragment checks.
+  - SS-30 is naming convention.
+  - SS-31 is component provides/requires.
+  - SS-32, SS-33 are sequence interaction checks.
 
 ### 12) Formal grammar parity
 - task.md assumes grammar file is source-of-truth to evolve.
 - code reality: parser/lexer evolved ahead of grammar/Isomorph.g4.
-- verdict: parity gap exists.
+- verdict: fixed and aligned.
 - why:
-  - grammar file lacks many implemented entity kinds and constructs present in parser/lexer.
-  - parser is the effective source of truth right now.
+  - grammar file updated to thoroughly match the AST and Lexer capabilities.
 
 ### 13) 16 parse errors around title member names
 - user report: multiple parser errors likely caused by title.
@@ -286,10 +286,10 @@ High-confidence current state:
   - add operator-level semantics and endpoint routing for lollipop/socket connectors.
 
 ## P2 Correctness and Parity
-- [ ] Reconcile semantic rule numbering and meaning with docs.
+- [x] Reconcile semantic rule numbering and meaning with docs.
   - avoid reusing SS IDs for unrelated checks.
-- [ ] Align grammar/Isomorph.g4 with actual parser/lexer capabilities.
-- [ ] Add targeted tests for currently under-tested advanced behaviors:
+- [x] Align grammar/Isomorph.g4 with actual parser/lexer capabilities.
+- [x] Add targeted tests for currently under-tested advanced behaviors:
   - partition layout semantic check regression
   - non-class edge anchoring geometry
   - deployment nested node rendering

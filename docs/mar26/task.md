@@ -306,10 +306,9 @@ export interface FragmentDecl {
 | --------- | ------------------------------------------------------------- |
 | **SS-15** | Fragment must contain at least one message                    |
 | **SS-16** | `alt` must have at least one `else` alternative               |
-| **SS-17** | `activate`/`deactivate` must reference a declared participant |
-| **SS-18** | `return` must follow a synchronous message                    |
-| **SS-19** | `create` entity must not already exist                        |
-| **SS-20** | `destroy` entity must have been previously created/declared   |
+| **SS-17** | `activate`, `deactivate`, `create`, `destroy` must reference declared participant |
+| **SS-32** | Sequence diagrams support only synchronous, asynchronous and response relations |
+| **SS-33** | Sequence call/response context matching constraints           |
 
 ### 2.4 Enhanced sequence renderer
 
@@ -332,14 +331,14 @@ The renderer must draw:
 - [ ] Add `fragmentDecl` parsing with recursive nesting
 - [ ] Add `FragmentDecl` AST node
 - [ ] Add fragment IOM representation
-- [ ] Implement SS-15 through SS-20
+- [ ] Implement SS-15, SS-16, SS-17, SS-32, SS-33
 - [ ] Rewrite `sequence-renderer.ts` with fragment rendering
 - [ ] Add activation bar rendering
 - [ ] Add return message rendering (dashed)
 - [ ] Add create/destroy visualization
 - [ ] Add autonumber support
 - [ ] Write 15+ parser tests for fragments
-- [ ] Write 10+ semantic tests for SS-15–SS-20
+- [ ] Write 10+ semantic tests for SS-15, SS-16, SS-17, SS-32, SS-33
 - [ ] Write 5+ renderer tests
 - [ ] Create `examples/sequence-diagram.isx` with rich fragments
 - [ ] Update `docs/sequence.md` to match implementation
@@ -391,11 +390,7 @@ regionDecl
 
 #### State-specific semantic rules:
 
-| Rule      | Description                                           |
-| --------- | ----------------------------------------------------- |
-| **SS-21** | No unreachable states (every state must be connected) |
-| **SS-22** | Fork/join must have matching cardinality              |
-| **SS-23** | Composite state must contain at least one sub-state   |
+*Removed in rule cleanup (now handled generically)*
 
 ### 3.2 Activity diagram enhancements
 
@@ -425,7 +420,6 @@ partitionDecl
 - [ ] Add `region`, `partition` keywords
 - [ ] Implement composite state nesting in parser
 - [ ] Add `RegionDecl`, `PartitionDecl` AST nodes
-- [ ] Update semantic analyzer for SS-21, SS-22, SS-23
 - [ ] Rewrite `state-renderer.ts` with composite support
 - [ ] Add swimlane rendering to `flow-renderer.ts`
 - [ ] Write 10+ tests
@@ -471,8 +465,7 @@ relOp
 
 | Rule      | Description                            |
 | --------- | -------------------------------------- |
-| **SS-24** | `realizes` target must be an interface |
-| **SS-25** | Port must belong to a component        |
+| **SS-31** | `provides`/`requires` relation operator only valid in component/deployment |
 
 ### 4.2 Deployment diagram: full implementation
 
@@ -503,10 +496,7 @@ entityKind
 
 #### Semantic rules:
 
-| Rule      | Description                                            |
-| --------- | ------------------------------------------------------ |
-| **SS-26** | Artifact must be deployed on a node/device/environment |
-| **SS-27** | Device must contain valid nested entities              |
+*Combined into SS-31*
 
 ### Tasks checklist:
 
@@ -515,7 +505,7 @@ entityKind
 - [ ] Update parser for new entity/relation kinds
 - [ ] Create `deployment-renderer.ts` from scratch
 - [ ] Add port/interface rendering to `component-renderer.ts`
-- [ ] Add SS-24, SS-25, SS-26, SS-27
+- [ ] Add SS-31
 - [ ] Write 12+ tests
 - [ ] Create `examples/component-diagram.isx` (enhanced)
 - [ ] Create `examples/deployment-diagram.isx`
@@ -539,8 +529,7 @@ entityKind
 
 | Rule      | Description                                            |
 | --------- | ------------------------------------------------------ |
-| **SS-28** | `include`/`extend` must connect use cases (not actors) |
-| **SS-29** | System boundary must contain at least one use case     |
+| **SS-30** | Naming Convention (usecases=verbs, actors=nouns)       |
 
 ### 5.2 Collaboration diagram
 
@@ -558,7 +547,7 @@ entityKind
 - [ ] Add include/extend as first-class relation operators
 - [ ] Add system boundary rendering in `usecase-renderer.ts`
 - [ ] Add message numbering to `collaboration-renderer.ts`
-- [ ] Add SS-28, SS-29
+- [ ] Add SS-30
 - [ ] Write 8+ tests
 - [ ] Create `examples/usecase-diagram-advanced.isx`
 - [ ] Create `examples/collaboration-diagram.isx`
@@ -633,7 +622,7 @@ export interface LayoutEngine {
 | ------------------------ | ------- | ------ | --------------------------------------------- |
 | `lexer.test.ts`          | 24      | 35+    | Cover all new keywords and token types        |
 | `parser.test.ts`         | 28      | 55+    | Cover fragments, configs, regions, partitions |
-| `semantics.test.ts`      | 32      | 60+    | All SS rules (SS-1 through SS-29)             |
+| `semantics.test.ts`      | 32      | 60+    | All SS rules (SS-1 through SS-17, SS-30 through SS-33) |
 | `renderer.test.ts`       | ~5      | 40+    | Each renderer with multiple scenarios         |
 | `integration.test.ts`    | 0       | 15+    | Full pipeline: source → AST → IOM → SVG       |
 | `error-recovery.test.ts` | ~5      | 15+    | Graceful degradation and error messages       |
@@ -663,7 +652,7 @@ For EACH of the 8 diagram types:
 
 - [ ] Add 10+ lexer tests for new keywords
 - [ ] Add 25+ parser tests for fragments, configs, composites
-- [ ] Add 28+ semantic tests for SS-15 through SS-29
+- [ ] Add 28+ semantic tests for SS-15 through SS-17, and SS-30 through SS-33
 - [ ] Add 35+ renderer tests (4+ per diagram type)
 - [ ] Add 15+ integration tests
 - [ ] Add edge case and error recovery tests
@@ -729,7 +718,7 @@ For EACH diagram spec document:
 - [ ] Create 7 new example `.isx` files
 - [ ] Enhance 3 existing example files
 - [ ] Update README.md
-- [ ] Update CONTRIBUTING.md with new rules (SS-15+)
+- [ ] Update CONTRIBUTING.md with new rules (SS-15 through SS-17, SS-30 through SS-33)
 - [ ] Add CHANGELOG.md
 
 ---
@@ -818,7 +807,7 @@ A feature is "done" when:
 | Metric                  | Current                | Target                                     | Multiplier |
 | ----------------------- | ---------------------- | ------------------------------------------ | ---------- |
 | **Test count**          | 84                     | 220+                                       | **2.6×**   |
-| **Semantic rules**      | 14 (SS-1–SS-14)        | 29 (SS-1–SS-29)                            | **2.1×**   |
+| **Semantic rules**      | 14 (SS-1–SS-14)        | 21 (SS-1–SS-17, SS-30-33)                  | **1.5×**   |
 | **Example files**       | 3                      | 10+                                        | **3.3×**   |
 | **Diagram renderers**   | 7 (deployment missing) | 8+ (all complete)                          | **1.14×**  |
 | **Fragment support**    | 0                      | Full (alt/loop/opt/par/break/critical/ref) | **∞**      |

@@ -201,6 +201,15 @@ describe('Semantic Analyzer', () => {
       const { errors } = analyzeOk('diagram D : activity { partition Lane @Lane at (10, 20, 300, 500) }');
       expect(errors.filter(e => e.rule === 'SS-10')).toHaveLength(0);
     });
+
+    it('catches partition layout semantic check regression', () => {
+      // Must not falsely flag SS-10 on partitions, but should correctly flag if missing.
+      const valid = analyzeOk('diagram D : activity { partition A { activity B } @A at (0, 0, 100, 100) @B at (10, 10) }');
+      expect(valid.errors.filter(e => e.rule === 'SS-10')).toHaveLength(0);
+      
+      const invalid = analyze(parse('diagram D : activity { partition A { activity B } @C at (0, 0, 100, 100) }').program);
+      expect(invalid.errors.filter(e => e.rule === 'SS-10').length).toBeGreaterThan(0);
+    });
   });
 
   describe('SS-11: abstract + final conflict', () => {

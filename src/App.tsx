@@ -274,7 +274,7 @@ function insertAtEnd(source: string, insertion: string): string {
  * keep one blank line between header, relations, and footer annotations.
  * This intentionally runs only on canvas-triggered rewrites, not manual typing.
  */
-function formatDiagramSource(source: string): string {
+export function formatDiagramSource(source: string): string {
   const s = source.replace(/\t/g, '  ');
   const block = findDiagramBlock(s);
   if (!block) return s;
@@ -437,7 +437,7 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function updateEntityPosition(source: string, name: string, x: number, y: number, w?: number, h?: number): string {
+export function updateEntityPosition(source: string, name: string, x: number, y: number, w?: number, h?: number): string {
   const hasSize = Number.isFinite(w) && Number.isFinite(h);
   const newAnnotation = hasSize
     ? `@${name} at (${x}, ${y}, ${Math.round(w!)}, ${Math.round(h!)})`

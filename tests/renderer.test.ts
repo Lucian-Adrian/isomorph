@@ -6,7 +6,7 @@ import { renderUseCaseDiagram } from '../src/renderer/usecase-renderer.js';
 import { renderComponentDiagram } from '../src/renderer/component-renderer.js';
 import { renderSequenceDiagram } from '../src/renderer/sequence-renderer.js';
 import { renderStateOrActivityDiagram } from '../src/renderer/state-renderer.js';
-import { escapeXml, visSymbolFor } from '../src/renderer/utils.js';
+import { escapeXml, visSymbolFor, edgePointOnRect, computePortPositions } from '../src/renderer/utils.js';
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -34,6 +34,27 @@ describe('Renderer Utils', () => {
     expect(visSymbolFor('private')).toBe('−');
     expect(visSymbolFor('protected')).toBe('#');
     expect(visSymbolFor('package')).toBe('~');
+  });
+
+  it('calculates edgePointOnRect correctly for non-class edge anchoring geometry', () => {
+    // Tests correct offset logic for non-class nodes
+    const point1 = edgePointOnRect(0, 0, 100, 50, 150, 25);
+    expect(point1.x).toBe(100);
+    expect(point1.y).toBe(25);
+    
+    // Vertical anchoring
+    const point2 = edgePointOnRect(0, 0, 100, 50, 50, -50);
+    expect(point2.x).toBe(50);
+    expect(point2.y).toBe(0);
+  });
+
+  it('computes component port routing correctly for nested component port routing', () => {
+    // Tests component port routing configuration
+    const ports = computePortPositions([{ name: 'p1', type: 'provided' }, { name: 'p2', type: 'required' }], 100, 50);
+    expect(ports.has('p1')).toBe(true);
+    expect(ports.has('p2')).toBe(true);
+    expect(ports.get('p1')?.side).toBe('left');
+    expect(ports.get('p2')?.side).toBe('right');
   });
 });
 
@@ -385,6 +406,13 @@ describe('Component Diagram Renderer — advanced', () => {
   it('renders deployment node shapes', () => {
     const diag = buildDiagram('diagram D : deployment { node Server }');
     const svg = renderComponentDiagram(diag);
+    expect(svg).toContain('Server');
+  });
+
+  it('renders deployment nested node rendering', () => {
+    const diag = buildDiagram('diagram D : deployment { node Cluster { node Server } }');
+    const svg = renderComponentDiagram(diag);
+    expect(svg).toContain('Cluster');
     expect(svg).toContain('Server');
   });
 

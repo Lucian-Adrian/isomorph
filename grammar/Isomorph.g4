@@ -20,12 +20,19 @@
 //   SS-6:  No circular direct inheritance chains
 //   SS-7:  Style target must reference a declared entity
 //   SS-8:  Enum value uniqueness within each enum
-//   SS-9:  Diagram kind compatibility (entity ↔ diagram)
+//   SS-9:  Diagram kind compatibility (entity <-> diagram)
 //   SS-10: Layout annotation must reference a declared entity
 //   SS-11: Abstract entity cannot also be marked final
 //   SS-12: Method parameter names must be unique per method
 //   SS-13: Extends target must reference a declared entity
 //   SS-14: Implements target must reference a declared entity
+//   SS-15: Fragment must contain at least one message
+//   SS-16: `alt` must have at least one `else` alternative
+//   SS-17: `activate`, `deactivate`, `create`, `destroy` must reference a declared participant
+//   SS-30: Naming Conventions (usecases=verbs, actors=nouns)
+//   SS-31: `provides`/`requires` relation operator only valid in component/deployment
+//   SS-32: Sequence diagrams support only `-->`, `--|>`, and `..>` relations
+//   SS-33: Sequence call/response tracking and context matching constraints
 // ============================================================
 
 grammar Isomorph;
@@ -51,6 +58,9 @@ diagramKind
     | KW_COMPONENT
     | KW_FLOW
     | KW_DEPLOYMENT
+    | KW_ACTIVITY
+    | KW_STATE
+    | KW_COLLABORATION
     ;
 
 diagramBody
@@ -65,6 +75,13 @@ bodyItem
     | styleDecl
     | layoutAnnotation
     | configDecl
+    | fragmentDecl
+    | activateDecl
+    | deactivateDecl
+    | refDecl
+    | partitionDecl
+    | createDecl
+    | destroyDecl
     ;
 
 // ─── Package ─────────────────────────────────────────────────
@@ -80,6 +97,7 @@ configDecl
     | KW_DIRECTION IDENT
     | KW_STRICT
     | KW_AUTONUMBER
+    | KW_AUTOACTIVATION
     ;
 
 // ─── Entity ──────────────────────────────────────────────────
@@ -93,21 +111,15 @@ modifierList
     ;
 
 entityKind
-    : KW_CLASS
-    | KW_INTERFACE
-    | KW_ENUM
-    | KW_ACTOR
-    | KW_USECASE
-    | KW_COMPONENT
-    | KW_NODE
+    : KW_CLASS | KW_INTERFACE | KW_ENUM | KW_ACTOR | KW_USECASE | KW_COMPONENT | KW_NODE
+    | KW_PARTICIPANT | KW_PARTITION | KW_DECISION | KW_MERGE | KW_FORK | KW_JOIN
+    | KW_START | KW_STOP | KW_ACTION | KW_STATE | KW_COMPOSITE | KW_CONCURRENT
+    | KW_CHOICE | KW_HISTORY | KW_DEVICE | KW_ARTIFACT | KW_ENVIRONMENT
+    | KW_BOUNDARY | KW_SYSTEM | KW_MULTIOBJECT | KW_ACTIVE_OBJECT | KW_COLLABORATION
+    | KW_COMPOSITE_OBJECT | KW_OBJECT
     ;
 
 stereotypeOpt
-    // NOTE: '>>' is deliberately NOT lexed as a STEREO_CLOSE token by the
-    // hand-written lexer.  Using a dedicated STEREO_CLOSE token would cause
-    // a maximal-munch ambiguity with nested generics such as Map<K,List<V>>,
-    // where the closing '>>' must be two separate GT tokens.  The parser
-    // therefore consumes two consecutive GT tokens for the stereotype close.
     : STEREO_OPEN IDENT GT GT
     |
     ;
@@ -140,8 +152,31 @@ member
     : fieldDecl
     | methodDecl
     | enumValueDecl
+    | regionDecl
     | SEMI
     ;
+
+// ─── Sequence Fragments and Activities ───────────────────────
+
+fragmentDecl
+    : fragmentKind IDENT? STRING? LBRACE diagramBody RBRACE elseBlock*
+    ;
+
+fragmentKind
+    : KW_ALT | KW_LOOP | KW_OPT | KW_PAR | KW_BREAK | KW_CRITICAL
+    ;
+
+elseBlock
+    : KW_ELSE STRING? LBRACE diagramBody RBRACE
+    ;
+
+activateDecl   : KW_ACTIVATE IDENT SEMI? ;
+deactivateDecl : KW_DEACTIVATE IDENT SEMI? ;
+refDecl        : KW_REF STRING SEMI? ;
+createDecl     : KW_CREATE IDENT SEMI? ;
+destroyDecl    : KW_DESTROY IDENT SEMI? ;
+partitionDecl  : KW_PARTITION IDENT LBRACE diagramBody RBRACE ;
+regionDecl     : KW_REGION LBRACE diagramBody RBRACE ;
 
 // ─── Members ─────────────────────────────────────────────────
 
@@ -207,7 +242,7 @@ typeArgList
 // ─── Relations ───────────────────────────────────────────────
 
 relationDecl
-    : IDENT relOp IDENT relationAttrs?
+    : IDENT STRING? relOp STRING? IDENT relationAttrs?
     ;
 
 relOp
@@ -224,10 +259,13 @@ relOp
     | REL_DEPEND_R
     | REL_AGGR_R
     | REL_COMPOSE_R
+    | REL_PROVIDES
+    | REL_REQUIRES_R
     ;
 
 relationAttrs
-    : LBRACKET attrList RBRACKET
+    : COLON IDENT
+    | LBRACKET attrList RBRACKET
     ;
 
 attrList
@@ -254,6 +292,7 @@ styleAttr
 
 layoutAnnotation
     : AT IDENT KW_AT LPAREN NUMBER COMMA NUMBER RPAREN
+    | AT IDENT KW_AT LPAREN NUMBER COMMA NUMBER COMMA NUMBER COMMA NUMBER RPAREN
     ;
 
 // ─── Literals ────────────────────────────────────────────────
@@ -292,6 +331,31 @@ KW_NODE       : 'node' ;
 KW_SEQUENCE   : 'sequence' ;
 KW_FLOW       : 'flow' ;
 KW_DEPLOYMENT : 'deployment' ;
+KW_ACTIVITY   : 'activity' ;
+KW_STATE      : 'state' ;
+KW_COLLABORATION: 'collaboration' ;
+KW_PARTICIPANT: 'participant' ;
+KW_PARTITION  : 'partition' ;
+KW_DECISION   : 'decision' ;
+KW_MERGE      : 'merge' ;
+KW_FORK       : 'fork' ;
+KW_JOIN       : 'join' ;
+KW_START      : 'start' ;
+KW_STOP       : 'stop' ;
+KW_ACTION     : 'action' ;
+KW_COMPOSITE  : 'composite' ;
+KW_CONCURRENT : 'concurrent' ;
+KW_CHOICE     : 'choice' ;
+KW_HISTORY    : 'history' ;
+KW_DEVICE     : 'device' ;
+KW_ARTIFACT   : 'artifact' ;
+KW_ENVIRONMENT: 'environment' ;
+KW_BOUNDARY   : 'boundary' ;
+KW_SYSTEM     : 'system' ;
+KW_MULTIOBJECT: 'multiobject' ;
+KW_ACTIVE_OBJECT: 'active_object' ;
+KW_COMPOSITE_OBJECT: 'composite_object' ;
+KW_OBJECT     : 'object' ;
 KW_LIST       : 'list' ;
 KW_MAP        : 'map' ;
 KW_SET        : 'set' ;
@@ -299,9 +363,22 @@ KW_OPTIONAL   : 'optional' ;
 KW_INT        : 'int' ;
 KW_FLOAT      : 'float' ;
 KW_BOOL       : 'bool' ;
-KW_STRING     : 'string' ;
+KW_STRING     : 'string_t' ;
 KW_TRUE       : 'true' ;
 KW_FALSE      : 'false' ;
+KW_ALT        : 'alt' ;
+KW_ELSE       : 'else' ;
+KW_OPT        : 'opt' ;
+KW_LOOP       : 'loop' ;
+KW_PAR        : 'par' ;
+KW_BREAK      : 'break' ;
+KW_CRITICAL   : 'critical' ;
+KW_ACTIVATE   : 'activate' ;
+KW_DEACTIVATE : 'deactivate' ;
+KW_REF        : 'ref' ;
+KW_CREATE     : 'create' ;
+KW_DESTROY    : 'destroy' ;
+KW_REGION     : 'region' ;
 KW_TITLE      : 'title' ;
 KW_SUBTITLE   : 'subtitle' ;
 KW_CAPTION    : 'caption' ;
@@ -309,6 +386,7 @@ KW_LEGEND     : 'legend' ;
 KW_DIRECTION  : 'direction' ;
 KW_STRICT     : 'strict' ;
 KW_AUTONUMBER : 'autonumber' ;
+KW_AUTOACTIVATION : 'autoactivation' ;
 
 // Relation operators (order matters — longest match first in ANTLR4)
 REL_INHERIT   : '--|>' ;
@@ -323,19 +401,17 @@ REL_DEPEND    : '..>' ;
 REL_AGGR      : '--o' ;
 REL_COMPOSE   : '--*' ;
 REL_RESTR     : '--x' ;
+REL_PROVIDES  : '--()' ;
+REL_REQUIRES_R: '--(' ;
 REL_ASSOC     : '--' ;
 
-// Stereotype open delimiter ('>>' seen in source is consumed as GT GT — see stereotypeOpt)
+// Stereotype open delimiter ('<<' seen in source is consumed as GT GT — see stereotypeOpt)
 STEREO_OPEN   : '<<' ;
-// NOTE: STEREO_CLOSE ('>>') is intentionally absent from the lexer rules.
-//       Two consecutive GT tokens are used instead to avoid maximal-munch
-//       ambiguity with closing nested generic type arguments.
 
 // Literals
 STRING  : '"' ( ~["\\\r\n] | '\\' . )* '"' ;
 NUMBER  : '-'? [0-9]+ ( '.' [0-9]+ )? ;
-COLOR   : '#' [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]
-               [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] ;
+COLOR   : '#' [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] ;
 IDENT   : [a-zA-Z_] [a-zA-Z0-9_]* ;
 
 // Punctuation
@@ -365,3 +441,4 @@ DOTDOT   : '..' ;
 WS           : [ \t\r\n]+    -> skip ;
 LINE_COMMENT : '//' ~[\r\n]* -> skip ;
 BLOCK_COMMENT: '/*' .*? '*/' -> skip ;
+

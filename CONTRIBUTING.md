@@ -16,7 +16,7 @@ npm run dev
 | Directory | Purpose |
 |---|---|
 | `src/parser/` | Lexer, parser, AST type definitions |
-| `src/semantics/` | Static analyser (SS-1–SS-10) and IOM types |
+| `src/semantics/` | Static analyser (SS-1–SS-33) and IOM types |
 | `src/renderer/` | SVG renderers (class, usecase, component) |
 | `src/editor/` | CodeMirror integration |
 | `src/components/` | React UI components |
