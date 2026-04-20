@@ -153,7 +153,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           if (!['directed-association', 'association', 'inheritance', 'dependency'].includes(rel.kind)) {
             errors.push({
               message: `Sequence diagrams support only synchronous (-->) asynchronous (--|>) and response (..>) relations`,
-              rule: 'SS-16',
+              rule: 'SS-32',
               line: item.span.line,
               col: item.span.col,
             });
@@ -175,7 +175,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
             if (!lastCall || lastCall.from !== rel.to || lastCall.to !== rel.from) {
               errors.push({
                 message: `Response must match the latest call direction (${rel.from} -> ${rel.to} does not match an open call)`,
-                rule: 'SS-16',
+                rule: 'SS-33',
                 line: item.span.line,
                 col: item.span.col,
               });
@@ -203,6 +203,28 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
             const eIdx = relations.length;
             elseBlocks.push({ label: block.label, relationIds: relations.slice(sIdx, eIdx).map(r => r.id) });
           }
+        }
+
+        // SS-15: Fragment must contain at least one message
+        const hasRelInBody = mainRelIds.length > 0;
+        const hasRelInElse = elseBlocks.some(eb => eb.relationIds.length > 0);
+        if (!hasRelInBody && !hasRelInElse) {
+          errors.push({
+            message: `Fragment '${item.name || item.fragmentKind}' must contain at least one message`,
+            rule: 'SS-15',
+            line: item.span.line,
+            col: item.span.col
+          });
+        }
+
+        // SS-16: alt must have at least one else alternative
+        if (item.fragmentKind === 'alt' && elseBlocks.length === 0) {
+          errors.push({
+            message: `Fragment 'alt' must have at least one 'else' alternative`,
+            rule: 'SS-16',
+            line: item.span.line,
+            col: item.span.col
+          });
         }
 
         fragments.push({
@@ -251,7 +273,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
     for (const openCall of callStack) {
       errors.push({
         message: `Call '${openCall.from} -> ${openCall.to}' requires a matching response message`,
-        rule: 'SS-16',
+        rule: 'SS-33',
       });
     }
   }
@@ -390,11 +412,11 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
       
       if (entity.kind === 'actor' || entity.kind === 'object' || entity.kind === 'multiobject' || entity.kind === 'active_object' || entity.kind === 'boundary' || entity.kind === 'system') {
         if (startsWithVerb) {
-          errors.push({ message: `Naming Convention: '${entity.kind}' names should typically be Nouns, but '${name}' looks like a Verb.`, entity: name, rule: 'SS-15', ...sp });
+          errors.push({ message: `Naming Convention: '${entity.kind}' names should typically be Nouns, but '${name}' looks like a Verb.`, entity: name, rule: 'SS-30', ...sp });
         }
       } else if (entity.kind === 'usecase' || entity.kind === 'collaboration') {
         if (!startsWithVerb) {
-          errors.push({ message: `Naming Convention: '${entity.kind}' names must be Verbs, but '${name}' does not start with a recognized verb.`, entity: name, rule: 'SS-15', ...sp });
+          errors.push({ message: `Naming Convention: '${entity.kind}' names must be Verbs, but '${name}' does not start with a recognized verb.`, entity: name, rule: 'SS-30', ...sp });
         }
       }
     }
@@ -426,11 +448,11 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
     }
   }
 
-  // SS-16: provides/requires relations only valid in component/deployment diagrams
+  // SS-31: provides/requires relations only valid in component/deployment diagrams
   if (diag.diagramKind !== 'component' && diag.diagramKind !== 'deployment') {
     for (const rel of relations) {
       if (rel.kind === 'provides' || rel.kind === 'requires') {
-        errors.push({ message: `'${rel.kind}' relation operator is only valid in component/deployment diagrams`, rule: 'SS-16' });
+        errors.push({ message: `'${rel.kind}' relation operator is only valid in component/deployment diagrams`, rule: 'SS-31' });
       }
     }
   }

@@ -279,8 +279,8 @@ High-confidence current state:
 - [x] Enforce sequence message model: call/response/return.
   - call requires a matching response, response must close the latest open call, return is one-way and does not require response.
   - sequence relation modal now exposes synchronous/asynchronous/response types mapped to relation operators (`-->`, `--|>`, `..>`) and provides UI actions to insert create/destroy lifecycle commands for the target participant.
-- [ ] Add sequence fragment semantic constraints aligned with intended SS-15+ rules.
-- [ ] Implement visual UI controls/dragging for Sequence Diagram Fragments (alt, loop, opt, etc.) with custom coloring support.
+- [x] Add sequence fragment semantic constraints aligned with intended SS-15+ rules.
+- [-] Implement visual UI controls/dragging for Sequence Diagram Fragments (alt, loop, opt, etc.) with custom coloring support.
 - [-] Implement visual tooling context menus or specialized drag modes to draw `create` and `destroy` arrows directly via the canvas UI mapping.
 - [x] Upgrade circle/lollipop notation from decorative to semantic.
   - add operator-level semantics and endpoint routing for lollipop/socket connectors.

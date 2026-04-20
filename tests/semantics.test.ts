@@ -601,32 +601,32 @@ describe('Semantic Analyzer', () => {
     });
   });
 
-  describe('SS-16: provides/requires relations', () => {
+  describe('SS-31: provides/requires relations', () => {
     it('accepts provides relation in component diagram', () => {
       const { errors } = analyzeOk('diagram D : component { component A {} component B {} A --() B }');
-      expect(errors.filter(e => e.rule === 'SS-16')).toHaveLength(0);
+      expect(errors.filter(e => e.rule === 'SS-31')).toHaveLength(0);
     });
 
     it('accepts requires relation in component diagram', () => {
       const { errors } = analyzeOk('diagram D : component { component A {} component B {} A --( B }');
-      expect(errors.filter(e => e.rule === 'SS-16')).toHaveLength(0);
+      expect(errors.filter(e => e.rule === 'SS-31')).toHaveLength(0);
     });
 
     it('accepts provides relation in deployment diagram', () => {
       const { errors } = analyzeOk('diagram D : deployment { component A component B A --() B }');
-      expect(errors.filter(e => e.rule === 'SS-16')).toHaveLength(0);
+      expect(errors.filter(e => e.rule === 'SS-31')).toHaveLength(0);
     });
 
     it('rejects provides relation in class diagram', () => {
       const result = analyze(parse('diagram D : class { class A {} class B {} A --() B }').program);
-      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
-      expect(ss16.length).toBeGreaterThan(0);
+      const ss31 = result.errors.filter(e => e.rule === 'SS-31');
+      expect(ss31.length).toBeGreaterThan(0);
     });
 
     it('rejects requires relation in sequence diagram', () => {
       const result = analyze(parse('diagram D : sequence { participant A participant B A --( B }').program);
-      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
-      expect(ss16.length).toBeGreaterThan(0);
+      const ss31 = result.errors.filter(e => e.rule === 'SS-31');
+      expect(ss31.length).toBeGreaterThan(0);
     });
 
     it('builds provides IOM relation kind', () => {
@@ -637,6 +637,32 @@ describe('Semantic Analyzer', () => {
     it('builds requires IOM relation kind', () => {
       const { iom } = analyzeOk('diagram D : component { component A {} component B {} A --( B }');
       expect(iom.diagrams[0].relations[0].kind).toBe('requires');
+    });
+  });
+
+  describe('SS-15 and SS-16: Sequence Fragments', () => {
+    it('SS-15 flags fragments with no messages', () => {
+      const result = analyze(parse('diagram D : sequence { participant A alt { } }').program);
+      const ss15 = result.errors.filter(e => e.rule === 'SS-15');
+      expect(ss15.length).toBeGreaterThan(0);
+    });
+
+    it('SS-15 passes fragments with messages', () => {
+      const result = analyze(parse('diagram D : sequence { participant A participant B alt { A --> B } }').program);
+      const ss15 = result.errors.filter(e => e.rule === 'SS-15');
+      expect(ss15).toHaveLength(0);
+    });
+
+    it('SS-16 flags alt fragment without an else block', () => {
+      const result = analyze(parse('diagram D : sequence { participant A participant B alt { A --> B } }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16.length).toBeGreaterThan(0);
+    });
+
+    it('SS-16 passes alt fragment with an else block', () => {
+      const result = analyze(parse('diagram D : sequence { participant A participant B alt { A --> B } else { B --> A } }').program);
+      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
+      expect(ss16).toHaveLength(0);
     });
   });
 
@@ -688,40 +714,40 @@ describe('Semantic Analyzer', () => {
       expect(deact?.entity).toBe('B');
     });
 
-    it('flags response without caller context as SS-16', () => {
+    it('flags response without caller context as SS-33', () => {
       const result = analyze(parse('diagram D : sequence { participant A participant B B ..> A }').program);
-      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
-      expect(ss16.length).toBeGreaterThan(0);
+      const ss33 = result.errors.filter(e => e.rule === 'SS-33');
+      expect(ss33.length).toBeGreaterThan(0);
     });
 
     it('treats return as plain identifier (command removed)', () => {
       const result = analyze(parse('diagram D : sequence { participant A return }').program);
-      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
-      expect(ss16).toHaveLength(0);
+      const ss33 = result.errors.filter(e => e.rule === 'SS-33');
+      expect(ss33).toHaveLength(0);
     });
 
-    it('flags unmatched calls without response as SS-16', () => {
+    it('flags unmatched calls without response as SS-33', () => {
       const result = analyze(parse('diagram D : sequence { participant A participant B A --> B }').program);
-      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
-      expect(ss16.length).toBeGreaterThan(0);
+      const ss33 = result.errors.filter(e => e.rule === 'SS-33');
+      expect(ss33.length).toBeGreaterThan(0);
     });
 
     it('allows one-way asynchronous message without requiring response', () => {
       const result = analyze(parse('diagram D : sequence { participant A participant B A --|> B }').program);
-      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
-      expect(ss16).toHaveLength(0);
+      const ss33 = result.errors.filter(e => e.rule === 'SS-33');
+      expect(ss33).toHaveLength(0);
     });
 
     it('matches call and response relation pairs in sequence order', () => {
       const result = analyze(parse('diagram D : sequence { participant A participant B A --> B B ..> A }').program);
-      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
-      expect(ss16).toHaveLength(0);
+      const ss33 = result.errors.filter(e => e.rule === 'SS-33');
+      expect(ss33).toHaveLength(0);
     });
 
     it('allows self-call without requiring response', () => {
       const result = analyze(parse('diagram D : sequence { participant A A --> A }').program);
-      const ss16 = result.errors.filter(e => e.rule === 'SS-16');
-      expect(ss16).toHaveLength(0);
+      const ss33 = result.errors.filter(e => e.rule === 'SS-33');
+      expect(ss33).toHaveLength(0);
     });
   });
 });
