@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Isomorph</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200;0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,200;1,9..40,300;1,9..40,400&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/jpeg" href="./isomorph.jpg?v=2" />
+    <link rel="shortcut icon" type="image/jpeg" href="./isomorph.jpg?v=2" />
+    <link rel="apple-touch-icon" href="./isomorph.jpg?v=2" />
+    <script>
+      (function() {
+        const saved = localStorage.getItem('isomorph-theme');
+        if (saved) document.documentElement.setAttribute('data-theme', saved);
+        else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
+
+        const savedLanguage = localStorage.getItem('isomorph-language');
+        if (savedLanguage === 'ro' || savedLanguage === 'ru' || savedLanguage === 'en') {
+          document.documentElement.setAttribute('lang', savedLanguage);
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="./assets/index-CbmIb4XP.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DByeLc57.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
