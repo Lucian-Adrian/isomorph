@@ -119,6 +119,78 @@ export function DiagramView({
     setPan({ x: 0, y: 0 });
   }, []);
 
+  // Map touch events to zoom/pan on mobile
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    let initialDistance: number | null = null;
+    let initialZoom: number = 100;
+    
+    // For single-finger panning on touch devices
+    let touchPanStart: {x: number, y: number} | null = null;
+    let initialPan: {x: number, y: number} = {x: 0, y: 0};
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        initialDistance = Math.sqrt(dx * dx + dy * dy);
+        setZoom(z => { initialZoom = z; return z; });
+        touchPanStart = null;
+      } else if (e.touches.length === 1 && !e.target?.closest('g[data-entity-name]')) {
+        // Start touch pan if we didn't touch an entity
+        touchPanStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+        setPan(p => { initialPan = { ...p }; return p; });
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && initialDistance !== null) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const scaleChange = dist / initialDistance;
+        let newZoom = initialZoom * scaleChange;
+        
+        // Snap to grid or limits
+        newZoom = Math.max(40, Math.min(newZoom, 200));
+        setZoom(newZoom);
+      } else if (e.touches.length === 1 && touchPanStart) {
+        e.preventDefault();
+        const dx = e.touches[0].clientX - touchPanStart.x;
+        const dy = e.touches[0].clientY - touchPanStart.y;
+        setPan({
+          x: initialPan.x + dx,
+          y: initialPan.y + dy
+        });
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        initialDistance = null;
+      }
+      if (e.touches.length === 0) {
+        touchPanStart = null;
+      }
+    };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: false });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd);
+    el.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+      el.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [setZoom, setPan]);
+
   // Prevent browser native pinch-zoom
   useEffect(() => {
     const el = canvasRef.current;
@@ -969,10 +1041,10 @@ export function DiagramView({
             type="button"
             className="iso-canvas-btn"
             onClick={handleFit}
-            aria-label={t('tool.reset_zoom', { zoom })}
+            aria-label={t('tool.reset_zoom', { zoom: Math.round(zoom) })}
             style={{ width: 44, fontSize: 11 }}
           >
-            {zoom}%
+            {Math.round(zoom)}%
           </button>
           <button
             type="button"

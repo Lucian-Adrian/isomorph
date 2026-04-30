@@ -303,7 +303,7 @@ High-confidence current state:
 - [ ] Add collaboration auto numbering and sub-numbering logic (in modal selection) (1, 1.1, 1.1.1).
 - [x] Add Escape-to-close behavior for all modals.
   - Escape should close the active modal, consistent with click-outside close and Enter save behavior.
-- [ ] Consider touch pinch zoom support in DiagramView for mobile.
+- [x] Consider touch pinch zoom support in DiagramView for mobile.
 
 ---
 
