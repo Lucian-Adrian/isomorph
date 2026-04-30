@@ -45,7 +45,19 @@ export type BodyItem =
   | RelationDecl
   | NoteDecl
   | StyleDecl
-  | LayoutAnnotation;
+  | LayoutAnnotation
+  | ConfigDecl
+  | FragmentDecl
+  | ActivateDecl
+  | DeactivateDecl
+  | RefDecl
+  | PartitionDecl
+  | CreateDecl
+  | DestroyDecl;
+
+// ─── Members ─────────────────────────────────────────────────
+
+export type Member = FieldDecl | MethodDecl | EnumValueDecl | EntityDecl | RegionDecl;
 
 // ─── Package ─────────────────────────────────────────────────
 
@@ -89,7 +101,7 @@ export interface EntityDecl {
 
 // ─── Members ─────────────────────────────────────────────────
 
-export type Member = FieldDecl | MethodDecl | EnumValueDecl | EntityDecl;
+// Members are already defined above
 
 export interface FieldDecl {
   kind: 'FieldDecl';
@@ -161,7 +173,9 @@ export type RelationKind =
   | '<|..'  // realization (reversed)
   | '<..'   // dependency (reversed)
   | 'o--'   // aggregation (reversed)
-  | '*--';  // composition (reversed)
+  | '*--'  // composition (reversed)
+  | '--()'  // provides (lollipop)
+  | '--('   // requires (socket);
 
 export interface RelationDecl {
   kind: 'RelationDecl';
@@ -202,6 +216,14 @@ export interface LayoutAnnotation {
   span: Span;
 }
 
+/** Config statement: title "...", direction LR, strict, etc. */
+export interface ConfigDecl {
+  kind: 'ConfigDecl';
+  key: 'title' | 'subtitle' | 'caption' | 'legend' | 'direction' | 'strict' | 'autonumber' | 'autoactivation';
+  value?: string;
+  span: Span;
+}
+
 // ─── Literals ────────────────────────────────────────────────
 
 export interface LiteralExpr {
@@ -209,3 +231,22 @@ export interface LiteralExpr {
   value: string | number | boolean;
   span: Span;
 }
+
+export interface FragmentDecl {
+  kind: 'FragmentDecl';
+  fragmentKind: 'alt' | 'loop' | 'opt' | 'par' | 'break' | 'critical';
+  name?: string;
+  conditionCount?: number;
+  label?: string;
+  body: BodyItem[];
+  elseBlocks?: { label?: string; body: BodyItem[] }[];
+  span: Span;
+}
+
+export interface ActivateDecl   { kind: 'ActivateDecl'; entity: string; span: Span; }
+export interface DeactivateDecl { kind: 'DeactivateDecl'; entity: string; span: Span; }
+export interface RefDecl        { kind: 'RefDecl'; text: string; span: Span; }
+export interface RegionDecl     { kind: 'RegionDecl'; body: BodyItem[]; span: Span; }
+export interface PartitionDecl  { kind: 'PartitionDecl'; name: string; body: BodyItem[]; span: Span; }
+export interface CreateDecl     { kind: 'CreateDecl'; entity: string; span: Span; }
+export interface DestroyDecl    { kind: 'DestroyDecl'; entity: string; span: Span; }

@@ -1,0 +1,27 @@
+diagram Sequence_Showcase : sequence {
+  participant User
+  participant Auth
+  participant DB
+
+  title "Advanced Sequence Showcase"
+  autonumber
+
+  User -> Auth [label="Login(user, pass)"]
+  activate Auth
+  
+  Auth -> DB [label="QueryUser(user)"]
+  activate DB
+  DB -> Auth [label="UserData"]
+  deactivate DB
+
+  alt "Valid User" {
+    Auth -> User [label="AuthSuccess"]
+  } else "Invalid User" {
+    Auth -> User [label="AuthFailure"]
+    deactivate Auth
+  }
+
+  loop "Every Minute" {
+    User -> User [label="Heartbeat"]
+  }
+}

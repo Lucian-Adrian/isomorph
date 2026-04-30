@@ -1,0 +1,27 @@
+diagram "LoginProcess" : flow {
+  title "User Login Decision Flow"
+  subtitle "Generic Logic Flow Chart"
+
+  start Launch
+  action "Display Login Screen"
+  action "Enter Credentials"
+  decision "User Found?"
+  decision "Password Correct?"
+  action "Redirect to Home"
+  action "Display Map Error"
+  action "Display Cred Error"
+  stop Home
+
+  Launch -> "Display Login Screen"
+  "Display Login Screen" -> "Enter Credentials"
+  "Enter Credentials" -> "User Found?"
+  "User Found?" -> "Display Map Error" [label="No"]
+  "User Found?" -> "Password Correct?" [label="Yes"]
+  "Password Correct?" -> "Display Cred Error" [label="No"]
+  "Password Correct?" -> "Redirect to Home" [label="Yes"]
+  "Redirect to Home" -> Home
+  "Display Map Error" -> "Display Login Screen"
+  "Display Cred Error" -> "Display Login Screen"
+
+  caption "Figure 6: Decision-making logic for user authentication"
+}

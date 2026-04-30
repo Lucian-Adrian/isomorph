@@ -17,8 +17,25 @@ slides/3-slides/slide-list.json
 slides/3-slides/slides/
 slides/isomorph.zip
 
-# Helper scripts
-scripts/
+# Root-generated artifacts (archive in artifacts/ instead)
+/all_tests*.txt
+/features_output*.txt
+/output*.txt
+/renderer_output.txt
+/tests_output.txt
+/diff.txt
+/strings.json
+/output_partition.json
+
+# Root one-off helpers (store in tools/maintenance or tools/archive)
+/append_*.js
+/debug_*.ts
+/refactor_keys*.js
+/refactor_keys*.cjs
+/replace_colors*.cjs
+/test_format.js
+/test_match*.js
+/test_match*.cjs
 
 # Keep empty website folder in repo
 !website/.gitkeep

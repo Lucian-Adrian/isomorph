@@ -1,0 +1,26 @@
+[
+  {
+    "message": "Expected 'STRING' but got 'IDENT' ('Lane')",
+    "line": 1,
+    "col": 34,
+    "pos": 33
+  },
+  {
+    "message": "Expected 'LBRACE' but got 'IDENT' ('Lane')",
+    "line": 1,
+    "col": 34,
+    "pos": 33
+  },
+  {
+    "message": "Unexpected token 'Lane' in diagram body",
+    "line": 1,
+    "col": 34,
+    "pos": 33
+  },
+  {
+    "message": "Expected 'RBRACE' but got 'EOF' ('')",
+    "line": 1,
+    "col": 68,
+    "pos": 67
+  }
+]

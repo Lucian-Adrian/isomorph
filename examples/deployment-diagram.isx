@@ -1,0 +1,38 @@
+diagram "CloudInfrastructure" : deployment {
+  title "Azure Cloud Deployment Architecture"
+  subtitle "Production Environment (US-WEST)"
+  caption "Figure 4: Horizontal Scaling with Node Nests"
+
+  node "Public V-Net" {
+    node "NAT Gateway"
+    node "Public Load Balancer"
+  }
+
+  node "Private Subnet 1" {
+    node "Backend VM 1" {
+      artifact "AppServer.exe"
+      artifact "config.yaml"
+    }
+    node "Backend VM 2" {
+      artifact "AppServer.exe"
+      artifact "config.yaml"
+    }
+  }
+
+  node "Database Subnet" {
+    device "SQL Server Instance" {
+      artifact "MainDB.sql"
+    }
+  }
+
+  "Public Load Balancer" -> "Backend VM 1" [label="distribute"]
+  "Public Load Balancer" -> "Backend VM 2" [label="distribute"]
+  "Backend VM 1" -> "SQL Server Instance" [label="query"]
+  "Backend VM 2" -> "SQL Server Instance" [label="query"]
+
+  legend {
+    V-Net = "Virtual Network Container"
+    Gateway = "Network Inbound Access"
+    AppServer = "Executable binary artifact"
+  }
+}

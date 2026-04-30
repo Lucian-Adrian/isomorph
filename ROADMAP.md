@@ -1,9 +1,14 @@
 # Isomorph Roadmap
 
+## Implementation Policy
+- Every new feature/fix must be documented (roadmap/docs/TODO parity) as part of delivery.
+- Every new feature/fix must respect the existing design language and include EN/RO/RU i18n + dark/light mode support from the start.
+
 ### Phase 1: Core Enhancements (High Priority)
 - **Verify UML Compliance**: Ensure all diagrams adhere to UML standards for accuracy and consistency.
 - **Custom Colors**: Allow users to customize element colors in diagrams. Hex color input with live preview and color picker. (UI: color swatch next to color input field, defaults to predefined colours).
 - **Class diagrams Package improvements**: Make canvas drag and drop over them possible and become nested containers for other entities. (UI: package boxes with dashed borders and background color, entities can be dragged into them, showing nesting visually and in code). 
+- **Documentation**: Comprehensive documentation for all features, including examples and best practices.
 
 ### Phase 2: Animation Implementation (Medium Priority)
 - **Animation for Sequence Diagrams**: Implement light trail animation that follows message lines in sequential order.

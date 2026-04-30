@@ -1,0 +1,12 @@
+const fs = require('fs');
+let code = fs.readFileSync('src/data/examples.ts', 'utf8');
+code = code.replace(/label: 'E-Commerce',/g, "label: 'E-Commerce Platform',");
+code = code.replace(/label: 'Use-Case',/g, "label: 'Library Use-Cases',");
+code = code.replace(/label: 'Component',/g, "label: 'Microservice Arch',");
+code = code.replace(/label: 'Deployment',/g, "label: 'Cloud Deployment',");
+code = code.replace(/label: 'Sequence',/g, "label: 'Authentication Flow',");
+code = code.replace(/label: 'State',/g, "label: 'Session States',");
+code = code.replace(/label: 'Activity',/g, "label: 'Checkout Process',");
+code = code.replace(/label: 'Collaboration',/g, "label: 'MVC Updates',");
+code = code.replace(/label: 'Flow',/g, "label: 'Order Fulfillment',");
+fs.writeFileSync('src/data/examples.ts', code);

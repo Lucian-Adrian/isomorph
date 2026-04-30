@@ -1,0 +1,110 @@
+
+ RUN  v2.1.9 D:/uni/year2/dslpbl/repo
+
+ ÔØ» tests/renderer.test.ts (48 tests | 2 failed) 30ms
+   ├ù Activity Diagram Renderer ÔÇö swimlanes > renders partition entities as swimlanes 11ms
+     ÔåÆ expected '<svg xmlns="http://www.w3.org/2000/svÔÇª' to contain 'data-entity-name="UserLane"'
+   ├ù Activity Diagram Renderer ÔÇö swimlanes > respects optional swimlane width/height from layout annotations 1ms
+     ÔåÆ expected '<svg xmlns="http://www.w3.org/2000/svÔÇª' to contain 'data-entity-width="420"'
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Tests 2 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  tests/renderer.test.ts > Activity Diagram Renderer ÔÇö swimlanes > renders partition entities as swimlanes
+AssertionError: expected '<svg xmlns="http://www.w3.org/2000/svÔÇª' to contain 'data-entity-name="UserLane"'
+
+- Expected
++ Received
+
+- data-entity-name="UserLane"
++ <svg xmlns="http://www.w3.org/2000/svg" width="540" height="430" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">
++   <defs>
++     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
++       <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="rgba(0,0,0,0.04)"/>
++       <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.02)"/>
++     </filter>
++     <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
++       <polygon points="0 0, 10 3.5, 0 7" fill="var(--iso-text-muted)"/>
++     </marker>
++     <marker id="hollow-arrow" markerWidth="13" markerHeight="9" refX="13" refY="4.5" orient="auto">
++       <polygon points="0 0, 13 4.5, 0 9" fill="var(--iso-bg-panel)" stroke="var(--iso-text-muted)" stroke-width="1.5"/>
++     </marker>
++     <marker id="diamond" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto">
++       <polygon points="0 5, 6 0, 12 5, 6 10" fill="var(--iso-bg-panel)" stroke="var(--iso-text-muted)" stroke-width="1.5"/>
++     </marker>
++     <marker id="filled-diamond" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto">
++       <polygon points="0 5, 6 0, 12 5, 6 10" fill="var(--iso-text-muted)"/>
++     </marker>
++     <linearGradient id="grad-class" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-blue, #f0f9ff)"/>
++     </linearGradient>
++     <linearGradient id="grad-interface" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-green, #f0fdf4)"/>
++     </linearGradient>
++     <linearGradient id="grad-abstract" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-purple, #fdf4ff)"/>
++     </linearGradient>
++     <linearGradient id="grad-enum" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-orange, #fffbeb)"/>
++     </linearGradient>
++     <linearGradient id="grad-state" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-blue, #f0f9ff)"/>
++     </linearGradient>
++     <linearGradient id="grad-flow" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-blue, #eff6ff)"/>
++     </linearGradient>
++   </defs>
++   <g transform="translate(0, 0)">
++   <g data-relation-id="rel_0" data-relation-from="Begin" data-relation-to="Validate" data-relation-kind="directed-association" data-relation-label=""><line x1="135" y1="135" x2="430" y2="225" stroke="transparent" stroke-width="15" style="cursor: pointer"/><line x1="135" y1="135" x2="430" y2="225" stroke="var(--iso-text-muted)" stroke-width="1.5" marker-end="url(#arrow)"/></g>
++   <g data-relation-id="rel_1" data-relation-from="Validate" data-relation-to="End" data-relation-kind="directed-association" data-relation-label=""><line x1="430" y1="225" x2="375" y2="335" stroke="transparent" stroke-width="15" style="cursor: pointer"/><line x1="430" y1="225" x2="375" y2="335" stroke="var(--iso-text-muted)" stroke-width="1.5" marker-end="url(#arrow)"/></g>
++   <g transform="translate(120,120)" data-entity-name="Begin">
++     <circle cx="15" cy="15" r="15" fill="var(--iso-text)" filter="url(#shadow)"/>
++     <text x="15" y="45" text-anchor="middle" font-size="12" fill="var(--iso-text)">Begin</text>
++   </g>
++   <g transform="translate(360,200)" data-entity-name="Validate">
++     <rect width="140" height="50" rx="16" fill="url(#grad-state)" stroke="#14b8a6" stroke-width="1.5" filter="url(#shadow)"/>
++     <text x="70" y="28" text-anchor="middle" font-size="13" font-weight="600" fill="var(--iso-text)">Validate</text>
++   </g>
++   <g transform="translate(360,320)" data-entity-name="End">
++     <circle cx="15" cy="15" r="15" fill="var(--iso-bg-panel)" stroke="var(--iso-text-muted)" stroke-width="2" filter="url(#shadow)"/>
++     <circle cx="15" cy="15" r="9" fill="var(--iso-text)"/>
++     <text x="15" y="45" text-anchor="middle" font-size="12" fill="var(--iso-text)">End</text>
++   </g>
++   </g>
++ </svg>
+
+ ÔØ» tests/renderer.test.ts:374:17
+    372|     }`);
+    373|     const svg = renderStateOrActivityDiagram(diag);
+    374|     expect(svg).toContain('data-entity-name="UserLane"');
+       |                 ^
+    375|     expect(svg).toContain('data-entity-name="SystemLane"');
+    376|     expect(svg).toContain('stroke="var(--iso-border, #cbd5e1)"');
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[1/2]ÔÄ»
+
+ FAIL  tests/renderer.test.ts > Activity Diagram Renderer ÔÇö swimlanes > respects optional swimlane width/height from layout annotations
+AssertionError: expected '<svg xmlns="http://www.w3.org/2000/svÔÇª' to contain 'data-entity-width="420"'
+
+Expected: "data-entity-width="420""
+Received: "<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>"
+
+ ÔØ» tests/renderer.test.ts:385:17
+    383|     }`);
+    384|     const svg = renderStateOrActivityDiagram(diag);
+    385|     expect(svg).toContain('data-entity-width="420"');
+       |                 ^
+    386|     expect(svg).toContain('data-entity-height="360"');
+    387|   });
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[2/2]ÔÄ»
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 46 passed (48)
+   Start at  23:49:08
+   Duration  1.85s (transform 147ms, setup 17ms, collect 415ms, tests 30ms, environment 693ms, prepare 147ms)

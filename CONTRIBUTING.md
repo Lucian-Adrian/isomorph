@@ -16,7 +16,7 @@ npm run dev
 | Directory | Purpose |
 |---|---|
 | `src/parser/` | Lexer, parser, AST type definitions |
-| `src/semantics/` | Static analyser (SS-1–SS-10) and IOM types |
+| `src/semantics/` | Static analyser (SS-1–SS-33) and IOM types |
 | `src/renderer/` | SVG renderers (class, usecase, component) |
 | `src/editor/` | CodeMirror integration |
 | `src/components/` | React UI components |
@@ -33,6 +33,17 @@ npm run test:watch   # Watch mode
 npm run typecheck    # TypeScript type checking
 npm run build        # Production build
 ```
+
+## Repository Hygiene
+
+Keep project root focused on runtime code, configuration, and core docs.
+
+1. Put reusable helper scripts in `tools/maintenance/`.
+2. Put one-off or historical helper scripts in `tools/archive/`.
+3. Put generated logs/debug outputs in `artifacts/debug/`.
+4. Put captured test run outputs in `artifacts/test-runs/`.
+5. Do not add temporary `.txt`/`.json` outputs to repository root.
+6. If a script mutates source files, include a short header comment describing intent and expected working directory.
 
 ## Guidelines
 

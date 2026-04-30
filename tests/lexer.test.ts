@@ -379,7 +379,7 @@ describe('Lexer', () => {
 
   describe('complex token sequences', () => {
     it('lexes a complete field declaration', () => {
-      const { tokens, errors } = lex('+ title: string');
+      const { tokens, errors } = lex('+ label: string');
       expect(errors).toHaveLength(0);
       const kinds = tokens.filter(t => t.kind !== 'EOF').map(t => t.kind);
       expect(kinds).toEqual(['PLUS', 'IDENT', 'COLON', 'string_t']);

@@ -78,3 +78,97 @@ export function wrapText(text: string, maxLen: number): string[] {
   if (spaceNear < 0) return [text];
   return [text.slice(0, spaceNear), text.slice(spaceNear + 1)];
 }
+
+/** Render title and subtitle for a diagram. Returns { svg: string, height: number } */
+export function renderConfigHeaders(diag: import('../semantics/iom.js').IOMDiagram, width: number): { svg: string, height: number } {
+  let svg = '';
+  let y = 35;
+  if (diag.config?.title) {
+    svg += `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="20" font-weight="800" fill="var(--iso-text)" font-family="DM Sans, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.title)}</text>\n`;
+    y += 30;
+  }
+  if (diag.config?.subtitle) {
+    svg += `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="14" fill="var(--iso-text-muted)" font-family="DM Sans, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.subtitle)}</text>\n`;
+    y += 25;
+  }
+  return { svg, height: y > 35 ? y : 0 };
+}
+
+/** Render caption for a diagram. Returns { svg: string, height: number } */
+export function renderConfigCaption(diag: import('../semantics/iom.js').IOMDiagram, width: number, totalHeight: number): { svg: string, height: number } {
+  if (!diag.config?.caption) return { svg: '', height: 0 };
+  const y = totalHeight + 25;
+  const svg = `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="12" font-style="italic" fill="var(--iso-text-muted)" font-family="DM Sans, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.caption)}</text>\n`;
+  return { svg, height: 40 };
+}
+
+/** Render legend for a diagram. Returns { svg: string } */
+export function renderConfigLegend(diag: import('../semantics/iom.js').IOMDiagram, width: number, yOffset: number): { svg: string } {
+  if (!diag.config?.legend) return { svg: '' };
+  const lines = diag.config.legend.split('\\n'); // Handle literal \n as well
+  const maxChars = Math.max(...lines.map(l => l.length));
+  const frameW = Math.max(120, maxChars * 8 + 20), frameH = lines.length * 20 + 10;
+  const x = width - frameW - 20, y = yOffset + 20;
+  let svg = `  <g transform="translate(${x},${y})">\n`;
+  svg += `    <rect width="${frameW}" height="${frameH}" fill="var(--iso-bg-panel)" stroke="var(--iso-border)" stroke-width="1.5" rx="4" filter="url(#shadow)" />\n`;
+  lines.forEach((l, i) => {
+    svg += `    <text x="10" y="${20 + i * 20}" font-size="12" fill="var(--iso-text)" font-family="DM Sans, system-ui, sans-serif">${escapeXml(l)}</text>\n`;
+  });
+  svg += `  </g>\n`;
+  return { svg };
+}
+
+/** Returns the center point of a rectangle. */
+export function rectCenter(x: number, y: number, w: number, h: number): { x: number; y: number } {
+  return { x: x + w / 2, y: y + h / 2 };
+}
+
+/**
+ * Projects a point from the rectangle center to its border in the direction of a target point.
+ * This gives cleaner edge-anchored relation lines than center-to-center drawing.
+ */
+export function edgePointOnRect(x: number, y: number, w: number, h: number, targetX: number, targetY: number): { x: number; y: number } {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const dx = targetX - cx;
+  const dy = targetY - cy;
+
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+  const sx = dx !== 0 ? (w / 2) / Math.abs(dx) : Number.POSITIVE_INFINITY;
+  const sy = dy !== 0 ? (h / 2) / Math.abs(dy) : Number.POSITIVE_INFINITY;
+  const t = Math.min(sx, sy);
+
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+
+/**
+ * Compute the absolute positions of provided/required/port interface points on a component entity.
+ * Returns a map from port field name to { x, y } in entity-local coordinates (add entity x/y for absolute).
+ */
+export function computePortPositions(
+  fields: { name: string; type: string }[], 
+  boxW: number, 
+  compH: number
+): Map<string, { x: number; y: number; side: 'right' | 'left' | 'bottom' }> {
+  const ports = new Map<string, { x: number; y: number; side: 'right' | 'left' | 'bottom' }>();
+
+  let provIdx = 0, reqIdx = 0, portIdx = 0;
+  for (const f of fields) {
+    if (f.type === 'provided') {
+      const py = 12 + provIdx * 20;
+      ports.set(f.name, { x: boxW + 20, y: py, side: 'right' });
+      provIdx++;
+    } else if (f.type === 'required') {
+      const py = 12 + reqIdx * 20;
+      ports.set(f.name, { x: -20, y: py, side: 'left' });
+      reqIdx++;
+    } else if (f.type === 'port') {
+      const px = 20 + portIdx * 20;
+      ports.set(f.name, { x: px, y: compH + 4, side: 'bottom' });
+      portIdx++;
+    }
+  }
+
+  return ports;
+}

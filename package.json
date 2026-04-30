@@ -9,7 +9,15 @@
     "url": "https://github.com/team02-faf241/isomorph.git"
   },
   "homepage": "https://lucian-adrian.github.io/isomorph/",
-  "keywords": ["dsl", "diagramming", "uml", "class-diagram", "bidirectional", "compiler", "typescript"],
+  "keywords": [
+    "dsl",
+    "diagramming",
+    "uml",
+    "class-diagram",
+    "bidirectional",
+    "compiler",
+    "typescript"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -30,7 +38,8 @@
     "@lezer/highlight": "^1.2.1",
     "codemirror": "^6.0.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "replace-in-file": "^8.4.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

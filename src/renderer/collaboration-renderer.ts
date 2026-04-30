@@ -5,7 +5,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter } from './utils.js';
 
 const BOX_W        = 140;
 const BOX_H        = 50;
@@ -26,6 +26,13 @@ interface Rect {
   h: number;
 }
 
+function entityBounds(p: Placed): Rect {
+  if (p.entity.kind === 'actor') {
+    return { x: p.x + BOX_W / 2 - 18, y: p.y + 5, w: 36, h: 65 };
+  }
+  return { x: p.x, y: p.y, w: BOX_W, h: BOX_H };
+}
+
 export function renderCollaborationDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
   if (entities.length === 0)
@@ -41,8 +48,16 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
     maxY = Math.max(maxY, p.y + BOX_H + 50); // actors take more height
   }
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  const header = renderConfigHeaders(diag, maxX);
+  const legend = renderConfigLegend(diag, maxX, header.height);
+  const caption = renderConfigCaption(diag, maxX, maxY + header.height + 40);
+  const totalH = maxY + header.height + caption.height + 40;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
+  svg += header.svg;
+  svg += legend.svg;
+  svg += `  <g transform="translate(0, ${header.height})">\n`;
 
   const relationPairCounts = new Map<string, number>();
   const relationPairIndexes = new Map<string, number>();
@@ -57,13 +72,16 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
     const t = placed.find(p => p.entity.name === rel.to);
     if (!f || !t) continue;
     
-    // For actors, center is lower
-    const getCenter = (p: Placed) => {
-       if (p.entity.kind === 'actor') return { cx: p.x + BOX_W / 2, cy: p.y + 45 };
-       return { cx: p.x + BOX_W / 2, cy: p.y + BOX_H / 2 };
-    };
-    const { cx: x1, cy: y1 } = getCenter(f);
-    const { cx: x2, cy: y2 } = getCenter(t);
+     const fBox = entityBounds(f);
+     const tBox = entityBounds(t);
+     const fCenter = rectCenter(fBox.x, fBox.y, fBox.w, fBox.h);
+     const tCenter = rectCenter(tBox.x, tBox.y, tBox.w, tBox.h);
+     const fromEdge = edgePointOnRect(fBox.x, fBox.y, fBox.w, fBox.h, tCenter.x, tCenter.y);
+     const toEdge = edgePointOnRect(tBox.x, tBox.y, tBox.w, tBox.h, fCenter.x, fCenter.y);
+     const x1 = fromEdge.x;
+     const y1 = fromEdge.y;
+     const x2 = toEdge.x;
+     const y2 = toEdge.y;
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
     const pairKey = [rel.from, rel.to].sort().join('::');
     const pairCount = relationPairCounts.get(pairKey) ?? 1;
@@ -155,6 +173,8 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
     svg += renderEntity(p);
   }
 
+  svg += `  </g>\n`;
+  svg += caption.svg;
   svg += `</svg>`;
   return svg;
 }

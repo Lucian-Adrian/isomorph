@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter } from './utils.js';
 
 const BOX_W        = 140;
 const BOX_H        = 50;
@@ -26,7 +26,7 @@ interface Placed {
 
 export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
-  if (entities.length === 0)
+  if (entities.length === 0 && diag.partitions.length === 0)
     return `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>`;
 
   const placed = placeEntities(entities);
@@ -38,9 +38,7 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     maxY = Math.max(maxY, p.y + dim.h + 40);
   }
 
-  const partitionEntities = diag.kind === 'activity'
-    ? entities.filter(e => e.kind === 'partition')
-    : [];
+  const partitionEntities = diag.partitions;
   const shouldRenderSwimlanes = partitionEntities.length > 0;
 
   if (shouldRenderSwimlanes) {
@@ -54,8 +52,16 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     });
   }
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  const header = renderConfigHeaders(diag, maxX);
+  const legend = renderConfigLegend(diag, maxX, header.height);
+  const caption = renderConfigCaption(diag, maxX, maxY + header.height + 40);
+  const totalH = maxY + header.height + caption.height + 40;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
+  svg += header.svg;
+  svg += legend.svg;
+  svg += `  <g transform="translate(0, ${header.height})">\n`;
 
   if (shouldRenderSwimlanes) {
     svg += renderActivitySwimlanes(partitionEntities, placed, maxY);
@@ -68,9 +74,13 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     if (!f || !t) continue;
     const fDim = getDimensions(f.entity);
     const tDim = getDimensions(t.entity);
-    
-    const x1 = f.x + fDim.w / 2, y1 = f.y + fDim.h / 2;
-    const x2 = t.x + tDim.w / 2, y2 = t.y + tDim.h / 2;
+
+    const fromCenter = rectCenter(f.x, f.y, fDim.w, fDim.h);
+    const toCenter = rectCenter(t.x, t.y, tDim.w, tDim.h);
+    const fromEdge = edgePointOnRect(f.x, f.y, fDim.w, fDim.h, toCenter.x, toCenter.y);
+    const toEdge = edgePointOnRect(t.x, t.y, tDim.w, tDim.h, fromCenter.x, fromCenter.y);
+    const x1 = fromEdge.x, y1 = fromEdge.y;
+    const x2 = toEdge.x, y2 = toEdge.y;
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
     
     svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
@@ -92,11 +102,13 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     svg += renderEntity(p);
   }
 
+  svg += `  </g>\n`;
+  svg += caption.svg;
   svg += `</svg>`;
   return svg;
 }
 
-function renderActivitySwimlanes(partitions: IOMEntity[], placed: Placed[], height: number): string {
+function renderActivitySwimlanes(partitions: import('../semantics/iom.js').IOMPartition[], placed: Placed[], height: number): string {
   const headerHeight = 34;
 
   const partitionPlacements = partitions

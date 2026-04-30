@@ -1,0 +1,107 @@
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mD:/uni/year2/dslpbl/repo[39m
+
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mkeywords[2m > [22mrecognizes all reserved keywords
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mkeywords[2m > [22mmaps "string" to string_t token
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mkeywords[2m > [22mrecognizes type keywords
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mkeywords[2m > [22mrecognizes true and false as keywords
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mkeywords[2m > [22mrecognizes entity keywords: actor, usecase, component, node
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mkeywords[2m > [22mrecognizes final keyword
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mkeywords[2m > [22mrecognizes static keyword
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mkeywords[2m > [22mrecognizes extends and implements keywords
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mkeywords[2m > [22mrecognizes note, on, style, at keywords
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22midentifiers[2m > [22mproduces IDENT tokens for user-defined names
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22midentifiers[2m > [22mcaptures identifier values
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22midentifiers[2m > [22mallows underscores in identifiers
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22midentifiers[2m > [22mallows digits within identifiers (but not leading)
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mstring literals[2m > [22mlexes a quoted string
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mstring literals[2m > [22mhandles escape sequences in strings
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mstring literals[2m > [22mlexes an empty string
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mstring literals[2m > [22mhandles string with special characters
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mnumbers[2m > [22mlexes integer literals
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mnumbers[2m > [22mlexes float literals
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mnumbers[2m > [22mlexes negative integer literals (BUG-1 fix)
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mnumbers[2m > [22mlexes negative coordinates in layout annotations
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mnumbers[2m > [22mlexes zero
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mpunctuation[2m > [22mlexes ? as QUESTION token (INCON-1 fix)
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mpunctuation[2m > [22mlexes braces { }
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mpunctuation[2m > [22mlexes parentheses ( )
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mpunctuation[2m > [22mlexes angle brackets < >
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mpunctuation[2m > [22mlexes colon, semicolon, comma, dot
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mpunctuation[2m > [22mlexes = as EQ
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mpunctuation[2m > [22mlexes @ as AT
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mpunctuation[2m > [22mlexes [ and ] as LBRACKET and RBRACKET
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mrelation operators[2m > [22mlexes all relation operators correctly
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mrelation operators[2m > [22mgreedily matches --|> before --
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mrelation operators[2m > [22mgreedily matches ..|> before ..
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mrelation operators[2m > [22mlexes --x as RESTR
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mvisibility symbols[2m > [22mlexes + as PLUS
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mvisibility symbols[2m > [22mlexes - as MINUS
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mvisibility symbols[2m > [22mlexes ~ as TILDE
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mvisibility symbols[2m > [22mlexes # as HASH (visibility)
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcolor tokens[2m > [22mlexes a 6-hex color as COLOR
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcolor tokens[2m > [22mlexes # without 6 hex chars as HASH
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcolor tokens[2m > [22mlexes 3-char hex as HASH followed by IDENT
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mstereotype delimiters[2m > [22mlexes << as STEREO_O
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mstereotype delimiters[2m > [22mlexes nested generic closing >> as two GT tokens (INCON-5 fix)
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcomments[2m > [22mskips line comments
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcomments[2m > [22mskips block comments
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcomments[2m > [22mskips block comment spanning multiple lines
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcomments[2m > [22mhandles consecutive comments
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mline tracking[2m > [22mtracks line numbers across newlines
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mline tracking[2m > [22mtracks column numbers
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mline tracking[2m > [22mtracks lines after block comments
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mwhitespace handling[2m > [22mignores leading and trailing whitespace
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mwhitespace handling[2m > [22mignores tabs
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mwhitespace handling[2m > [22mhandles empty input
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mwhitespace handling[2m > [22mhandles input with only whitespace
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22merror recovery[2m > [22mreports unknown characters in errors array
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22merror recovery[2m > [22mproduces EOF token at end
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22merror recovery[2m > [22mcontinues lexing after error
+ [31m├ù[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcomplex token sequences[2m > [22mlexes a complete field declaration
+[31m   ÔåÆ expected [ Array(4) ] to deeply equal [ Array(4) ][39m
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcomplex token sequences[2m > [22mlexes a method declaration
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcomplex token sequences[2m > [22mlexes a field with default value
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcomplex token sequences[2m > [22mlexes a generic type expression
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22mcomplex token sequences[2m > [22mlexes a complete layout annotation
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mhandles unterminated string literal gracefully
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mhandles unterminated block comment gracefully
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mhandles very long identifier
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mhandles identifier starting with underscore
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mhandles all escape sequences in strings
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mlexes consecutive operators
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mdistinguishes MINUS from MINUS in context
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mhandles very large numbers
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mhandles line comment at EOF without newline
+ [32mÔ£ô[39m tests/lexer.test.ts[2m > [22mLexer[2m > [22medge cases ÔÇö unterminated & boundary[2m > [22mhandles mixed relation operators in sequence
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Tests 1 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  tests/lexer.test.ts > Lexer > complex token sequences > lexes a complete field declaration
+AssertionError: expected [ Array(4) ] to deeply equal [ Array(4) ]
+
+- Expected
++ Received
+
+  Array [
+    "PLUS",
+-   "IDENT",
++   "title",
+    "COLON",
+    "string_t",
+  ]
+
+ ÔØ» tests/lexer.test.ts:385:21
+    383|       expect(errors).toHaveLength(0);
+    384|       const kinds = tokens.filter(t => t.kind !== 'EOF').map(t => t.kiÔÇª
+    385|       expect(kinds).toEqual(['PLUS', 'IDENT', 'COLON', 'string_t']);
+       |                     ^
+    386|     });
+    387| 
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[1/1]ÔÄ»
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m71 passed[39m[22m[90m (72)[39m
+[2m   Start at [22m 21:50:03
+[2m   Duration [22m 1.41s[2m (transform 75ms, setup 15ms, collect 100ms, tests 21ms, environment 650ms, prepare 231ms)[22m

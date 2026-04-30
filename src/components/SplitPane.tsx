@@ -8,9 +8,10 @@ interface SplitPaneProps {
   left: ReactNode;
   right: ReactNode;
   defaultSplit?: number; // 0–1, fraction for left panel
+  separatorLabel?: string;
 }
 
-export function SplitPane({ left, right, defaultSplit = 0.45 }: SplitPaneProps) {
+export function SplitPane({ left, right, defaultSplit = 0.45, separatorLabel = 'Resize panels - use arrow keys' }: SplitPaneProps) {
   const [split, setSplit]   = useState(defaultSplit);
   const containerRef        = useRef<HTMLDivElement>(null);
   const dragging            = useRef(false);
@@ -60,7 +61,7 @@ export function SplitPane({ left, right, defaultSplit = 0.45 }: SplitPaneProps) 
         aria-valuenow={Math.round(split * 100)}
         aria-valuemin={20}
         aria-valuemax={80}
-        aria-label="Resize panels — use arrow keys"
+        aria-label={separatorLabel}
         tabIndex={0}
         className="iso-divider-handle"
         onMouseDown={onMouseDown}

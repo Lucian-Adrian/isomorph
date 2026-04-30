@@ -1,0 +1,41 @@
+diagram "OrderSystem" : activity {
+  title "Business Order Fulfillment"
+  subtitle "Using partitions/swimlanes"
+
+  partition Sales {
+    start "Order Received"
+    action "Validate Payment"
+    decision "Payment Valid?"
+    stop "Reject Order"
+  }
+
+  partition Warehouse {
+    action "Pick Items"
+    action "Pack Order"
+    fork "Prepare Shipping"
+    action "Generate Label"
+    action "Secure Box"
+    join "Ready to Ship"
+  }
+
+  partition Shipping {
+    action "Deliver to Carrier"
+    stop "Delivered"
+  }
+
+  // Relations
+  "Order Received" -> "Validate Payment"
+  "Validate Payment" -> "Payment Valid?"
+  "Payment Valid?" -> "Reject Order" [label="No"]
+  "Payment Valid?" -> "Pick Items" [label="Yes"]
+  "Pick Items" -> "Pack Order"
+  "Pack Order" -> "Prepare Shipping"
+  "Prepare Shipping" -> "Generate Label"
+  "Prepare Shipping" -> "Secure Box"
+  "Generate Label" -> "Ready to Ship"
+  "Secure Box" -> "Ready to Ship"
+  "Ready to Ship" -> "Deliver to Carrier"
+  "Deliver to Carrier" -> "Delivered"
+
+  caption "Figure 2: Multi-departmental fulfillment flow"
+}

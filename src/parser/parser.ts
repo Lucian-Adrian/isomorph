@@ -10,7 +10,7 @@ import type {
   PackageDecl, EntityDecl, EntityKind, Modifier, Member,
   FieldDecl, MethodDecl, EnumValueDecl, ParamDecl, TypeExpr,
   SimpleType, GenericType, NullableType, RelationDecl, RelationKind,
-  NoteDecl, StyleDecl, LayoutAnnotation, LiteralExpr, Span, Visibility,
+  NoteDecl, StyleDecl, LayoutAnnotation, LiteralExpr, ConfigDecl, Span, Visibility, FragmentDecl,
 } from './ast.js';
 
 export interface ParseError {
@@ -30,6 +30,7 @@ export interface ParseResult {
 export class Parser {
   private pos = 0;
   private errors: ParseError[] = [];
+  private readonly contextualIdentifierKinds: TokenKind[] = ['title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber'];
 
   constructor(private tokens: Token[]) {}
 
@@ -62,6 +63,22 @@ export class Parser {
         line: t.line, col: t.col, pos: t.start,
       });
       // Error recovery: return the invalid token but don't consume it
+      return t;
+    }
+    return this.advance();
+  }
+
+  private isIdentifierLikeToken(kind: TokenKind): boolean {
+    return kind === 'IDENT' || this.contextualIdentifierKinds.includes(kind);
+  }
+
+  private expectIdentifierLike(): Token {
+    const t = this.peek();
+    if (!this.isIdentifierLikeToken(t.kind)) {
+      this.errors.push({
+        message: `Expected identifier but got '${t.kind}' ('${t.value}')`,
+        line: t.line, col: t.col, pos: t.start,
+      });
       return t;
     }
     return this.advance();
@@ -160,6 +177,17 @@ export class Parser {
     // ── Layout annotation: @Name at (x, y) ──
     if (t.kind === 'AT') return this.parseLayoutAnnotation();
 
+    // ── Sequence Fragments ──
+    if (this.atAny('alt', 'loop', 'opt', 'par', 'break', 'critical')) return this.parseFragmentDecl();
+
+    // ── Sequence Lifecycle ──
+    if (this.at('ref')) return this.parseRefDecl();
+    if (this.at('activate')) return this.parseActivateDecl(false);
+    if (this.at('deactivate')) return this.parseActivateDecl(true);
+    if (this.at('create')) return this.parseCreateDecl();
+    if (this.at('destroy')) return this.parseDestroyDecl();
+    if (this.at('partition')) return this.parsePartitionDecl();
+
     // ── Package ──
     if (t.kind === 'package') return this.parsePackageDecl();
 
@@ -168,6 +196,9 @@ export class Parser {
 
     // ── Style ──
     if (t.kind === 'style') return this.parseStyleDecl();
+
+    // ── Config ──
+    if (this.atAny('title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber', 'autoactivation')) return this.parseConfigDecl();
 
     // ── Entity (class/interface/enum/actor/usecase/component/node or with abstract modifier) ──
     if (this.isEntityStart()) return this.parseEntityDecl();
@@ -195,7 +226,8 @@ export class Parser {
 
   private isRelationOperator(k: TokenKind): boolean {
     return ['ASSOC','ASSOC_DIR','INHERIT','REALIZE','AGGR','COMPOSE','RESTR',
-            'DEPEND','INHERIT_R','REALIZE_R','DEPEND_R','AGGR_R','COMPOSE_R'].includes(k);
+            'DEPEND','INHERIT_R','REALIZE_R','DEPEND_R','AGGR_R','COMPOSE_R',
+            'PROVIDES','REQUIRES_R'].includes(k);
   }
 
   // ── Rule 9: package-decl ────────────────────────────────────
@@ -224,7 +256,12 @@ export class Parser {
     let stereotype: string | undefined;
     if (this.at('STEREO_O')) {
       this.advance();
-      stereotype = this.expect('IDENT').value;
+      const st = this.peek();
+      if (st.kind !== 'GT' && st.kind !== 'EOF') {
+        stereotype = this.advance().value;
+      } else {
+        this.errors.push({ message: `Expected stereotype name after '<<'`, ...this.currentPos() });
+      }
       this.expect('GT');
       this.expect('GT');
     }
@@ -294,16 +331,19 @@ export class Parser {
     if (this.isEntityStart()) {
       return this.parseEntityDecl();
     }
+    
+    // Concurrent regions
+    if (this.at('region')) return this.parseRegionDecl();
 
     // Enum values have no visibility/type prefix
-    if (entityKind === 'enum' && this.at('IDENT') && !this.isVisibility(this.peek().kind)) {
+    if (entityKind === 'enum' && this.isIdentifierLikeToken(this.peek().kind) && !this.isVisibility(this.peek().kind)) {
       return this.parseEnumValue();
     }
 
     const vis = this.parseVisibility();
     const mods = this.parseMemberModifiers();
 
-    const name = this.expect('IDENT').value;
+    const name = this.expectIdentifierLike().value;
     const nameStart = this.peek(-1);
 
     // Method: name ( ...
@@ -372,14 +412,14 @@ export class Parser {
   }
 
   private parseParam(): ParamDecl {
-    const name = this.expect('IDENT').value;
+    const name = this.expectIdentifierLike().value;
     this.expect('COLON');
     const type = this.parseTypeExpr();
     return { name, type };
   }
 
   private parseEnumValue(): EnumValueDecl {
-    const t = this.expect('IDENT');
+    const t = this.expectIdentifierLike();
     if (this.at('SEMI')) this.advance();
     return { kind: 'EnumValueDecl', name: t.value, span: this.spanFrom(t) };
   }
@@ -390,7 +430,7 @@ export class Parser {
     const first = this.peek();
     let base: TypeExpr;
 
-    if (this.atAny('IDENT', 'list', 'map', 'set', 'optional', 'int', 'float', 'bool', 'string_t', 'void')) {
+    if (this.atAny('IDENT', 'list', 'map', 'set', 'optional', 'int', 'float', 'bool', 'string_t', 'void', 'provided', 'required', 'port')) {
       const name = this.advance().value;
       if (this.at('LT')) {
         const args = this.parseTypeArgList();
@@ -430,16 +470,31 @@ export class Parser {
   // ── Rules 31-38: relations ──────────────────────────────────
 
   private parseRelationDecl(): RelationDecl {
-    const fromToken = this.expect('IDENT');
+    const fromToken = this.expectIdentifierLike();
     const from = fromToken.value;
-    const relOp = this.advance();
-    const relKind = this.tokenToRelKind(relOp.kind);
-    const to = this.expect('IDENT').value;
+    const relOpToken = this.advance();
+    const relKind = this.tokenToRelKind(relOpToken.kind);
+
+    let isCreate = false;
+    let isDestroy = false;
+    
+    if (this.at('create') || (this.at('IDENT') && this.peek().value === 'new')) {
+      this.advance();
+      isCreate = true;
+    } else if (this.at('destroy') || (this.at('IDENT') && this.peek().value === 'delete')) {
+      this.advance();
+      isDestroy = true;
+    }
+
+    const to = this.expectIdentifierLike().value;
 
     let label: string | undefined;
     let fromMult: string | undefined;
     let toMult: string | undefined;
     const style: Record<string, string> = {};
+
+    if (isCreate) style['action'] = 'create';
+    if (isDestroy) style['action'] = 'destroy';
 
     // Optional attrs: [label="...", fromMult="...", toMult="...", color="#..."]
     if (this.at('LBRACKET')) {
@@ -468,6 +523,7 @@ export class Parser {
       ASSOC: '--', ASSOC_DIR: '-->', INHERIT: '--|>', REALIZE: '..|>',
       AGGR: '--o', COMPOSE: '--*', RESTR: '--x', DEPEND: '..>',
       INHERIT_R: '<|--', REALIZE_R: '<|..', DEPEND_R: '<..', AGGR_R: 'o--', COMPOSE_R: '*--',
+      PROVIDES: '--()', REQUIRES_R: '--(',
     };
     return map[k] ?? '--';
   }
@@ -489,7 +545,8 @@ export class Parser {
 
   private parseStyleDecl(): StyleDecl {
     const kw = this.expect('style');
-    const target = this.expect('IDENT').value;
+    const targetToken = this.advance();
+    const target = targetToken.value;
     this.expect('LBRACE');
     const styles: Record<string, string> = {};
     while (!this.at('RBRACE') && !this.at('EOF')) {
@@ -527,6 +584,24 @@ export class Parser {
     return { kind: 'LayoutAnnotation', entity, x, y, w, h, span: this.spanTo(at, close) };
   }
 
+  // ── Config ──
+
+  private parseConfigDecl(): ConfigDecl {
+    const kw = this.advance();
+    const key = kw.kind as 'title' | 'subtitle' | 'caption' | 'legend' | 'direction' | 'strict' | 'autonumber' | 'autoactivation';
+    let value: string | undefined;
+
+    if (key === 'direction') {
+      value = this.expect('IDENT').value;
+    } else if (['title', 'subtitle', 'caption', 'legend'].includes(key)) {
+      value = this.expect('STRING').value;
+    }
+
+    if (this.at('SEMI')) this.advance();
+
+    return { kind: 'ConfigDecl', key, value, span: this.spanTo(kw, this.peek(-1)) };
+  }
+
   // ── Literals ─────────────────────────────────────────────────
 
   private parseLiteral(): LiteralExpr {
@@ -546,6 +621,138 @@ export class Parser {
     }
     this.errors.push({ message: `Expected literal value`, ...this.currentPos() });
     return { kind: 'Literal', value: '', span: this.spanFrom(t) };
+  }
+
+  private parseFragmentDecl(): FragmentDecl {
+    const startToken = this.peek();
+    const fragmentKind = this.advance().kind as any;
+    
+    let name: string | undefined;
+    if (this.isIdentifierLikeToken(this.peek().kind)) {
+      name = this.advance().value;
+    }
+
+    let conditionCount: number | undefined;
+    if (this.at('LPAREN') && this.peek(1).kind === 'NUMBER' && this.peek(2).kind === 'RPAREN') {
+      this.advance(); // (
+      conditionCount = parseInt(this.advance().value, 10);
+      this.advance(); // )
+    }
+
+    let label: string | undefined;
+    if (this.at('STEREO_O')) {
+      this.advance();
+      if (this.peek().kind !== 'GT' && this.peek().kind !== 'EOF') {
+        label = this.advance().value;
+      }
+      if (this.at('GT')) this.advance(); else this.expect('GT');
+      if (this.at('GT')) this.advance(); else this.expect('GT');
+    } else if (this.at('STRING')) {
+      label = this.advance().value;
+    }
+
+    this.expect('LBRACE');
+    const body = this.parseDiagramBody();
+    this.expect('RBRACE');
+
+    const elseBlocks: { label?: string; body: BodyItem[] }[] = [];
+    let count = 1;
+    while (this.at('else') || this.at('STEREO_O') || (!this.at('else') && !this.at('STEREO_O') && conditionCount !== undefined && count < conditionCount && (this.at('LBRACE') || this.at('STRING')))) {
+      if (this.at('else')) this.advance();
+      let elseLabel: string | undefined;
+      if (this.at('STEREO_O')) {
+        this.advance();
+        if (this.peek().kind !== 'GT' && this.peek().kind !== 'EOF') {
+          elseLabel = this.advance().value;
+        }
+        if (this.at('GT')) this.advance(); else this.expect('GT');
+        if (this.at('GT')) this.advance(); else this.expect('GT');
+      } else if (this.at('STRING')) {
+        elseLabel = this.advance().value;
+      }
+      this.expect('LBRACE');
+      const elseBody = this.parseDiagramBody();
+      this.expect('RBRACE');
+      elseBlocks.push({ label: elseLabel, body: elseBody });
+      count++;
+    }
+
+    // Optional 'end' to close fragment if not using braces, but Isomorph prefers braces.
+    // We'll allow 'end' as an optional terminator for PlantUML fans.
+    if (this.at('end')) this.advance();
+
+    return {
+      kind: 'FragmentDecl',
+      fragmentKind,
+      name,
+      conditionCount,
+      label,
+      body,
+      elseBlocks: elseBlocks.length > 0 ? elseBlocks : undefined,
+      span: this.spanTo(startToken, this.peek(-1)),
+    };
+  }
+
+  private parseRefDecl(): import('./ast.js').RefDecl {
+    const first = this.advance();
+    const text = this.expect('STRING').value;
+    return { kind: 'RefDecl', text, span: this.spanFrom(first) };
+  }
+
+  private parseActivateDecl(isDeactivate: boolean): import('./ast.js').ActivateDecl | import('./ast.js').DeactivateDecl {
+    const first = this.advance();
+    const entity = this.expect('IDENT').value;
+    const span = this.spanFrom(first);
+    return isDeactivate 
+      ? { kind: 'DeactivateDecl', entity, span }
+      : { kind: 'ActivateDecl', entity, span };
+  }
+
+  private parseCreateDecl(): import('./ast.js').CreateDecl {
+    const first = this.advance();
+    const entity = this.expect('IDENT').value;
+    return { kind: 'CreateDecl', entity, span: this.spanFrom(first) };
+  }
+
+  private parseDestroyDecl(): import('./ast.js').DestroyDecl {
+    const first = this.advance();
+    const entity = this.expect('IDENT').value;
+    return { kind: 'DestroyDecl', entity, span: this.spanFrom(first) };
+  }
+
+  private parseRegionDecl(): import('./ast.js').RegionDecl {
+    const first = this.advance();
+    this.expect('LBRACE');
+    const body = this.parseDiagramBody();
+    this.expect('RBRACE');
+    return { kind: 'RegionDecl', body, span: this.spanFrom(first) };
+  }
+
+  private parsePartitionDecl(): import('./ast.js').PartitionDecl {
+    const first = this.advance();
+    let name = '';
+    if (this.at('STRING')) {
+      name = this.advance().value;
+    } else {
+      name = this.expectIdentifierLike().value;
+    }
+
+    // Partitions do not support stereotypes semantically, but we consume accidental
+    // stereotype tokens to avoid cascading parse failures from malformed input.
+    if (this.at('STEREO_O')) {
+      this.advance();
+      if (this.isIdentifierLikeToken(this.peek().kind)) this.advance();
+      if (this.at('GT')) this.advance(); else this.expect('GT');
+      if (this.at('GT')) this.advance(); else this.expect('GT');
+    }
+
+    let body: BodyItem[] = [];
+    if (this.at('LBRACE')) {
+      this.expect('LBRACE');
+      body = this.parseDiagramBody();
+      this.expect('RBRACE');
+    }
+    return { kind: 'PartitionDecl', name, body, span: this.spanFrom(first) };
   }
 
   // ── Helpers ──────────────────────────────────────────────────

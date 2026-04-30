@@ -6,7 +6,7 @@ import { renderUseCaseDiagram } from '../src/renderer/usecase-renderer.js';
 import { renderComponentDiagram } from '../src/renderer/component-renderer.js';
 import { renderSequenceDiagram } from '../src/renderer/sequence-renderer.js';
 import { renderStateOrActivityDiagram } from '../src/renderer/state-renderer.js';
-import { escapeXml, visSymbolFor } from '../src/renderer/utils.js';
+import { escapeXml, visSymbolFor, edgePointOnRect, computePortPositions } from '../src/renderer/utils.js';
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -34,6 +34,27 @@ describe('Renderer Utils', () => {
     expect(visSymbolFor('private')).toBe('−');
     expect(visSymbolFor('protected')).toBe('#');
     expect(visSymbolFor('package')).toBe('~');
+  });
+
+  it('calculates edgePointOnRect correctly for non-class edge anchoring geometry', () => {
+    // Tests correct offset logic for non-class nodes
+    const point1 = edgePointOnRect(0, 0, 100, 50, 150, 25);
+    expect(point1.x).toBe(100);
+    expect(point1.y).toBe(25);
+    
+    // Vertical anchoring
+    const point2 = edgePointOnRect(0, 0, 100, 50, 50, -50);
+    expect(point2.x).toBe(50);
+    expect(point2.y).toBe(0);
+  });
+
+  it('computes component port routing correctly for nested component port routing', () => {
+    // Tests component port routing configuration
+    const ports = computePortPositions([{ name: 'p1', type: 'provided' }, { name: 'p2', type: 'required' }], 100, 50);
+    expect(ports.has('p1')).toBe(true);
+    expect(ports.has('p2')).toBe(true);
+    expect(ports.get('p1')?.side).toBe('left');
+    expect(ports.get('p2')?.side).toBe('right');
   });
 });
 
@@ -137,6 +158,19 @@ describe('Class Diagram Renderer', () => {
     const diag = buildDiagram('diagram D : class { class A {} @A at (300, 400) }');
     const svg = renderClassDiagram(diag);
     expect(svg).toContain('translate(300,400)');
+  });
+
+  it('respects package position annotation over member bounding box', () => {
+    const diag = buildDiagram(`diagram D : class {
+      package core {
+        class Entity {}
+      }
+      @Entity at (100, 100)
+      @core at (50, 40)
+    }`);
+    const svg = renderClassDiagram(diag);
+    expect(svg).toContain('data-package-name="core"');
+    expect(svg).toContain('translate(50,40)');
   });
 });
 
@@ -307,6 +341,52 @@ describe('UseCase Diagram Renderer — advanced', () => {
     const svg = renderUseCaseDiagram(diag);
     expect(svg).toContain('data-entity-name="Student"');
   });
+
+  it('renders default boundary as editable pseudo-system entity', () => {
+    const diag = buildDiagram('diagram D : usecase { actor User usecase Login }');
+    const svg = renderUseCaseDiagram(diag);
+    expect(svg).toContain('data-default-usecase-boundary="true"');
+    expect(svg).toContain('data-entity-name="System"');
+  });
+
+  it('respects optional width and height on explicit system boundary', () => {
+    const diag = buildDiagram(`diagram D : usecase {
+      actor User
+      usecase Login
+      system MainSystem
+      @MainSystem at (210, 30, 640, 420)
+    }`);
+    const svg = renderUseCaseDiagram(diag);
+    expect(svg).toContain('data-entity-width="640"');
+    expect(svg).toContain('data-entity-height="420"');
+  });
+
+  it('renders resize handles for explicit system boundaries', () => {
+    const diag = buildDiagram(`diagram D : usecase {
+      actor User
+      usecase Login
+      system MainSystem
+      @MainSystem at (210, 30, 640, 420)
+    }`);
+    const svg = renderUseCaseDiagram(diag);
+    expect(svg).toContain('data-boundary-entity="true"');
+    expect(svg).toContain('data-resize-handle="e"');
+    expect(svg).toContain('data-resize-handle="s"');
+    expect(svg).toContain('data-resize-handle="se"');
+  });
+
+  it('avoids default boundary name collisions with existing entities', () => {
+    const diag = buildDiagram(`diagram D : usecase {
+      actor System
+      actor User
+      usecase Login
+      System --> Login
+      User --> Login
+    }`);
+    const svg = renderUseCaseDiagram(diag);
+    expect(svg).toContain('data-default-usecase-boundary="true"');
+    expect(svg).toContain('data-entity-name="SystemBoundary"');
+  });
 });
 
 describe('Component Diagram Renderer — advanced', () => {
@@ -329,6 +409,13 @@ describe('Component Diagram Renderer — advanced', () => {
     expect(svg).toContain('Server');
   });
 
+  it('renders deployment nested node rendering', () => {
+    const diag = buildDiagram('diagram D : deployment { node Cluster { node Server } }');
+    const svg = renderComponentDiagram(diag);
+    expect(svg).toContain('Cluster');
+    expect(svg).toContain('Server');
+  });
+
   it('includes data-entity-name for components', () => {
     const diag = buildDiagram('diagram D : component { component Gateway }');
     const svg = renderComponentDiagram(diag);
@@ -337,6 +424,28 @@ describe('Component Diagram Renderer — advanced', () => {
 });
 
 describe('Sequence Diagram Renderer — advanced', () => {
+  it('includes data-entity-name for sequence participants and actors', () => {
+    const diag = buildDiagram('diagram D : sequence { actor User participant AuthService }');
+    const svg = renderSequenceDiagram(diag);
+    expect(svg).toContain('data-entity-name="User"');
+    expect(svg).toContain('data-entity-name="AuthService"');
+  });
+
+  it('renders transparent relation hit-lines for interaction', () => {
+    const diag = buildDiagram('diagram D : sequence { participant A participant B A --> B [label="ping"] }');
+    const svg = renderSequenceDiagram(diag);
+    expect(svg).toContain('data-relation-label="ping"');
+    expect(svg).toContain('stroke="transparent"');
+  });
+
+    it('renders asynchronous as open arrow and response as dashed open arrow', () => {
+      const diag = buildDiagram('diagram D : sequence { participant A participant B A --|> B [label="req"] B ..> A [label="ack"] A --> B [label="sync"] }');
+      const svg = renderSequenceDiagram(diag);
+      expect(svg).toContain('data-seq-rel-type="asynchronous"');
+      expect(svg).toContain('data-seq-rel-type="response"');
+      expect(svg).toContain('stroke-dasharray="6,3"');
+    });
+
   it('renders self-referencing messages as loop paths', () => {
     const diag = buildDiagram('diagram D : sequence { participant A A --> A [label="self"] }');
     const svg = renderSequenceDiagram(diag);
@@ -349,6 +458,32 @@ describe('Sequence Diagram Renderer — advanced', () => {
     const diag = buildDiagram('diagram D : sequence { participant A participant B A --> B [label="ping", y="260"] }');
     const svg = renderSequenceDiagram(diag);
     expect(svg).toContain('data-relation-y="260"');
+  });
+
+  it('renders create participant offset by its activation Y coordinate', () => {
+    const diag = buildDiagram('diagram D : sequence { participant A participant B participant C A --> B create C B --> C }');
+    const svg = renderSequenceDiagram(diag);
+    const createYMatch = svg.match(/<g transform="translate\(\d+,(\d+)\)" data-entity-name="C"/);
+    expect(createYMatch).not.toBeNull();
+    // Padding Y is 60, create Y should be > 0.
+    const createdY = parseInt(createYMatch![1]);
+    expect(createdY).toBeGreaterThan(60);
+  });
+
+  it('renders destroy marker and shortens lifeline', () => {
+    const diag = buildDiagram('diagram D : sequence { participant A participant B A --> B destroy B }');
+    const svg = renderSequenceDiagram(diag);
+    // Destroys draw an "X" path and terminate line early
+    expect(svg).toContain('M-10,');
+    expect(svg).toContain('L10,');
+  });
+
+  it('renders explicit response relations with dashed lines', () => {
+    const diag = buildDiagram('diagram D : sequence { autoactivation participant A participant B A --> B B ..> A [label="data"] }');
+    const svg = renderSequenceDiagram(diag);
+    expect(svg).toContain('data-relation-kind="dependency"');
+    // dash array check for dependency relations
+    expect(svg).toContain('stroke-dasharray="6,3"');
   });
 });
 
@@ -373,7 +508,7 @@ describe('Activity Diagram Renderer — swimlanes', () => {
     const svg = renderStateOrActivityDiagram(diag);
     expect(svg).toContain('data-entity-name="UserLane"');
     expect(svg).toContain('data-entity-name="SystemLane"');
-    expect(svg).toContain('stroke="#cbd5e1"');
+    expect(svg).toContain('stroke="var(--iso-border, #cbd5e1)"');
   });
 
   it('respects optional swimlane width/height from layout annotations', () => {

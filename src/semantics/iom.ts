@@ -74,6 +74,8 @@ export interface IOMEntity {
   position?: Position;     // from @Entity at (x, y) annotations
   styles: Record<string, string>;
   note?: string;
+  children: IOMEntity[];
+  regions: { id: string, entityNames: string[], relationIds: string[] }[];
 }
 
 export type IOMRelationKind =
@@ -84,7 +86,9 @@ export type IOMRelationKind =
   | 'aggregation'
   | 'composition'
   | 'dependency'
-  | 'restriction';
+  | 'restriction'
+  | 'provides'
+  | 'requires';
 
 /** Resolved relation between two entities */
 export interface IOMRelation {
@@ -106,6 +110,47 @@ export interface IOMDiagram {
   relations: IOMRelation[];
   packages: IOMPackage[];
   notes: IOMNote[];
+  config: IOMConfig;
+  styles: Record<string, string>;
+  fragments: IOMFragment[];
+  activations: IOMActivation[];
+  partitions: IOMPartition[];
+}
+
+export interface IOMPartition {
+  id: string;
+  name: string;
+  entityNames: string[];
+  relationIds: string[];
+  position?: Position;
+}
+
+export interface IOMActivation {
+  id: string;
+  entity: string;
+  kind: 'activate' | 'deactivate' | 'create' | 'destroy';
+  afterRelationIdx: number;
+  source?: 'auto' | 'manual' | 'lifecycle';
+}
+
+export interface IOMFragment {
+  id: string;
+  kind: 'alt' | 'loop' | 'opt' | 'par' | 'break' | 'critical';
+  label?: string;
+  relationIds: string[];
+  elseBlocks?: { label?: string; relationIds: string[] }[];
+  position?: Position;
+}
+
+export interface IOMConfig {
+  title?: string;
+  subtitle?: string;
+  caption?: string;
+  legend?: string;
+  direction?: string;
+  strict?: boolean;
+  autonumber?: boolean;
+  autoactivation?: boolean;
 }
 
 export interface IOMPackage {
@@ -133,6 +178,7 @@ export function relTokenToKind(tok: string): IOMRelationKind {
   const map: Record<string, IOMRelationKind> = {
     '--':   'association',
     '-->':  'directed-association',
+    '->':   'directed-association',
     '--|>': 'inheritance',
     '..|>': 'realization',
     '--o':  'aggregation',
@@ -144,6 +190,8 @@ export function relTokenToKind(tok: string): IOMRelationKind {
     '<..':  'dependency',
     'o--':  'aggregation',
     '*--':  'composition',
+    '--()': 'provides',
+    '--(': 'requires',
   };
   return map[tok] ?? 'association';
 }

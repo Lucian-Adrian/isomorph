@@ -1,0 +1,29 @@
+
+ RUN  v2.1.9 D:/uni/year2/dslpbl/repo
+
+ ÔØ» tests/renderer.test.ts (48 tests | 1 failed) 27ms
+   ├ù Activity Diagram Renderer ÔÇö swimlanes > respects optional swimlane width/height from layout annotations 8ms
+     ÔåÆ expected '<svg xmlns="http://www.w3.org/2000/svÔÇª' to contain 'data-entity-width="420"'
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Tests 1 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  tests/renderer.test.ts > Activity Diagram Renderer ÔÇö swimlanes > respects optional swimlane width/height from layout annotations
+AssertionError: expected '<svg xmlns="http://www.w3.org/2000/svÔÇª' to contain 'data-entity-width="420"'
+
+Expected: "data-entity-width="420""
+Received: "<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>"
+
+ ÔØ» tests/renderer.test.ts:385:17
+    383|     }`);
+    384|     const svg = renderStateOrActivityDiagram(diag);
+    385|     expect(svg).toContain('data-entity-width="420"');
+       |                 ^
+    386|     expect(svg).toContain('data-entity-height="360"');
+    387|   });
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[1/1]ÔÄ»
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 47 passed (48)
+   Start at  23:49:53
+   Duration  2.47s (transform 239ms, setup 38ms, collect 544ms, tests 27ms, environment 942ms, prepare 278ms)

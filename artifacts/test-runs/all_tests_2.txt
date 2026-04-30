@@ -1,0 +1,84 @@
+
+ RUN  v2.1.9 D:/uni/year2/dslpbl/repo
+
+ Ô£ô tests/error-formatter.test.ts (12 tests) 18ms
+ Ô£ô tests/lexer.test.ts (72 tests) 63ms
+ Ô£ô tests/parser.test.ts (73 tests) 64ms
+ Ô£ô tests/fragments.test.ts (1 test) 14ms
+ Ô£ô tests/semantics.test.ts (84 tests) 95ms
+ Ô£ô tests/dsl_features.test.ts (5 tests) 22ms
+ ÔØ» tests/renderer.test.ts (48 tests | 1 failed) 74ms
+   ├ù Activity Diagram Renderer ÔÇö swimlanes > respects optional swimlane width/height from layout annotations 20ms
+     ÔåÆ expected '<svg xmlns="http://www.w3.org/2000/svÔÇª' to contain 'data-entity-width="420"'
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ» Failed Tests 1 ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»
+
+ FAIL  tests/renderer.test.ts > Activity Diagram Renderer ÔÇö swimlanes > respects optional swimlane width/height from layout annotations
+AssertionError: expected '<svg xmlns="http://www.w3.org/2000/svÔÇª' to contain 'data-entity-width="420"'
+
+- Expected
++ Received
+
+- data-entity-width="420"
++ <svg xmlns="http://www.w3.org/2000/svg" width="400" height="348" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">
++   <defs>
++     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
++       <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="rgba(0,0,0,0.04)"/>
++       <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.02)"/>
++     </filter>
++     <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
++       <polygon points="0 0, 10 3.5, 0 7" fill="var(--iso-text-muted)"/>
++     </marker>
++     <marker id="hollow-arrow" markerWidth="13" markerHeight="9" refX="13" refY="4.5" orient="auto">
++       <polygon points="0 0, 13 4.5, 0 9" fill="var(--iso-bg-panel)" stroke="var(--iso-text-muted)" stroke-width="1.5"/>
++     </marker>
++     <marker id="diamond" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto">
++       <polygon points="0 5, 6 0, 12 5, 6 10" fill="var(--iso-bg-panel)" stroke="var(--iso-text-muted)" stroke-width="1.5"/>
++     </marker>
++     <marker id="filled-diamond" markerWidth="12" markerHeight="10" refX="0" refY="5" orient="auto">
++       <polygon points="0 5, 6 0, 12 5, 6 10" fill="var(--iso-text-muted)"/>
++     </marker>
++     <linearGradient id="grad-class" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-blue, #f0f9ff)"/>
++     </linearGradient>
++     <linearGradient id="grad-interface" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-green, #f0fdf4)"/>
++     </linearGradient>
++     <linearGradient id="grad-abstract" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-purple, #fdf4ff)"/>
++     </linearGradient>
++     <linearGradient id="grad-enum" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-orange, #fffbeb)"/>
++     </linearGradient>
++     <linearGradient id="grad-state" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-blue, #f0f9ff)"/>
++     </linearGradient>
++     <linearGradient id="grad-flow" x1="0" y1="0" x2="0" y2="1">
++       <stop offset="0%" stop-color="var(--iso-bg-panel, #ffffff)"/>
++       <stop offset="100%" stop-color="var(--iso-bg-blue, #eff6ff)"/>
++     </linearGradient>
++   </defs>
++   <g transform="translate(0, 0)">
++   <g transform="translate(40,16)" data-entity-name="TeamA" data-partition-lane="true" data-entity-width="240" data-entity-height="276"><rect data-lane-body="true" x="0" y="0" width="240" height="276" rx="8" fill="var(--iso-bg-panel)" stroke="var(--iso-border, #cbd5e1)" stroke-width="1"/><rect data-lane-header="true" x="0" y="0" width="240" height="34" rx="8" fill="var(--iso-divider)" stroke="var(--iso-border, #cbd5e1)" stroke-width="1"/><line data-lane-divider="true" x1="0" y1="34" x2="240" y2="34" stroke="var(--iso-border, #cbd5e1)" stroke-width="1"/><text data-lane-title="true" x="120" y="22" text-anchor="middle" font-size="12" font-weight="600" fill="var(--iso-text)">TeamA</text><rect data-resize-handle="e" x="236" y="128" width="8" height="20" rx="2" fill="#3b82f6" opacity="0.6" style="cursor: ew-resize"/><rect data-resize-handle="s" x="110" y="272" width="20" height="8" rx="2" fill="#3b82f6" opacity="0.6" style="cursor: ns-resize"/><rect data-resize-handle="se" x="234" y="270" width="12" height="12" rx="3" fill="#2563eb" opacity="0.8" style="cursor: nwse-resize"/></g>
++   </g>
++ </svg>
+
+ ÔØ» tests/renderer.test.ts:385:17
+    383|     }`);
+    384|     const svg = renderStateOrActivityDiagram(diag);
+    385|     expect(svg).toContain('data-entity-width="420"');
+       |                 ^
+    386|     expect(svg).toContain('data-entity-height="360"');
+    387|   });
+
+ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»ÔÄ»[1/1]ÔÄ»
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  1 failed | 294 passed (295)
+   Start at  23:50:46
+   Duration  3.83s (transform 950ms, setup 172ms, collect 3.14s, tests 349ms, environment 13.15s, prepare 1.86s)

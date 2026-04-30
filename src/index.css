@@ -262,6 +262,9 @@ body {
   font-weight: 500;
   padding: 3px 10px;
   border-radius: 20px;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all var(--iso-duration) var(--iso-ease);
 }
 .iso-status--ok {
@@ -951,6 +954,13 @@ body {
   left: auto;
   right: 0;
   transform: none;
+}
+.iso-canvas-tools .iso-canvas-btn[data-tooltip]::after {
+  bottom: auto;
+  top: 50%;
+  left: calc(100% + 6px);
+  transform: translateY(-50%);
+  white-space: nowrap;
 }
 
 .iso-modal-overlay {

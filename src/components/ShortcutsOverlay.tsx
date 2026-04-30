@@ -4,16 +4,24 @@
 // Extracted from App.tsx for component composition (SRP).
 // ============================================================
 
-const SHORTCUTS: { keys: string; desc: string }[] = [
-  { keys: 'Ctrl + N',           desc: 'New diagram' },
-  { keys: 'Ctrl + O',           desc: 'Open .isx file' },
-  { keys: 'Ctrl + E',           desc: 'Export SVG' },
-  { keys: 'Ctrl + Shift + E',   desc: 'Export PNG' },
-  { keys: 'Ctrl + Z / Y',       desc: 'Undo / Redo' },
-  { keys: 'Ctrl + ?',           desc: 'Toggle this panel' },
+const SHORTCUTS: { keys: string; descKey: string }[] = [
+  { keys: 'Ctrl + N',           descKey: 'New diagram' },
+  { keys: 'Ctrl + O',           descKey: 'Open .isx file' },
+  { keys: 'Ctrl + E',           descKey: 'Export SVG' },
+  { keys: 'Ctrl + Shift + E',   descKey: 'Export PNG' },
+  { keys: 'Ctrl + Z / Y',       descKey: 'Undo / Redo' },
+  { keys: 'Ctrl + ?',           descKey: 'Toggle this panel' },
 ];
 
-export function ShortcutsOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ShortcutsOverlay({
+  open,
+  onClose,
+  t,
+}: {
+  open: boolean;
+  onClose: () => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+}) {
   if (!open) return null;
   return (
     <div
@@ -22,12 +30,12 @@ export function ShortcutsOverlay({ open, onClose }: { open: boolean; onClose: ()
       onKeyDown={e => { if (e.key === 'Escape') onClose(); }}
       role="dialog"
       aria-modal="true"
-      aria-label="Keyboard shortcuts"
+      aria-label={t('ui.shortcuts')}
     >
       <div className="iso-overlay" role="document" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
         <div className="iso-overlay-header">
-          <span className="iso-overlay-title">Keyboard Shortcuts</span>
-          <button type="button" className="iso-overlay-close" onClick={onClose} aria-label="Close">&times;</button>
+          <span className="iso-overlay-title">{t('ui.shortcuts_title')}</span>
+          <button type="button" className="iso-overlay-close" onClick={onClose} aria-label={t('ui.close')}>&times;</button>
         </div>
         <div className="iso-overlay-body">
           {SHORTCUTS.map(s => (
@@ -37,12 +45,12 @@ export function ShortcutsOverlay({ open, onClose }: { open: boolean; onClose: ()
                   <span key={k}>{arr.indexOf(k) > 0 && <span className="iso-shortcut-plus">+</span>}<kbd className="iso-kbd">{k.trim()}</kbd></span>
                 ))}
               </span>
-              <span className="iso-shortcut-desc">{s.desc}</span>
+              <span className="iso-shortcut-desc">{t(s.descKey)}</span>
             </div>
           ))}
         </div>
         <div className="iso-overlay-footer">
-          <span style={{ color: 'var(--iso-text-faint)', fontSize: 11 }}>Press <kbd className="iso-kbd">Esc</kbd> to close</span>
+          <span style={{ color: 'var(--iso-text-faint)', fontSize: 11 }}>{t('ui.press')} <kbd className="iso-kbd">Esc</kbd> {t('ui.to_close')}</span>
         </div>
       </div>
     </div>

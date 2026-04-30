@@ -151,6 +151,15 @@ describe('Parser', () => {
       }
     });
 
+    it('parses participant with keyword stereotype without cascading errors', () => {
+      const prog = parseOk('diagram D : sequence { participant AuthService <<device>> participant B AuthService --> B }');
+      const first = prog.diagrams[0].body[0];
+      if (first.kind === 'EntityDecl') {
+        expect(first.name).toBe('AuthService');
+        expect(first.stereotype).toBe('device');
+      }
+    });
+
     it('parses extends clause', () => {
       const prog = parseOk('diagram D : class { class Dog extends Animal {} }');
       const entity = prog.diagrams[0].body[0];
@@ -202,6 +211,29 @@ describe('Parser', () => {
   });
 
   describe('field declarations', () => {
+    it('allows config keywords as member identifiers', () => {
+      const prog = parseOk(`
+        diagram D : class {
+          class C {
+            + title: string
+            + subtitle: string
+            + caption: string
+            + legend: string
+            + direction: string
+            + strict: bool
+            + autonumber(): void
+          }
+        }
+      `);
+      const entity = prog.diagrams[0].body[0];
+      if (entity.kind === 'EntityDecl') {
+        const memberNames = entity.members
+          .filter((m): m is import('../src/parser/ast.js').FieldDecl | import('../src/parser/ast.js').MethodDecl => m.kind === 'FieldDecl' || m.kind === 'MethodDecl')
+          .map(m => m.name);
+        expect(memberNames).toEqual(['title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber']);
+      }
+    });
+
     it('parses a public field', () => {
       const prog = parseOk('diagram D : class { class C { + name: string } }');
       const entity = prog.diagrams[0].body[0];
@@ -319,15 +351,46 @@ describe('Parser', () => {
     });
   });
 
+  describe('partition declarations', () => {
+    it('tolerates accidental partition stereotypes without cascading errors', () => {
+      const prog = parseOk(`
+        diagram D : activity {
+          partition Partition1 <<test>> {
+            action DoWork
+          }
+        }
+      `);
+      const part = prog.diagrams[0].body[0];
+      expect(part.kind).toBe('PartitionDecl');
+      if (part.kind === 'PartitionDecl') {
+        expect(part.name).toBe('Partition1');
+        expect(part.body.length).toBeGreaterThan(0);
+      }
+    });
+  });
+
   describe('method declarations', () => {
-    it('parses a public method', () => {
-      const prog = parseOk('diagram D : class { class C { + getTitle(): string } }');
+    it('parses method name return in interface members', () => {
+      const prog = parseOk('diagram D : class { interface Borrowable { + return(): void } }');
       const entity = prog.diagrams[0].body[0];
       if (entity.kind === 'EntityDecl') {
         const method = entity.members[0];
         expect(method.kind).toBe('MethodDecl');
         if (method.kind === 'MethodDecl') {
-          expect(method.name).toBe('getTitle');
+          expect(method.name).toBe('return');
+          expect(method.returnType.kind).toBe('SimpleType');
+        }
+      }
+    });
+
+    it('parses a public method', () => {
+      const prog = parseOk('diagram D : class { class C { + getLabel(): string } }');
+      const entity = prog.diagrams[0].body[0];
+      if (entity.kind === 'EntityDecl') {
+        const method = entity.members[0];
+        expect(method.kind).toBe('MethodDecl');
+        if (method.kind === 'MethodDecl') {
+          expect(method.name).toBe('getLabel');
           expect(method.params).toHaveLength(0);
         }
       }
@@ -358,7 +421,7 @@ describe('Parser', () => {
     });
 
     it('parses static method', () => {
-      const prog = parseOk('diagram D : class { class C { + static create(): C } }');
+      const prog = parseOk('diagram D : class { class C { + static make(): C } }');
       const entity = prog.diagrams[0].body[0];
       if (entity.kind === 'EntityDecl') {
         const method = entity.members[0];
@@ -543,11 +606,11 @@ describe('Parser', () => {
         diagram LibrarySystem : class {
           package domain {
             abstract class Book <<Entity>> implements Borrowable {
-              + title: string
+              + label: string
               + isbn: string
               - stock: int = 0
               + checkOut(user: string): bool
-              + getTitle(): string
+              + getLabel(): string
             }
             class Library {
               + name: string
@@ -723,6 +786,57 @@ describe('Parser', () => {
       }`);
       expect(prog.diagrams[0].body.filter(b => b.kind === 'PackageDecl')).toHaveLength(2);
       expect(prog.diagrams[0].body.filter(b => b.kind === 'RelationDecl')).toHaveLength(1);
+    });
+  });
+
+  describe('provides/requires relation operators', () => {
+    it('parses provides relation --()', () => {
+      const prog = parseOk('diagram D : component { component A {} component B {} A --() B }');
+      const rel = prog.diagrams[0].body.find(b => b.kind === 'RelationDecl');
+      if (rel?.kind === 'RelationDecl') {
+        expect(rel.relKind).toBe('--()');
+        expect(rel.from).toBe('A');
+        expect(rel.to).toBe('B');
+      }
+    });
+
+    it('parses requires relation --(', () => {
+      const prog = parseOk('diagram D : component { component A {} component B {} A --( B }');
+      const rel = prog.diagrams[0].body.find(b => b.kind === 'RelationDecl');
+      if (rel?.kind === 'RelationDecl') {
+        expect(rel.relKind).toBe('--(');
+        expect(rel.from).toBe('A');
+        expect(rel.to).toBe('B');
+      }
+    });
+
+    it('parses provides with label', () => {
+      const prog = parseOk('diagram D : component { component A {} component B {} A --() B [label="REST API"] }');
+      const rel = prog.diagrams[0].body.find(b => b.kind === 'RelationDecl');
+      if (rel?.kind === 'RelationDecl') {
+        expect(rel.relKind).toBe('--()');
+        expect(rel.label).toBe('REST API');
+      }
+    });
+  });
+
+  describe('create/destroy declarations', () => {
+    it('parses create command', () => {
+      const prog = parseOk('diagram D : sequence { participant A create A }');
+      const create = prog.diagrams[0].body.find(b => b.kind === 'CreateDecl');
+      expect(create).toBeDefined();
+      if (create?.kind === 'CreateDecl') {
+        expect(create.entity).toBe('A');
+      }
+    });
+
+    it('parses destroy command', () => {
+      const prog = parseOk('diagram D : sequence { participant A destroy A }');
+      const destroy = prog.diagrams[0].body.find(b => b.kind === 'DestroyDecl');
+      expect(destroy).toBeDefined();
+      if (destroy?.kind === 'DestroyDecl') {
+        expect(destroy.entity).toBe('A');
+      }
     });
   });
 });

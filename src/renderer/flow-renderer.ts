@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter } from './utils.js';
 
 const BOX_W        = 160;
 const BOX_H        = 50;
@@ -38,8 +38,16 @@ export function renderFlowDiagram(diag: IOMDiagram): string {
     maxY = Math.max(maxY, p.y + dim.h + 60);
   }
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  const header = renderConfigHeaders(diag, maxX);
+  const legend = renderConfigLegend(diag, maxX, header.height);
+  const caption = renderConfigCaption(diag, maxX, maxY + header.height);
+  const totalH = maxY + header.height + caption.height;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
+  svg += header.svg;
+  svg += legend.svg;
+  svg += `  <g transform="translate(0, ${header.height})">\n`;
 
   // Relations (draw first so entities render on top)
   for (const rel of diag.relations) {
@@ -49,8 +57,12 @@ export function renderFlowDiagram(diag: IOMDiagram): string {
     const fDim = getDimensions(f.entity);
     const tDim = getDimensions(t.entity);
 
-    const x1 = f.x + fDim.w / 2, y1 = f.y + fDim.h / 2;
-    const x2 = t.x + tDim.w / 2, y2 = t.y + tDim.h / 2;
+    const fromCenter = rectCenter(f.x, f.y, fDim.w, fDim.h);
+    const toCenter = rectCenter(t.x, t.y, tDim.w, tDim.h);
+    const fromEdge = edgePointOnRect(f.x, f.y, fDim.w, fDim.h, toCenter.x, toCenter.y);
+    const toEdge = edgePointOnRect(t.x, t.y, tDim.w, tDim.h, fromCenter.x, fromCenter.y);
+    const x1 = fromEdge.x, y1 = fromEdge.y;
+    const x2 = toEdge.x, y2 = toEdge.y;
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
     const dash = rel.kind === 'dependency' ? ' stroke-dasharray="6,3"' : '';
 
@@ -73,6 +85,8 @@ export function renderFlowDiagram(diag: IOMDiagram): string {
     svg += renderEntity(p);
   }
 
+  svg += `  </g>\n`;
+  svg += caption.svg;
   svg += `</svg>`;
   return svg;
 }

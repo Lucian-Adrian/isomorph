@@ -1,0 +1,9 @@
+
+ RUN  v2.1.9 D:/uni/year2/dslpbl/repo
+
+ Ô£ô tests/semantics.test.ts (84 tests) 26ms
+
+ Test Files  1 passed (1)
+      Tests  84 passed (84)
+   Start at  23:46:56
+   Duration  2.02s (transform 169ms, setup 30ms, collect 284ms, tests 26ms, environment 955ms, prepare 278ms)

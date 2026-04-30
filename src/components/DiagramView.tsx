@@ -7,17 +7,19 @@ import type { IOMDiagram } from '../semantics/iom.js';
 import { renderDiagram } from '../renderer/index.js';
 import { IconPointer, IconHand, IconEdge } from './Icons';
 import type { IOMEntity } from '../semantics/iom.js';
+import { tText, type Language } from '../i18n.js';
 
 export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge';
 
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
-  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number }>) => void;
-  onEntityResize?: (entityName: string, w: number, h: number) => void;
+  language?: Language;
+  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => void;
+  onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number) => void;
   onEntityEditRequest?: (entity: IOMEntity) => void;
   onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string) => void;
   onRelationVerticalMove?: (relationId: string, y: number, seedRelationYs?: Record<string, number>) => void;
-  onRelationAddRequest?: (fromEntity: string, toEntity: string) => void;
+  onRelationAddRequest?: (fromEntity: string, toEntity: string, y?: number) => void;
   onExportSVG?: () => void;
   onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string) => void;
   onTextRenameRequest?: (oldText: string, newText: string, type: 'diagram' | 'package') => void;
@@ -30,6 +32,7 @@ interface DiagramViewProps {
 
 export function DiagramView({
   diagram,
+  language = 'en',
   onEntityMove,
   onEntityResize,
   onEntityEditRequest,
@@ -45,6 +48,7 @@ export function DiagramView({
   pendingDropKeyword,
   onConsumePendingDrop,
 }: DiagramViewProps) {
+  const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
   const containerRef  = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(100);
@@ -62,6 +66,7 @@ export function DiagramView({
     entityGroup?: SVGGElement;
     entityOrigX?: number;
     entityOrigY?: number;
+    entityUsesDeltaTransform?: boolean;
     entityOrigW?: number;
     entityOrigH?: number;
     resizeHandle?: 'e' | 's' | 'se';
@@ -251,8 +256,82 @@ export function DiagramView({
             e.preventDefault();
             e.stopPropagation();
             onEntityEditRequest(current);
+            return;
           }
-          return;
+          
+          const frag = diagram.fragments?.find(f => f.id === entityName);
+          if (frag) {
+            e.preventDefault();
+            e.stopPropagation();
+            onEntityEditRequest({
+              id: frag.id,
+              name: frag.id,
+              kind: frag.kind,
+                stereotype: frag.label,
+                elseBlocks: frag.elseBlocks, // Inject elseBlocks into custom property
+            } as any);
+            return;
+          }
+
+          const isDefaultUsecaseBoundary = diagram.kind === 'usecase' && entityGroup.getAttribute('data-default-usecase-boundary') === 'true';
+          if (isDefaultUsecaseBoundary) {
+            const tf = entityGroup.getAttribute('transform') ?? '';
+            const tm = tf.match(/translate\(([^,]+),([^)]+)\)/);
+            const fallbackRect = entityGroup.querySelector('rect');
+            const x = tm ? parseFloat(tm[1]) : parseFloat(fallbackRect?.getAttribute('x') || '280');
+            const y = tm ? parseFloat(tm[2]) : parseFloat(fallbackRect?.getAttribute('y') || '30');
+            const w = parseFloat(entityGroup.getAttribute('data-entity-width') || fallbackRect?.getAttribute('width') || '580');
+            const h = parseFloat(entityGroup.getAttribute('data-entity-height') || fallbackRect?.getAttribute('height') || '400');
+            e.preventDefault();
+            e.stopPropagation();
+            onEntityEditRequest({
+              id: entityName,
+              name: entityName,
+              kind: 'system',
+              isAbstract: false,
+              fields: [],
+              methods: [],
+              enumValues: [],
+              extendsNames: [],
+              implementsNames: [],
+              styles: {},
+              children: [],
+              regions: [],
+              position: {
+                x: Number.isFinite(x) ? x : 280,
+                y: Number.isFinite(y) ? y : 30,
+                w: Number.isFinite(w) ? w : 580,
+                h: Number.isFinite(h) ? h : 400,
+              },
+            });
+            return;
+          }
+
+          // Partitions are modeled separately from diagram.entities; still allow edit modal for rename.
+          const isPartitionLane = entityGroup.getAttribute('data-partition-lane') === 'true';
+          if (isPartitionLane) {
+            const part = diagram.partitions.find(p => p.name === entityName);
+            if (part) {
+              e.preventDefault();
+              e.stopPropagation();
+              onEntityEditRequest({
+                id: part.id,
+                name: part.name,
+                kind: 'partition',
+                isAbstract: false,
+                fields: [],
+                methods: [],
+                enumValues: [],
+                extendsNames: [],
+                implementsNames: [],
+                styles: {},
+                children: [],
+                regions: [],
+                position: part.position,
+              });
+              return;
+            }
+          }
         }
       }
 
@@ -390,6 +469,7 @@ export function DiagramView({
       if (!entityName) return;
       const tf = entityGroup.getAttribute('transform') ?? '';
       const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
+      const usesDeltaTransform = !m;
       
       let entityOrigX = m ? parseFloat(m[1]) : 0;
       let entityOrigY = m ? parseFloat(m[2]) : 0;
@@ -404,6 +484,16 @@ export function DiagramView({
         }
       }
 
+      // For packages with children: temporarily strip SVG filters from nested
+      // entity rects to avoid expensive per-frame filter re-rendering during drag
+      if (entityGroup.hasAttribute('data-package-name')) {
+        const filteredEls = entityGroup.querySelectorAll('[filter]');
+        filteredEls.forEach(el => {
+          el.setAttribute('data-drag-filter', el.getAttribute('filter') || '');
+          el.removeAttribute('filter');
+        });
+      }
+
       dragRef.current = {
         mode: 'entity',
         pointerId: e.pointerId,
@@ -413,7 +503,9 @@ export function DiagramView({
         entityGroup,
         entityOrigX,
         entityOrigY,
+        entityUsesDeltaTransform: usesDeltaTransform,
       };
+      entityGroup.style.willChange = 'transform';
       setIsInteracting(true);
       canvasRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
@@ -548,6 +640,12 @@ export function DiagramView({
         handleSE.setAttribute('x', String(nextW - 6));
         handleSE.setAttribute('y', String(nextH - 6));
       }
+
+      const boundaryRect = drag.entityGroup.querySelector('rect[data-boundary-body]') as SVGRectElement | null;
+      if (boundaryRect) {
+        boundaryRect.setAttribute('width', String(nextW));
+        boundaryRect.setAttribute('height', String(nextH));
+      }
       return;
     }
 
@@ -585,7 +683,11 @@ export function DiagramView({
         }
       }
 
-      drag.entityGroup.setAttribute('transform', `translate(${nextX},${nextY})`);
+      if (drag.entityUsesDeltaTransform) {
+        drag.entityGroup.setAttribute('transform', `translate(${dx},${dy})`);
+      } else {
+        drag.entityGroup.setAttribute('transform', `translate(${nextX},${nextY})`);
+      }
     }
   }, [diagram, zoom, pan]);
 
@@ -603,7 +705,14 @@ export function DiagramView({
         && diagram?.kind === 'sequence';
       if (drag.entityName && toEntityName && (drag.entityName !== toEntityName || isSequenceSelfReference)) {
         if (onRelationAddRequest) {
-          onRelationAddRequest(drag.entityName, toEntityName);
+          const rect = canvasRef.current?.getBoundingClientRect();
+          let y: number | undefined = undefined;
+          if (rect && canvasRef.current) {
+            const scale = zoom / 100;
+            const wrap = canvasRef.current;
+            y = Math.round((drag.startClientY - rect.top + (wrap.scrollTop || 0) - pan.y) / scale);
+          }
+          onRelationAddRequest(drag.entityName, toEntityName, y);
         }
       }
     }
@@ -631,61 +740,89 @@ export function DiagramView({
       const w = parseFloat(drag.entityGroup.getAttribute('data-entity-width') || '0');
       const h = parseFloat(drag.entityGroup.getAttribute('data-entity-height') || '0');
       if (w > 0 && h > 0) {
-        onEntityResize(drag.entityName, Math.round(w), Math.round(h));
+        const tf = drag.entityGroup.getAttribute('transform') ?? '';
+        const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
+        const x = m ? Math.round(parseFloat(m[1])) : undefined;
+        const y = m ? Math.round(parseFloat(m[2])) : undefined;
+        onEntityResize(drag.entityName, Math.round(w), Math.round(h), x, y);
       }
     }
 
     if (drag.mode === 'entity' && drag.entityGroup && drag.entityName && onEntityMove) {
-      const seededPositions: Record<string, { x: number; y: number }> = {};
-      const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
-      for (const group of allEntityGroups) {
-        const entityName = group.getAttribute('data-entity-name');
-        if (!entityName) continue;
-        const tfAll = group.getAttribute('transform') ?? '';
-        const mAll = tfAll.match(/translate\(([^,]+),([^)]+)\)/);
-        if (!mAll) continue;
-        let xAll = Math.round(parseFloat(mAll[1]));
-        let yAll = Math.round(parseFloat(mAll[2]));
-        const pkgGroup = group.closest('g[data-package-name]') as SVGGElement | null;
+      const isPackageDrag = drag.entityGroup.hasAttribute('data-package-name');
+      const scale = zoom / 100;
+      // Raw cursor delta in canvas coordinates
+      const cursorDx = Math.round((e.clientX - drag.startClientX) / scale);
+      const cursorDy = Math.round((e.clientY - drag.startClientY) / scale);
+
+      if (isPackageDrag) {
+        // For packages: pass 0,0 as position and cursor delta as dx/dy.
+        // App.tsx handleEntityMove will compute final positions from IOM data + delta.
+        onEntityMove(drag.entityName, 0, 0, cursorDx, cursorDy, undefined);
+      } else {
+        let updatedX = Math.round((drag.entityOrigX ?? 0) + cursorDx);
+        let updatedY = Math.round((drag.entityOrigY ?? 0) + cursorDy);
+
+        const pkgGroup = drag.entityGroup.closest('g[data-package-name]') as SVGGElement | null;
         if (pkgGroup) {
           const ptf = pkgGroup.getAttribute('transform') ?? '';
           const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
           if (pm) {
-            xAll += Math.round(parseFloat(pm[1]));
-            yAll += Math.round(parseFloat(pm[2]));
+            updatedX += Math.round(parseFloat(pm[1]));
+            updatedY += Math.round(parseFloat(pm[2]));
           }
         }
-        seededPositions[entityName] = { x: xAll, y: yAll };
-      }
 
-      const tf = drag.entityGroup.getAttribute('transform') ?? '';
-      const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
-      if (m) {
-          let updatedX = Math.round(parseFloat(m[1]));
-          let updatedY = Math.round(parseFloat(m[2]));
-          
-          if (!drag.entityGroup.hasAttribute('data-package-name')) {
-            const pkgGroup = drag.entityGroup.closest('g[data-package-name]') as SVGGElement | null;
-            if (pkgGroup) {
-              const ptf = pkgGroup.getAttribute('transform') ?? '';
-              const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
-              if (pm) {
-                 updatedX += Math.round(parseFloat(pm[1]));
-                 updatedY += Math.round(parseFloat(pm[2]));
-              }
+        const seededPositions: Record<string, { x: number; y: number; w?: number; h?: number }> = {};
+        const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
+        for (const group of allEntityGroups) {
+          const entityName = group.getAttribute('data-entity-name');
+          if (!entityName) continue;
+          const tfAll = group.getAttribute('transform') ?? '';
+          const mAll = tfAll.match(/translate\(([^,]+),([^)]+)\)/);
+          if (!mAll) continue;
+          let xAll = Math.round(parseFloat(mAll[1]));
+          let yAll = Math.round(parseFloat(mAll[2]));
+          const ePkgGroup = group.closest('g[data-package-name]') as SVGGElement | null;
+          if (ePkgGroup) {
+            const ptf = ePkgGroup.getAttribute('transform') ?? '';
+            const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
+            if (pm) {
+              xAll += Math.round(parseFloat(pm[1]));
+              yAll += Math.round(parseFloat(pm[2]));
             }
           }
-          
-          const origX = Math.round(drag.entityOrigX ?? 0); const origY = Math.round(drag.entityOrigY ?? 0); onEntityMove(drag.entityName, updatedX, updatedY, updatedX - origX, updatedY - origY, seededPositions);
+          const wAll = Number.parseFloat(group.getAttribute('data-entity-width') ?? '');
+          const hAll = Number.parseFloat(group.getAttribute('data-entity-height') ?? '');
+          seededPositions[entityName] = {
+            x: xAll,
+            y: yAll,
+            w: Number.isFinite(wAll) ? Math.round(wAll) : undefined,
+            h: Number.isFinite(hAll) ? Math.round(hAll) : undefined,
+          };
         }
+
+        onEntityMove(drag.entityName, updatedX, updatedY, cursorDx, cursorDy, seededPositions);
       }
+    }
+
+    if (drag.entityGroup) {
+      drag.entityGroup.style.willChange = '';
+      // Restore SVG filters that were stripped during package drag
+      const stripped = drag.entityGroup.querySelectorAll('[data-drag-filter]');
+      stripped.forEach(el => {
+        const origFilter = el.getAttribute('data-drag-filter') || '';
+        if (origFilter) el.setAttribute('filter', origFilter);
+        el.removeAttribute('data-drag-filter');
+      });
+    }
 
     if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
       canvasRef.current.releasePointerCapture(e.pointerId);
     }
     setIsInteracting(false);
     dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
-  }, [diagram, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
+  }, [diagram, zoom, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
 
   const isDiagramEmpty = diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
 
@@ -695,7 +832,7 @@ export function DiagramView({
       {!diagram && (
         <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none' }}>
           <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
-            <title>Empty diagram placeholder</title>
+            <title>{t('diagram.empty_placeholder')}</title>
             <rect x="2" y="3" width="9" height="7" rx="1.5"/>
             <rect x="13" y="3" width="9" height="7" rx="1.5"/>
             <rect x="7" y="14" width="10" height="7" rx="1.5"/>
@@ -705,9 +842,9 @@ export function DiagramView({
             <line x1="17.5" y1="13" x2="12" y2="13"/>
             <line x1="12" y1="13" x2="12" y2="14"/>
           </svg>
-          <span className="iso-canvas-empty-title">No diagram yet</span>
+          <span className="iso-canvas-empty-title">{t('diagram.none')}</span>
           <span className="iso-canvas-empty-sub">
-            Write Isomorph code in the editor on the left, or load an example from the toolbar.
+            {t('diagram.help_write')}
           </span>
         </div>
       )}
@@ -716,13 +853,13 @@ export function DiagramView({
       {isDiagramEmpty && (
         <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none', zIndex: 10 }}>
           <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
-            <title>Empty diagram</title>
+            <title>{t('diagram.empty')}</title>
             <circle cx="12" cy="12" r="10" strokeDasharray="4 4" />
             <path d="M8 12h8" />
           </svg>
-          <span className="iso-canvas-empty-title">Empty diagram</span>
+          <span className="iso-canvas-empty-title">{t('diagram.empty')}</span>
           <span className="iso-canvas-empty-sub">
-            Drag and drop elements from the sidebar or type to add entities.
+            {t('diagram.help_drag')}
           </span>
         </div>
       )}
@@ -732,7 +869,7 @@ export function DiagramView({
         className="iso-canvas-wrap"
         ref={canvasRef}
         role="img"
-        aria-label={diagram ? `${diagram.name} ${diagram.kind} diagram` : 'Diagram canvas'}
+        aria-label={diagram ? `${diagram.name} ${diagram.kind} ${t('welcome.diagram')}` : t('diagram.canvas_label')}
         style={{
           display: diagram ? undefined : 'none',
           backgroundPosition: `${pan.x}px ${pan.y}px`,
@@ -781,7 +918,9 @@ export function DiagramView({
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})`,
             transformOrigin: 'top left',
-            display: 'inline-block',
+            position: 'absolute',
+            top: 0,
+            left: 0,
             transition: isInteracting ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)',
           }}
         />
@@ -797,17 +936,17 @@ export function DiagramView({
       {/* Tools Array */}
       <div className="iso-canvas-tools" style={{ position: 'absolute', left: 16, top: 16, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 10 }}>
         {availableTools.includes('move') && (
-          <button className={`iso-canvas-btn ${activeTool === 'move' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('move')} title="Select / Move">
+          <button className={`iso-canvas-btn ${activeTool === 'move' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('move')} aria-label={t('tool.select_move')} data-tooltip={t('tool.select_move')}>
             <IconPointer />
           </button>
         )}
         {availableTools.includes('hand') && (
-          <button className={`iso-canvas-btn ${activeTool === 'hand' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('hand')} title="Pan Canvas">
+          <button className={`iso-canvas-btn ${activeTool === 'hand' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('hand')} aria-label={t('tool.pan_canvas')} data-tooltip={t('tool.pan_canvas')}>
             <IconHand />
           </button>
         )}
         {availableTools.includes('add-edge') && (
-          <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('add-edge')} title="Draw Edge">
+          <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('add-edge')} aria-label={t('tool.draw_edge')} data-tooltip={t('tool.draw_edge')}>
             <IconEdge />
           </button>
         )}
@@ -815,14 +954,14 @@ export function DiagramView({
 
       {/* Zoom controls */}
       {diagram && (
-        <div className="iso-canvas-toolbar" role="toolbar" aria-label="Zoom controls">
+        <div className="iso-canvas-toolbar" role="toolbar" aria-label={t('tool.zoom_controls')}>
             <button
             type="button"
             className="iso-canvas-btn"
             onClick={handleZoomOut}
-            aria-label="Zoom out"
+            aria-label={t('tool.zoom_out')}
             disabled={zoom <= 40}
-            data-tooltip="Zoom out"
+            data-tooltip={t('tool.zoom_out')}
           >
             −
           </button>
@@ -830,7 +969,7 @@ export function DiagramView({
             type="button"
             className="iso-canvas-btn"
             onClick={handleFit}
-            aria-label={`Reset zoom (currently ${zoom}%)`}
+            aria-label={t('tool.reset_zoom', { zoom })}
             style={{ width: 44, fontSize: 11 }}
           >
             {zoom}%
@@ -839,9 +978,9 @@ export function DiagramView({
             type="button"
             className="iso-canvas-btn"
             onClick={handleZoomIn}
-            aria-label="Zoom in"
+            aria-label={t('tool.zoom_in')}
             disabled={zoom >= 200}
-            data-tooltip="Zoom in"
+            data-tooltip={t('tool.zoom_in')}
           >
             +
           </button>

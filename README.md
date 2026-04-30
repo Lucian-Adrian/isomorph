@@ -45,7 +45,7 @@ Isomorph’s standard library handles an array of software architecture blueprin
 | **State Diagrams** | ✅ | `state-renderer.ts` | [state.md](docs/state.md) |
 | **Flow/Activity Diagrams**| ✅ | `flow-renderer.ts` | [activity.md](docs/activity.md) |
 | **Collaboration** | ✅ | `collaboration-renderer.ts`| [collaboration.md](docs/collaboration.md) |
-| **Deployment Diagrams** | ✅ | To Be Extracted | [deployment.md](docs/deployment.md) |
+| **Deployment Diagrams** | ✅ | `component-renderer.ts` (shared deployment path) | [deployment.md](docs/deployment.md) |
 
 ---
 

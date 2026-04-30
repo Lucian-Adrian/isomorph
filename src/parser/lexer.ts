@@ -17,12 +17,16 @@ export type TokenKind =
   | 'node'     | 'sequence' | 'flow'     | 'deployment'
   | 'participant' | 'partition' | 'decision' | 'merge' | 'fork' | 'join'
   | 'start' | 'stop' | 'action' | 'state' | 'composite' | 'concurrent'
-  | 'choice' | 'history' | 'device' | 'artifact' | 'environment'
+  | 'choice' | 'history' | 'device' | 'artifact' | 'environment' | 'provided' | 'required' | 'port'
   | 'boundary' | 'system' | 'multiobject' | 'active_object' | 'collaboration'
   | 'composite_object' | 'activity' | 'object'
   | 'list'     | 'map'      | 'set'      | 'optional'
   | 'int'      | 'float'    | 'bool'     | 'string_t'
   | 'true'      | 'false'
+  | 'alt' | 'else' | 'opt' | 'loop' | 'par' | 'break' | 'critical' | 'end'
+  | 'ref' | 'activate' | 'deactivate' | 'create' | 'destroy'
+  | 'region' | 'partition'
+  | 'title'    | 'subtitle' | 'caption'  | 'legend'   | 'direction' | 'strict' | 'autonumber' | 'autoactivation'
   // Relation operators (longest-match-first in lexer)
   | 'INHERIT'    // --|>
   | 'REALIZE'    // ..|>
@@ -36,6 +40,8 @@ export type TokenKind =
   | 'AGGR'       // --o
   | 'COMPOSE'    // --*
   | 'RESTR'      // --x
+  | 'PROVIDES'   // --()
+  | 'REQUIRES_R' // --(  (requires/socket)
   | 'ASSOC'      // --
   | 'STEREO_O'   // << (stereotype open; >> is always two GT tokens — see lexer note)
   | 'DOTDOT'     // ..
@@ -56,8 +62,13 @@ const KEYWORDS = new Set<string>([
   'bool','string','true','false','participant',
   'partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action',
   'state', 'composite', 'concurrent', 'choice', 'history', 'device', 'artifact',
-  'environment', 'boundary', 'system', 'multiobject', 'active_object',
-  'collaboration', 'composite_object', 'activity', 'object'
+  'environment', 'provided', 'required', 'port',
+  'boundary', 'system', 'multiobject', 'active_object',
+  'collaboration', 'composite_object', 'activity', 'object',
+  'alt', 'else', 'opt', 'loop', 'par', 'break', 'critical', 'end',
+  'ref', 'activate', 'deactivate', 'create', 'destroy',
+  'region', 'partition',
+  'title', 'subtitle', 'caption', 'legend', 'direction', 'strict', 'autonumber', 'autoactivation'
 ]);
 
 const KEYWORD_MAP: Record<string, TokenKind> = {
@@ -227,10 +238,13 @@ export function lex(source: string): LexResult {
     if (rest.startsWith('o--'))    { advance(3); tokens.push(makeToken('AGGR_R',    'o--',   start, startLine, startCol)); continue; }
     if (rest.startsWith('*--'))    { advance(3); tokens.push(makeToken('COMPOSE_R', '*--',   start, startLine, startCol)); continue; }
     if (rest.startsWith('-->'))    { advance(3); tokens.push(makeToken('ASSOC_DIR', '-->',   start, startLine, startCol)); continue; }
+    if (rest.startsWith('->'))     { advance(2); tokens.push(makeToken('ASSOC_DIR', '->',    start, startLine, startCol)); continue; }
     if (rest.startsWith('..>'))    { advance(3); tokens.push(makeToken('DEPEND',    '..>',   start, startLine, startCol)); continue; }
     if (rest.startsWith('--o'))    { advance(3); tokens.push(makeToken('AGGR',      '--o',   start, startLine, startCol)); continue; }
     if (rest.startsWith('--*'))    { advance(3); tokens.push(makeToken('COMPOSE',   '--*',   start, startLine, startCol)); continue; }
     if (rest.startsWith('--x'))    { advance(3); tokens.push(makeToken('RESTR',     '--x',   start, startLine, startCol)); continue; }
+    if (rest.startsWith('--()'))   { advance(4); tokens.push(makeToken('PROVIDES',  '--()',   start, startLine, startCol)); continue; }
+    if (rest.startsWith('--('))    { advance(3); tokens.push(makeToken('REQUIRES_R','--(',    start, startLine, startCol)); continue; }
     if (rest.startsWith('--'))     { advance(2); tokens.push(makeToken('ASSOC',     '--',    start, startLine, startCol)); continue; }
     if (rest.startsWith('<<'))     { advance(2); tokens.push(makeToken('STEREO_O',  '<<',    start, startLine, startCol)); continue; }
     // NOTE: '>>' is NOT lexed as STEREO_C here — always emit two GT tokens.
