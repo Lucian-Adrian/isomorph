@@ -139,7 +139,7 @@ export function DiagramView({
         initialDistance = Math.sqrt(dx * dx + dy * dy);
         setZoom(z => { initialZoom = z; return z; });
         touchPanStart = null;
-      } else if (e.touches.length === 1 && !e.target?.closest('g[data-entity-name]')) {
+      } else if (e.touches.length === 1 && !(e.target as Element)?.closest('g[data-entity-name]')) {
         // Start touch pan if we didn't touch an entity
         touchPanStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
         setPan(p => { initialPan = { ...p }; return p; });
