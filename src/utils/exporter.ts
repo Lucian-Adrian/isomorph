@@ -7,6 +7,7 @@
 
 function getExportSVGString(svgEl: Element): string {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   
   try {
     if (svgEl instanceof SVGSVGElement && typeof svgEl.getBBox === 'function') {
@@ -26,12 +27,40 @@ function getExportSVGString(svgEl: Element): string {
     // Ignore bounds calculation errors
   }
 
+  // Gather CSS custom properties from stylesheets to embed them in the SVG.
+  // This prevents elements with CSS variable fills falling back to black.
+  let styleBlocks = '';
+  try {
+    for (const sheet of Array.from(document.styleSheets)) {
+      try {
+        for (const rule of Array.from(sheet.cssRules)) {
+          if (rule instanceof CSSStyleRule && rule.selectorText) {
+            if (rule.selectorText === ':root') {
+              styleBlocks = `svg { ${rule.style.cssText} }\n` + styleBlocks; // Base variables
+            } else if (isDark && rule.selectorText.includes('[data-theme="dark"]')) {
+               // Dark mode overrides
+               styleBlocks += `svg { ${rule.style.cssText} }\n`;
+            }
+          }
+        }
+      } catch (e) {
+        // Cross-origin stylesheet access error
+      }
+    }
+  } catch (e) {}
+
+  if (styleBlocks) {
+    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
+    styleEl.textContent = styleBlocks;
+    clone.prepend(styleEl);
+  }
+
   // Ensure minimum styles usually provided by the viewer are captured
   if (!clone.getAttribute('style')?.includes('font-family')) {
     clone.style.fontFamily = 'Segoe UI, Arial, sans-serif';
   }
   if (!clone.getAttribute('style')?.includes('background')) {
-    clone.style.background = '#fafafa';
+    clone.style.background = isDark ? '#161615' : '#fafafa';
   }
 
   // Remove any CSS overrides we inject for UI only
@@ -104,8 +133,9 @@ export function exportPNG(
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     ctx.scale(scale, scale);
-    ctx.fillStyle = '#fafafa';
+    ctx.fillStyle = isDark ? '#161615' : '#fafafa'; // Match var(--iso-bg-app) and var(--off)
     ctx.fillRect(0, 0, nativeW, nativeH);
     ctx.drawImage(img, 0, 0, nativeW, nativeH);
     URL.revokeObjectURL(url);
