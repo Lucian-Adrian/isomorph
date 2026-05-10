@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkFileLineLimit, checkUserFileLimit, countLines, LIMIT_CONTACT_EMAIL } from '../src/services/limits.js';
-import { buildDiagramPayload, getDiagramListPage, normalizeDiagramTitle } from '../src/services/diagramStore.js';
+import { buildDiagramPayload, getDiagramListPage, logTelemetry, normalizeDiagramTitle } from '../src/services/diagramStore.js';
 import { resolveAuthState } from '../src/services/supabase.js';
 import {
   aggregateTelemetryMetrics,
@@ -9,6 +9,23 @@ import {
   buildTelemetrySessionStart,
   summarizeProductivity,
 } from '../src/services/telemetry.js';
+
+const supabaseMock = vi.hoisted(() => ({
+  from: vi.fn(),
+}));
+
+vi.mock('../src/services/supabase.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/services/supabase.js')>();
+  return {
+    ...actual,
+    supabase: supabaseMock,
+  };
+});
+
+beforeEach(() => {
+  vi.useRealTimers();
+  supabaseMock.from.mockReset();
+});
 
 describe('Supabase auth state', () => {
   it('classifies unconfigured, signed-out, and signed-in states', () => {
@@ -119,5 +136,25 @@ describe('telemetry payloads', () => {
         export: 1,
       },
     });
+  });
+});
+
+describe('telemetry service persistence', () => {
+  it('resolves even when Supabase rejects a telemetry insert', async () => {
+    vi.useFakeTimers();
+    const insert = vi.fn().mockRejectedValue(new Error('network down'));
+    supabaseMock.from.mockReturnValue({ insert });
+
+    await expect(
+      logTelemetry({
+        userId: 'user-1',
+        sessionId: 'session-1',
+        eventType: 'copy',
+        payload: { source: 'shortcut' },
+      }),
+    ).resolves.toBeUndefined();
+    await vi.runAllTimersAsync();
+
+    expect(insert).toHaveBeenCalledTimes(3);
   });
 });

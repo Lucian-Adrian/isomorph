@@ -184,19 +184,43 @@ try {
     };
   });
 
-  await step('codegen visible and executable', async () => {
-    await page.getByText(/Codegen/i).first().waitFor({ timeout: 10_000 });
+  await step('codegen opens as an overlay and generates output', async () => {
     await clickFirst(page, [
       page.getByRole('button', { name: /^Generate$/i }),
       page.locator('button').filter({ hasText: /^Generate$/i }),
     ], 'Generate button');
+    await page.getByText(/Generated Code/i).first().waitFor({ timeout: 10_000 });
     await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 10_000 });
     await page.waitForFunction(() => {
       const value = document.querySelector('textarea')?.value ?? '';
       return value.trim().length > 0;
     });
     const output = await page.locator('textarea').first().inputValue();
+    await page.getByRole('button', { name: /close workspace panel/i }).click();
     return { codegenChars: output.length, preview: output.slice(0, 80) };
+  });
+
+  await step('cloud and metrics are hidden behind workspace overlays', async () => {
+    const sidebarHasCloud = await page.locator('main').getByText(/^Cloud$/).isVisible().catch(() => false);
+    const sidebarHasMetrics = await page.locator('main').getByText(/^Metrics$/).isVisible().catch(() => false);
+    if (sidebarHasCloud || sidebarHasMetrics) {
+      throw new Error('Cloud/Metrics should not be permanently visible in the IDE sidebar.');
+    }
+    await clickFirst(page, [
+      page.getByRole('button', { name: /Account|Sync/i }),
+      page.locator('button').filter({ hasText: /Account|Sync/i }),
+    ], 'Account or Sync button');
+    await page.getByText(/Account and Cloud Sync/i).first().waitFor({ timeout: 10_000 });
+    await page.getByRole('button', { name: /close workspace panel/i }).click();
+
+    await clickFirst(page, [
+      page.getByRole('button', { name: /^Reports$/i }),
+      page.locator('button').filter({ hasText: /^Reports$/i }),
+    ], 'Reports button');
+    await page.getByText(/Reports and Metrics/i).first().waitFor({ timeout: 10_000 });
+    const metricsVisible = await visibleText(page, /Generated LOC/i);
+    await page.getByRole('button', { name: /close workspace panel/i }).click();
+    return { sidebarHasCloud, sidebarHasMetrics, metricsVisible };
   });
 
   await step('export SVG and PNG buttons trigger downloads', async () => {
@@ -219,23 +243,35 @@ try {
       page.locator('button').filter({ hasText: /^Canvas$/i }),
     ], 'Canvas route button');
     await page.waitForFunction(() => window.location.hash === '#/canvas');
-    await page.getByText(/Pure Infinite Canvas/i).first().waitFor({ timeout: 10_000 });
+    await page.locator('.iso-full-canvas-shell').first().waitFor({ state: 'visible', timeout: 10_000 });
+    for (const label of ['Select', 'Hand', 'Rectangle', 'Ellipse', 'Arrow', 'Line', 'Pen', 'Text', 'Image', 'Eraser', 'More tools']) {
+      await page.getByRole('button', { name: label }).first().waitFor({ timeout: 10_000 });
+    }
 
     await clickFirst(page, [
       page.getByRole('button', { name: /Back to IDE/i }),
       page.locator('button').filter({ hasText: /Back to IDE/i }),
     ], 'Back to IDE button');
     await page.waitForFunction(() => window.location.hash === '#/app');
-    await page.getByText(/Codegen/i).first().waitFor({ timeout: 10_000 });
+    await page.getByText(/Source/i).first().waitFor({ timeout: 10_000 });
     return { hash: await page.evaluate(() => window.location.hash) };
   });
 
   await step('1000-line limit UI visible without cloud credentials', async () => {
     const limitsVisible = await visibleText(page, /1000 lines\/file/i);
-    if (!limitsVisible) {
-      throw new Error('Expected the 1000 lines/file limits copy to be visible in the IDE sidebar.');
+    if (limitsVisible) {
+      return { limitsVisible, surface: 'already-open' };
     }
-    return { limitsVisible };
+    await clickFirst(page, [
+      page.getByRole('button', { name: /Account|Sync/i }),
+      page.locator('button').filter({ hasText: /Account|Sync/i }),
+    ], 'Account or Sync button for limit copy');
+    const visibleInOverlay = await visibleText(page, /1000 lines\/file/i);
+    if (!visibleInOverlay) {
+      throw new Error('Expected the 1000 lines/file limits copy to be visible in the Account overlay.');
+    }
+    await page.getByRole('button', { name: /close workspace panel/i }).click();
+    return { limitsVisible: visibleInOverlay, surface: 'account-overlay' };
   });
 
   await step('no NaN SVG attribute errors during live editing', async () => {

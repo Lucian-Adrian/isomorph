@@ -128,6 +128,57 @@ export async function endTelemetrySession(sessionId: string): Promise<void> {
   if (error) throw error;
 }
 
+interface TelemetryInsert {
+  user_id: string | null;
+  session_id: string | null;
+  diagram_id: string | null;
+  event_type: string;
+  payload: Record<string, unknown>;
+}
+
+interface QueuedTelemetryInsert {
+  payload: TelemetryInsert;
+  attempts: number;
+}
+
+const TELEMETRY_MAX_ATTEMPTS = 3;
+const TELEMETRY_RETRY_BASE_MS = 250;
+
+const telemetryQueue: QueuedTelemetryInsert[] = [];
+let telemetryFlushScheduled = false;
+let telemetryFlushing = false;
+
+function scheduleTelemetryFlush(delayMs = 0): void {
+  if (telemetryFlushScheduled) return;
+  telemetryFlushScheduled = true;
+  window.setTimeout(() => {
+    telemetryFlushScheduled = false;
+    void flushTelemetryQueue();
+  }, delayMs);
+}
+
+async function flushTelemetryQueue(): Promise<void> {
+  if (!supabase || telemetryFlushing || telemetryQueue.length === 0) return;
+  telemetryFlushing = true;
+  const batch = telemetryQueue.splice(0, telemetryQueue.length);
+
+  try {
+    await supabase.from('telemetry_events').insert(batch.map((entry) => entry.payload));
+  } catch {
+    const retryable = batch
+      .filter((entry) => entry.attempts + 1 < TELEMETRY_MAX_ATTEMPTS)
+      .map((entry) => ({ ...entry, attempts: entry.attempts + 1 }));
+    telemetryQueue.unshift(...retryable);
+  } finally {
+    telemetryFlushing = false;
+  }
+
+  if (telemetryQueue.length > 0) {
+    const nextAttempt = Math.max(...telemetryQueue.map((entry) => entry.attempts));
+    scheduleTelemetryFlush(TELEMETRY_RETRY_BASE_MS * 2 ** Math.max(0, nextAttempt - 1));
+  }
+}
+
 export async function logTelemetry(input: {
   userId?: string;
   sessionId?: string;
@@ -136,11 +187,15 @@ export async function logTelemetry(input: {
   payload: Record<string, unknown>;
 }): Promise<void> {
   if (!supabase) return;
-  await supabase.from('telemetry_events').insert({
-    user_id: input.userId ?? null,
-    session_id: input.sessionId ?? null,
-    diagram_id: input.diagramId ?? null,
-    event_type: input.eventType,
-    payload: input.payload,
+  telemetryQueue.push({
+    attempts: 0,
+    payload: {
+      user_id: input.userId ?? null,
+      session_id: input.sessionId ?? null,
+      diagram_id: input.diagramId ?? null,
+      event_type: input.eventType,
+      payload: input.payload,
+    },
   });
+  scheduleTelemetryFlush();
 }

@@ -820,6 +820,7 @@ export default function App() {
   const [authStatus, setAuthStatus] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
   const [remoteDiagrams, setRemoteDiagrams] = useState<SavedDiagram[]>([]);
+  const [activeOverlay, setActiveOverlay] = useState<'cloud' | 'codegen' | 'metrics' | null>(null);
   const [codegenLanguage, setCodegenLanguage] = useState<CodegenLanguage>('python');
   const [codegenOutput, setCodegenOutput] = useState('');
   const [inspectorOutput, setInspectorOutput] = useState('');
@@ -1741,6 +1742,7 @@ export default function App() {
     const latency = Math.round(performance.now() - started);
     setCodegenOutput(output);
     setCodegenLatencyMs(latency);
+    setActiveOverlay('codegen');
     setInspectorOutput(JSON.stringify({
       ast: parseResult?.program.diagrams[safeDiagramIdx] ?? null,
       iom: {
@@ -1932,57 +1934,59 @@ export default function App() {
     : t('status.diagram_valid');
 
   const productivitySummary = summarizeProductivity(source, activeDiagram, codegenOutput);
-  const auxPanels = (
-    <>
-      <AuthCloudPanel
-        isConfigured={isSupabaseConfigured}
-        userEmail={user?.email}
-        statusMessage={authStatus || saveStatus}
-        remoteDiagrams={remoteDiagrams}
-        authEmail={authEmail}
-        authPassword={authPassword}
-        isWorking={authStatus === 'Working...' || saveStatus === 'Saving...'}
-        limitNotice={`Limits: 1000 lines/file, 20 files/user. Contact ${LIMIT_CONTACT_EMAIL}.`}
-        onAuthEmailChange={setAuthEmail}
-        onAuthPasswordChange={setAuthPassword}
-        onSignIn={() => handleAuth('sign-in')}
-        onSignUp={() => handleAuth('sign-up')}
-        onSave={handleCloudSave}
-        onSignOut={handleSignOut}
-        onOpenRemote={(diagram) => {
-          const saved = remoteDiagrams.find(item => item.id === diagram.id);
-          if (saved) handleRemoteOpen(saved);
-        }}
-      />
-      <CodegenPanel
-        language={codegenLanguage}
-        output={codegenOutput}
-        inspectorJson={inspectorOutput}
-        diagramName={activeDiagram?.name}
-        canGenerate={Boolean(activeDiagram)}
-        onLanguageChange={setCodegenLanguage}
-        onGenerate={handleGenerateCode}
-        onCopyCode={value => copyToClipboard(value, 'copy')}
-        onDownloadCode={handleDownloadGeneratedCode}
-        onCopyInspectorJson={value => copyToClipboard(value, 'copy')}
-        onDownloadBundle={handleDownloadCodeBundle}
-      />
-      <MetricsPanel
-        metrics={{
-          compileLatencyMs,
-          saveLatencyMs,
-          codegenLatencyMs,
-          generatedLoc: productivitySummary.generatedCodeLines,
-          estimatedMinutesSaved: productivitySummary.estimatedBoilerplateMinutesSaved,
-          copyCount,
-          pasteCount,
-          exportCount,
-          lineCount: productivitySummary.lineCount,
-          entityCount: productivitySummary.entityCount,
-          relationCount: productivitySummary.relationCount,
-        }}
-      />
-    </>
+  const cloudPanel = (
+    <AuthCloudPanel
+      isConfigured={isSupabaseConfigured}
+      userEmail={user?.email}
+      statusMessage={authStatus || saveStatus}
+      remoteDiagrams={remoteDiagrams}
+      authEmail={authEmail}
+      authPassword={authPassword}
+      isWorking={authStatus === 'Working...' || saveStatus === 'Saving...'}
+      limitNotice={`Limits: 1000 lines/file, 20 files/user. Contact ${LIMIT_CONTACT_EMAIL}.`}
+      onAuthEmailChange={setAuthEmail}
+      onAuthPasswordChange={setAuthPassword}
+      onSignIn={() => handleAuth('sign-in')}
+      onSignUp={() => handleAuth('sign-up')}
+      onSave={handleCloudSave}
+      onSignOut={handleSignOut}
+      onOpenRemote={(diagram) => {
+        const saved = remoteDiagrams.find(item => item.id === diagram.id);
+        if (saved) handleRemoteOpen(saved);
+      }}
+    />
+  );
+  const codegenPanel = (
+    <CodegenPanel
+      language={codegenLanguage}
+      output={codegenOutput}
+      inspectorJson={inspectorOutput}
+      diagramName={activeDiagram?.name}
+      canGenerate={Boolean(activeDiagram)}
+      onLanguageChange={setCodegenLanguage}
+      onGenerate={handleGenerateCode}
+      onCopyCode={value => copyToClipboard(value, 'copy')}
+      onDownloadCode={handleDownloadGeneratedCode}
+      onCopyInspectorJson={value => copyToClipboard(value, 'copy')}
+      onDownloadBundle={handleDownloadCodeBundle}
+    />
+  );
+  const metricsPanel = (
+    <MetricsPanel
+      metrics={{
+        compileLatencyMs,
+        saveLatencyMs,
+        codegenLatencyMs,
+        generatedLoc: productivitySummary.generatedCodeLines,
+        estimatedMinutesSaved: productivitySummary.estimatedBoilerplateMinutesSaved,
+        copyCount,
+        pasteCount,
+        exportCount,
+        lineCount: productivitySummary.lineCount,
+        entityCount: productivitySummary.entityCount,
+        relationCount: productivitySummary.relationCount,
+      }}
+    />
   );
 
   const shapesPane = (
@@ -2009,7 +2013,6 @@ export default function App() {
           </div>
         </>
       )}
-      {auxPanels}
     </div>
   );
 
@@ -2452,27 +2455,23 @@ export default function App() {
             <button
               type="button"
               className="iso-btn"
-              onClick={() => {
-                if (!activeTab) return;
-                const blob = new Blob([activeTab.source], { type: 'application/octet-stream' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = activeTab.name || 'diagram.isx';
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              disabled={!activeTab}
-              aria-label={t('menu.export_source')}
-              data-tooltip={t('menu.save_isx')}
+              onClick={handleGenerateCode}
+              disabled={!activeDiagram}
+              aria-label="Generate code"
+              data-tooltip="Generate Python or Java"
             >
-              <IconSave />
-              {t('menu.save_isx_ext')}
+              <IconCode />
+              Generate
             </button>
 
-            <button type="button" className="iso-btn" onClick={handleCloudSave} disabled={!activeTab || !user}>
+            <button type="button" className="iso-btn" onClick={() => setActiveOverlay('cloud')}>
               <IconSave />
-              Cloud
+              {user ? 'Sync' : 'Account'}
+            </button>
+
+            <button type="button" className="iso-btn" onClick={() => setActiveOverlay('metrics')}>
+              <IconDiagram />
+              Reports
             </button>
 
             <button
@@ -2490,6 +2489,27 @@ export default function App() {
             >
               <IconDiagram />
               {isFullCanvasRoute ? 'IDE' : 'Canvas'}
+            </button>
+
+            <button
+              type="button"
+              className="iso-btn"
+              onClick={() => {
+                if (!activeTab) return;
+                const blob = new Blob([activeTab.source], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = activeTab.name || 'diagram.isx';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              disabled={!activeTab}
+              aria-label={t('menu.export_source')}
+              data-tooltip={t('menu.save_isx')}
+            >
+              <IconSave />
+              {t('menu.save_isx_ext')}
             </button>
 
             <button
@@ -2825,11 +2845,27 @@ export default function App() {
           </div>
         ) : (
           <>
-            {shapesPane}
             <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
+            {shapesPane}
           </>
         )}
       </main>
+
+      {activeOverlay && (
+        <div className="iso-modal-overlay iso-workspace-overlay" onClick={() => setActiveOverlay(null)}>
+          <div className="iso-workspace-modal" onClick={event => event.stopPropagation()}>
+            <div className="iso-workspace-modal-header">
+              <strong>{activeOverlay === 'cloud' ? 'Account and Cloud Sync' : activeOverlay === 'codegen' ? 'Generated Code' : 'Reports and Metrics'}</strong>
+              <button type="button" className="iso-btn iso-btn--icon" onClick={() => setActiveOverlay(null)} aria-label="Close workspace panel">×</button>
+            </div>
+            <div className="iso-workspace-modal-body">
+              {activeOverlay === 'cloud' && cloudPanel}
+              {activeOverlay === 'codegen' && codegenPanel}
+              {activeOverlay === 'metrics' && metricsPanel}
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingEntity && (
         <div className="iso-modal-overlay" onClick={() => setEditingEntity(null)}>
@@ -3069,7 +3105,7 @@ export default function App() {
       )}
 
       {editingText && ( <div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div> )} {/* ──────────────── STATUS BAR ──────────────────────── */}
-      <footer className="iso-statusbar">
+      {!isFullCanvasRoute && <footer className="iso-statusbar">
         <span className="iso-statusbar-item">{t('ui.isomorph_dsl')}</span>
         <span className="iso-statusbar-sep">·</span>
         <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -3091,7 +3127,7 @@ export default function App() {
         )}
         <span className="iso-statusbar-sep" style={{ marginLeft: 'auto' }}>·</span>
         <span className="iso-statusbar-item">FAF-241 · Team 02</span>
-      </footer>
+      </footer>}
 
       {/* ──────────────── SHORTCUTS OVERLAY ───────────────── */}
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} t={t} />

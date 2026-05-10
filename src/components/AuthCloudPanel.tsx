@@ -103,7 +103,13 @@ export function AuthCloudPanel({
             </div>
           </>
         ) : (
-          <>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSignIn();
+            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+          >
             <input
               className="iso-select"
               type="email"
@@ -123,14 +129,14 @@ export function AuthCloudPanel({
               disabled={authDisabled}
             />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-              <button type="button" className="iso-btn iso-btn--primary" onClick={onSignIn} disabled={authDisabled}>
+              <button type="submit" className="iso-btn iso-btn--primary" disabled={authDisabled}>
                 Sign in
               </button>
               <button type="button" className="iso-btn" onClick={onSignUp} disabled={authDisabled}>
                 Sign up
               </button>
             </div>
-          </>
+          </form>
         )}
 
         {statusMessage && <div className="iso-panel-info" style={{ marginLeft: 0 }}>{statusMessage}</div>}

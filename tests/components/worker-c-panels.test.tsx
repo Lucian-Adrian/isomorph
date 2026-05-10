@@ -95,6 +95,28 @@ describe('Worker C shell panels', () => {
     cleanup();
   });
 
+  it('AuthCloudPanel wraps credentials in a real form for browser password managers', () => {
+    const { host, cleanup } = render(
+      <AuthCloudPanel
+        isConfigured
+        remoteDiagrams={[]}
+        authEmail="user@example.test"
+        authPassword="secret"
+        onAuthEmailChange={vi.fn()}
+        onAuthPasswordChange={vi.fn()}
+        onSignIn={vi.fn()}
+        onSignUp={vi.fn()}
+        onSave={vi.fn()}
+        onSignOut={vi.fn()}
+        onOpenRemote={vi.fn()}
+      />,
+    );
+
+    const passwordInput = host.querySelector('input[type="password"]');
+    expect(passwordInput?.closest('form')).not.toBeNull();
+    cleanup();
+  });
+
   it('MetricsPanel shows compact report-ready numbers', () => {
     const { host, cleanup } = render(
       <MetricsPanel
@@ -149,19 +171,53 @@ describe('Worker C shell panels', () => {
       />,
     );
 
-    const select = host.querySelector('select') as HTMLSelectElement;
-    act(() => {
-      select.value = 'hand';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    act(() => host.querySelector('[aria-label="Hand"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     act(() => Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Save')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     act(() => Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Back to IDE')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 
-    expect(host.textContent).toContain('Pure Infinite Canvas');
+    expect(host.querySelector('.iso-full-canvas-shell')).not.toBeNull();
     expect(host.textContent).toContain('100%');
     expect(onModeChange).toHaveBeenCalledWith('hand');
     expect(onSave).toHaveBeenCalledOnce();
     expect(onBack).toHaveBeenCalledOnce();
+    cleanup();
+  });
+
+  it('FullCanvasShell exposes an Excalidraw-style floating tool palette', () => {
+    const onModeChange = vi.fn();
+    const diagram: IOMDiagram = {
+      name: 'CanvasDiagram',
+      kind: 'class',
+      entities: new Map(),
+      relations: [],
+      packages: [],
+      notes: [],
+      config: {},
+      styles: {},
+      fragments: [],
+      activations: [],
+      partitions: [],
+    };
+    const { host, cleanup } = render(
+      <FullCanvasShell
+        diagram={diagram}
+        mode="move"
+        onModeChange={onModeChange}
+        onSave={vi.fn()}
+        onExportSVG={vi.fn()}
+        onExportPNG={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    for (const label of ['Lock tool', 'Select', 'Hand', 'Rectangle', 'Ellipse', 'Arrow', 'Line', 'Pen', 'Text', 'Image', 'Eraser', 'More tools']) {
+      expect(host.querySelector(`[aria-label="${label}"]`)).not.toBeNull();
+    }
+
+    act(() => host.querySelector('[aria-label="Rectangle"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(onModeChange).toHaveBeenCalledWith('rectangle');
+    expect(host.querySelector('.iso-full-canvas-shell')).not.toBeNull();
+    expect(host.querySelector('.iso-full-canvas-toolbar')).not.toBeNull();
     cleanup();
   });
 });
