@@ -217,7 +217,7 @@ export class Parser {
     if (k === 'abstract' || k === 'static' || k === 'final') return true;
     return [
       'class', 'interface', 'enum', 'actor', 'usecase', 'component', 'node', 'participant', 'object',
-      'partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action',
+      'partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action', 'activity',
       'state', 'composite', 'concurrent', 'choice', 'history',
       'device', 'artifact', 'environment',
       'boundary', 'system', 'multiobject', 'active_object', 'collaboration', 'composite_object'
@@ -234,7 +234,15 @@ export class Parser {
 
   private parsePackageDecl(): PackageDecl {
     const kw = this.expect('package');
-    const name = this.expect('IDENT').value;
+    let name = this.expect('IDENT').value;
+    if (this.at('LT')) {
+      const genericStart = this.advance();
+      const typeParams = this.parseIdentList();
+      this.expect('GT');
+      if (typeParams.length > 0) {
+        name += `${genericStart.value}${typeParams.join(', ')}>`;
+      }
+    }
     this.expect('LBRACE');
     const body = this.parseDiagramBody();
     const close = this.expect('RBRACE');
@@ -247,8 +255,16 @@ export class Parser {
     const first = this.peek();
     const modifiers = this.parseModifierList();
     const entityKindToken = this.advance(); // consume the entity kind keyword
-    const entityKind = entityKindToken.value as EntityKind;
-    const name = this.expect('IDENT').value;
+    const entityKind = (entityKindToken.value === 'activity' ? 'action' : entityKindToken.value) as EntityKind;
+    let name = this.expect('IDENT').value;
+    if (this.at('LT')) {
+      const genericStart = this.advance();
+      const typeParams = this.parseIdentList();
+      this.expect('GT');
+      if (typeParams.length > 0) {
+        name += `${genericStart.value}${typeParams.join(', ')}>`;
+      }
+    }
 
     // Optional stereotype: << IDENT >>
     // Note: lexer never emits STEREO_C ('>>'). We consume two GT tokens instead.
@@ -564,21 +580,27 @@ export class Parser {
 
   // ── Layout annotation: @Name at (x, y[, w, h]) ───────────────
 
+  private expectNumberValue(fallback = 0): number {
+    const token = this.expect('NUMBER');
+    const value = Number.parseFloat(token.value);
+    return Number.isFinite(value) ? value : fallback;
+  }
+
   private parseLayoutAnnotation(): LayoutAnnotation {
     const at = this.expect('AT');
     const entity = this.expect('IDENT').value;
     this.expect('at');
     this.expect('LPAREN');
-    const x = parseFloat(this.expect('NUMBER').value);
+    const x = this.expectNumberValue();
     this.expect('COMMA');
-    const y = parseFloat(this.expect('NUMBER').value);
+    const y = this.expectNumberValue();
     let w: number | undefined;
     let h: number | undefined;
     if (this.at('COMMA')) {
       this.advance();
-      w = parseFloat(this.expect('NUMBER').value);
+      w = this.expectNumberValue(undefined);
       this.expect('COMMA');
-      h = parseFloat(this.expect('NUMBER').value);
+      h = this.expectNumberValue(undefined);
     }
     const close = this.expect('RPAREN');
     return { kind: 'LayoutAnnotation', entity, x, y, w, h, span: this.spanTo(at, close) };

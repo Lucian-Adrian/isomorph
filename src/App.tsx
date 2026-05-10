@@ -17,6 +17,10 @@ import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
 import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconTheme } from './components/Icons.js';
+import { AuthCloudPanel } from './components/AuthCloudPanel.js';
+import { CodegenPanel, type CodeDownloadPayload } from './components/CodegenPanel.js';
+import { MetricsPanel } from './components/MetricsPanel.js';
+import { FullCanvasShell, type FullCanvasMode } from './components/FullCanvasShell.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -25,6 +29,12 @@ import { EXAMPLES } from './data/examples.js';
 import type { IOMDiagram, IOMEntity } from './semantics/iom.js';
 import type { ParseError } from './parser/index.js';
 import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Language } from './i18n.js';
+import { generateCode, generateCodeBundle, type CodegenLanguage } from './codegen/index.js';
+import { supabase, isSupabaseConfigured } from './services/supabase.js';
+import { endTelemetrySession, listDiagrams, logTelemetry, saveDiagram, startTelemetrySession, type SavedDiagram } from './services/diagramStore.js';
+import { buildTelemetryEvent, summarizeProductivity } from './services/telemetry.js';
+import { LIMIT_CONTACT_EMAIL } from './services/limits.js';
+import type { User } from '@supabase/supabase-js';
 
 type DiagramKind = IOMDiagram['kind'];
 
@@ -340,7 +350,8 @@ export function formatDiagramSource(source: string): string {
 
   const newBody = sections.map(sec => sec.join('\n')).join('\n\n');
 
-  return s.slice(0, block.start) + header + '\n\n' + newBody + '\n\n' + suffix;
+  const bodyText = newBody ? `\n${newBody}\n` : '\n';
+  return s.slice(0, block.start) + header.trimEnd() + bodyText + suffix.trimStart();
 }
 
 function toolsetFor(kind?: DiagramKind): CanvasTool[] {
@@ -802,6 +813,26 @@ export default function App() {
   const [language, setLanguage] = useState<Language>(() => getStoredLanguage());
   const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string>('');
+  const [savedDiagramIds, setSavedDiagramIds] = useState<Record<string, string>>({});
+  const [user, setUser] = useState<User | null>(null);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authStatus, setAuthStatus] = useState('');
+  const [saveStatus, setSaveStatus] = useState('');
+  const [remoteDiagrams, setRemoteDiagrams] = useState<SavedDiagram[]>([]);
+  const [codegenLanguage, setCodegenLanguage] = useState<CodegenLanguage>('python');
+  const [codegenOutput, setCodegenOutput] = useState('');
+  const [inspectorOutput, setInspectorOutput] = useState('');
+  const [routeHash, setRouteHash] = useState(() => window.location.hash);
+  const [telemetrySessionId, setTelemetrySessionId] = useState<string | null>(null);
+  const [codegenLatencyMs, setCodegenLatencyMs] = useState<number | null>(null);
+  const [saveLatencyMs, setSaveLatencyMs] = useState<number | null>(null);
+  const [compileLatencyMs, setCompileLatencyMs] = useState<number | null>(null);
+  const [copyCount, setCopyCount] = useState(0);
+  const [pasteCount, setPasteCount] = useState(0);
+  const [exportCount, setExportCount] = useState(0);
+  const [fullCanvasMode, setFullCanvasMode] = useState<FullCanvasMode>('move');
+  const parseTimingRef = useRef<number | null>(null);
   const [newDiagramKind, setNewDiagramKind] = useState<DiagramKind>('class');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [tabToClose, setTabToClose] = useState<string | null>(null);
@@ -860,8 +891,14 @@ export default function App() {
 
   // ── Parse + analyze on every keystroke ───────────────────
   const parseResult = useMemo(() => {
+    const started = performance.now();
     try { return parse(source); } catch { return null; }
+    finally { parseTimingRef.current = Math.round(performance.now() - started); }
   }, [source]);
+
+  useEffect(() => {
+    if (parseTimingRef.current !== null) setCompileLatencyMs(parseTimingRef.current);
+  }, [parseResult]);
 
   const analysisResult = useMemo(() => {
     if (!parseResult) return null;
@@ -892,6 +929,63 @@ export default function App() {
   const activeDiagramIdx = activeTab?.activeDiagramIdx ?? 0;
   const safeDiagramIdx = Math.max(0, Math.min(activeDiagramIdx, Math.max(filteredDiagrams.length - 1, 0)));
   const activeDiagram = filteredDiagrams[safeDiagramIdx] ?? null;
+  const isFullCanvasRoute = routeHash === '#/canvas';
+
+  useEffect(() => {
+    const onHashChange = () => setRouteHash(window.location.hash);
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  useEffect(() => {
+    void logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+      eventType: 'route_switch',
+      payload: buildTelemetryEvent('route_switch', { route: routeHash || '#/app' }).payload,
+    });
+  }, [activeTab, routeHash, savedDiagramIds, telemetrySessionId, user]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setRemoteDiagrams([]);
+      return;
+    }
+    listDiagrams(user).then(setRemoteDiagrams).catch(error => setSaveStatus(error.message));
+  }, [user]);
+
+  useEffect(() => {
+    let active = true;
+    startTelemetrySession({
+      userId: user?.id ?? null,
+      route: window.location.pathname + window.location.hash,
+      device: {
+        user_agent: navigator.userAgent,
+        language: navigator.language,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+      },
+    }).then(id => {
+      if (active) setTelemetrySessionId(id);
+    }).catch(() => {});
+
+    return () => {
+      active = false;
+      setTelemetrySessionId(current => {
+        if (current) void endTelemetrySession(current).catch(() => {});
+        return null;
+      });
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 900px)');
@@ -931,6 +1025,16 @@ export default function App() {
       updateActiveTab(tab => ({ ...tab, activeDiagramIdx: safeDiagramIdx }));
     }
   }, [activeTab, safeDiagramIdx, activeDiagramIdx, updateActiveTab]);
+
+  useEffect(() => {
+    if (!activeTab) return;
+    localStorage.setItem(`isomorph-canvas:${activeTab.id}`, JSON.stringify({
+      route: routeHash || '#/app',
+      mode: fullCanvasMode,
+      selectedItems,
+      updatedAt: new Date().toISOString(),
+    }));
+  }, [activeTab, fullCanvasMode, routeHash, selectedItems]);
 
   const getPlacedItemPosition = useCallback((name: string) => {
     const partitionPos = activeDiagram?.partitions.find(p => p.name === name)?.position;
@@ -1003,7 +1107,14 @@ export default function App() {
         source: formatDiagramSource(updateEntityPosition(src, targetName, x, y, movedW, movedH)),
       };
     });
-  }, [updateActiveTab, activeDiagram, getPlacedItemPosition]);
+    void logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+      eventType: 'diagram_drag',
+      payload: buildTelemetryEvent('diagram_drag', { entity: name, x, y, dx: dragDx ?? 0, dy: dragDy ?? 0 }).payload,
+    });
+  }, [activeTab, savedDiagramIds, telemetrySessionId, updateActiveTab, activeDiagram, getPlacedItemPosition, user]);
 
   const handleEntityResize = useCallback((name: string, w: number, h: number, x?: number, y?: number) => {
     updateActiveTab(tab => {
@@ -1203,8 +1314,19 @@ export default function App() {
       source = formatDiagramSource(source);
       return { ...tab, source };
     });
+    void logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+      eventType: 'component_edit',
+      payload: buildTelemetryEvent('component_edit', {
+        entity: entityName,
+        next_name: updates.name ?? entityName,
+        kind: updates.kind,
+      }).payload,
+    });
     setEditingEntity(null);
-  }, [updateActiveTab]);
+  }, [activeTab, savedDiagramIds, telemetrySessionId, updateActiveTab, user]);
 
   const handleRelationEdit = useCallback((
     relationId: string,
@@ -1215,8 +1337,15 @@ export default function App() {
       src = formatDiagramSource(src);
       return { ...tab, source: src };
     });
+    void logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+      eventType: 'relation_edit',
+      payload: buildTelemetryEvent('relation_edit', { relation_id: relationId, kind: updates.kind, label: updates.label }).payload,
+    });
     setEditingRelation(null);
-  }, [updateActiveTab, activeDiagram]);
+  }, [activeTab, savedDiagramIds, telemetrySessionId, updateActiveTab, activeDiagram, user]);
 
   const handleDropEntity = useCallback((keyword: string, x: number, y: number, targetPackage?: string) => {
     updateActiveTab(tab => {
@@ -1453,12 +1582,184 @@ export default function App() {
 
   // ── Export callbacks (delegated to exporter module) ───────
   const handleExportSVG = useCallback(() => {
+    const started = performance.now();
     exportSVG(activeDiagram?.name ?? 'diagram');
-  }, [activeDiagram]);
+    setExportCount(count => count + 1);
+    void logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+      eventType: 'export',
+      payload: buildTelemetryEvent('export', { format: 'svg', latency_ms: Math.round(performance.now() - started) }).payload,
+    });
+  }, [activeDiagram, activeTab, savedDiagramIds, telemetrySessionId, user]);
 
   const handleExportPNG = useCallback(() => {
+    const started = performance.now();
     exportPNG(activeDiagram?.name ?? 'diagram');
-  }, [activeDiagram]);
+    setExportCount(count => count + 1);
+    void logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+      eventType: 'export',
+      payload: buildTelemetryEvent('export', { format: 'png', latency_ms: Math.round(performance.now() - started) }).payload,
+    });
+  }, [activeDiagram, activeTab, savedDiagramIds, telemetrySessionId, user]);
+
+  const handleAuth = useCallback(async (mode: 'sign-in' | 'sign-up') => {
+    if (!supabase) {
+      setAuthStatus('Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.');
+      return;
+    }
+    setAuthStatus('Working...');
+    const result = mode === 'sign-up'
+      ? await supabase.auth.signUp({ email: authEmail, password: authPassword })
+      : await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+    if (result.error) {
+      setAuthStatus(result.error.message);
+      return;
+    }
+    setUser(result.data.user ?? result.data.session?.user ?? null);
+    setAuthStatus(mode === 'sign-up' ? 'Account created. Check email if confirmation is enabled.' : 'Signed in.');
+    await logTelemetry({
+      userId: result.data.user?.id ?? result.data.session?.user.id,
+      sessionId: telemetrySessionId ?? undefined,
+      eventType: 'auth',
+      payload: buildTelemetryEvent('auth', { mode }).payload,
+    });
+  }, [authEmail, authPassword, telemetrySessionId]);
+
+  const handleSignOut = useCallback(async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setUser(null);
+    setAuthStatus('Signed out.');
+  }, []);
+
+  const refreshRemoteDiagrams = useCallback(async () => {
+    if (!user) return;
+    setRemoteDiagrams(await listDiagrams(user));
+  }, [user]);
+
+  const handleCloudSave = useCallback(async () => {
+    if (!activeTab || !user) {
+      setSaveStatus('Sign in to save diagrams to Supabase.');
+      return;
+    }
+    const started = performance.now();
+    try {
+      const saved = await saveDiagram({
+        user,
+        title: activeTab.name,
+        source: activeTab.source,
+        canvasState: localStorage.getItem(`isomorph-canvas:${activeTab.id}`),
+        activeDiagramName: activeDiagram?.name,
+        existingId: savedDiagramIds[activeTab.id],
+        currentFileCount: remoteDiagrams.length,
+      });
+      setSavedDiagramIds(prev => ({ ...prev, [activeTab.id]: saved.id }));
+      setSaveLatencyMs(Math.round(performance.now() - started));
+      setSaveStatus(`Saved ${saved.title}.`);
+      await refreshRemoteDiagrams();
+      await logTelemetry({
+        userId: user.id,
+        sessionId: telemetrySessionId ?? undefined,
+        diagramId: saved.id,
+        eventType: 'save',
+        payload: buildTelemetryEvent('save', {
+          latency_ms: Math.round(performance.now() - started),
+          ...summarizeProductivity(activeTab.source, activeDiagram),
+        }, saved.id).payload,
+      });
+    } catch (error) {
+      setSaveStatus(error instanceof Error ? error.message : String(error));
+    }
+  }, [activeTab, activeDiagram, user, savedDiagramIds, remoteDiagrams.length, refreshRemoteDiagrams, telemetrySessionId]);
+
+  const handleRemoteOpen = useCallback((diagram: SavedDiagram) => {
+    const id = `tab-${slugId()}`;
+    setTabs(prev => [...prev, {
+      id,
+      name: diagram.title,
+      source: diagram.source,
+      activeDiagramIdx: 0,
+      diagramKindFilter: 'all',
+    }]);
+    setSavedDiagramIds(prev => ({ ...prev, [id]: diagram.id }));
+    setActiveTabId(id);
+    setSaveStatus(`Loaded ${diagram.title}.`);
+    void logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: diagram.id,
+      eventType: 'load',
+      payload: buildTelemetryEvent('load', { line_count: diagram.line_count }, diagram.id).payload,
+    });
+  }, [telemetrySessionId, user]);
+
+  const downloadTextFile = useCallback((fileName: string, contents: string) => {
+    const blob = new Blob([contents], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleDownloadGeneratedCode = useCallback((payload: CodeDownloadPayload) => {
+    const ext = payload.language === 'python' ? 'py' : 'java';
+    downloadTextFile(`${payload.diagramName ?? 'diagram'}.${ext}`, payload.output);
+  }, [downloadTextFile]);
+
+  const handleDownloadCodeBundle = useCallback(() => {
+    if (!activeDiagram) return;
+    const bundle = generateCodeBundle(activeDiagram, { language: codegenLanguage });
+    for (const file of bundle.files) {
+      downloadTextFile(file.path.replace(/[\\/]/g, '-'), file.contents);
+    }
+  }, [activeDiagram, codegenLanguage, downloadTextFile]);
+
+  const copyToClipboard = useCallback((value: string, eventType: 'copy' | 'codegen' = 'copy') => {
+    if (!value) return;
+    setCopyCount(count => count + 1);
+    void navigator.clipboard?.writeText(value);
+    void logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+      eventType,
+      payload: buildTelemetryEvent(eventType, { length: value.length }).payload,
+    });
+  }, [activeTab, savedDiagramIds, telemetrySessionId, user]);
+
+  const handleGenerateCode = useCallback(async () => {
+    if (!activeDiagram) return;
+    const started = performance.now();
+    const output = generateCode(activeDiagram, { language: codegenLanguage });
+    const latency = Math.round(performance.now() - started);
+    setCodegenOutput(output);
+    setCodegenLatencyMs(latency);
+    setInspectorOutput(JSON.stringify({
+      ast: parseResult?.program.diagrams[safeDiagramIdx] ?? null,
+      iom: {
+        ...activeDiagram,
+        entities: [...activeDiagram.entities.values()],
+      },
+    }, null, 2));
+    await logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+      eventType: 'codegen',
+      payload: buildTelemetryEvent('codegen', {
+        language: codegenLanguage,
+        latency_ms: latency,
+        ...summarizeProductivity(source, activeDiagram, output),
+      }).payload,
+    });
+  }, [activeDiagram, activeTab, codegenLanguage, parseResult, safeDiagramIdx, savedDiagramIds, source, telemetrySessionId, user]);
 
   // ── New file ──────────────────────────────────────────────
   const executeNewDiagram = useCallback((kind: DiagramKind) => {
@@ -1630,28 +1931,87 @@ export default function App() {
       : t('status.error_one', { count: allErrors.length })
     : t('status.diagram_valid');
 
-  const shapesPane = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
+  const productivitySummary = summarizeProductivity(source, activeDiagram, codegenOutput);
+  const auxPanels = (
+    <>
+      <AuthCloudPanel
+        isConfigured={isSupabaseConfigured}
+        userEmail={user?.email}
+        statusMessage={authStatus || saveStatus}
+        remoteDiagrams={remoteDiagrams}
+        authEmail={authEmail}
+        authPassword={authPassword}
+        isWorking={authStatus === 'Working...' || saveStatus === 'Saving...'}
+        limitNotice={`Limits: 1000 lines/file, 20 files/user. Contact ${LIMIT_CONTACT_EMAIL}.`}
+        onAuthEmailChange={setAuthEmail}
+        onAuthPasswordChange={setAuthPassword}
+        onSignIn={() => handleAuth('sign-in')}
+        onSignUp={() => handleAuth('sign-up')}
+        onSave={handleCloudSave}
+        onSignOut={handleSignOut}
+        onOpenRemote={(diagram) => {
+          const saved = remoteDiagrams.find(item => item.id === diagram.id);
+          if (saved) handleRemoteOpen(saved);
+        }}
+      />
+      <CodegenPanel
+        language={codegenLanguage}
+        output={codegenOutput}
+        inspectorJson={inspectorOutput}
+        diagramName={activeDiagram?.name}
+        canGenerate={Boolean(activeDiagram)}
+        onLanguageChange={setCodegenLanguage}
+        onGenerate={handleGenerateCode}
+        onCopyCode={value => copyToClipboard(value, 'copy')}
+        onDownloadCode={handleDownloadGeneratedCode}
+        onCopyInspectorJson={value => copyToClipboard(value, 'copy')}
+        onDownloadBundle={handleDownloadCodeBundle}
+      />
+      <MetricsPanel
+        metrics={{
+          compileLatencyMs,
+          saveLatencyMs,
+          codegenLatencyMs,
+          generatedLoc: productivitySummary.generatedCodeLines,
+          estimatedMinutesSaved: productivitySummary.estimatedBoilerplateMinutesSaved,
+          copyCount,
+          pasteCount,
+          exportCount,
+          lineCount: productivitySummary.lineCount,
+          entityCount: productivitySummary.entityCount,
+          relationCount: productivitySummary.relationCount,
+        }}
+      />
+    </>
+  );
+
+  const shapesPane = (
     <div className="iso-sidebar">
-      <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-        <IconDiagram size={11} /> {t('ui.shapes')}
-      </div>
-      <div className="iso-sidebar-body">
-        {getStencilsForKind(activeDiagram.kind).map(stencil => (
-          <div
-            key={stencil.label}
-            draggable
-            onDragStart={e => {
-              e.dataTransfer.setData('text/plain', stencil.keyword);
-              e.dataTransfer.effectAllowed = 'copy';
-            }}
-            className="iso-stencil"
-          >
-            {stencil.label}
+      {activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 && (
+        <>
+          <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
+            <IconDiagram size={11} /> {t('ui.shapes')}
           </div>
-        ))}
-      </div>
+          <div className="iso-sidebar-body">
+            {getStencilsForKind(activeDiagram.kind).map(stencil => (
+              <div
+                key={stencil.label}
+                draggable
+                onDragStart={e => {
+                  e.dataTransfer.setData('text/plain', stencil.keyword);
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                className="iso-stencil"
+              >
+                {stencil.label}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {auxPanels}
     </div>
-  ) : null;
+  );
 
   const sourcePane = (
     <div className="iso-panel" style={{ height: '100%' }}>
@@ -1673,7 +2033,28 @@ export default function App() {
       <div className="iso-panel-body">
         <IsomorphEditor
           value={source}
-          onChange={value => updateActiveTab(tab => ({ ...tab, source: value }))}
+          onChange={value => {
+            const previousLength = source.length;
+            updateActiveTab(tab => ({ ...tab, source: value }));
+            if (Math.abs(value.length - previousLength) > 20) {
+              setPasteCount(count => count + 1);
+              void logTelemetry({
+                userId: user?.id,
+                sessionId: telemetrySessionId ?? undefined,
+                diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+                eventType: 'paste',
+                payload: buildTelemetryEvent('paste', { delta_chars: value.length - previousLength }).payload,
+              });
+            } else {
+              void logTelemetry({
+                userId: user?.id,
+                sessionId: telemetrySessionId ?? undefined,
+                diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+                eventType: 'editor_typing',
+                payload: buildTelemetryEvent('editor_typing', { delta_chars: value.length - previousLength, duration_ms: 0 }).payload,
+              });
+            }
+          }}
           errors={editorDiagnostics}
         />
       </div>
@@ -2089,6 +2470,28 @@ export default function App() {
               {t('menu.save_isx_ext')}
             </button>
 
+            <button type="button" className="iso-btn" onClick={handleCloudSave} disabled={!activeTab || !user}>
+              <IconSave />
+              Cloud
+            </button>
+
+            <button
+              type="button"
+              className="iso-btn"
+              onClick={() => {
+                window.location.hash = isFullCanvasRoute ? '#/app' : '#/canvas';
+                void logTelemetry({
+                  userId: user?.id,
+                  eventType: isFullCanvasRoute ? 'full_canvas_exit' : 'full_canvas_entry',
+                  payload: buildTelemetryEvent(isFullCanvasRoute ? 'full_canvas_exit' : 'full_canvas_entry').payload,
+                });
+              }}
+              disabled={!activeDiagram}
+            >
+              <IconDiagram />
+              {isFullCanvasRoute ? 'IDE' : 'Canvas'}
+            </button>
+
             <button
               type="button"
               className="iso-btn"
@@ -2389,7 +2792,33 @@ export default function App() {
 
       {/* ──────────────── MAIN ────────────────────────────── */}
       <main className="iso-main">
-        {isMobileLayout ? (
+        {isFullCanvasRoute ? (
+          <FullCanvasShell
+            diagram={activeDiagram}
+            language={language}
+            mode={fullCanvasMode}
+            canSave={Boolean(activeTab && user)}
+            canExport={Boolean(activeDiagram)}
+            onModeChange={setFullCanvasMode}
+            onFitCanvas={() => setSelectedItems([])}
+            onSave={handleCloudSave}
+            onExportSVG={handleExportSVG}
+            onExportPNG={handleExportPNG}
+            onBack={() => { window.location.hash = '#/app'; }}
+            onEntityMove={handleEntityMove}
+            onEntityResize={handleEntityResize}
+            onRelationVerticalMove={handleRelationVerticalMove}
+            onEntityEditRequest={handleEntityEditRequest}
+            onRelationEditRequest={handleRelationEditRequest}
+            onRelationAddRequest={handleRelationAddRequest}
+            onTextRenameRequest={handleTextRenameRequest}
+            onDropEntity={handleDropEntity}
+            selectedItems={selectedItems}
+            onSelectionChange={setSelectedItems}
+            pendingDropKeyword={null}
+            onConsumePendingDrop={() => {}}
+          />
+        ) : isMobileLayout ? (
           <div className="iso-mobile-main">
             {mobilePane === 'code' && sourcePane}
             {mobilePane === 'diagram' && mobileCanvasPane}

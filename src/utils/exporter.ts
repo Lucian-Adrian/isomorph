@@ -5,8 +5,9 @@
 // Each function handles one export format independently.
 // ============================================================
 
-function getExportSVGString(svgEl: Element): string {
+export function serializeSVGForExport(svgEl: Element): string {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
   
   try {
     if (svgEl instanceof SVGSVGElement && typeof svgEl.getBBox === 'function') {
@@ -33,12 +34,15 @@ function getExportSVGString(svgEl: Element): string {
   if (!clone.getAttribute('style')?.includes('background')) {
     clone.style.background = '#fafafa';
   }
+  if (!clone.getAttribute('width')) clone.setAttribute('width', String((svgEl as SVGSVGElement).clientWidth || 1200));
+  if (!clone.getAttribute('height')) clone.setAttribute('height', String((svgEl as SVGSVGElement).clientHeight || 800));
 
   // Remove any CSS overrides we inject for UI only
   clone.style.minWidth = '';
   clone.style.minHeight = '';
 
-  return new XMLSerializer().serializeToString(clone);
+  const serialized = new XMLSerializer().serializeToString(clone);
+  return serialized.startsWith('<?xml') ? serialized : `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
 }
 
 /**
@@ -53,7 +57,7 @@ export function exportSVG(
   const svgEl = document.querySelector(selector);
   if (!svgEl) return;
 
-  const svgStr = getExportSVGString(svgEl);
+  const svgStr = serializeSVGForExport(svgEl);
   const blob = new Blob([svgStr], { type: 'image/svg+xml' });
   const url = URL.createObjectURL(blob);
 
@@ -83,9 +87,8 @@ export function exportPNG(
   const svgEl = document.querySelector(selector);
   if (!svgEl) return;
 
-  const svgStr = getExportSVGString(svgEl);
-  const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
+  const svgStr = serializeSVGForExport(svgEl);
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
 
   const img = new Image();
   img.onload = () => {
@@ -108,8 +111,6 @@ export function exportPNG(
     ctx.fillStyle = '#fafafa';
     ctx.fillRect(0, 0, nativeW, nativeH);
     ctx.drawImage(img, 0, 0, nativeW, nativeH);
-    URL.revokeObjectURL(url);
-
     canvas.toBlob(blob => {
       if (blob) {
         const pngUrl = URL.createObjectURL(blob);

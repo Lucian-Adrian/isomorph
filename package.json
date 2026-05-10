@@ -25,7 +25,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "qa:app": "node scripts/qa/isomorph-app-qa.mjs",
+    "symphony:check": "tsx symphony/cli.ts check",
+    "symphony:once": "tsx symphony/cli.ts once",
+    "symphony:daemon": "tsx symphony/cli.ts daemon",
+    "symphony:status": "tsx symphony/cli.ts status",
+    "verify": "npm run typecheck && npm test -- --run && npm run build && npm run qa:app && npm run symphony:check"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.4",
@@ -36,17 +42,21 @@
     "@codemirror/view": "^6.35.3",
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
+    "@supabase/supabase-js": "^2.105.1",
     "codemirror": "^6.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "replace-in-file": "^8.4.0"
   },
   "devDependencies": {
+    "@types/node": "^25.6.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^2.1.8",
     "jsdom": "^28.1.0",
+    "playwright": "^1.59.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "vitest": "^2.1.8"

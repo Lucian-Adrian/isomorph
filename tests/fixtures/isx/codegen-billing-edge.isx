@@ -1,0 +1,25 @@
+diagram BillingEdges : class {
+  package billing {
+    enum Status {
+      NEW
+      PAID
+      VOIDED
+    }
+
+    interface Repository {
+      +findName(id: String): String?
+    }
+
+    abstract class Amount {
+      +abstract value(): double
+    }
+
+    class Invoice<T> implements Repository {
+      -labels: List<String>
+      -retryCount: int?
+      -paid: boolean = false
+      -status: Status = "NEW"
+      +close(): boolean
+    }
+  }
+}
