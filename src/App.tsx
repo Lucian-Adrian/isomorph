@@ -10,9 +10,7 @@
 // ============================================================
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { IsomorphEditor } from './editor/IsomorphEditor.js';
 import type { LintDiagnostic } from './editor/IsomorphEditor.js';
-import { DiagramView } from './components/DiagramView.js';
 import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
@@ -21,6 +19,13 @@ import { AuthCloudPanel } from './components/AuthCloudPanel.js';
 import { CodegenPanel, type CodeDownloadPayload } from './components/CodegenPanel.js';
 import { MetricsPanel } from './components/MetricsPanel.js';
 import { FullCanvasShell, type FullCanvasMode } from './components/FullCanvasShell.js';
+import { BottomWorkbench } from './components/BottomWorkbench.js';
+import { WorkspaceRightRail } from './components/workspace/WorkspaceRightRail.js';
+import { CanvasPanel } from './components/workspace/CanvasPanel.js';
+import { SourcePanel } from './components/workspace/SourcePanel.js';
+import { WorkspaceOverlayHost, type WorkspaceOverlay } from './components/workspace/WorkspaceOverlayHost.js';
+import { getStencilsForKind } from './components/workspace/stencils.js';
+import type { DiagramSelection } from './components/workspace/types.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -34,6 +39,7 @@ import { supabase, isSupabaseConfigured } from './services/supabase.js';
 import { endTelemetrySession, listDiagrams, logTelemetry, saveDiagram, startTelemetrySession, type SavedDiagram } from './services/diagramStore.js';
 import { buildTelemetryEvent, summarizeProductivity } from './services/telemetry.js';
 import { LIMIT_CONTACT_EMAIL } from './services/limits.js';
+import { resolveProductMode, routeForMode } from './app/modeState.js';
 import type { User } from '@supabase/supabase-js';
 
 type DiagramKind = IOMDiagram['kind'];
@@ -284,7 +290,7 @@ function insertAtEnd(source: string, insertion: string): string {
  * keep one blank line between header, relations, and footer annotations.
  * This intentionally runs only on canvas-triggered rewrites, not manual typing.
  */
-export function formatDiagramSource(source: string): string {
+function formatDiagramSource(source: string): string {
   const s = source.replace(/\t/g, '  ');
   const block = findDiagramBlock(s);
   if (!block) return s;
@@ -359,96 +365,11 @@ function toolsetFor(kind?: DiagramKind): CanvasTool[] {
   return ['move', 'hand', 'add-edge', 'edit-node', 'edit-edge'];
 }
 
-function getStencilsForKind(kind?: DiagramKind) {
-  switch (kind) {
-    case 'class':
-      return [
-        { label: 'Class', keyword: 'class' },
-        { label: 'Abstract Class', keyword: 'abstract class' },
-        { label: 'Interface', keyword: 'interface' },
-        { label: 'Enum', keyword: 'enum' },
-        { label: 'Package', keyword: 'package' },
-      ];
-    case 'usecase':
-      return [
-        { label: 'Actor', keyword: 'actor' },
-        { label: 'Use Case', keyword: 'usecase' },
-        { label: 'System', keyword: 'system' },
-      ];
-    case 'component':
-      return [
-        { label: 'Component', keyword: 'component' },
-        { label: 'Interface', keyword: 'interface' },
-      ];
-    case 'deployment':
-      return [
-        { label: 'Node', keyword: 'node' },
-        { label: 'Component', keyword: 'component' },
-        { label: 'Device', keyword: 'node <<device>>' },
-        { label: 'Artifact', keyword: 'artifact' },
-        { label: 'Environment', keyword: 'environment' },
-      ];
-    case 'sequence':
-      return [
-        { label: 'Actor', keyword: 'actor' },
-        { label: 'Participant', keyword: 'participant' },
-        { label: 'Alt Fragment', keyword: 'alt' },
-        { label: 'Loop Fragment', keyword: 'loop' },
-        { label: 'Opt Fragment', keyword: 'opt' },
-        { label: 'Par Fragment', keyword: 'par' },
-        { label: 'Break Fragment', keyword: 'break' },
-        { label: 'Critical Fragment', keyword: 'critical' },
-      ];
-    case 'state':
-      return [
-        { label: 'State', keyword: 'state' },
-        { label: 'Start Node', keyword: 'start' },
-        { label: 'Final Node', keyword: 'stop' },
-        { label: 'Decision', keyword: 'decision' },
-        { label: 'Fork', keyword: 'fork' },
-        { label: 'Join', keyword: 'join' },
-        { label: 'History', keyword: 'history' },
-        { label: 'Concurrent', keyword: 'concurrent' },
-        { label: 'Composite', keyword: 'composite' },
-      ];
-    case 'activity':
-      return [
-        { label: 'Action', keyword: 'action' },
-        { label: 'Start Node', keyword: 'start' },
-        { label: 'Activity Final', keyword: 'stop' },
-        { label: 'Decision', keyword: 'decision' },
-        { label: 'Merge', keyword: 'merge' },
-        { label: 'Fork', keyword: 'fork' },
-        { label: 'Join', keyword: 'join' },
-        { label: 'Partition', keyword: 'partition' },
-      ];
-    case 'collaboration':
-      return [
-        { label: 'Object', keyword: 'object' },
-        { label: 'Actor', keyword: 'actor' },
-        { label: 'Multiobject', keyword: 'multiobject' },
-        { label: 'Active Object', keyword: 'active_object' },
-        { label: 'Composite Obj', keyword: 'composite_object' },
-      ];
-    case 'flow':
-      return [
-        { label: 'Process', keyword: 'action' },
-        { label: 'Decision', keyword: 'decision' },
-        { label: 'Start', keyword: 'start' },
-        { label: 'End', keyword: 'stop' },
-        { label: 'Fork', keyword: 'fork' },
-        { label: 'Join', keyword: 'join' },
-      ];
-    default:
-      return [];
-  }
-}
-
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function updateEntityPosition(source: string, name: string, x: number, y: number, w?: number, h?: number): string {
+function updateEntityPosition(source: string, name: string, x: number, y: number, w?: number, h?: number): string {
   const hasSize = Number.isFinite(w) && Number.isFinite(h);
   const newAnnotation = hasSize
     ? `@${name} at (${x}, ${y}, ${Math.round(w!)}, ${Math.round(h!)})`
@@ -820,7 +741,7 @@ export default function App() {
   const [authStatus, setAuthStatus] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
   const [remoteDiagrams, setRemoteDiagrams] = useState<SavedDiagram[]>([]);
-  const [activeOverlay, setActiveOverlay] = useState<'cloud' | 'codegen' | 'metrics' | null>(null);
+  const [activeOverlay, setActiveOverlay] = useState<WorkspaceOverlay | null>(null);
   const [codegenLanguage, setCodegenLanguage] = useState<CodegenLanguage>('python');
   const [codegenOutput, setCodegenOutput] = useState('');
   const [inspectorOutput, setInspectorOutput] = useState('');
@@ -838,6 +759,7 @@ export default function App() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [tabToClose, setTabToClose] = useState<string | null>(null);
   const [examplesOpen, setExamplesOpen]     = useState(false);
+  const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
@@ -852,9 +774,13 @@ export default function App() {
   const [renamingTabId, setRenamingTabId]   = useState<string | null>(null);
   const [pendingMobileDropKeyword, setPendingMobileDropKeyword] = useState<string | null>(null);
   const examplesRef                         = useRef<HTMLDivElement>(null);
+  const headerMoreRef                       = useRef<HTMLDivElement>(null);
   const fileInputRef                        = useRef<HTMLInputElement>(null);
 
-  const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
+  const [selectedItems, setSelectedItems] = useState<DiagramSelection[]>([]);
+  const [railViewMode, setRailViewMode] = useState<'auto' | 'problems'>('auto');
+  const [fullCanvasFitToken, setFullCanvasFitToken] = useState(0);
+  const [fullCanvasZoom, setFullCanvasZoom] = useState(100);
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
 
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId]);
@@ -881,14 +807,17 @@ export default function App() {
       if (examplesRef.current && !examplesRef.current.contains(e.target as Node)) {
         setExamplesOpen(false);
       }
+      if (headerMoreRef.current && !headerMoreRef.current.contains(e.target as Node)) {
+        setHeaderMoreOpen(false);
+      }
     }
-    if (examplesOpen) {
+    if (examplesOpen || headerMoreOpen) {
       document.addEventListener('click', handleOutsideInteraction);
     }
     return () => {
       document.removeEventListener('click', handleOutsideInteraction);
     };
-  }, [examplesOpen]);
+  }, [examplesOpen, headerMoreOpen]);
 
   // ── Parse + analyze on every keystroke ───────────────────
   const parseResult = useMemo(() => {
@@ -930,7 +859,8 @@ export default function App() {
   const activeDiagramIdx = activeTab?.activeDiagramIdx ?? 0;
   const safeDiagramIdx = Math.max(0, Math.min(activeDiagramIdx, Math.max(filteredDiagrams.length - 1, 0)));
   const activeDiagram = filteredDiagrams[safeDiagramIdx] ?? null;
-  const isFullCanvasRoute = routeHash === '#/canvas';
+  const productMode = resolveProductMode(routeHash, tabs.length > 0);
+  const isFullCanvasRoute = productMode === 'canvas';
 
   useEffect(() => {
     const onHashChange = () => setRouteHash(window.location.hash);
@@ -966,9 +896,14 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
+    if (!user?.id) {
+      setTelemetrySessionId(null);
+      return;
+    }
+
     let active = true;
     startTelemetrySession({
-      userId: user?.id ?? null,
+      userId: user.id,
       route: window.location.pathname + window.location.hash,
       device: {
         user_agent: navigator.userAgent,
@@ -1029,7 +964,15 @@ export default function App() {
 
   useEffect(() => {
     if (!activeTab) return;
-    localStorage.setItem(`isomorph-canvas:${activeTab.id}`, JSON.stringify({
+    const key = `isomorph-canvas:${activeTab.id}`;
+    let existing: Record<string, unknown> = {};
+    try {
+      existing = JSON.parse(localStorage.getItem(key) || '{}') as Record<string, unknown>;
+    } catch {
+      existing = {};
+    }
+    localStorage.setItem(key, JSON.stringify({
+      ...existing,
       route: routeHash || '#/app',
       mode: fullCanvasMode,
       selectedItems,
@@ -1722,6 +1665,22 @@ export default function App() {
     }
   }, [activeDiagram, codegenLanguage, downloadTextFile]);
 
+  const handleFullCanvasFit = useCallback(() => {
+    setSelectedItems([]);
+    setFullCanvasFitToken(token => token + 1);
+  }, []);
+
+  const handleFullCanvasViewportChange = useCallback((viewport: { zoom: number; pan: { x: number; y: number } }) => {
+    setFullCanvasZoom(Math.max(40, Math.min(200, Math.round(viewport.zoom))));
+  }, []);
+
+  const handleValidateFocus = useCallback(() => {
+    setRailViewMode('problems');
+    if (isFullCanvasRoute) {
+      window.location.hash = routeForMode('ide');
+    }
+  }, [isFullCanvasRoute]);
+
   const copyToClipboard = useCallback((value: string, eventType: 'copy' | 'codegen' = 'copy') => {
     if (!value) return;
     setCopyCount(count => count + 1);
@@ -1989,150 +1948,135 @@ export default function App() {
     />
   );
 
-  const shapesPane = (
-    <div className="iso-sidebar">
-      {activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 && (
-        <>
-          <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-            <IconDiagram size={11} /> {t('ui.shapes')}
-          </div>
-          <div className="iso-sidebar-body">
-            {getStencilsForKind(activeDiagram.kind).map(stencil => (
-              <div
-                key={stencil.label}
-                draggable
-                onDragStart={e => {
-                  e.dataTransfer.setData('text/plain', stencil.keyword);
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-                className="iso-stencil"
-              >
-                {stencil.label}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+  const selectedRailItem = selectedItems[0] ?? null;
+  const railMode = railViewMode === 'problems' ? 'problems' : selectedRailItem ? 'properties' : 'stencils';
+
+  const openRailEditor = useCallback(() => {
+    if (!selectedRailItem || !activeDiagram) return;
+    if (selectedRailItem.type === 'relation') {
+      const relation = activeDiagram.relations.find(item => item.id === selectedRailItem.id);
+      if (relation) {
+        handleRelationEditRequest(relation.id, relation.label ?? '', relation.kind ?? 'association');
+      }
+      return;
+    }
+
+    const entity = activeDiagram.entities.get(selectedRailItem.id);
+    if (entity) {
+      handleEntityEditRequest(entity);
+      return;
+    }
+
+    const pkg = activeDiagram.packages.find(item => item.name === selectedRailItem.id);
+    if (pkg) {
+      const pkgName = pkg.name ?? selectedRailItem.id;
+      handleTextRenameRequest(pkgName, pkgName, 'package');
+      return;
+    }
+
+    const fragment = activeDiagram.fragments?.find(item => item.id === selectedRailItem.id);
+    if (fragment) {
+      handleEntityEditRequest({
+        id: fragment.id,
+        name: fragment.id,
+        kind: fragment.kind,
+        stereotype: fragment.label,
+        isAbstract: false,
+        fields: [],
+        methods: [],
+        enumValues: [],
+        extendsNames: [],
+        implementsNames: [],
+        styles: {},
+        children: [],
+        regions: [],
+        position: fragment.position,
+        elseBlocks: fragment.elseBlocks,
+      } as unknown as IOMEntity);
+    }
+  }, [activeDiagram, handleEntityEditRequest, handleRelationEditRequest, handleTextRenameRequest, selectedRailItem]);
+
+  const railPane = (
+    <WorkspaceRightRail
+      diagram={activeDiagram}
+      language={language}
+      mode={railMode}
+      selectedItem={selectedRailItem}
+      errors={allErrors}
+      errorsCopied={errorsCopied}
+      onRequestProblems={() => setRailViewMode('problems')}
+      onBackToAuto={() => setRailViewMode('auto')}
+      onCopyErrors={handleCopyErrors}
+      onEditSelection={openRailEditor}
+      onClearSelection={() => setSelectedItems([])}
+      onInsertStencil={handleStencilInsert}
+    />
   );
 
+  const sourceStatusText = parseErrors.length > 0
+    ? parseErrors.length > 1
+      ? ` - ${t('status.parse_error_many', { count: parseErrors.length })}`
+      : ` - ${t('status.parse_error_one', { count: parseErrors.length })}`
+    : source.trim() ? ` - ${t('ui.ok')}` : '';
+
+  const handleSourceChange = useCallback((value: string) => {
+    const previousLength = source.length;
+    updateActiveTab(tab => ({ ...tab, source: value }));
+    if (Math.abs(value.length - previousLength) > 20) {
+      setPasteCount(count => count + 1);
+      void logTelemetry({
+        userId: user?.id,
+        sessionId: telemetrySessionId ?? undefined,
+        diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+        eventType: 'paste',
+        payload: buildTelemetryEvent('paste', { delta_chars: value.length - previousLength }).payload,
+      });
+    } else {
+      void logTelemetry({
+        userId: user?.id,
+        sessionId: telemetrySessionId ?? undefined,
+        diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+        eventType: 'editor_typing',
+        payload: buildTelemetryEvent('editor_typing', { delta_chars: value.length - previousLength, duration_ms: 0 }).payload,
+      });
+    }
+  }, [activeTab, savedDiagramIds, source.length, telemetrySessionId, updateActiveTab, user?.id]);
+
   const sourcePane = (
-    <div className="iso-panel" style={{ height: '100%' }}>
-      <div className="iso-panel-header">
-        <IconCode size={11} />
-        {t('ui.source')}
-        <span className="iso-panel-info" aria-live="polite">
-          {parseErrors.length > 0
-            ? parseErrors.length > 1
-              ? ` - ${t('status.parse_error_many', { count: parseErrors.length })}`
-              : ` - ${t('status.parse_error_one', { count: parseErrors.length })}`
-            : source.trim() ? ` - ${t('ui.ok')}` : ''}
-        </span>
-        <span className="iso-panel-spacer" />
-        <span style={{ fontSize: 10, color: 'var(--iso-text-faint)', fontFamily: 'monospace' }}>
-          {t('status.lines', { count: source.split('\n').length })}
-        </span>
-      </div>
-      <div className="iso-panel-body">
-        <IsomorphEditor
-          value={source}
-          onChange={value => {
-            const previousLength = source.length;
-            updateActiveTab(tab => ({ ...tab, source: value }));
-            if (Math.abs(value.length - previousLength) > 20) {
-              setPasteCount(count => count + 1);
-              void logTelemetry({
-                userId: user?.id,
-                sessionId: telemetrySessionId ?? undefined,
-                diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
-                eventType: 'paste',
-                payload: buildTelemetryEvent('paste', { delta_chars: value.length - previousLength }).payload,
-              });
-            } else {
-              void logTelemetry({
-                userId: user?.id,
-                sessionId: telemetrySessionId ?? undefined,
-                diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
-                eventType: 'editor_typing',
-                payload: buildTelemetryEvent('editor_typing', { delta_chars: value.length - previousLength, duration_ms: 0 }).payload,
-              });
-            }
-          }}
-          errors={editorDiagnostics}
-        />
-      </div>
-      {allErrors.length > 0 && (
-        <div className="iso-error-panel" role="log" aria-label={t('ui.errors')}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-            <strong style={{ fontSize: '0.78rem', color: 'var(--iso-text-muted)' }}>{t('ui.errors')}</strong>
-            <button
-              type="button"
-              className="iso-btn"
-              onClick={handleCopyErrors}
-              style={{ padding: '2px 8px', fontSize: '0.72rem' }}
-            >
-              {errorsCopied ? t('ui.copied') : t('ui.copy_errors')}
-            </button>
-          </div>
-          {allErrors.slice(0, 8).map((msg, i) => (
-            <div key={`err-${msg.slice(0, 20)}-${i}`} className="iso-error-item">
-              <span className="iso-error-icon" aria-hidden="true">✖</span>
-              <span className="iso-error-msg">{msg}</span>
-            </div>
-          ))}
-          {allErrors.length > 8 && (
-            <div className="iso-error-item">
-              <span className="iso-error-icon" aria-hidden="true">…</span>
-              <span className="iso-error-msg" style={{ color: 'var(--iso-text-muted)' }}>
-                {allErrors.length - 8 > 1
-                  ? t('status.more_error_many', { count: allErrors.length - 8 })
-                  : t('status.more_error_one', { count: allErrors.length - 8 })}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    <SourcePanel
+      title={t('ui.source')}
+      value={source}
+      diagnostics={editorDiagnostics}
+      statusText={sourceStatusText}
+      lineCountText={t('status.lines', { count: source.split('\n').length })}
+      onChange={handleSourceChange}
+    />
   );
 
   const canvasPane = (
-    <div className="iso-panel iso-panel--canvas" style={{ height: '100%' }}>
-      <div className="iso-panel-header">
-        <IconDiagram size={11} />
-        {t('ui.canvas')}
-        <span className="iso-panel-info" aria-live="polite">
-          {activeDiagram
-            ? ` - ${activeDiagram.name} · ${t('status.entities', { count: activeDiagram.entities.size })} · ${t('status.relations', { count: activeDiagram.relations.length })}`
-            : ''}
-        </span>
-        <span className="iso-panel-spacer" />
-        {diagrams.length > 0 && (
-          <span style={{ fontSize: 10, color: '#6e7781', fontFamily: 'monospace' }}>
-            {t('ui.drag_reposition')}
-          </span>
-        )}
-      </div>
-      <div className="iso-panel-body">
-        <DiagramView
-          diagram={activeDiagram}
-          language={language}
-          onEntityMove={handleEntityMove}
-          onEntityResize={handleEntityResize}
-          onRelationVerticalMove={handleRelationVerticalMove}
-          onEntityEditRequest={handleEntityEditRequest}
-          onRelationEditRequest={handleRelationEditRequest}
-          onRelationAddRequest={handleRelationAddRequest}
-          onTextRenameRequest={handleTextRenameRequest}
-          onExportSVG={handleExportSVG}
-          onDropEntity={handleDropEntity}
-          pendingDropKeyword={isMobileLayout ? pendingMobileDropKeyword : null}
-          onConsumePendingDrop={() => setPendingMobileDropKeyword(null)}
-          availableTools={toolsetFor(activeDiagram?.kind)}
-          selectedItems={selectedItems}
-          onSelectionChange={setSelectedItems}
-        />
-      </div>
-    </div>
+    <CanvasPanel
+      title={t('ui.canvas')}
+      diagram={activeDiagram}
+      language={language}
+      summaryText={activeDiagram
+        ? ` - ${activeDiagram.name} · ${t('status.entities', { count: activeDiagram.entities.size })} · ${t('status.relations', { count: activeDiagram.relations.length })}`
+        : ''}
+      hintText={diagrams.length > 0 ? t('ui.drag_reposition') : undefined}
+      availableTools={toolsetFor(activeDiagram?.kind)}
+      selectedItems={selectedItems}
+      onSelectionChange={setSelectedItems}
+      pendingDropKeyword={isMobileLayout ? pendingMobileDropKeyword : null}
+      onConsumePendingDrop={() => setPendingMobileDropKeyword(null)}
+      onEntityMove={handleEntityMove}
+      onEntityResize={handleEntityResize}
+      onRelationVerticalMove={handleRelationVerticalMove}
+      onEntityEditRequest={handleEntityEditRequest}
+      onRelationEditRequest={handleRelationEditRequest}
+      onRelationAddRequest={handleRelationAddRequest}
+      onTextRenameRequest={handleTextRenameRequest}
+      onExportSVG={handleExportSVG}
+      onDropEntity={handleDropEntity}
+    />
   );
 
   const mobileStencilRail = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
@@ -2210,6 +2154,138 @@ export default function App() {
     </div>
   );
 
+  const headerMoreDropdown = (
+    <div className="iso-dropdown" ref={headerMoreRef}>
+      <button
+        type="button"
+        className="iso-btn"
+        onClick={() => {
+          setExamplesOpen(false);
+          setHeaderMoreOpen(open => !open);
+        }}
+        aria-haspopup="menu"
+        aria-expanded={headerMoreOpen}
+        aria-label="More"
+        data-tooltip="More"
+      >
+        More
+        <IconChevron dir={headerMoreOpen ? 'up' : 'down'} />
+      </button>
+      {headerMoreOpen && (
+        <div className="iso-dropdown-menu" role="menu" aria-label="Workspace more actions">
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            role="menuitem"
+            onClick={() => {
+              setHeaderMoreOpen(false);
+              if (!activeTab) return;
+              const blob = new Blob([activeTab.source], { type: 'application/octet-stream' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = activeTab.name || 'diagram.isx';
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            disabled={!activeTab}
+          >
+            Export source
+          </button>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            role="menuitem"
+            onClick={() => {
+              setHeaderMoreOpen(false);
+              handleExportSVG();
+            }}
+            disabled={!activeDiagram}
+          >
+            Export SVG
+          </button>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            role="menuitem"
+            onClick={() => {
+              setHeaderMoreOpen(false);
+              handleExportPNG();
+            }}
+            disabled={!activeDiagram}
+          >
+            Export PNG
+          </button>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            role="menuitem"
+            onClick={() => {
+              setHeaderMoreOpen(false);
+              setActiveOverlay('cloud');
+            }}
+          >
+            {user ? 'Account / Sync' : 'Account'}
+          </button>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            role="menuitem"
+            onClick={() => {
+              setHeaderMoreOpen(false);
+              setActiveOverlay('metrics');
+            }}
+          >
+            Reports
+          </button>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            role="menuitem"
+            onClick={() => {
+              setHeaderMoreOpen(false);
+              setShortcutsOpen(true);
+            }}
+          >
+            Shortcuts
+          </button>
+          <div className="iso-dropdown-sep" />
+          <label className="iso-dropdown-item" style={{ cursor: 'default' }}>
+            <span>Language</span>
+            <select
+              className="iso-select"
+              aria-label={t('ui.language')}
+              value={language}
+              onChange={e => setLanguage(e.target.value as Language)}
+              style={{ width: 'auto', minWidth: 72 }}
+            >
+              {LANGUAGE_OPTIONS.map(option => (
+                <option key={option.code} value={option.code}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            role="menuitem"
+            onClick={() => {
+              const next = themeMode === 'light' ? 'dark' : 'light';
+              setThemeMode(next);
+              document.documentElement.setAttribute('data-theme', next);
+              localStorage.setItem('isomorph-theme', next);
+            }}
+          >
+            {themeMode === 'light' ? 'Dark theme' : 'Light theme'}
+          </button>
+          <label className="iso-dropdown-item" style={{ cursor: 'default' }}>
+            <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
+            <span>Strict UML</span>
+          </label>
+        </div>
+      )}
+    </div>
+  );
+
   if (tabs.length === 0) {
     return (
       <div className="iso-shell">
@@ -2265,6 +2341,8 @@ export default function App() {
   }
   return (
     <div className="iso-shell">
+      {!isFullCanvasRoute && (
+        <>
       {/* ──────────────── HEADER ──────────────────────────── */}
       <header className="iso-header">
         {/* Logo */}
@@ -2464,21 +2542,16 @@ export default function App() {
               Generate
             </button>
 
-            <button type="button" className="iso-btn" onClick={() => setActiveOverlay('cloud')}>
-              <IconSave />
-              {user ? 'Sync' : 'Account'}
-            </button>
-
-            <button type="button" className="iso-btn" onClick={() => setActiveOverlay('metrics')}>
+            <button type="button" className="iso-btn" onClick={handleValidateFocus}>
               <IconDiagram />
-              Reports
+              Validate
             </button>
 
             <button
               type="button"
               className="iso-btn"
               onClick={() => {
-                window.location.hash = isFullCanvasRoute ? '#/app' : '#/canvas';
+                window.location.hash = routeForMode(isFullCanvasRoute ? 'ide' : 'canvas');
                 void logTelemetry({
                   userId: user?.id,
                   eventType: isFullCanvasRoute ? 'full_canvas_exit' : 'full_canvas_entry',
@@ -2491,93 +2564,11 @@ export default function App() {
               {isFullCanvasRoute ? 'IDE' : 'Canvas'}
             </button>
 
-            <button
-              type="button"
-              className="iso-btn"
-              onClick={() => {
-                if (!activeTab) return;
-                const blob = new Blob([activeTab.source], { type: 'application/octet-stream' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = activeTab.name || 'diagram.isx';
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              disabled={!activeTab}
-              aria-label={t('menu.export_source')}
-              data-tooltip={t('menu.save_isx')}
-            >
-              <IconSave />
-              {t('menu.save_isx_ext')}
-            </button>
-
-            <button
-              type="button"
-              className="iso-btn"
-              onClick={handleExportSVG}
-              disabled={!activeDiagram}
-              aria-label={t('menu.export_svg_shortcut')}
-              data-tooltip={t('menu.export_svg_short')}
-            >
-              <IconExport />
-              SVG
-            </button>
-            <button
-              type="button"
-              className="iso-btn"
-              onClick={handleExportPNG}
-              disabled={!activeDiagram}
-              aria-label={t('menu.export_png_shortcut')}
-              data-tooltip={t('menu.export_png_short')}
-            >
-              <IconExport />
-              PNG
-            </button>
-
-            <div className="iso-header-sep" aria-hidden="true" />
-
-            <button
-              type="button"
-              className="iso-btn iso-btn--icon"
-              onClick={() => setShortcutsOpen(o => !o)}
-              aria-label={t('ui.shortcuts')}
-              data-tooltip={t('menu.shortcuts')}
-            >
-              <IconKeyboard />
-            </button>
+            {headerMoreDropdown}
           </div>
         )}
 
         <input ref={fileInputRef} type="file" accept=".isx,.iso,.txt" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
-
-        <select
-          className="iso-select iso-mobile-hide"
-          aria-label={t('ui.language')}
-          value={language}
-          onChange={e => setLanguage(e.target.value as Language)}
-          style={{ width: 'auto', marginLeft: 'auto', marginRight: '8px' }}
-        >
-          {LANGUAGE_OPTIONS.map(option => (
-            <option key={option.code} value={option.code}>{option.label}</option>
-          ))}
-        </select>
-
-        <button
-          type="button"
-          className="iso-btn iso-btn--icon iso-mobile-hide"
-          onClick={() => {
-            const next = themeMode === 'light' ? 'dark' : 'light';
-            setThemeMode(next);
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('isomorph-theme', next);
-          }}
-          aria-label={t('ui.toggle_theme')}
-          data-tooltip={themeMode === 'light' ? t('ui.dark_mode') : t('ui.light_mode')}
-          style={{ marginRight: '8px' }}
-        >
-          <IconTheme />
-        </button>
 
         {/* Status */}
         <output
@@ -2588,12 +2579,6 @@ export default function App() {
           <div className="iso-status-dot" aria-hidden="true" />
           {statusLabel}
         </output>
-
-        <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
-        <label className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '13px', color: 'var(--iso-text)' }}>
-          <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
-          {t('ui.strict_uml')}
-        </label>
       </header>
 
       {isMobileLayout && (
@@ -2809,6 +2794,8 @@ export default function App() {
           </button>
         </div>
       )}
+        </>
+      )}
 
       {/* ──────────────── MAIN ────────────────────────────── */}
       <main className="iso-main">
@@ -2817,14 +2804,19 @@ export default function App() {
             diagram={activeDiagram}
             language={language}
             mode={fullCanvasMode}
+            zoomLabel={`${fullCanvasZoom}%`}
             canSave={Boolean(activeTab && user)}
             canExport={Boolean(activeDiagram)}
+            statusLabel={statusLabel}
             onModeChange={setFullCanvasMode}
-            onFitCanvas={() => setSelectedItems([])}
+            onFitCanvas={handleFullCanvasFit}
             onSave={handleCloudSave}
             onExportSVG={handleExportSVG}
             onExportPNG={handleExportPNG}
-            onBack={() => { window.location.hash = '#/app'; }}
+            onBack={() => { window.location.hash = routeForMode('ide'); }}
+            onShare={() => setActiveOverlay('cloud')}
+            onOpenShortcuts={() => setShortcutsOpen(true)}
+            onValidate={handleValidateFocus}
             onEntityMove={handleEntityMove}
             onEntityResize={handleEntityResize}
             onRelationVerticalMove={handleRelationVerticalMove}
@@ -2837,6 +2829,9 @@ export default function App() {
             onSelectionChange={setSelectedItems}
             pendingDropKeyword={null}
             onConsumePendingDrop={() => {}}
+            fitSignal={fullCanvasFitToken}
+            onViewportChange={handleFullCanvasViewportChange}
+            canvasStorageKey={activeTab ? `isomorph-canvas:${activeTab.id}` : undefined}
           />
         ) : isMobileLayout ? (
           <div className="iso-mobile-main">
@@ -2846,26 +2841,18 @@ export default function App() {
         ) : (
           <>
             <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
-            {shapesPane}
+            {railPane}
           </>
         )}
       </main>
 
-      {activeOverlay && (
-        <div className="iso-modal-overlay iso-workspace-overlay" onClick={() => setActiveOverlay(null)}>
-          <div className="iso-workspace-modal" onClick={event => event.stopPropagation()}>
-            <div className="iso-workspace-modal-header">
-              <strong>{activeOverlay === 'cloud' ? 'Account and Cloud Sync' : activeOverlay === 'codegen' ? 'Generated Code' : 'Reports and Metrics'}</strong>
-              <button type="button" className="iso-btn iso-btn--icon" onClick={() => setActiveOverlay(null)} aria-label="Close workspace panel">×</button>
-            </div>
-            <div className="iso-workspace-modal-body">
-              {activeOverlay === 'cloud' && cloudPanel}
-              {activeOverlay === 'codegen' && codegenPanel}
-              {activeOverlay === 'metrics' && metricsPanel}
-            </div>
-          </div>
-        </div>
-      )}
+      <WorkspaceOverlayHost
+        activeOverlay={activeOverlay}
+        cloudPanel={cloudPanel}
+        codegenPanel={codegenPanel}
+        metricsPanel={metricsPanel}
+        onClose={() => setActiveOverlay(null)}
+      />
 
       {editingEntity && (
         <div className="iso-modal-overlay" onClick={() => setEditingEntity(null)}>
@@ -3104,31 +3091,19 @@ export default function App() {
         </div>
       )}
 
-      {editingText && ( <div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div> )} {/* ──────────────── STATUS BAR ──────────────────────── */}
-      {!isFullCanvasRoute && <footer className="iso-statusbar">
-        <span className="iso-statusbar-item">{t('ui.isomorph_dsl')}</span>
-        <span className="iso-statusbar-sep">·</span>
-        <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {t('status.lines', { count: source.split('\n').length })}
-        </span>
-        {activeDiagram && (
-          <>
-            <span className="iso-statusbar-sep">·</span>
-            <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {t('status.entities', { count: activeDiagram.entities.size })}
-            </span>
-            <span className="iso-statusbar-sep">·</span>
-            <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {t('status.relations', { count: activeDiagram.relations.length })}
-            </span>
-            <span className="iso-statusbar-sep">·</span>
-            <span className="iso-statusbar-item">{activeDiagram.kind}</span>
-          </>
-        )}
-        <span className="iso-statusbar-sep" style={{ marginLeft: 'auto' }}>·</span>
-        <span className="iso-statusbar-item">FAF-241 · Team 02</span>
-      </footer>}
-
+      {editingText && ( <div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div> )} {/* ──────────────── BOTTOM WORKBENCH ──────────────────────── */}
+      {!isFullCanvasRoute && (
+        <BottomWorkbench
+          metrics={[
+            { label: t('ui.isomorph_dsl'), value: activeDiagram?.kind ?? 'source' },
+            { label: 'Lines', value: source.split('\n').length },
+            ...(activeDiagram ? [
+              { label: 'Entities', value: activeDiagram.entities.size },
+              { label: 'Relations', value: activeDiagram.relations.length },
+            ] : []),
+          ]}
+        />
+      )}
       {/* ──────────────── SHORTCUTS OVERLAY ───────────────── */}
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} t={t} />
 

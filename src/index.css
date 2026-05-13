@@ -629,6 +629,21 @@ body {
   inset: 0;
 }
 
+.iso-freeform-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 22;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.iso-freeform-overlay--active {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
 .iso-full-canvas-toolbar,
 .iso-full-canvas-pill,
 .iso-full-canvas-collab,
@@ -672,6 +687,15 @@ body {
   background: var(--iso-bg-hover);
 }
 
+.iso-full-canvas-tool:disabled {
+  cursor: not-allowed;
+  opacity: 0.36;
+}
+
+.iso-full-canvas-tool:disabled:hover {
+  background: transparent;
+}
+
 .iso-full-canvas-tool--active {
   background: var(--iso-bg-active);
   border-color: var(--iso-border-strong);
@@ -692,9 +716,86 @@ body {
   color: var(--iso-text-muted);
 }
 
-.iso-full-canvas-pill .iso-status-dot {
+.iso-full-canvas-pill-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--iso-bg-hover);
+  border: 1px solid var(--iso-border);
   color: var(--iso-success);
+  font-size: 11px;
   font-weight: 700;
+}
+
+.iso-full-canvas-menu {
+  top: auto;
+  bottom: calc(100% + 8px);
+  left: auto;
+  right: 0;
+  min-width: 180px;
+}
+
+.iso-full-canvas-menu .iso-dropdown-item {
+  justify-content: flex-start;
+}
+
+.iso-rail-pane {
+  width: 224px;
+}
+
+.iso-rail-header {
+  border-bottom: 1px solid var(--iso-divider);
+  padding: 0 12px;
+}
+
+.iso-rail-pane .iso-sidebar-body {
+  gap: 8px;
+}
+
+.iso-workspace-pane {
+  height: 100%;
+}
+
+.iso-pane-metric {
+  color: var(--iso-text-faint);
+  font-family: monospace;
+  font-size: 10px;
+}
+
+.iso-btn--compact {
+  min-height: 24px;
+  padding: 2px 8px;
+}
+
+.iso-panel-info--flush {
+  margin-left: 0;
+}
+
+.iso-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.iso-rail-value {
+  color: var(--iso-text);
+  font-weight: 600;
+}
+
+.iso-rail-value--truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iso-rail-value--mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.iso-stencil--static {
+  cursor: default;
+  white-space: normal;
 }
 
 .iso-full-canvas-collab {
@@ -867,6 +968,96 @@ body {
 .iso-statusbar-sep { opacity: 0.4; }
 .iso-statusbar-item { opacity: 0.85; }
 .iso-statusbar-right { margin-left: auto; display: flex; gap: 12px; }
+
+.iso-bottom-workbench {
+  position: fixed;
+  left: 50%;
+  bottom: 12px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(92vw, 920px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.iso-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--iso-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--iso-bg-panel) 90%, transparent);
+  color: var(--iso-text-muted);
+  box-shadow: var(--iso-shadow-sm);
+  backdrop-filter: blur(14px);
+  font: 600 11px/1 var(--sans);
+  font-variant-numeric: tabular-nums;
+  pointer-events: auto;
+}
+
+.iso-status-pill strong {
+  color: var(--iso-text);
+}
+
+.iso-status-pill--muted {
+  color: var(--iso-text-faint);
+}
+
+.iso-command-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--iso-divider);
+  background: var(--iso-bg-header);
+}
+
+.iso-command-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.iso-command-title strong,
+.iso-command-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.iso-command-title span {
+  color: var(--iso-text-muted);
+  font-size: 11px;
+}
+
+.iso-command-tabs,
+.iso-command-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.iso-command-spacer {
+  flex: 1 1 auto;
+}
+
+.iso-workspace-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.iso-workspace-shell-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
 
 /* ── Keyboard Shortcut Hint ─────────────────────────────────── */
 .iso-kbd {
@@ -1060,6 +1251,16 @@ body {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes iso-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 
 /* ── Modals ──────────────────────────────────────────────── */
 .iso-modal-overlay {
@@ -1773,4 +1974,76 @@ body {
   }
 }
 
+/* Final workspace drawer overrides must come after generic modal/mobile rules. */
+.iso-modal-overlay.iso-workspace-overlay {
+  position: fixed;
+  inset: 0;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 14px;
+  background: color-mix(in srgb, #0d1117 28%, transparent);
+  backdrop-filter: blur(4px);
+}
 
+.iso-workspace-modal {
+  width: min(460px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px);
+  margin-left: auto;
+  padding: 0;
+  text-align: left;
+  border-radius: 16px;
+  animation: iso-drawer-in 180ms var(--iso-ease);
+}
+
+@media (max-width: 700px) {
+  .iso-modal-overlay.iso-workspace-overlay {
+    padding: 8px;
+  }
+
+  .iso-workspace-modal {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+  }
+
+  .iso-full-canvas-toolbar {
+    top: calc(env(safe-area-inset-top, 0px) + 10px);
+    left: 10px;
+    right: 10px;
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+
+  .iso-full-canvas-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iso-full-canvas-pill {
+    top: calc(env(safe-area-inset-top, 0px) + 58px);
+    left: 10px;
+    right: 10px;
+    transform: none;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .iso-full-canvas-collab {
+    top: auto;
+    right: 10px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 62px);
+  }
+
+  .iso-full-canvas-actions {
+    left: 10px;
+    right: 10px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+    justify-content: center;
+    overflow-x: auto;
+    border-radius: 14px;
+  }
+
+  .iso-full-canvas-zoom {
+    right: 10px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 116px);
+  }
+}
