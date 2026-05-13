@@ -1,0 +1,36 @@
+id: ISO-210
+identifier: ISO-210
+title: Current UX shell refactor handoff
+type: coordination_note
+state: read_only
+owner: integration-lane
+summary: Keep current Isomorph UX shell work narrowly focused and coordinate with active agents.
+integration_lane:
+  status:
+    right_rail_extraction: done
+    source_panel_extraction: done
+    canvas_panel_extraction: done
+    overlay_host_extraction: done
+    workspace_drawer_css: done
+    mobile_canvas_toolbar_css: done
+    qa_harness_updated_for_more_menu: done
+  next_safe_slices:
+    - Move pure App.tsx source rewrite helpers into src/utils/diagramSourceMutations.ts.
+    - Split FullCanvasShell tool metadata into a dedicated full-canvas tool model.
+    - Implement real canvas_state freeform tools instead of only selecting draft modes.
+    - Extract edit/new/close modals from App.tsx as controlled components.
+  avoid:
+    - unrelated Symphony files
+verification_commands:
+  - npm run typecheck
+  - npm test -- --run
+  - npm run qa:app
+  - npm run build
+browser_qa_surfaces:
+  - IDE #/app
+  - canvas #/canvas
+notes:
+  - Other agents are editing related Isomorph UX files.
+  - Do not revert unrelated worktree changes.
+  - Keep future edits scoped to the agreed UX shell slices.
+  - Account, reports, and export actions are intentionally reached from More in IDE mode.

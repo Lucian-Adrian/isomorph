@@ -1,0 +1,28 @@
+id: ISO-206
+identifier: ISO-206
+title: Quiet operations and report-ready metrics
+description: Make telemetry invisible, batched, and resilient while producing useful productivity and latency metrics for UTM-style reports.
+labels: [telemetry, metrics, supabase, worker-f]
+priority: 3
+state: done
+branch_name: feature/iso-206-quiet-ops-metrics
+owner: worker-f
+plan: docs/superpowers/plans/2026-05-13-isomorph-ux-mode-contract.md
+blocked_by:
+  - id: ISO-201
+    state: done
+owned_files:
+  - src/services/telemetry.ts
+  - src/services/metrics.ts
+  - src/services/supabaseClient.ts
+  - src/components/MetricsDrawer.tsx
+  - src/components/StatusPill.tsx
+  - tests/telemetry.test.ts
+  - tests/metrics.test.ts
+verification_commands:
+  - npm test -- --run tests/telemetry.test.ts tests/metrics.test.ts
+  - npm run typecheck
+acceptance:
+  - Supabase telemetry failures do not create visible UI or normal-console noise.
+  - Metrics include latency, generated LOC, estimated time saved, code-vs-diagram split, edits per minute, copy/paste, and export counts.
+  - Telemetry never stores passwords or full private diagram text.

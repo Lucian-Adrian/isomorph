@@ -3,7 +3,7 @@ identifier: ISO-102
 title: Supabase sync and telemetry hardening
 description: Add session lifecycle helpers, stronger schema, service tests, and user-run live QA docs.
 priority: 2
-state: ready
+state: done
 labels: [supabase, telemetry, worker-b]
 branch_name: feature/iso-102-supabase-telemetry
 verification_commands:

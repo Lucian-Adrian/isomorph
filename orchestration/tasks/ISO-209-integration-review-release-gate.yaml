@@ -1,0 +1,25 @@
+id: ISO-209
+identifier: ISO-209
+title: Integration review and release gate
+description: Review worker outputs, run full verification, update release docs, and mark Symphony tasks complete only with evidence.
+labels: [integration, review, release, lead]
+priority: 7
+state: done
+branch_name: feature/iso-209-integration-review-release-gate
+owner: lead-orchestrator
+plan: docs/superpowers/plans/2026-05-13-isomorph-ux-mode-contract.md
+blocked_by:
+  - id: ISO-208
+    state: done
+owned_files:
+  - README.md
+  - docs/qa/isomorph-release-handoff.md
+  - orchestration/tasks
+  - WORKFLOW.md
+verification_commands:
+  - npm run verify
+  - npm run symphony:status
+acceptance:
+  - All task completions include verification evidence.
+  - README explains launch, app route, Symphony dashboard, Supabase setup, and live QA.
+  - Final handoff lists known limitations and next-phase collaboration work.

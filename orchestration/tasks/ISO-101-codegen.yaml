@@ -3,7 +3,7 @@ identifier: ISO-101
 title: Codegen completeness and fixture corpus
 description: Harden Python and Java generation from AST/IOM and add representative .isx fixtures.
 priority: 1
-state: ready
+state: done
 labels: [codegen, worker-a]
 branch_name: feature/iso-101-codegen
 verification_commands:
