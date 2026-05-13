@@ -37,6 +37,27 @@ describe('SVG export serialization', () => {
     expect(serialized).not.toContain('min-height');
   });
 
+  it('composes full-canvas freeform overlay elements into exported SVG', () => {
+    document.body.innerHTML = `
+      <div class="iso-full-canvas-viewport">
+        <div class="iso-canvas-wrap">
+          <svg class="semantic"><rect x="10" y="10" width="20" height="20"/></svg>
+        </div>
+        <svg class="iso-freeform-overlay">
+          <defs><marker id="arrow"><path d="M0 0 L4 2 L0 4 z"/></marker></defs>
+          <rect data-freeform-id="rect-1" x="40" y="50" width="140" height="90"></rect>
+        </svg>
+      </div>
+    `;
+    const svg = document.querySelector('.semantic')!;
+
+    const serialized = serializeSVGForExport(svg);
+
+    expect(serialized).toContain('data-export-layer="freeform-canvas"');
+    expect(serialized).toContain('data-freeform-id="rect-1"');
+    expect(serialized).toContain('marker');
+  });
+
   it('prepares PNG export with serialized SVG dimensions and a download anchor', async () => {
     document.body.innerHTML = '<svg class="ready"><rect width="10" height="10"/></svg>';
     const svg = document.querySelector('svg') as SVGSVGElement;

@@ -5,9 +5,37 @@
 // Each function handles one export format independently.
 // ============================================================
 
-export function serializeSVGForExport(svgEl: Element): string {
+function copyFreeformOverlayIntoSvg(clone: SVGSVGElement, overlayEl?: Element | null): void {
+  if (!overlayEl) return;
+  const overlayClone = overlayEl.cloneNode(true) as SVGSVGElement;
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.setAttribute('data-export-layer', 'freeform-canvas');
+
+  for (const child of Array.from(overlayClone.childNodes)) {
+    if (child.nodeType !== Node.ELEMENT_NODE) continue;
+    const element = child as Element;
+    if (element.tagName.toLowerCase() === 'defs') {
+      clone.insertBefore(element, clone.firstChild);
+    } else {
+      group.appendChild(element);
+    }
+  }
+
+  if (group.childNodes.length > 0) {
+    clone.appendChild(group);
+  }
+}
+
+function findFreeformOverlay(svgEl: Element): Element | null {
+  const viewport = svgEl.closest('.iso-full-canvas-viewport');
+  if (viewport) return viewport.querySelector('.iso-freeform-overlay');
+  return document.querySelector('.iso-freeform-overlay');
+}
+
+export function serializeSVGForExport(svgEl: Element, overlayEl: Element | null = findFreeformOverlay(svgEl)): string {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  copyFreeformOverlayIntoSvg(clone, overlayEl);
   
   try {
     if (svgEl instanceof SVGSVGElement && typeof svgEl.getBBox === 'function') {
