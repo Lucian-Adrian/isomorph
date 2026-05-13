@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDiagramSource, updateEntityPosition } from '../src/App.tsx';
+import { formatDiagramSource, updateEntityPosition } from '../src/services/sourceRewrite.ts';
 
 describe('Source Rewrite Formatter Idempotence', () => {
   it('formats source idempotently', () => {
