@@ -30,6 +30,7 @@ export function normalizeConfig(raw: Record<string, unknown>): WorkflowConfig {
   const orchestration = asRecord(raw.orchestration);
   const verification = asRecord(raw.verification);
   const handoff = asRecord(raw.handoff);
+  const server = asRecord(raw.server);
 
   return {
     tracker: {
@@ -61,6 +62,9 @@ export function normalizeConfig(raw: Record<string, unknown>): WorkflowConfig {
     },
     handoff: {
       summary_path: asString(handoff.summary_path, 'artifacts/qa/handoff.md'),
+    },
+    server: {
+      port: typeof server.port === 'number' && Number.isFinite(server.port) ? server.port : null,
     },
   };
 }

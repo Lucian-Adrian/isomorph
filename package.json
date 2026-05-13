@@ -30,6 +30,8 @@
     "symphony:check": "tsx symphony/cli.ts check",
     "symphony:once": "tsx symphony/cli.ts once",
     "symphony:daemon": "tsx symphony/cli.ts daemon",
+    "symphony:serve": "tsx symphony/cli.ts serve",
+    "symphony:dashboard": "tsx symphony/cli.ts dashboard",
     "symphony:status": "tsx symphony/cli.ts status",
     "verify": "npm run typecheck && npm test -- --run && npm run build && npm run qa:app && npm run symphony:check"
   },

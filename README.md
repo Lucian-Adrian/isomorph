@@ -32,6 +32,34 @@
 
 ---
 
+## Symphony Dashboard
+
+This repository includes a repo-local Symphony harness plus a visual dashboard that follows the official Symphony observability extension shape: a human-readable dashboard at `/` and a JSON runtime snapshot at `/api/v1/state`.
+
+For a cheap, low-friction setup in any repo:
+
+1. Keep `tracker.kind: repo-tasks` in `WORKFLOW.md`
+2. Keep `agent.dry_run: true` while you are just validating orchestration and the dashboard
+3. Add `server.port` in `WORKFLOW.md`
+4. Launch:
+
+```bash
+npm run symphony:dashboard
+```
+
+Useful commands:
+
+```bash
+npm run symphony:check
+npm run symphony:status
+npm run symphony:once
+npm run symphony:dashboard
+```
+
+In dry-run mode, the dashboard stays useful without requiring a live coding-agent session or mandatory LLM token spend.
+
+---
+
 ## Supported Diagram Types
 
 Isomorph’s standard library handles an array of software architecture blueprints:

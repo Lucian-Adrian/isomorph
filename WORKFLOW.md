@@ -17,6 +17,8 @@ orchestration:
   max_retries: 2
   retry_base_delay_ms: 30000
   logs_path: artifacts/qa/symphony.jsonl
+server:
+  port: 4318
 verification:
   command: npm run verify
   required: true

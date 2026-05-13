@@ -17,6 +17,9 @@ export function createOrchestrator(options: OrchestratorOptions) {
 
   return {
     claimed,
+    release(issueId: string) {
+      claimed.delete(issueId);
+    },
     planDispatch(issues: Issue[]): DispatchPlan {
       const plan: DispatchPlan = { dispatch: [], blocked: [], ignored: [] };
       for (const issue of issues) {
