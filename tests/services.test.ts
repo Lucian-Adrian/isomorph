@@ -124,7 +124,13 @@ describe('telemetry payloads', () => {
     ).toEqual({
       averageCompileLatencyMs: 50,
       averageSaveLatencyMs: 30,
+      averageParseLatencyMs: 0,
+      averageAnalyzeLatencyMs: 0,
+      averageRenderLatencyMs: 0,
       generatedLoc: 12,
+      estimatedBoilerplateMinutesSaved: 0,
+      linesModifiedPerMinute: 0,
+      editsPerMinute: 15,
       timeSplitMs: {
         editing: 1000,
         diagramming: 3000,
@@ -134,7 +140,10 @@ describe('telemetry payloads', () => {
         copy: 1,
         paste: 1,
         export: 1,
+        codegen: 1,
+        save: 1,
       },
+      canvasToolUsage: {},
     });
   });
 });
