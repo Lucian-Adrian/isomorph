@@ -65,6 +65,17 @@ async function visibleText(page, pattern) {
   return page.getByText(pattern).first().isVisible().catch(() => false);
 }
 
+async function clickMoreMenuItem(page, itemPattern, description) {
+  await clickFirst(page, [
+    page.getByRole('button', { name: /^More$/i }),
+    page.locator('button').filter({ hasText: /^More$/i }),
+  ], 'More button');
+  await clickFirst(page, [
+    page.getByRole('menuitem', { name: itemPattern }),
+    page.locator('[role="menuitem"]').filter({ hasText: itemPattern }),
+  ], description);
+}
+
 async function isReachable(url) {
   try {
     const response = await fetch(url, { method: 'HEAD' });
@@ -77,9 +88,13 @@ async function isReachable(url) {
 async function startDevServerIfNeeded() {
   if (!shouldAutoStart || await isReachable(baseUrl)) return null;
   await log({ type: 'server:start', command: 'npm run dev -- --host 127.0.0.1' });
-  const child = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1'], {
+  const command = process.platform === 'win32' ? 'cmd.exe' : 'npm';
+  const args = process.platform === 'win32'
+    ? ['/c', 'npm', 'run', 'dev', '--', '--host', '127.0.0.1']
+    : ['run', 'dev', '--', '--host', '127.0.0.1'];
+  const child = spawn(command, args, {
     cwd: repoRoot,
-    shell: true,
+    shell: false,
     env: {
       ...process.env,
       VITE_SUPABASE_URL: process.env.QA_LIVE_SUPABASE === '1' ? process.env.VITE_SUPABASE_URL : '',
@@ -206,17 +221,11 @@ try {
     if (sidebarHasCloud || sidebarHasMetrics) {
       throw new Error('Cloud/Metrics should not be permanently visible in the IDE sidebar.');
     }
-    await clickFirst(page, [
-      page.getByRole('button', { name: /Account|Sync/i }),
-      page.locator('button').filter({ hasText: /Account|Sync/i }),
-    ], 'Account or Sync button');
+    await clickMoreMenuItem(page, /Account|Sync/i, 'Account or Sync menu item');
     await page.getByText(/Account and Cloud Sync/i).first().waitFor({ timeout: 10_000 });
     await page.getByRole('button', { name: /close workspace panel/i }).click();
 
-    await clickFirst(page, [
-      page.getByRole('button', { name: /^Reports$/i }),
-      page.locator('button').filter({ hasText: /^Reports$/i }),
-    ], 'Reports button');
+    await clickMoreMenuItem(page, /^Reports$/i, 'Reports menu item');
     await page.getByText(/Reports and Metrics/i).first().waitFor({ timeout: 10_000 });
     const metricsVisible = await visibleText(page, /Generated LOC/i);
     await page.getByRole('button', { name: /close workspace panel/i }).click();
@@ -225,12 +234,9 @@ try {
 
   await step('export SVG and PNG buttons trigger downloads', async () => {
     const downloads = [];
-    for (const label of ['SVG', 'PNG']) {
+    for (const label of ['Export SVG', 'Export PNG']) {
       const downloadPromise = page.waitForEvent('download', { timeout: 10_000 });
-      await clickFirst(page, [
-        page.getByRole('button', { name: new RegExp(`^${label}$`, 'i') }),
-        page.locator('button').filter({ hasText: new RegExp(`^${label}$`, 'i') }),
-      ], `${label} export button`);
+      await clickMoreMenuItem(page, new RegExp(`^${label}$`, 'i'), `${label} menu item`);
       const download = await downloadPromise;
       downloads.push(await download.suggestedFilename());
     }
@@ -247,6 +253,14 @@ try {
     for (const label of ['Select', 'Hand', 'Rectangle', 'Ellipse', 'Arrow', 'Line', 'Pen', 'Text', 'Image', 'Eraser', 'More tools']) {
       await page.getByRole('button', { name: label }).first().waitFor({ timeout: 10_000 });
     }
+    await page.getByRole('button', { name: 'Rectangle' }).first().click();
+    const overlay = page.locator('.iso-freeform-overlay').first();
+    await overlay.waitFor({ state: 'visible', timeout: 10_000 });
+    await overlay.click({ position: { x: 80, y: 90 } });
+    const freeformCount = await page.locator('.iso-freeform-overlay rect').count();
+    if (freeformCount < 1) {
+      throw new Error('Expected Rectangle tool to create at least one freeform canvas_state element.');
+    }
 
     await clickFirst(page, [
       page.getByRole('button', { name: /Back to IDE/i }),
@@ -254,7 +268,7 @@ try {
     ], 'Back to IDE button');
     await page.waitForFunction(() => window.location.hash === '#/app');
     await page.getByText(/Source/i).first().waitFor({ timeout: 10_000 });
-    return { hash: await page.evaluate(() => window.location.hash) };
+    return { hash: await page.evaluate(() => window.location.hash), freeformCount };
   });
 
   await step('1000-line limit UI visible without cloud credentials', async () => {
@@ -262,10 +276,7 @@ try {
     if (limitsVisible) {
       return { limitsVisible, surface: 'already-open' };
     }
-    await clickFirst(page, [
-      page.getByRole('button', { name: /Account|Sync/i }),
-      page.locator('button').filter({ hasText: /Account|Sync/i }),
-    ], 'Account or Sync button for limit copy');
+    await clickMoreMenuItem(page, /Account|Sync/i, 'Account or Sync menu item for limit copy');
     const visibleInOverlay = await visibleText(page, /1000 lines\/file/i);
     if (!visibleInOverlay) {
       throw new Error('Expected the 1000 lines/file limits copy to be visible in the Account overlay.');
