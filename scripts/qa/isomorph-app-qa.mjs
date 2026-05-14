@@ -10,7 +10,8 @@ const artifactDir = resolve(repoRoot, 'artifacts', 'qa');
 const runId = new Date().toISOString().replace(/[:.]/g, '-');
 const logPath = resolve(artifactDir, `isomorph-app-qa-${runId}.jsonl.log`);
 
-const baseUrl = process.env.QA_BASE_URL ?? 'http://127.0.0.1:5173/isomorph/app/';
+const qaPort = process.env.QA_PORT ?? '4173';
+const baseUrl = process.env.QA_BASE_URL ?? `http://127.0.0.1:${qaPort}/isomorph/app/`;
 const headless = process.env.QA_HEADLESS !== '0';
 const slowMo = Number.parseInt(process.env.QA_SLOW_MO ?? '0', 10) || 0;
 const shouldAutoStart = process.env.QA_AUTO_START !== '0';
@@ -87,11 +88,11 @@ async function isReachable(url) {
 
 async function startDevServerIfNeeded() {
   if (!shouldAutoStart || await isReachable(baseUrl)) return null;
-  await log({ type: 'server:start', command: 'npm run dev -- --host 127.0.0.1' });
+  await log({ type: 'server:start', command: `npm run dev -- --host 127.0.0.1 --port ${qaPort} --strictPort` });
   const command = process.platform === 'win32' ? 'cmd.exe' : 'npm';
   const args = process.platform === 'win32'
-    ? ['/c', 'npm', 'run', 'dev', '--', '--host', '127.0.0.1']
-    : ['run', 'dev', '--', '--host', '127.0.0.1'];
+    ? ['/c', 'npm', 'run', 'dev', '--', '--host', '127.0.0.1', '--port', qaPort, '--strictPort']
+    : ['run', 'dev', '--', '--host', '127.0.0.1', '--port', qaPort, '--strictPort'];
   const child = spawn(command, args, {
     cwd: repoRoot,
     shell: false,
@@ -201,8 +202,8 @@ try {
 
   await step('codegen opens as an overlay and generates output', async () => {
     await clickFirst(page, [
-      page.getByRole('button', { name: /^Generate$/i }),
-      page.locator('button').filter({ hasText: /^Generate$/i }),
+      page.getByRole('button', { name: /Generate code|Generate/i }),
+      page.locator('button').filter({ hasText: /Generate/i }),
     ], 'Generate button');
     await page.getByText(/Generated Code/i).first().waitFor({ timeout: 10_000 });
     await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 10_000 });
@@ -266,9 +267,9 @@ try {
     }
 
     await clickFirst(page, [
-      page.getByRole('button', { name: /Back to IDE/i }),
-      page.locator('button').filter({ hasText: /Back to IDE/i }),
-    ], 'Back to IDE button');
+      page.getByRole('button', { name: /^Back$/i }),
+      page.locator('button').filter({ hasText: /^Back$/i }),
+    ], 'Back button');
     await page.waitForFunction(() => window.location.hash === '#/app');
     await page.getByText(/Source/i).first().waitFor({ timeout: 10_000 });
     return { hash: await page.evaluate(() => window.location.hash), freeformCount };
