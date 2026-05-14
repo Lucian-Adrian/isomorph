@@ -67,7 +67,7 @@ describe('full canvas shell', () => {
     cleanup();
   });
 
-  it('creates and persists freeform canvas_state elements from canvas tools', () => {
+  it('draws and persists freeform rectangle elements with pointer drag', () => {
     const storageKey = 'isomorph-test-canvas-state';
     const storage = new Map<string, string>();
     vi.stubGlobal('localStorage', {
@@ -95,13 +95,54 @@ describe('full canvas shell', () => {
       configurable: true,
       value: () => ({ left: 0, top: 0, width: 1000, height: 700, right: 1000, bottom: 700 }),
     });
-    act(() => overlay.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 40, clientY: 50 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 1, clientX: 40, clientY: 50 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 1, clientX: 180, clientY: 130 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 1, clientX: 180, clientY: 130 })));
 
     expect(host.querySelector('.iso-freeform-overlay rect')).not.toBeNull();
     const saved = JSON.parse(storage.get(storageKey) || '{}');
     expect(saved.elements).toHaveLength(1);
-    expect(saved.elements[0]).toMatchObject({ kind: 'rectangle', bounds: { x: 40, y: 50, width: 140, height: 90 } });
+    expect(saved.elements[0]).toMatchObject({ kind: 'rectangle', bounds: { x: 40, y: 50, width: 140, height: 80 } });
     expect(onCanvasStateChange).toHaveBeenCalled();
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it('draws freeform pen paths from pointer movement', () => {
+    const storageKey = 'isomorph-test-canvas-pen-state';
+    const storage = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key),
+    });
+    const { host, cleanup } = render(
+      <FullCanvasShell
+        diagram={diagram()}
+        mode="pen"
+        canvasStorageKey={storageKey}
+        onModeChange={vi.fn()}
+        onSave={vi.fn()}
+        onExportSVG={vi.fn()}
+        onExportPNG={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const overlay = host.querySelector('.iso-freeform-overlay') as SVGSVGElement;
+    Object.defineProperty(overlay, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ left: 0, top: 0, width: 1000, height: 700, right: 1000, bottom: 700 }),
+    });
+    act(() => overlay.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 2, clientX: 10, clientY: 20 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 2, clientX: 30, clientY: 45 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 2, clientX: 70, clientY: 80 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 2, clientX: 70, clientY: 80 })));
+
+    const saved = JSON.parse(storage.get(storageKey) || '{}');
+    expect(saved.elements[0]).toMatchObject({ kind: 'pen' });
+    expect(saved.elements[0].points).toHaveLength(3);
+    expect(host.querySelector('.iso-freeform-overlay path')).not.toBeNull();
     cleanup();
     vi.unstubAllGlobals();
   });

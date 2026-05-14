@@ -111,6 +111,39 @@ function canvasKindForMode(mode: FullCanvasMode): Exclude<CanvasElement['kind'],
   return mode;
 }
 
+function isDragDrawMode(mode: FullCanvasMode): boolean {
+  return mode === 'rectangle' || mode === 'ellipse' || mode === 'line' || mode === 'arrow' || mode === 'pen' || mode === 'eraser' || mode === 'laser' || mode === 'lasso';
+}
+
+function isPathMode(mode: FullCanvasMode): boolean {
+  return mode === 'pen' || mode === 'eraser' || mode === 'laser' || mode === 'lasso';
+}
+
+function pointFromEvent(event: React.PointerEvent<SVGSVGElement>) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  };
+}
+
+function boundsFromStartEnd(start: { x: number; y: number }, end: { x: number; y: number }) {
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    width: Math.max(1, Math.abs(end.x - start.x)),
+    height: Math.max(1, Math.abs(end.y - start.y)),
+  };
+}
+
+function titleForCanvasMode(mode: FullCanvasMode): string | undefined {
+  if (mode === 'text') return 'Text';
+  if (mode === 'uml-package') return 'Package';
+  if (mode === 'frame') return 'Frame';
+  if (mode === 'embed') return 'Web embed';
+  return undefined;
+}
+
 function renderFreeformElement(element: CanvasElement) {
   const common = {
     stroke: element.style.stroke,
@@ -213,6 +246,12 @@ export function FullCanvasShell({
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [drawing, setDrawing] = useState<{
+    elementId: string;
+    mode: FullCanvasMode;
+    start: { x: number; y: number };
+    points: Array<{ x: number; y: number }>;
+  } | null>(null);
   const [canvasState, setCanvasState] = useState<CanvasState>(() => {
     if (!canvasStorageKey || typeof localStorage === 'undefined') return createEmptyCanvasState();
     return parseCanvasStateText(localStorage.getItem(canvasStorageKey));
@@ -249,19 +288,48 @@ export function FullCanvasShell({
     if (!isFreeformMode(mode)) return;
     event.preventDefault();
     event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const { x, y } = pointFromEvent(event);
     const defaultSize = mode === 'text' ? { width: 120, height: 32 } : { width: 140, height: 90 };
+    const elementId = `canvas-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
     const element = createCanvasElement({
-      id: `canvas-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      id: elementId,
       kind: canvasKindForMode(mode),
-      bounds: { x, y, ...defaultSize },
+      bounds: isDragDrawMode(mode) ? { x, y, width: 1, height: 1 } : { x, y, ...defaultSize },
       style: canvasState.styleDefaults,
-      text: mode === 'text' ? 'Text' : mode === 'uml-package' ? 'Package' : mode === 'frame' ? 'Frame' : undefined,
-      points: [{ x, y }, { x: x + defaultSize.width, y: y + defaultSize.height }],
+      text: titleForCanvasMode(mode),
+      points: [{ x, y }],
     });
     setCanvasState(state => reduceCanvasState(state, { type: 'add-element', element }));
+    if (isDragDrawMode(mode)) {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      setDrawing({ elementId, mode, start: { x, y }, points: [{ x, y }] });
+    }
+  };
+
+  const handleFreeformPointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (!drawing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const point = pointFromEvent(event);
+    const points = isPathMode(drawing.mode) ? [...drawing.points, point] : [drawing.start, point];
+    const bounds = boundsFromStartEnd(drawing.start, point);
+    setDrawing(current => current ? { ...current, points } : current);
+    setCanvasState(state => reduceCanvasState(state, {
+      type: 'update-element',
+      id: drawing.elementId,
+      patch: {
+        bounds,
+        ...((drawing.mode === 'line' || drawing.mode === 'arrow' || isPathMode(drawing.mode)) ? { points } : {}),
+      } as Partial<CanvasElement>,
+    }));
+  };
+
+  const handleFreeformPointerUp = (event: React.PointerEvent<SVGSVGElement>) => {
+    if (!drawing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+    setDrawing(null);
   };
 
   return (
@@ -370,6 +438,9 @@ export function FullCanvasShell({
           className={`iso-freeform-overlay${isFreeformMode(mode) ? ' iso-freeform-overlay--active' : ''}`}
           aria-label="Freeform canvas layer"
           onPointerDown={handleFreeformPointerDown}
+          onPointerMove={handleFreeformPointerMove}
+          onPointerUp={handleFreeformPointerUp}
+          onPointerCancel={handleFreeformPointerUp}
         >
           <defs>
             <marker id="isx-freeform-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">

@@ -256,7 +256,10 @@ try {
     await page.getByRole('button', { name: 'Rectangle' }).first().click();
     const overlay = page.locator('.iso-freeform-overlay').first();
     await overlay.waitFor({ state: 'visible', timeout: 10_000 });
-    await overlay.click({ position: { x: 80, y: 90 } });
+    await overlay.dragTo(overlay, {
+      sourcePosition: { x: 80, y: 90 },
+      targetPosition: { x: 220, y: 170 },
+    });
     const freeformCount = await page.locator('.iso-freeform-overlay rect').count();
     if (freeformCount < 1) {
       throw new Error('Expected Rectangle tool to create at least one freeform canvas_state element.');
