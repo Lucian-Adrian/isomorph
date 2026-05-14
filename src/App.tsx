@@ -2870,6 +2870,7 @@ export default function App() {
         codegenPanel={codegenPanel}
         metricsPanel={metricsPanel}
         onClose={() => setActiveOverlay(null)}
+        onSelectOverlay={setActiveOverlay}
       />
 
       {editingEntity && (
