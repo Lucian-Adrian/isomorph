@@ -1,0 +1,23 @@
+id: ISO-201
+identifier: ISO-201
+title: UX contract and mode state
+description: Define the typed IDE/Canvas mode contract, command availability, selection mapping, and product UX document.
+labels: [ux, architecture, worker-a]
+priority: 1
+state: done
+branch_name: feature/iso-201-ux-contract-mode-state
+owner: worker-a
+plan: docs/superpowers/plans/2026-05-13-isomorph-ux-mode-contract.md
+owned_files:
+  - src/app/modeState.ts
+  - src/app/workspaceCommands.ts
+  - src/app/selectionState.ts
+  - tests/ux-mode-contract.test.ts
+  - docs/product/isomorph-ux-contract.md
+verification_commands:
+  - npm test -- --run tests/ux-mode-contract.test.ts
+  - npm run typecheck
+acceptance:
+  - IDE and Canvas modes are explicit and testable.
+  - Canvas route cannot render IDE chrome by accident.
+  - Command availability follows mode and selection state.

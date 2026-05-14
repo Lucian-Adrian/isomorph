@@ -1,0 +1,16 @@
+id: iso-103-ui-panels-canvas
+identifier: ISO-103
+title: UI panels and full-canvas shell extraction
+description: Extract Cloud, Codegen, Metrics, and full-canvas shell into focused components.
+priority: 3
+state: done
+labels: [frontend, canvas, worker-c]
+branch_name: feature/iso-103-ui-panels-canvas
+blocked_by:
+  - identifier: ISO-101
+    state: done
+  - identifier: ISO-102
+    state: done
+verification_commands:
+  - npm run typecheck
+  - npm run build

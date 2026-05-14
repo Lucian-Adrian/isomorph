@@ -24,6 +24,12 @@ interface DiagramViewProps {
   onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string) => void;
   onTextRenameRequest?: (oldText: string, newText: string, type: 'diagram' | 'package') => void;
   availableTools?: CanvasTool[];
+  activeTool?: CanvasTool;
+  onActiveToolChange?: (tool: CanvasTool) => void;
+  showToolRail?: boolean;
+  showZoomControls?: boolean;
+  fitSignal?: number;
+  onViewportChange?: (viewport: { zoom: number; pan: { x: number; y: number } }) => void;
   selectedItems?: { type: 'entity' | 'relation', id: string }[];
   onSelectionChange?: (selection: { type: 'entity' | 'relation', id: string }[]) => void;
   pendingDropKeyword?: string | null;
@@ -43,6 +49,12 @@ export function DiagramView({
   onRelationAddRequest,
   onTextRenameRequest,
   availableTools = ['move', 'hand', 'edit-node', 'edit-edge', 'add-edge'],
+  activeTool: controlledTool,
+  onActiveToolChange,
+  showToolRail = true,
+  showZoomControls = true,
+  fitSignal,
+  onViewportChange,
   selectedItems = [],
   onSelectionChange,
   pendingDropKeyword,
@@ -80,10 +92,20 @@ export function DiagramView({
   const SNAP_THRESHOLD = 10;
 
   useEffect(() => {
+    if (controlledTool) {
+      if (availableTools.includes(controlledTool) && controlledTool !== activeTool) {
+        setActiveTool(controlledTool);
+      }
+      return;
+    }
     if (!availableTools.includes(activeTool)) {
       setActiveTool(availableTools[0] ?? 'move');
     }
-  }, [availableTools, activeTool]);
+  }, [availableTools, controlledTool, activeTool]);
+
+  useEffect(() => {
+    onViewportChange?.({ zoom, pan });
+  }, [zoom, pan, onViewportChange]);
 
   useEffect(() => {
     setPan({ x: 0, y: 0 });
@@ -119,6 +141,11 @@ export function DiagramView({
     setPan({ x: 0, y: 0 });
   }, []);
 
+  useEffect(() => {
+    if (fitSignal == null) return;
+    handleFit();
+  }, [fitSignal, handleFit]);
+
   // Prevent browser native pinch-zoom
   useEffect(() => {
     const el = canvasRef.current;
@@ -126,6 +153,21 @@ export function DiagramView({
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        setZoom(z => {
+          const newZ = Math.min(Math.max(z - Math.sign(e.deltaY) * 10, 40), 200);
+          const scaleRatio = newZ / z;
+          setPan(p => ({
+            x: mx - (mx - p.x) * scaleRatio,
+            y: my - (my - p.y) * scaleRatio,
+          }));
+          return newZ;
+        });
+      } else {
+        e.preventDefault();
+        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
       }
     };
     el.addEventListener('wheel', handleWheel, { passive: false });
@@ -826,6 +868,11 @@ export function DiagramView({
 
   const isDiagramEmpty = diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
 
+  const selectTool = useCallback((tool: CanvasTool) => {
+    setActiveTool(tool);
+    onActiveToolChange?.(tool);
+  }, [onActiveToolChange]);
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
       {/* Empty state (no code typed at all) */}
@@ -876,27 +923,6 @@ export function DiagramView({
           backgroundSize: `${24 * (zoom / 100)}px ${24 * (zoom / 100)}px`,
           touchAction: 'none' /* prevent native zooming on trackpads */
         }}
-        onWheel={(e) => {
-          if (e.ctrlKey) {
-            e.preventDefault();
-            const rect = e.currentTarget.getBoundingClientRect();
-            const mx = e.clientX - rect.left;
-            const my = e.clientY - rect.top;
-            setZoom(z => {
-              const newZ = Math.min(Math.max(z - Math.sign(e.deltaY) * 10, 40), 200);
-              const scaleRatio = newZ / z;
-              // update pan to zoom in towards mouse pointer
-              setPan(p => ({
-                x: mx - (mx - p.x) * scaleRatio,
-                y: my - (my - p.y) * scaleRatio
-              }));
-              return newZ;
-            });
-          } else {
-            e.preventDefault();
-            setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
-          }
-        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -934,26 +960,28 @@ export function DiagramView({
       </div>
 
       {/* Tools Array */}
-      <div className="iso-canvas-tools" style={{ position: 'absolute', left: 16, top: 16, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 10 }}>
-        {availableTools.includes('move') && (
-          <button className={`iso-canvas-btn ${activeTool === 'move' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('move')} aria-label={t('tool.select_move')} data-tooltip={t('tool.select_move')}>
-            <IconPointer />
-          </button>
-        )}
-        {availableTools.includes('hand') && (
-          <button className={`iso-canvas-btn ${activeTool === 'hand' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('hand')} aria-label={t('tool.pan_canvas')} data-tooltip={t('tool.pan_canvas')}>
-            <IconHand />
-          </button>
-        )}
-        {availableTools.includes('add-edge') && (
-          <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'iso-canvas-btn--active' : ''}`} onClick={() => setActiveTool('add-edge')} aria-label={t('tool.draw_edge')} data-tooltip={t('tool.draw_edge')}>
-            <IconEdge />
-          </button>
-        )}
-      </div>
+      {showToolRail && (
+        <div className="iso-canvas-tools" style={{ position: 'absolute', left: 16, top: 16, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 10 }}>
+          {availableTools.includes('move') && (
+            <button className={`iso-canvas-btn ${activeTool === 'move' ? 'iso-canvas-btn--active' : ''}`} onClick={() => selectTool('move')} aria-label={t('tool.select_move')} data-tooltip={t('tool.select_move')}>
+              <IconPointer />
+            </button>
+          )}
+          {availableTools.includes('hand') && (
+            <button className={`iso-canvas-btn ${activeTool === 'hand' ? 'iso-canvas-btn--active' : ''}`} onClick={() => selectTool('hand')} aria-label={t('tool.pan_canvas')} data-tooltip={t('tool.pan_canvas')}>
+              <IconHand />
+            </button>
+          )}
+          {availableTools.includes('add-edge') && (
+            <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'iso-canvas-btn--active' : ''}`} onClick={() => selectTool('add-edge')} aria-label={t('tool.draw_edge')} data-tooltip={t('tool.draw_edge')}>
+              <IconEdge />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Zoom controls */}
-      {diagram && (
+      {showZoomControls && diagram && (
         <div className="iso-canvas-toolbar" role="toolbar" aria-label={t('tool.zoom_controls')}>
             <button
             type="button"

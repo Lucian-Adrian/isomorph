@@ -1,0 +1,30 @@
+id: ISO-205
+identifier: ISO-205
+title: ISX and canvas_state bridge
+description: Safely map semantic canvas actions to .isx source edits and store unsafe/freeform actions in canvas_state without corrupting source.
+labels: [isx, canvas, stability, worker-e]
+priority: 4
+state: done
+branch_name: feature/iso-205-isx-canvas-bridge
+owner: worker-e
+plan: docs/superpowers/plans/2026-05-13-isomorph-ux-mode-contract.md
+blocked_by:
+  - id: ISO-203
+    state: done
+  - id: ISO-204
+    state: done
+owned_files:
+  - src/canvas/canvasBridge.ts
+  - src/canvas/isxCanvasCommands.ts
+  - src/services/sourceRewrite.ts
+  - src/services/diagramStore.ts
+  - tests/canvas-bridge.test.ts
+  - tests/source-rewrite-regressions.test.ts
+  - tests/fixtures/isx/broken-edit-regressions.isx
+verification_commands:
+  - npm test -- --run tests/canvas-bridge.test.ts tests/source-rewrite-regressions.test.ts
+  - npm run typecheck
+acceptance:
+  - Freeform visual edits never damage .isx source.
+  - Relation and component modal edits remain parseable after repeated saves.
+  - Semantic commits and overlay-only canvas changes are clearly separated.

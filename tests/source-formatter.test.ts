@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDiagramSource, updateEntityPosition } from '../src/App.tsx';
+import { formatDiagramSource, updateEntityPosition } from '../src/services/sourceRewrite.ts';
 
 describe('Source Rewrite Formatter Idempotence', () => {
   it('formats source idempotently', () => {
@@ -42,5 +42,49 @@ describe('Source Rewrite Formatter Idempotence', () => {
     const formatted2 = formatDiagramSource(modified2);
 
     expect(formatted1).toBe(formatted2);
+  });
+
+  it('keeps component bodies, relations, and annotations stable across repeated modal-like edits', () => {
+    const source = `diagram StableComponents : component {
+  component Api {
+    port http
+  }
+  component Worker {
+    port jobs
+  }
+  Api --> Worker [label="dispatch"]
+  @Api at (15, 25, 160, 90)
+  @Worker at (260, 25, 160, 90)
+}`;
+
+    const firstEdit = formatDiagramSource(source.replace('component Api', 'component Api <<service>>'));
+    const secondEdit = formatDiagramSource(firstEdit.replace('label="dispatch"', 'label="dispatch jobs"'));
+    const thirdEdit = formatDiagramSource(updateEntityPosition(secondEdit, 'Worker', 275, 40, 170, 95));
+    const stable = formatDiagramSource(thirdEdit);
+
+    expect(thirdEdit).toBe(stable);
+    expect(stable).toContain('component Api <<service>> {');
+    expect(stable).toContain('port http');
+    expect(stable).toContain('Api --> Worker [label="dispatch jobs"]');
+    expect(stable).toContain('@Worker at (275, 40, 170, 95)');
+  });
+
+  it('does not duplicate relation attributes after repeated relation edit rewrites', () => {
+    const source = `diagram Relations : class {
+  class User {}
+  class Order {}
+  User --> Order [label="places"]
+  @User at (10, 10)
+  @Order at (240, 10)
+}`;
+
+    const first = formatDiagramSource(source.replace('[label="places"]', '[label="places", toMult="*"]'));
+    const second = formatDiagramSource(first.replace('toMult="*"', 'toMult="1..*"'));
+    const third = formatDiagramSource(second.replace('label="places"', 'label="creates"'));
+
+    expect(third).toBe(formatDiagramSource(third));
+    expect(third.match(/label="/g)).toHaveLength(1);
+    expect(third.match(/toMult="/g)).toHaveLength(1);
+    expect(third).toContain('User --> Order [label="creates", toMult="1..*"]');
   });
 });

@@ -6,6 +6,8 @@ coverage/
 *.local
 .DS_Store
 *.log
+/artifacts/qa/*.jsonl
+!/artifacts/qa/.gitkeep
 
 # Generated slide exports (not source)
 slides/3-slides/append.html

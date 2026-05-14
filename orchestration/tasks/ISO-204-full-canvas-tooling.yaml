@@ -1,0 +1,31 @@
+id: ISO-204
+identifier: ISO-204
+title: Full canvas tooling
+description: Rebuild #/canvas as an edge-to-edge Excalidraw-inspired work surface with floating toolbar, contextual style controls, crisp export, and correct pointer/wheel behavior.
+labels: [canvas, frontend, worker-d]
+priority: 3
+state: done
+branch_name: feature/iso-204-full-canvas-tooling
+owner: worker-d
+plan: docs/superpowers/plans/2026-05-13-isomorph-ux-mode-contract.md
+blocked_by:
+  - id: ISO-203
+    state: done
+owned_files:
+  - src/components/FullCanvasShell.tsx
+  - src/components/CanvasToolbar.tsx
+  - src/components/CanvasPropertiesStrip.tsx
+  - src/components/CanvasInspector.tsx
+  - src/components/CanvasCollaborationPill.tsx
+  - src/components/DiagramView.tsx
+  - src/index.css
+  - tests/components/full-canvas-shell.test.tsx
+verification_commands:
+  - npm test -- --run tests/components/full-canvas-shell.test.tsx
+  - npm run typecheck
+  - npm run build
+acceptance:
+  - Canvas mode has no IDE header, footer, or permanent sidebars.
+  - Toolbar exposes lock, select, hand, rectangle, ellipse, arrow, line, pen, text, image, eraser, and More.
+  - Passive preventDefault warnings are fixed.
+  - SVG and PNG export produce crisp downloads.

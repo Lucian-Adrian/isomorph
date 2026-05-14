@@ -1,0 +1,10 @@
+id: iso-104-harness-qa
+identifier: ISO-104
+title: Browser QA and export/edit regression harness
+description: Add Playwright smoke scripts, JSONL QA artifacts, and source/export regression tests.
+priority: 4
+state: done
+labels: [qa, harness, worker-d]
+branch_name: feature/iso-104-harness-qa
+verification_commands:
+  - npm run verify

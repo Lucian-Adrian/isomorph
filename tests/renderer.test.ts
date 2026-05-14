@@ -6,7 +6,18 @@ import { renderUseCaseDiagram } from '../src/renderer/usecase-renderer.js';
 import { renderComponentDiagram } from '../src/renderer/component-renderer.js';
 import { renderSequenceDiagram } from '../src/renderer/sequence-renderer.js';
 import { renderStateOrActivityDiagram } from '../src/renderer/state-renderer.js';
-import { escapeXml, visSymbolFor, edgePointOnRect, computePortPositions } from '../src/renderer/utils.js';
+import {
+  escapeXml,
+  visSymbolFor,
+  edgePointOnRect,
+  computePortPositions,
+  rectBoundaryPoint,
+  ellipseBoundaryPoint,
+  diamondBoundaryPoint,
+  dashForRelation,
+  markerEndForRelation,
+  markerStartForRelation,
+} from '../src/renderer/utils.js';
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -55,6 +66,23 @@ describe('Renderer Utils', () => {
     expect(ports.has('p2')).toBe(true);
     expect(ports.get('p1')?.side).toBe('left');
     expect(ports.get('p2')?.side).toBe('right');
+  });
+
+  it('supports relation marker and boundary helpers for richer renderer anchoring', () => {
+    expect(dashForRelation('dependency')).toBe('6,3');
+    expect(markerEndForRelation('inheritance')).toBe('hollow-arrow');
+    expect(markerEndForRelation('aggregation')).toBe('diamond');
+    expect(markerStartForRelation('composition')).toBe('filled-diamond');
+
+    const rect = rectBoundaryPoint(0, 0, 100, 50, 150, 25);
+    expect(rect).toEqual({ x: 100, y: 25 });
+
+    const ellipse = ellipseBoundaryPoint(50, 50, 20, 10, 90, 50);
+    expect(ellipse.x).toBeGreaterThan(50);
+    expect(ellipse.y).toBeCloseTo(50);
+
+    const diamond = diamondBoundaryPoint(50, 50, 40, 40, 90, 50);
+    expect(diamond.x).toBeGreaterThan(50);
   });
 });
 

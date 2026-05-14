@@ -79,6 +79,95 @@ export function wrapText(text: string, maxLen: number): string[] {
   return [text.slice(0, spaceNear), text.slice(spaceNear + 1)];
 }
 
+export function dashForRelation(kind: string): string {
+  return kind === 'realization' || kind === 'dependency' ? '6,3' : '';
+}
+
+export function markerEndForRelation(kind: string): string {
+  switch (kind) {
+    case 'directed-association':
+    case 'dependency':
+      return 'arrow';
+    case 'inheritance':
+    case 'realization':
+      return 'hollow-arrow';
+    case 'aggregation':
+    case 'composition':
+      return 'diamond';
+    default:
+      return '';
+  }
+}
+
+export function markerStartForRelation(kind: string): string {
+  switch (kind) {
+    case 'aggregation':
+      return 'diamond';
+    case 'composition':
+      return 'filled-diamond';
+    default:
+      return '';
+  }
+}
+
+export function rectBoundaryPoint(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  targetX: number,
+  targetY: number,
+): { x: number; y: number } {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+  const dx = targetX - cx;
+  const dy = targetY - cy;
+
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+  const sx = dx !== 0 ? (w / 2) / Math.abs(dx) : Number.POSITIVE_INFINITY;
+  const sy = dy !== 0 ? (h / 2) / Math.abs(dy) : Number.POSITIVE_INFINITY;
+  const t = Math.min(sx, sy);
+
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+
+export function ellipseBoundaryPoint(
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  targetX: number,
+  targetY: number,
+): { x: number; y: number } {
+  const dx = targetX - cx;
+  const dy = targetY - cy;
+
+  if (dx === 0 && dy === 0) return { x: cx + rx, y: cy };
+
+  const scale = Math.sqrt((dx * dx) / (rx * rx) + (dy * dy) / (ry * ry)) || 1;
+  return { x: cx + dx / scale, y: cy + dy / scale };
+}
+
+export function diamondBoundaryPoint(
+  cx: number,
+  cy: number,
+  w: number,
+  h: number,
+  targetX: number,
+  targetY: number,
+): { x: number; y: number } {
+  const dx = targetX - cx;
+  const dy = targetY - cy;
+
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+  const hw = w / 2;
+  const hh = h / 2;
+  const t = 1 / (Math.abs(dx) / hw + Math.abs(dy) / hh);
+  return { x: cx + dx * t, y: cy + dy * t };
+}
+
 /** Render title and subtitle for a diagram. Returns { svg: string, height: number } */
 export function renderConfigHeaders(diag: import('../semantics/iom.js').IOMDiagram, width: number): { svg: string, height: number } {
   let svg = '';
@@ -157,11 +246,11 @@ export function computePortPositions(
   for (const f of fields) {
     if (f.type === 'provided') {
       const py = 12 + provIdx * 20;
-      ports.set(f.name, { x: boxW + 20, y: py, side: 'right' });
+      ports.set(f.name, { x: -20, y: py, side: 'left' });
       provIdx++;
     } else if (f.type === 'required') {
       const py = 12 + reqIdx * 20;
-      ports.set(f.name, { x: -20, y: py, side: 'left' });
+      ports.set(f.name, { x: boxW + 20, y: py, side: 'right' });
       reqIdx++;
     } else if (f.type === 'port') {
       const px = 20 + portIdx * 20;

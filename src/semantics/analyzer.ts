@@ -60,6 +60,23 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
   // Tracks source location of each entity declaration for error reporting
   const entitySpans = new Map<string, { line: number; col: number }>();
 
+  function collectEntity(decl: EntityDecl, pkgName?: string) {
+    if (entities.has(decl.name)) {
+      errors.push({ message: `Duplicate entity name '${decl.name}'`, entity: decl.name, rule: 'SS-1', line: decl.span.line, col: decl.span.col });
+      return;
+    }
+    entitySpans.set(decl.name, { line: decl.span.line, col: decl.span.col });
+    entities.set(decl.name, buildEntity(decl, pkgName, errors));
+
+    for (const member of decl.members) {
+      if (member.kind === 'EntityDecl') {
+        collectEntity(member, decl.name);
+      } else if (member.kind === 'RegionDecl') {
+        collectItems(member.body, decl.name);
+      }
+    }
+  }
+
   function collectItems(items: BodyItem[], pkgName?: string) {
     for (const item of items) {
       if (item.kind === 'PackageDecl') {
@@ -70,13 +87,9 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         }
         packages.push(pkg);
       } else if (item.kind === 'EntityDecl') {
-        if (entities.has(item.name)) {
-          errors.push({ message: `Duplicate entity name '${item.name}'`, entity: item.name, rule: 'SS-1', line: item.span.line, col: item.span.col });
-        } else {
-          entitySpans.set(item.name, { line: item.span.line, col: item.span.col });
-          entities.set(item.name, buildEntity(item, pkgName, errors));
-        }
-        // Support nested entities in collectItems but buildEntity handles the hierarchy
+        collectEntity(item, pkgName);
+      } else if (item.kind === 'PartitionDecl') {
+        collectItems(item.body, pkgName);
       } else if (item.kind === 'NoteDecl') {
         notes.push({ text: item.text, onEntity: item.on });
         if (item.on && entities.has(item.on)) {
@@ -279,23 +292,35 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
   }
 
   // Third pass: Layout annotations (ensure partitions/entities/packages exist)
+  function cleanPosition(x: number, y: number, w?: number, h?: number) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined;
+    return {
+      x,
+      y,
+      w: Number.isFinite(w) ? w : undefined,
+      h: Number.isFinite(h) ? h : undefined,
+    };
+  }
+
   function applyLayout(items: BodyItem[]) {
     for (const item of items) {
       if (item.kind === 'LayoutAnnotation') {
+        const position = cleanPosition(item.x, item.y, item.w, item.h);
+        if (!position) continue;
         const e = entities.get(item.entity);
         if (e) {
-          e.position = { x: item.x, y: item.y, w: item.w, h: item.h };
+          e.position = position;
         } else {
           const p = packages.find(pkg => pkg.name === item.entity);
           if (p) {
-            p.position = { x: item.x, y: item.y, w: item.w, h: item.h };
+            p.position = position;
           } else {
             const part = partitions.find(part => part.name === item.entity);
             if (part) {
-              part.position = { x: item.x, y: item.y, w: item.w, h: item.h };
+              part.position = position;
             } else {
               const frag = fragments.find(f => f.id === item.entity);
-              if (frag) frag.position = { x: item.x, y: item.y, w: item.w, h: item.h };
+              if (frag) frag.position = position;
             }
           }
         }
@@ -520,7 +545,7 @@ function buildEntity(decl: EntityDecl, pkg: string | undefined, errors: Semantic
         isAbstract: decl.modifiers.includes('abstract') || member.modifiers.includes('abstract'),
       });
     } else if (member.kind === 'EntityDecl') {
-      children.push(buildEntity(member, pkg, errors));
+      children.push(buildEntity(member, decl.name, errors));
     } else if (member.kind === 'RegionDecl') {
       const regContent = collectRegionItems(member.body);
       regions.push({

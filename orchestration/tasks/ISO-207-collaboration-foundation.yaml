@@ -1,0 +1,30 @@
+id: ISO-207
+identifier: ISO-207
+title: Collaboration foundation
+description: Add collaboration adapter interfaces, Supabase Presence, share modal, lightweight collaborator UI, and a documented Yjs integration path.
+labels: [collaboration, realtime, supabase, worker-g]
+priority: 5
+state: done
+branch_name: feature/iso-207-collaboration-foundation
+owner: worker-g
+plan: docs/superpowers/plans/2026-05-13-isomorph-ux-mode-contract.md
+blocked_by:
+  - id: ISO-203
+    state: done
+  - id: ISO-206
+    state: done
+owned_files:
+  - src/collaboration/collaborationTypes.ts
+  - src/collaboration/supabasePresence.ts
+  - src/collaboration/useCollaborationRoom.ts
+  - src/components/ShareModal.tsx
+  - src/components/CanvasCollaborationPill.tsx
+  - supabase/schema.sql
+  - tests/collaboration.test.ts
+verification_commands:
+  - npm test -- --run tests/collaboration.test.ts
+  - npm run typecheck
+acceptance:
+  - Presence supports cursors, avatars, active mode, and selected object identifiers.
+  - Share modal describes permissions clearly.
+  - Yjs is planned as the concurrent editing layer without forcing it into v1.

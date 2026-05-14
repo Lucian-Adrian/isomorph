@@ -5,8 +5,37 @@
 // Each function handles one export format independently.
 // ============================================================
 
-function getExportSVGString(svgEl: Element): string {
+function copyFreeformOverlayIntoSvg(clone: SVGSVGElement, overlayEl?: Element | null): void {
+  if (!overlayEl) return;
+  const overlayClone = overlayEl.cloneNode(true) as SVGSVGElement;
+  const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  group.setAttribute('data-export-layer', 'freeform-canvas');
+
+  for (const child of Array.from(overlayClone.childNodes)) {
+    if (child.nodeType !== Node.ELEMENT_NODE) continue;
+    const element = child as Element;
+    if (element.tagName.toLowerCase() === 'defs') {
+      clone.insertBefore(element, clone.firstChild);
+    } else {
+      group.appendChild(element);
+    }
+  }
+
+  if (group.childNodes.length > 0) {
+    clone.appendChild(group);
+  }
+}
+
+function findFreeformOverlay(svgEl: Element): Element | null {
+  const viewport = svgEl.closest('.iso-full-canvas-viewport');
+  if (viewport) return viewport.querySelector('.iso-freeform-overlay');
+  return document.querySelector('.iso-freeform-overlay');
+}
+
+export function serializeSVGForExport(svgEl: Element, overlayEl: Element | null = findFreeformOverlay(svgEl)): string {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  copyFreeformOverlayIntoSvg(clone, overlayEl);
   
   try {
     if (svgEl instanceof SVGSVGElement && typeof svgEl.getBBox === 'function') {
@@ -33,12 +62,15 @@ function getExportSVGString(svgEl: Element): string {
   if (!clone.getAttribute('style')?.includes('background')) {
     clone.style.background = '#fafafa';
   }
+  if (!clone.getAttribute('width')) clone.setAttribute('width', String((svgEl as SVGSVGElement).clientWidth || 1200));
+  if (!clone.getAttribute('height')) clone.setAttribute('height', String((svgEl as SVGSVGElement).clientHeight || 800));
 
   // Remove any CSS overrides we inject for UI only
   clone.style.minWidth = '';
   clone.style.minHeight = '';
 
-  return new XMLSerializer().serializeToString(clone);
+  const serialized = new XMLSerializer().serializeToString(clone);
+  return serialized.startsWith('<?xml') ? serialized : `<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`;
 }
 
 /**
@@ -53,7 +85,7 @@ export function exportSVG(
   const svgEl = document.querySelector(selector);
   if (!svgEl) return;
 
-  const svgStr = getExportSVGString(svgEl);
+  const svgStr = serializeSVGForExport(svgEl);
   const blob = new Blob([svgStr], { type: 'image/svg+xml' });
   const url = URL.createObjectURL(blob);
 
@@ -83,9 +115,8 @@ export function exportPNG(
   const svgEl = document.querySelector(selector);
   if (!svgEl) return;
 
-  const svgStr = getExportSVGString(svgEl);
-  const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(svgBlob);
+  const svgStr = serializeSVGForExport(svgEl);
+  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
 
   const img = new Image();
   img.onload = () => {
@@ -108,8 +139,6 @@ export function exportPNG(
     ctx.fillStyle = '#fafafa';
     ctx.fillRect(0, 0, nativeW, nativeH);
     ctx.drawImage(img, 0, 0, nativeW, nativeH);
-    URL.revokeObjectURL(url);
-
     canvas.toBlob(blob => {
       if (blob) {
         const pngUrl = URL.createObjectURL(blob);
