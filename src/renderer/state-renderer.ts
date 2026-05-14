@@ -6,7 +6,19 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter } from './utils.js';
+import {
+  escapeXml,
+  svgDefs,
+  renderConfigHeaders,
+  renderConfigLegend,
+  renderConfigCaption,
+  rectBoundaryPoint,
+  ellipseBoundaryPoint,
+  diamondBoundaryPoint,
+  dashForRelation,
+  markerEndForRelation,
+  markerStartForRelation,
+} from './utils.js';
 
 const BOX_W        = 140;
 const BOX_H        = 50;
@@ -75,17 +87,25 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
     const fDim = getDimensions(f.entity);
     const tDim = getDimensions(t.entity);
 
-    const fromCenter = rectCenter(f.x, f.y, fDim.w, fDim.h);
-    const toCenter = rectCenter(t.x, t.y, tDim.w, tDim.h);
-    const fromEdge = edgePointOnRect(f.x, f.y, fDim.w, fDim.h, toCenter.x, toCenter.y);
-    const toEdge = edgePointOnRect(t.x, t.y, tDim.w, tDim.h, fromCenter.x, fromCenter.y);
+    const fromCenterX = f.x + fDim.w / 2;
+    const fromCenterY = f.y + fDim.h / 2;
+    const toCenterX = t.x + tDim.w / 2;
+    const toCenterY = t.y + tDim.h / 2;
+    const fromEdge = relationEdgeForStateEntity(f.entity, f.x, f.y, fDim.w, fDim.h, toCenterX, toCenterY);
+    const toEdge = relationEdgeForStateEntity(t.entity, t.x, t.y, tDim.w, tDim.h, fromCenterX, fromCenterY);
     const x1 = fromEdge.x, y1 = fromEdge.y;
     const x2 = toEdge.x, y2 = toEdge.y;
     const safeLabel = rel.label ? escapeXml(rel.label) : '';
-    
+    const dash = dashForRelation(rel.kind);
+    const markerEnd = markerEndForRelation(rel.kind);
+    const markerStart = markerStartForRelation(rel.kind);
+    const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+    const markerEndAttr = markerEnd ? ` marker-end="url(#${markerEnd})"` : '';
+    const markerStartAttr = markerStart ? ` marker-start="url(#${markerStart})"` : '';
+
     svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
     svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;
-    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--iso-text-muted)" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dashAttr}${markerStartAttr}${markerEndAttr}/>`;
     
     if (rel.label) {
       const mx = (x1 + x2) / 2;
@@ -106,6 +126,30 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
   svg += caption.svg;
   svg += `</svg>`;
   return svg;
+}
+
+function relationEdgeForStateEntity(
+  entity: IOMEntity,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  towardX: number,
+  towardY: number,
+): { x: number; y: number } {
+  const cx = x + w / 2;
+  const cy = y + h / 2;
+
+  if (entity.kind === 'start' || entity.kind === 'stop' || entity.kind === 'history') {
+    return ellipseBoundaryPoint(cx, cy, CIRCLE_R, CIRCLE_R, towardX, towardY);
+  }
+  if (entity.kind === 'decision' || entity.kind === 'choice' || entity.kind === 'merge') {
+    return diamondBoundaryPoint(cx, cy, DIAMOND_S, DIAMOND_S, towardX, towardY);
+  }
+  if (entity.kind === 'fork' || entity.kind === 'join') {
+    return rectBoundaryPoint(x, y, w, h, towardX, towardY);
+  }
+  return rectBoundaryPoint(x, y, w, h, towardX, towardY);
 }
 
 function renderActivitySwimlanes(partitions: import('../semantics/iom.js').IOMPartition[], placed: Placed[], height: number): string {
