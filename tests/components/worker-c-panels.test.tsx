@@ -173,7 +173,7 @@ describe('Worker C shell panels', () => {
 
     act(() => host.querySelector('[aria-label="Hand"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     act(() => Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Save')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
-    act(() => Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Back to IDE')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    act(() => Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Back')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 
     expect(host.querySelector('.iso-full-canvas-shell')).not.toBeNull();
     expect(host.textContent).toContain('100%');

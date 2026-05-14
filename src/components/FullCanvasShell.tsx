@@ -344,68 +344,70 @@ export function FullCanvasShell({
         <span className="iso-full-canvas-pill-status">{statusLabel ?? 'Valid'}</span>
       </div>
 
-      <div className="iso-full-canvas-collab" aria-label="Collaboration">
-        <span className="iso-avatar-stack" aria-hidden="true"><span>L</span><span>+</span></span>
-        <button type="button" className="iso-full-canvas-action" onClick={onShare}>Share</button>
-        <button type="button" className="iso-full-canvas-action" onClick={onBack}>Back to IDE</button>
-      </div>
+      <div className="iso-full-canvas-dock" aria-label="Canvas actions">
+        <div className="iso-full-canvas-collab">
+          <span className="iso-avatar-stack" aria-hidden="true"><span>L</span><span>+</span></span>
+          <button type="button" className="iso-full-canvas-action" onClick={onShare}>Share</button>
+          <button type="button" className="iso-full-canvas-action" onClick={onBack}>Back</button>
+        </div>
 
-      <div className="iso-full-canvas-actions" aria-label="Canvas actions">
-        <button type="button" className="iso-full-canvas-action" onClick={onSave} disabled={!hasDiagram || !canSave}>Save</button>
-        <button type="button" className="iso-full-canvas-action" onClick={onExportSVG} disabled={!hasDiagram || !canExport}>SVG</button>
-        <button type="button" className="iso-full-canvas-action" onClick={onExportPNG} disabled={!hasDiagram || !canExport}>PNG</button>
-        <div className="iso-dropdown" ref={moreMenuRef}>
-          <button
-            type="button"
-            className="iso-full-canvas-action"
-            aria-haspopup="menu"
-            aria-expanded={moreMenuOpen}
-            onClick={() => setMoreMenuOpen(open => !open)}
-          >
-            More <IconChevron dir={moreMenuOpen ? 'up' : 'down'} />
-          </button>
-          {moreMenuOpen && (
-            <div className="iso-dropdown-menu iso-full-canvas-menu" role="menu" aria-label="Canvas more actions">
-              <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onValidate?.(); }}>
-                Validate
-              </button>
-              {[
-                ['Frame', 'frame'],
-                ['Web embed', 'embed'],
-                ['Laser pointer', 'laser'],
-                ['Lasso', 'lasso'],
-                ['UML package', 'uml-package'],
-              ].map(([label, tool]) => (
-                <button
-                  key={tool}
-                  type="button"
-                  className="iso-dropdown-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMoreMenuOpen(false);
-                    onModeChange(tool as FullCanvasMode);
-                  }}
-                >
-                  {label}
+        <div className="iso-full-canvas-actions">
+          <button type="button" className="iso-full-canvas-action" onClick={onSave} disabled={!hasDiagram || !canSave}>Save</button>
+          <button type="button" className="iso-full-canvas-action" onClick={onExportSVG} disabled={!hasDiagram || !canExport}>SVG</button>
+          <button type="button" className="iso-full-canvas-action" onClick={onExportPNG} disabled={!hasDiagram || !canExport}>PNG</button>
+          <div className="iso-dropdown" ref={moreMenuRef}>
+            <button
+              type="button"
+              className="iso-full-canvas-action"
+              aria-haspopup="menu"
+              aria-expanded={moreMenuOpen}
+              onClick={() => setMoreMenuOpen(open => !open)}
+            >
+              More <IconChevron dir={moreMenuOpen ? 'up' : 'down'} />
+            </button>
+            {moreMenuOpen && (
+              <div className="iso-dropdown-menu iso-full-canvas-menu" role="menu" aria-label="Canvas more actions">
+                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onValidate?.(); }}>
+                  Validate
                 </button>
-              ))}
-              <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onFitCanvas?.(); }}>
-                {fitLabel}
-              </button>
-              <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onBack(); }}>
-                Source view
-              </button>
-              <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onOpenShortcuts?.(); }}>
-                Shortcuts
-              </button>
-              <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onExportSVG(); }}>
-                Export SVG
-              </button>
-              <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onExportPNG(); }}>
-                Export PNG
-              </button>
-            </div>
-          )}
+                {[
+                  ['Frame', 'frame'],
+                  ['Web embed', 'embed'],
+                  ['Laser pointer', 'laser'],
+                  ['Lasso', 'lasso'],
+                  ['UML package', 'uml-package'],
+                ].map(([label, tool]) => (
+                  <button
+                    key={tool}
+                    type="button"
+                    className="iso-dropdown-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setMoreMenuOpen(false);
+                      onModeChange(tool as FullCanvasMode);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onFitCanvas?.(); }}>
+                  {fitLabel}
+                </button>
+                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onBack(); }}>
+                  Source view
+                </button>
+                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onOpenShortcuts?.(); }}>
+                  Shortcuts
+                </button>
+                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onExportSVG(); }}>
+                  Export SVG
+                </button>
+                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onExportPNG(); }}>
+                  Export PNG
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -2216,6 +2216,39 @@ export default function App() {
           >
             Export PNG
           </button>
+          <div className="iso-dropdown-sep" />
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            role="menuitem"
+            onClick={() => {
+              setHeaderMoreOpen(false);
+              if (activeDiagram?.kind === 'sequence') handleTransformToCollaboration();
+            }}
+            disabled={!activeDiagram || activeDiagram.kind !== 'sequence'}
+          >
+            Transform sequence
+          </button>
+          <div className="iso-dropdown-sep" />
+          <div className="iso-dropdown-item" role="presentation" style={{ cursor: 'default', opacity: 0.7, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Examples
+          </div>
+          {EXAMPLES.map(ex => (
+            <button
+              key={ex.label}
+              type="button"
+              className="iso-dropdown-item"
+              role="menuitem"
+              onClick={() => {
+                setHeaderMoreOpen(false);
+                applyExample(ex);
+              }}
+            >
+              <span className="iso-dropdown-item-icon" aria-hidden="true">◌</span>
+              {ex.label}
+              <span className="iso-dropdown-item-meta">{ex.kind}</span>
+            </button>
+          ))}
           <button
             type="button"
             className="iso-dropdown-item"
@@ -2514,21 +2547,6 @@ export default function App() {
               <IconOpen />
               {t('menu.open')}
             </button>
-
-            {examplesDropdown}
-
-            {activeDiagram?.kind === 'sequence' && (
-              <button
-                type="button"
-                className="iso-btn"
-                onClick={handleTransformToCollaboration}
-                aria-label={t('menu.transform_seq_collab')}
-                data-tooltip={t('menu.transform_collab')}
-              >
-                <IconDiagram />
-                {t('menu.transform')}
-              </button>
-            )}
 
             <button
               type="button"

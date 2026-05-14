@@ -27,7 +27,7 @@ export function WorkspaceOverlayHost({
 
   return (
     <div className="iso-modal-overlay iso-workspace-overlay" onClick={onClose}>
-      <div className="iso-workspace-modal" onClick={event => event.stopPropagation()}>
+      <div className="iso-workspace-modal iso-workspace-drawer" onClick={event => event.stopPropagation()}>
         <div className="iso-workspace-modal-header">
           <strong>{OVERLAY_TITLES[activeOverlay]}</strong>
           <button type="button" className="iso-btn iso-btn--icon" onClick={onClose} aria-label="Close workspace panel">

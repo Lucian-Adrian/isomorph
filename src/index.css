@@ -646,8 +646,7 @@ body {
 
 .iso-full-canvas-toolbar,
 .iso-full-canvas-pill,
-.iso-full-canvas-collab,
-.iso-full-canvas-actions,
+.iso-full-canvas-dock,
 .iso-full-canvas-zoom {
   position: absolute;
   z-index: 30;
@@ -665,6 +664,15 @@ body {
   gap: 3px;
   padding: 5px;
   border-radius: 8px;
+}
+
+.iso-full-canvas-dock {
+  top: 14px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
 }
 
 .iso-full-canvas-tool,
@@ -699,6 +707,27 @@ body {
 .iso-full-canvas-tool--active {
   background: var(--iso-bg-active);
   border-color: var(--iso-border-strong);
+}
+
+.iso-full-canvas-collab,
+.iso-full-canvas-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--iso-border);
+  background: color-mix(in srgb, var(--iso-bg-panel) 88%, transparent);
+  box-shadow: var(--iso-shadow);
+  backdrop-filter: blur(18px);
+}
+
+.iso-full-canvas-collab .iso-full-canvas-action,
+.iso-full-canvas-actions .iso-full-canvas-action {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
 }
 
 .iso-full-canvas-pill {
@@ -739,6 +768,42 @@ body {
 
 .iso-full-canvas-menu .iso-dropdown-item {
   justify-content: flex-start;
+}
+
+.iso-full-canvas-zoom {
+  right: 14px;
+  bottom: 14px;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.iso-avatar-stack {
+  display: inline-flex;
+  margin-left: 4px;
+}
+
+.iso-avatar-stack span {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--iso-bg-active);
+  border: 1px solid var(--iso-border);
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: -5px;
+}
+
+.iso-full-canvas-actions {
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
 }
 
 .iso-rail-pane {
@@ -798,69 +863,28 @@ body {
   white-space: normal;
 }
 
-.iso-full-canvas-collab {
-  top: 14px;
-  right: 14px;
-  gap: 6px;
-  padding: 4px;
-  border-radius: 999px;
-}
-
-.iso-avatar-stack {
-  display: inline-flex;
-  margin-left: 4px;
-}
-
-.iso-avatar-stack span {
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--iso-bg-active);
-  border: 1px solid var(--iso-border);
-  font-size: 11px;
-  font-weight: 700;
-  margin-left: -5px;
-}
-
-.iso-full-canvas-actions {
-  left: 14px;
-  bottom: 14px;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-}
-
-.iso-full-canvas-zoom {
-  right: 14px;
-  bottom: 14px;
-  gap: 8px;
-  min-height: 36px;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-
 .iso-workspace-overlay {
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: flex-end;
-  padding: 64px 18px 18px;
+  padding: 14px;
   background: rgba(0,0,0,0.24);
 }
 
 .iso-workspace-modal {
-  width: min(440px, calc(100vw - 32px));
-  max-height: calc(100dvh - 88px);
+  width: min(480px, calc(100vw - 28px));
+  max-height: calc(100dvh - 28px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--iso-border-strong);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--iso-bg-panel);
   box-shadow: var(--iso-shadow-lg);
+}
+
+.iso-workspace-drawer {
+  align-self: stretch;
+  margin-left: auto;
 }
 
 .iso-workspace-modal-header {
