@@ -32,13 +32,11 @@ jobs:
         run: npm ci
 
       - name: Build project
-        # Using the build script which outputs to website/dist/app based on your vite.config.ts
         run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Your vite.config.ts specifies outDir: 'website/dist/app'
           path: ./website/dist/app
 
   deploy:
