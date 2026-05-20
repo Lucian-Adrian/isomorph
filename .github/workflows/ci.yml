@@ -42,10 +42,10 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout --orphan website
+          git checkout --orphan temp-website
           git reset --hard
           cp -r website/dist/* .
           touch .nojekyll
           git add --all
           git commit -m "Deploy site: $GITHUB_SHA" || true
-          git push --force origin website
+          git push --force origin temp-website:website
