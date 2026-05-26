@@ -39,7 +39,7 @@ jobs:
         with:
           path: ./website/dist/app
 
-  deploy:
+  deploy: # Comment for deployment 
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -50,4 +50,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-// comment for deployment
