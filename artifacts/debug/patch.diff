@@ -1,0 +1,43 @@
+diff --git a/src/semantics/analyzer.ts b/src/semantics/analyzer.ts
+index 768b2ed..697bdc3 100644
+--- a/src/semantics/analyzer.ts
++++ b/src/semantics/analyzer.ts
+@@ -278,6 +278,39 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
+   }
+ 
++  // Auto-numbering for sequence and collaboration diagrams
++  if (config.autonumber && (diag.diagramKind === 'sequence' || diag.diagramKind === 'collaboration')) {
++    const counters: number[] = [0];
++    const openCalls: { from: string, to: string }[] = [];
++
++    for (const rel of relations) {
++      const isResponse = rel.kind === 'dependency'; // loosely interpreted as response \..>\
++      const seqType = resolveSequenceRelationType(rel);
++
++      if (isResponse) {
++        // response typically doesn't get a new sub-number, maybe just pop depth
++        if (openCalls.length > 0) {
++          const last = openCalls[openCalls.length - 1];
++          if (last.from === rel.to && last.to === rel.from) {
++             openCalls.pop();
++             counters.pop();
++          }
++        }
++        continue; // Optional: don't number return messages, or do? Often they aren't numbered in collabs.
++      } else {
++        // increment at current depth
++        counters[counters.length - 1]++;
++        const prefix = counters.join('.');
++        rel.label = rel.label ? \\. \\ : prefix;
++
++        if (seqType === 'synchronous' && rel.from !== rel.to) {
++            openCalls.push({ from: rel.from, to: rel.to });
++            counters.push(0);
++        }
++      }
++    }
++  }
++
+   // Third pass: Layout annotations (ensure partitions/entities/packages exist)
+   function applyLayout(items: BodyItem[]) {
+     for (const item of items) {
