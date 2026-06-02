@@ -16,19 +16,27 @@ export function SplitPane({ left, right, defaultSplit = 0.45, separatorLabel = '
   const containerRef        = useRef<HTMLDivElement>(null);
   const dragging            = useRef(false);
 
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
     dragging.current = true;
     e.preventDefault(); // prevent text selection
   }, []);
 
-  const onMouseMove = useCallback((e: React.MouseEvent) => {
+  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging.current || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const newSplit = Math.max(0.2, Math.min(0.8, (e.clientX - rect.left) / rect.width));
     setSplit(newSplit);
   }, []);
 
-  const stopDrag = useCallback(() => { dragging.current = false; }, []);
+  const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (dragging.current) {
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+      dragging.current = false;
+    }
+  }, []);
 
   // Keyboard-adjustable divider
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -39,9 +47,6 @@ export function SplitPane({ left, right, defaultSplit = 0.45, separatorLabel = '
   return (
     <div
       ref={containerRef}
-      onMouseMove={onMouseMove}
-      onMouseUp={stopDrag}
-      onMouseLeave={stopDrag}
       style={{
         display: 'flex',
         width: '100%',
@@ -64,7 +69,9 @@ export function SplitPane({ left, right, defaultSplit = 0.45, separatorLabel = '
         aria-label={separatorLabel}
         tabIndex={0}
         className="iso-divider-handle"
-        onMouseDown={onMouseDown}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
         onKeyDown={onKeyDown}
       />
 

@@ -1,5 +1,6 @@
 import { IconCode } from './Icons.js';
 import type { CodegenLanguage } from '../codegen/index.js';
+import { tText, type Language } from '../i18n.js';
 
 export interface CodeDownloadPayload {
   language: CodegenLanguage;
@@ -9,6 +10,7 @@ export interface CodeDownloadPayload {
 
 export interface CodegenPanelProps {
   language: CodegenLanguage;
+  uiLanguage?: Language;
   output: string;
   inspectorJson: string;
   diagramName?: string;
@@ -30,6 +32,7 @@ const LANGUAGE_LABELS: Record<CodegenLanguage, string> = {
 
 export function CodegenPanel({
   language,
+  uiLanguage = 'en',
   output,
   inspectorJson,
   diagramName,
@@ -45,15 +48,21 @@ export function CodegenPanel({
 }: CodegenPanelProps) {
   const hasOutput = output.trim().length > 0;
   const hasInspectorJson = inspectorJson.trim().length > 0;
+  const t = (key: string) => tText(uiLanguage, key);
+  const generateLabel = isGenerating
+    ? t('codegen.generating')
+    : canGenerate
+      ? t('codegen.generate')
+      : t('ui.unavailable');
 
   return (
-    <section className="iso-sidebar" style={{ borderTop: '1px solid var(--iso-divider)' }} aria-label="Codegen">
+    <section className="iso-sidebar" style={{ borderTop: '1px solid var(--iso-divider)' }} aria-label={t('codegen.title')}>
       <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-        <IconCode size={11} /> Codegen
+        <IconCode size={11} /> {t('codegen.title')}
       </div>
       <div className="iso-sidebar-body" style={{ gap: 8 }}>
         <label className="iso-panel-info" htmlFor="isomorph-codegen-language" style={{ marginLeft: 0 }}>
-          Language
+          {t('codegen.language')}
         </label>
         <select
           id="isomorph-codegen-language"
@@ -68,12 +77,12 @@ export function CodegenPanel({
         </select>
 
         <button type="button" className="iso-btn iso-btn--primary" onClick={onGenerate} disabled={!canGenerate || isGenerating}>
-          {isGenerating ? 'Generating...' : 'Generate'}
+          {generateLabel}
         </button>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
           <button type="button" className="iso-btn" onClick={() => onCopyCode(output)} disabled={!hasOutput}>
-            Copy code
+            {t('codegen.copy_code')}
           </button>
           <button
             type="button"
@@ -81,31 +90,41 @@ export function CodegenPanel({
             disabled={!hasOutput}
             onClick={() => onDownloadCode({ language, output, diagramName })}
           >
-            Download
+            {t('codegen.download')}
           </button>
         </div>
 
         {onDownloadBundle && (
           <button type="button" className="iso-btn" onClick={onDownloadBundle} disabled={!hasOutput}>
-            Bundle
+            {t('codegen.bundle')}
           </button>
         )}
+
+        {statusMessage ? (
+          <div className="iso-status iso-status--err" style={{ borderRadius: 8, padding: '10px 12px', whiteSpace: 'normal', lineHeight: 1.4 }}>
+            {statusMessage}
+          </div>
+        ) : null}
 
         <textarea
           className="iso-select"
           value={output}
           readOnly
           rows={8}
-          aria-label="Generated code"
-          placeholder="Generated code appears here"
-          style={{ fontFamily: 'monospace', resize: 'vertical', minHeight: 144, lineHeight: 1.4 }}
+          aria-label={t('codegen.generated_code')}
+          placeholder={statusMessage ? t('codegen.unsupported_placeholder') : t('codegen.placeholder')}
+          style={{ 
+            fontFamily: 'monospace', 
+            resize: 'vertical', 
+            minHeight: 144, 
+            lineHeight: 1.4,
+            opacity: statusMessage ? 0.5 : 1
+          }}
         />
 
         <button type="button" className="iso-btn" onClick={() => onCopyInspectorJson(inspectorJson)} disabled={!hasInspectorJson}>
-          Copy AST/IOM JSON
+          {t('codegen.copy_iom')}
         </button>
-
-        {statusMessage && <div className="iso-panel-info" style={{ marginLeft: 0 }}>{statusMessage}</div>}
       </div>
     </section>
   );

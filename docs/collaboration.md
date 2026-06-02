@@ -226,7 +226,7 @@ Composite Object (8.1.3): The nesting behavior is mandatory.
 Link Types (8.2.1): The stereotypes parameter, local, etc., are explicitly listed and must be supported as link attributes.
 6.3 UML 2.5.1 Specification (Secondary Source) Integration
 Sequence Expressions: The UML spec (Section 17.12) defines the grammar for the sequence numbers. The DSL adopts this standard: Integer [. Integer]* [Letter].
-Message Types: The spec distinguishes complete, lost, found, and unknown messages. While the Teacher's Core is simpler, the DSL should allow ? or * markers for lost/found messages to support advanced students or future course modules.
+Message Types: The spec distinguishes complete, lost, found, and unknown messages. The active DSL should only document markers that are implemented in grammar, analysis, rendering, and tests; lost/found markers remain an extension candidate rather than a current guarantee.
 6.4 Complementary Tools Analysis
 PlantUML: Uses a sequence-like syntax for communication diagrams but lacks a dedicated "Multiobject" keyword (users often fake it with multiple participant declarations or skinparams). It does not enforce Noun/Verb rules. Our DSL improves on this by having native structural keywords.
 Mermaid: Currently lacks native Communication Diagram support (it relies on Sequence Diagrams). This DSL fills a significant gap in the open-source text-to-diagram ecosystem.

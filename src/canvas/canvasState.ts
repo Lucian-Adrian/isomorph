@@ -22,11 +22,21 @@ function updateElement(elements: CanvasElement[], id: string, patch: Partial<Can
 
 function reorder(elements: CanvasElement[], ids: string[], direction: 'forward' | 'backward') {
   const selected = new Set(ids);
-  const delta = direction === 'forward' ? 1 : -1;
-  return elements
-    .map(element => selected.has(element.id) ? { ...element, layer: element.layer + delta } : element)
-    .sort((a, b) => a.layer - b.layer)
-    .map((element, index) => ({ ...element, layer: index }));
+  const ordered = [...elements].sort((a, b) => a.layer - b.layer);
+  if (direction === 'forward') {
+    for (let index = ordered.length - 2; index >= 0; index -= 1) {
+      if (selected.has(ordered[index].id) && !selected.has(ordered[index + 1].id)) {
+        [ordered[index], ordered[index + 1]] = [ordered[index + 1], ordered[index]];
+      }
+    }
+  } else {
+    for (let index = 1; index < ordered.length; index += 1) {
+      if (selected.has(ordered[index].id) && !selected.has(ordered[index - 1].id)) {
+        [ordered[index - 1], ordered[index]] = [ordered[index], ordered[index - 1]];
+      }
+    }
+  }
+  return ordered.map((element, index) => ({ ...element, layer: index }));
 }
 
 export function reduceCanvasState(state: CanvasState, action: CanvasStateAction): CanvasState {
@@ -82,6 +92,15 @@ export function reduceCanvasState(state: CanvasState, action: CanvasStateAction)
       return stamp({ ...state, styleDefaults: normalizeCanvasStyle({ ...state.styleDefaults, ...action.style }) });
     case 'add-draft-link':
       return stamp({ ...state, draftSemanticLinks: [...state.draftSemanticLinks, action.link] });
+    case 'upsert-draft-link': {
+      const exists = state.draftSemanticLinks.some(link => link.canvasElementId === action.link.canvasElementId);
+      return stamp({
+        ...state,
+        draftSemanticLinks: exists
+          ? state.draftSemanticLinks.map(link => link.canvasElementId === action.link.canvasElementId ? action.link : link)
+          : [...state.draftSemanticLinks, action.link],
+      });
+    }
     default:
       return state;
   }

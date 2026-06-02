@@ -1,0 +1,48 @@
+# Isomorph
+
+Canonical LLM entrypoint for repository navigation.
+
+Start here:
+- docs/llm-navigation.md
+
+Primary documentation:
+- README.md
+- CONTRIBUTING.md
+- docs/class.md
+- docs/use-case.md
+- docs/component.md
+- docs/sequence.md
+- docs/state.md
+- docs/activity.md
+- docs/collaboration.md
+- docs/deployment.md
+- Isomorph-Technical-Deep-Dive.md
+
+Core implementation map:
+- src/App.tsx
+- src/parser/lexer.ts
+- src/parser/parser.ts
+- src/parser/ast.ts
+- src/parser/index.ts
+- src/semantics/analyzer.ts
+- src/semantics/iom.ts
+- src/renderer/index.ts
+- src/components/DiagramView.tsx
+- src/editor/IsomorphEditor.tsx
+
+Validation map:
+- tests/lexer.test.ts
+- tests/parser.test.ts
+- tests/semantics.test.ts
+- tests/renderer.test.ts
+- tests/examples.test.ts
+- tests/dsl_features.test.ts
+
+Recommended local verification commands:
+- npm run typecheck
+- npm run test
+- npm run build
+
+Notes:
+- Runtime parser and lexer are hand-written in src/parser. The ANTLR grammar is reference documentation.
+- Bidirectional behavior is centered in src/App.tsx and src/components/DiagramView.tsx.

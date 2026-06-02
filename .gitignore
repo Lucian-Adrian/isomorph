@@ -4,10 +4,19 @@ website/dist/
 .vite/
 coverage/
 *.local
+.env
 .DS_Store
 *.log
 /artifacts/qa/*.jsonl
+/artifacts/qa/*.jsonl.log
+/artifacts/qa/*.png
+/artifacts/qa/*.svg
 !/artifacts/qa/.gitkeep
+/artifacts/debug/
+/dev_*.tmp
+/.agents/
+/.clinerules
+/skills-lock.json
 
 # Generated slide exports (not source)
 slides/3-slides/append.html

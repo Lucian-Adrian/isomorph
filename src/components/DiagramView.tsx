@@ -28,12 +28,16 @@ interface DiagramViewProps {
   onActiveToolChange?: (tool: CanvasTool) => void;
   showToolRail?: boolean;
   showZoomControls?: boolean;
+  showEmptyState?: boolean;
   fitSignal?: number;
   onViewportChange?: (viewport: { zoom: number; pan: { x: number; y: number } }) => void;
   selectedItems?: { type: 'entity' | 'relation', id: string }[];
   onSelectionChange?: (selection: { type: 'entity' | 'relation', id: string }[]) => void;
   pendingDropKeyword?: string | null;
   onConsumePendingDrop?: () => void;
+  zoom?: number;
+  pan?: { x: number; y: number };
+  onRender?: (metrics: { latencyMs: number; svgLength: number }) => void;
 }
 
 export function DiagramView({
@@ -53,18 +57,66 @@ export function DiagramView({
   onActiveToolChange,
   showToolRail = true,
   showZoomControls = true,
+  showEmptyState = true,
   fitSignal,
   onViewportChange,
   selectedItems = [],
   onSelectionChange,
   pendingDropKeyword,
   onConsumePendingDrop,
+  zoom: propZoom,
+  pan: propPan,
+  onRender,
 }: DiagramViewProps) {
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
   const containerRef  = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(100);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+
+  const [localZoom, setLocalZoom] = useState(100);
+  const [localPan, setLocalPan] = useState({ x: 0, y: 0 });
+
+  const zoom = propZoom !== undefined ? propZoom : localZoom;
+  const pan = propPan !== undefined ? propPan : localPan;
+
+  const zoomRef = useRef(zoom);
+  const panRef = useRef(pan);
+  const onRenderRef = useRef(onRender);
+  const lastRenderedSvgRef = useRef<string>('');
+  useEffect(() => {
+    zoomRef.current = zoom;
+    panRef.current = pan;
+  }, [zoom, pan]);
+
+  useEffect(() => {
+    onRenderRef.current = onRender;
+  }, [onRender]);
+
+  const updateZoom = useCallback((updater: number | ((prev: number) => number)) => {
+    const next = typeof updater === 'function' ? updater(zoomRef.current) : updater;
+    if (propZoom === undefined) {
+      setLocalZoom(next);
+    }
+    onViewportChange?.({ zoom: next, pan: panRef.current });
+  }, [propZoom, onViewportChange]);
+
+  const updatePan = useCallback((updater: { x: number; y: number } | ((prev: { x: number; y: number }) => { x: number; y: number })) => {
+    const next = typeof updater === 'function' ? updater(panRef.current) : updater;
+    if (propPan === undefined) {
+      setLocalPan(next);
+    }
+    onViewportChange?.({ zoom: zoomRef.current, pan: next });
+  }, [propPan, onViewportChange]);
+
+  const updateViewport = useCallback((newZoom: number, newPan: { x: number; y: number }) => {
+    if (propZoom === undefined) {
+      setLocalZoom(newZoom);
+    }
+    if (propPan === undefined) {
+      setLocalPan(newPan);
+    }
+    onViewportChange?.({ zoom: newZoom, pan: newPan });
+  }, [propZoom, propPan, onViewportChange]);
+
   const [activeTool, setActiveTool] = useState<CanvasTool>('move');
   const [drawingEdge, setDrawingEdge] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
@@ -103,13 +155,13 @@ export function DiagramView({
     }
   }, [availableTools, controlledTool, activeTool]);
 
+  const lastResetDiagramRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    onViewportChange?.({ zoom, pan });
-  }, [zoom, pan, onViewportChange]);
-
-  useEffect(() => {
-    setPan({ x: 0, y: 0 });
-  }, [diagram?.name]);
+    if (diagram?.name !== lastResetDiagramRef.current) {
+      lastResetDiagramRef.current = diagram?.name;
+      updatePan({ x: 0, y: 0 });
+    }
+  }, [diagram?.name, updatePan]);
 
   const screenToCanvas = useCallback((clientX: number, clientY: number) => {
     const svgEl = containerRef.current?.querySelector('svg') as SVGSVGElement | null;
@@ -134,15 +186,16 @@ export function DiagramView({
     };
   }, [zoom, pan]);
 
-  const handleZoomIn  = useCallback(() => setZoom(z => Math.min(z + 20, 200)), []);
-  const handleZoomOut = useCallback(() => setZoom(z => Math.max(z - 20, 40)), []);
+  const handleZoomIn  = useCallback(() => updateZoom(z => Math.min(z + 20, 200)), [updateZoom]);
+  const handleZoomOut = useCallback(() => updateZoom(z => Math.max(z - 20, 40)), [updateZoom]);
   const handleFit     = useCallback(() => {
-    setZoom(100);
-    setPan({ x: 0, y: 0 });
-  }, []);
+    updateViewport(100, { x: 0, y: 0 });
+  }, [updateViewport]);
 
+  const lastFitSignalRef = useRef(fitSignal);
   useEffect(() => {
-    if (fitSignal == null) return;
+    if (fitSignal == null || fitSignal === lastFitSignalRef.current) return;
+    lastFitSignalRef.current = fitSignal;
     handleFit();
   }, [fitSignal, handleFit]);
 
@@ -164,18 +217,12 @@ export function DiagramView({
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         initialDistance = Math.sqrt(dx * dx + dy * dy);
-        setZoom(z => {
-          initialZoom = z;
-          return z;
-        });
+        initialZoom = zoomRef.current;
         touchPanStart = null;
       } else if (e.touches.length === 1 && !(e.target as Element)?.closest('g[data-entity-name]')) {
         // Start touch pan if we didn't touch an entity
         touchPanStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        setPan(p => {
-          initialPan = { ...p };
-          return p;
-        });
+        initialPan = { ...panRef.current };
       }
     };
 
@@ -190,12 +237,12 @@ export function DiagramView({
 
         // Snap to grid or limits
         newZoom = Math.max(40, Math.min(newZoom, 200));
-        setZoom(newZoom);
+        updateZoom(newZoom);
       } else if (e.touches.length === 1 && touchPanStart) {
         e.preventDefault();
         const dx = e.touches[0].clientX - touchPanStart.x;
         const dy = e.touches[0].clientY - touchPanStart.y;
-        setPan({
+        updatePan({
           x: initialPan.x + dx,
           y: initialPan.y + dy,
         });
@@ -222,7 +269,7 @@ export function DiagramView({
       el.removeEventListener('touchend', handleTouchEnd);
       el.removeEventListener('touchcancel', handleTouchEnd);
     };
-  }, [setZoom, setPan]);
+  }, [updateZoom, updatePan]);
 
   // Prevent browser native pinch-zoom
   useEffect(() => {
@@ -234,23 +281,24 @@ export function DiagramView({
         const rect = el.getBoundingClientRect();
         const mx = e.clientX - rect.left;
         const my = e.clientY - rect.top;
-        setZoom(z => {
-          const newZ = Math.min(Math.max(z - Math.sign(e.deltaY) * 10, 40), 200);
-          const scaleRatio = newZ / z;
-          setPan(p => ({
-            x: mx - (mx - p.x) * scaleRatio,
-            y: my - (my - p.y) * scaleRatio,
-          }));
-          return newZ;
-        });
+        const currentZoom = zoomRef.current;
+        const currentPan = panRef.current;
+        const newZ = Math.min(Math.max(currentZoom - Math.sign(e.deltaY) * 10, 40), 200);
+        const scaleRatio = newZ / currentZoom;
+        const newPan = {
+          x: mx - (mx - currentPan.x) * scaleRatio,
+          y: my - (my - currentPan.y) * scaleRatio,
+        };
+        updateViewport(newZ, newPan);
       } else {
         e.preventDefault();
-        setPan(p => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
+        const currentPan = panRef.current;
+        updatePan({ x: currentPan.x - e.deltaX, y: currentPan.y - e.deltaY });
       }
     };
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
-  }, []);
+  }, [updateViewport, updatePan]);
 
   // Keyboard shortcut: Ctrl+E → export SVG
   useEffect(() => {
@@ -269,11 +317,16 @@ export function DiagramView({
 
     if (!diagram) {
       el.innerHTML = '';
+      lastRenderedSvgRef.current = '';
       return;
     }
 
+    const startedAt = performance.now();
     const svg = renderDiagram(diagram);
+    if (svg === lastRenderedSvgRef.current) return;
+    lastRenderedSvgRef.current = svg;
     el.innerHTML = svg;
+    onRenderRef.current?.({ latencyMs: performance.now() - startedAt, svgLength: svg.length });
 
     const svgEl = el.querySelector('svg');
     if (!svgEl) return;
@@ -654,7 +707,7 @@ export function DiagramView({
     if (drag.mode === 'pan' && drag.panStartX != null && drag.panStartY != null) {
       const dx = e.clientX - drag.startClientX;
       const dy = e.clientY - drag.startClientY;
-      setPan({ x: drag.panStartX + dx, y: drag.panStartY + dy });
+      updatePan({ x: drag.panStartX + dx, y: drag.panStartY + dy });
       return;
     }
 
@@ -954,7 +1007,7 @@ export function DiagramView({
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
       {/* Empty state (no code typed at all) */}
-      {!diagram && (
+      {showEmptyState && !diagram && (
         <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none' }}>
           <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
             <title>{t('diagram.empty_placeholder')}</title>
@@ -975,7 +1028,7 @@ export function DiagramView({
       )}
 
       {/* Empty diagram state (diagram defined, but no entities) */}
-      {isDiagramEmpty && (
+      {showEmptyState && isDiagramEmpty && (
         <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none', zIndex: 10 }}>
           <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
             <title>{t('diagram.empty')}</title>

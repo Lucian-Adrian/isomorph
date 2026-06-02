@@ -37,4 +37,16 @@ describe('workspace shell components', () => {
     expect(host.textContent).toContain('Lines');
     cleanup();
   });
+
+  it('allows the bottom workbench status landmark to be localized', () => {
+    const { host, cleanup } = render(
+      <BottomWorkbench
+        ariaLabel="Starea spațiului de lucru"
+        metrics={[{ label: 'Linii', value: 42 }]}
+      />,
+    );
+
+    expect(host.querySelector('[aria-label="Starea spațiului de lucru"]')).not.toBeNull();
+    cleanup();
+  });
 });

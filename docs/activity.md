@@ -87,7 +87,7 @@ The connections (Transitions) in the Teacher's guide are formally ActivityEdge e
 Guard: A ValueSpecification that evaluates to a Boolean. As per the Teacher's Core, this is mandatory on Decision outputs.
 Syntax: [ condition ].
 Weight: UML 2.5.1 defines weight as the minimum number of tokens required to traverse the edge.
-Educational Context: Usually weight=1. The DSL should default to this but allow advanced syntax (e.g., {weight=2}) for future-proofing, even if the Teacher's guide ignores it.
+Educational Context: Usually weight=1. Treat advanced edge weighting as a future extension unless the grammar, parser, renderer, and tests all support it in the active codebase.
 3.2.2. ControlFlow vs. ObjectFlow
 ControlFlow: Edges connecting Actions or ControlNodes. They carry "Control Tokens" (markers of execution state).
 ObjectFlow: Edges that carry data (Objects/Data Tokens).

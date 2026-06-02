@@ -320,33 +320,6 @@ function renderNode(p: Placed): string {
   return s;
 }
 
-/** Styled "not yet implemented" placeholder for sequence and flow diagrams */
-export function renderPlaceholderDiagram(diag: IOMDiagram): string {
-  const entities = [...diag.entities.values()];
-  const canvasW = 640, canvasH = 200 + entities.length * 22;
-
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:'DM Sans',system-ui,sans-serif;background:#fafafa">\n`;
-  svg += `  <rect width="${canvasW}" height="${canvasH}" fill="var(--iso-bg-panel, #fafafa)"/>\n`;
-
-  // Header band
-  svg += `  <rect x="0" y="0" width="${canvasW}" height="60" fill="var(--iso-bg-panel, #f1f5f9)"/>\n`;
-  svg += `  <text x="24" y="26" font-size="14" font-weight="600" fill="var(--iso-text-body)">${escapeXml(diag.name)}</text>\n`;
-  svg += `  <text x="24" y="46" font-size="11" fill="var(--iso-text-muted)" font-style="italic">«${diag.kind} diagram» — renderer not yet implemented</text>\n`;
-
-  // Entity list
-  let rowY = 80;
-  for (const e of entities) {
-    svg += `  <text x="32" y="${rowY}" font-size="12" fill="var(--iso-text-muted)">`;
-    svg += `<tspan fill="var(--iso-text-muted)">${escapeXml(e.kind)} </tspan>`;
-    svg += `<tspan font-weight="600" fill="var(--iso-text)">${escapeXml(e.name)}</tspan>`;
-    svg += `</text>\n`;
-    rowY += 22;
-  }
-
-  svg += `</svg>`;
-  return svg;
-}
-
 // ─── Helpers ─────────────────────────────────────────────────
 
 function placeEntities(entities: IOMEntity[]): Placed[] {

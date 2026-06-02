@@ -32,6 +32,14 @@ export function boundsFromPoints(points: CanvasPoint[]): CanvasBounds {
   };
 }
 
+export function boundsFromStartEnd(start: CanvasPoint, end: CanvasPoint): CanvasBounds {
+  const x = Math.min(start.x, end.x);
+  const y = Math.min(start.y, end.y);
+  const width = Math.max(1, Math.abs(end.x - start.x));
+  const height = Math.max(1, Math.abs(end.y - start.y));
+  return { x, y, width, height };
+}
+
 export function elementsInBounds(state: CanvasState, bounds: CanvasBounds): string[] {
   const right = bounds.x + bounds.width;
   const bottom = bounds.y + bounds.height;
@@ -40,6 +48,21 @@ export function elementsInBounds(state: CanvasState, bounds: CanvasBounds): stri
       const elementRight = element.bounds.x + element.bounds.width;
       const elementBottom = element.bounds.y + element.bounds.height;
       return element.bounds.x >= bounds.x && element.bounds.y >= bounds.y && elementRight <= right && elementBottom <= bottom;
+    })
+    .map(element => element.id);
+}
+
+export function elementsIntersectingBounds(state: CanvasState, bounds: CanvasBounds): string[] {
+  const right = bounds.x + bounds.width;
+  const bottom = bounds.y + bounds.height;
+  return state.elements
+    .filter(element => {
+      const elementRight = element.bounds.x + element.bounds.width;
+      const elementBottom = element.bounds.y + element.bounds.height;
+      return element.bounds.x <= right
+        && elementRight >= bounds.x
+        && element.bounds.y <= bottom
+        && elementBottom >= bounds.y;
     })
     .map(element => element.id);
 }
@@ -78,7 +101,7 @@ export function createCanvasElement(input: {
     return { ...base, kind: 'text', text: input.text || 'Text', fontSize: 16 };
   }
   if (input.kind === 'image') {
-    return { ...base, kind: 'image', src: input.src || '', alt: input.text || 'Canvas image' };
+    return { ...base, kind: 'image', src: input.src || '', alt: input.text || 'Canvas image', fit: 'contain' };
   }
   if (input.kind === 'embed') {
     return { ...base, kind: 'embed', url: input.url || '', title: input.text };

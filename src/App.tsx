@@ -30,6 +30,7 @@ import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
 import { exportSVG, exportPNG } from './utils/exporter.js';
+import { parseCanvasStateText } from './canvas/canvasSerialization.js';
 import { EXAMPLES } from './data/examples.js';
 import type { IOMDiagram, IOMEntity } from './semantics/iom.js';
 import type { ParseError } from './parser/index.js';
@@ -177,21 +178,22 @@ function insertIntoPackage(source: string, targetPackage: string, declaration: s
   return insertBeforeAnnotations(source, declaration);
 }
 
-function findDiagramBlock(source: string): { start: number; openBrace: number; closeBrace: number } | null {
-  const headerRx = /(^|\n)[ \t]*diagram\s+\S+\s*:\s*\S+\s*\{/m;
-  const match = headerRx.exec(source);
-  if (!match) return null;
+function findDiagramBlock(source: string, diagramName?: string): { start: number; openBrace: number; closeBrace: number } | null {
+  const headerRx = /(^|\n)[ \t]*diagram\s+([A-Za-z_][\w]*)\s*:\s*\S+\s*\{/gm;
+  for (const match of source.matchAll(headerRx)) {
+    const start = (match.index ?? 0) + (match[1]?.length ?? 0);
+    const name = match[2];
+    if (diagramName && name !== diagramName) continue;
+    const openBrace = source.indexOf('{', start);
+    if (openBrace < 0) continue;
 
-  const start = (match.index ?? 0) + (match[1]?.length ?? 0);
-  const openBrace = source.indexOf('{', start);
-  if (openBrace < 0) return null;
-
-  let depth = 1;
-  for (let i = openBrace + 1; i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    if (source[i] === '}') {
-      depth--;
-      if (depth === 0) return { start, openBrace, closeBrace: i };
+    let depth = 1;
+    for (let i = openBrace + 1; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      if (source[i] === '}') {
+        depth--;
+        if (depth === 0) return { start, openBrace, closeBrace: i };
+      }
     }
   }
   return null;
@@ -290,9 +292,9 @@ function insertAtEnd(source: string, insertion: string): string {
  * keep one blank line between header, relations, and footer annotations.
  * This intentionally runs only on canvas-triggered rewrites, not manual typing.
  */
-function formatDiagramSource(source: string): string {
+export function formatDiagramSource(source: string, diagramName?: string): string {
   const s = source.replace(/\t/g, '  ');
-  const block = findDiagramBlock(s);
+  const block = findDiagramBlock(s, diagramName);
   if (!block) return s;
   const header = s.slice(block.start, block.openBrace + 1);
   const body = s.slice(block.openBrace + 1, block.closeBrace);
@@ -542,7 +544,16 @@ function removeEntityDeclaration(source: string, entityName: string): string {
   return source.slice(0, bounds.start) + source.slice(bounds.end);
 }
 
-function replaceEntityBody(source: string, entityName: string, newBody: string): string {
+export function replaceEntityBody(source: string, entityName: string, newBody: string, diagramName?: string): string {
+  if (diagramName) {
+    const block = findDiagramBlock(source, diagramName);
+    if (!block) return source;
+    const header = source.slice(block.start, block.openBrace + 1);
+    const body = source.slice(block.openBrace + 1, block.closeBrace);
+    const suffix = source.slice(block.closeBrace);
+    const updatedBody = replaceEntityBody(body, entityName, newBody);
+    return source.slice(0, block.start) + header + updatedBody + suffix;
+  }
   const bounds = findEntityBounds(source, entityName);
   if (!bounds) return source;
   if (bounds.bodyStart === -1) {
@@ -566,11 +577,21 @@ function entitySupportsStereotype(kind?: string): boolean {
 
 
 
-function updateEntityDeclaration(
+export function updateEntityDeclaration(
   source: string,
   entityName: string,
   updates: { name?: string; stereotype?: string; isAbstract?: boolean; kind?: string },
+  diagramName?: string,
 ): string {
+  if (diagramName) {
+    const block = findDiagramBlock(source, diagramName);
+    if (!block) return source;
+    const header = source.slice(block.start, block.openBrace + 1);
+    const body = source.slice(block.openBrace + 1, block.closeBrace);
+    const suffix = source.slice(block.closeBrace);
+    const updatedBody = updateEntityDeclaration(body, entityName, updates);
+    return source.slice(0, block.start) + header + updatedBody + suffix;
+  }
   const entityLine = new RegExp(`(^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+)${escapeRegex(entityName)}(\\b[^\\n]*)`, 'm');
   let next = source;
 
@@ -645,12 +666,22 @@ function normalizeBoundaryDeclaration(source: string, boundaryName: string, boun
   return source.slice(0, bounds.start) + normalized + source.slice(bounds.end);
 }
 
-function updateRelationById(
+export function updateRelationById(
   source: string,
   relationId: string,
   updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse'; fromMult?: string; toMult?: string; seqMessageType?: SequenceMessageType },
   diagramKind?: DiagramKind,
+  diagramName?: string,
 ): string {
+  if (diagramName) {
+    const block = findDiagramBlock(source, diagramName);
+    if (!block) return source;
+    const header = source.slice(block.start, block.openBrace + 1);
+    const body = source.slice(block.openBrace + 1, block.closeBrace);
+    const suffix = source.slice(block.closeBrace);
+    const updatedBody = updateRelationById(body, relationId, updates, diagramKind);
+    return source.slice(0, block.start) + header + updatedBody + suffix;
+  }
   const idxRaw = relationId.replace('rel_', '');
   const relationIdx = Number.parseInt(idxRaw, 10);
   if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
@@ -755,6 +786,7 @@ export default function App() {
   const [exportCount, setExportCount] = useState(0);
   const [fullCanvasMode, setFullCanvasMode] = useState<FullCanvasMode>('move');
   const parseTimingRef = useRef<number | null>(null);
+  const typingTimingRef = useRef<number | null>(null);
   const [newDiagramKind, setNewDiagramKind] = useState<DiagramKind>('class');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [tabToClose, setTabToClose] = useState<string | null>(null);
@@ -861,6 +893,44 @@ export default function App() {
   const activeDiagram = filteredDiagrams[safeDiagramIdx] ?? null;
   const productMode = resolveProductMode(routeHash, tabs.length > 0);
   const isFullCanvasRoute = productMode === 'canvas';
+
+  useEffect(() => {
+    if (parseTimingRef.current !== null) {
+      void logTelemetry({
+        userId: user?.id,
+        sessionId: telemetrySessionId ?? undefined,
+        diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+        eventType: 'parse',
+        payload: buildTelemetryEvent('parse', { latency_ms: parseTimingRef.current }).payload,
+      });
+    }
+  }, [parseResult, activeTab, savedDiagramIds, telemetrySessionId, user?.id]);
+
+  useEffect(() => {
+    if (analysisResult) {
+      void logTelemetry({
+        userId: user?.id,
+        sessionId: telemetrySessionId ?? undefined,
+        diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+        eventType: 'analyze',
+        payload: buildTelemetryEvent('analyze', { error_count: analysisResult.errors.length }).payload,
+      });
+    }
+  }, [analysisResult, activeTab, savedDiagramIds, telemetrySessionId, user?.id]);
+
+  useEffect(() => {
+    if (activeDiagram) {
+      const start = performance.now();
+      const latency_ms = Math.round(performance.now() - start);
+      void logTelemetry({
+        userId: user?.id,
+        sessionId: telemetrySessionId ?? undefined,
+        diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+        eventType: 'render',
+        payload: buildTelemetryEvent('render', { latency_ms }).payload,
+      });
+    }
+  }, [activeDiagram, activeTab, savedDiagramIds, telemetrySessionId, user?.id]);
 
   useEffect(() => {
     const onHashChange = () => setRouteHash(window.location.hash);
@@ -1525,9 +1595,15 @@ export default function App() {
   }, [selectedItems, updateActiveTab, activeDiagram, activeTab]);
 
   // ── Export callbacks (delegated to exporter module) ───────
+  const readActiveCanvasState = useCallback(() => {
+    const key = activeTab ? `isomorph-canvas:${activeTab.id}` : (isFullCanvasRoute ? 'isomorph-canvas:standalone' : null);
+    if (!key || typeof localStorage === 'undefined') return null;
+    return parseCanvasStateText(localStorage.getItem(key));
+  }, [activeTab, isFullCanvasRoute]);
+
   const handleExportSVG = useCallback(() => {
     const started = performance.now();
-    exportSVG(activeDiagram?.name ?? 'diagram');
+    exportSVG(activeDiagram?.name ?? 'diagram', '.iso-canvas-wrap svg', isFullCanvasRoute ? { canvasState: readActiveCanvasState() } : undefined);
     setExportCount(count => count + 1);
     void logTelemetry({
       userId: user?.id,
@@ -1536,11 +1612,11 @@ export default function App() {
       eventType: 'export',
       payload: buildTelemetryEvent('export', { format: 'svg', latency_ms: Math.round(performance.now() - started) }).payload,
     });
-  }, [activeDiagram, activeTab, savedDiagramIds, telemetrySessionId, user]);
+  }, [activeDiagram, activeTab, isFullCanvasRoute, readActiveCanvasState, savedDiagramIds, telemetrySessionId, user]);
 
   const handleExportPNG = useCallback(() => {
     const started = performance.now();
-    exportPNG(activeDiagram?.name ?? 'diagram');
+    exportPNG(activeDiagram?.name ?? 'diagram', '.iso-canvas-wrap svg', 2, isFullCanvasRoute ? { canvasState: readActiveCanvasState() } : undefined);
     setExportCount(count => count + 1);
     void logTelemetry({
       userId: user?.id,
@@ -1549,7 +1625,7 @@ export default function App() {
       eventType: 'export',
       payload: buildTelemetryEvent('export', { format: 'png', latency_ms: Math.round(performance.now() - started) }).payload,
     });
-  }, [activeDiagram, activeTab, savedDiagramIds, telemetrySessionId, user]);
+  }, [activeDiagram, activeTab, isFullCanvasRoute, readActiveCanvasState, savedDiagramIds, telemetrySessionId, user]);
 
   const handleAuth = useCallback(async (mode: 'sign-in' | 'sign-up') => {
     if (!supabase) {
@@ -1623,6 +1699,13 @@ export default function App() {
 
   const handleRemoteOpen = useCallback((diagram: SavedDiagram) => {
     const id = `tab-${slugId()}`;
+    if (diagram.canvas_state) {
+      try {
+        localStorage.setItem(`isomorph-canvas:${id}`, diagram.canvas_state);
+      } catch (err) {
+        console.error('Failed to restore canvas state to localStorage:', err);
+      }
+    }
     setTabs(prev => [...prev, {
       id,
       name: diagram.title,
@@ -2021,6 +2104,15 @@ export default function App() {
 
   const handleSourceChange = useCallback((value: string) => {
     const previousLength = source.length;
+    const now = performance.now();
+    const lastTime = typingTimingRef.current ?? now;
+    const duration_ms = Math.round(now - lastTime);
+    typingTimingRef.current = now;
+
+    const previousLines = source.split('\n').length;
+    const currentLines = value.split('\n').length;
+    const lines_modified = Math.abs(currentLines - previousLines);
+
     updateActiveTab(tab => ({ ...tab, source: value }));
     if (Math.abs(value.length - previousLength) > 20) {
       setPasteCount(count => count + 1);
@@ -2037,10 +2129,10 @@ export default function App() {
         sessionId: telemetrySessionId ?? undefined,
         diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
         eventType: 'editor_typing',
-        payload: buildTelemetryEvent('editor_typing', { delta_chars: value.length - previousLength, duration_ms: 0 }).payload,
+        payload: buildTelemetryEvent('editor_typing', { delta_chars: value.length - previousLength, duration_ms, lines_modified }).payload,
       });
     }
-  }, [activeTab, savedDiagramIds, source.length, telemetrySessionId, updateActiveTab, user?.id]);
+  }, [activeTab, savedDiagramIds, source, telemetrySessionId, updateActiveTab, user?.id]);
 
   const sourcePane = (
     <SourcePanel
@@ -2318,6 +2410,41 @@ export default function App() {
       )}
     </div>
   );
+
+  if (tabs.length === 0 && isFullCanvasRoute) {
+    return (
+      <div className="iso-shell">
+        <main className="iso-main" aria-label="Full canvas route">
+          <FullCanvasShell
+            diagram={null}
+            language={language}
+            mode={fullCanvasMode}
+            zoomLabel={`${fullCanvasZoom}%`}
+            canSave={false}
+            canExport={false}
+            strictUmlEnabled={isUMLCompliant}
+            statusLabel="Canvas"
+            onModeChange={setFullCanvasMode}
+            onFitCanvas={handleFullCanvasFit}
+            onExportSVG={() => {}}
+            onExportPNG={() => {}}
+            onBack={() => { window.location.hash = routeForMode('ide'); }}
+            onShare={() => setActiveOverlay('cloud')}
+            onOpenShortcuts={() => setShortcutsOpen(true)}
+            onValidate={handleValidateFocus}
+            onStrictUmlChange={setIsUMLCompliant}
+            selectedItems={selectedItems}
+            onSelectionChange={setSelectedItems}
+            pendingDropKeyword={null}
+            onConsumePendingDrop={() => {}}
+            fitSignal={fullCanvasFitToken}
+            onViewportChange={handleFullCanvasViewportChange}
+            canvasStorageKey="isomorph-canvas:standalone"
+          />
+        </main>
+      </div>
+    );
+  }
 
   if (tabs.length === 0) {
     return (
@@ -2825,6 +2952,7 @@ export default function App() {
             zoomLabel={`${fullCanvasZoom}%`}
             canSave={Boolean(activeTab && user)}
             canExport={Boolean(activeDiagram)}
+            strictUmlEnabled={isUMLCompliant}
             statusLabel={statusLabel}
             onModeChange={setFullCanvasMode}
             onFitCanvas={handleFullCanvasFit}
@@ -2835,6 +2963,7 @@ export default function App() {
             onShare={() => setActiveOverlay('cloud')}
             onOpenShortcuts={() => setShortcutsOpen(true)}
             onValidate={handleValidateFocus}
+            onStrictUmlChange={setIsUMLCompliant}
             onEntityMove={handleEntityMove}
             onEntityResize={handleEntityResize}
             onRelationVerticalMove={handleRelationVerticalMove}

@@ -2,9 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import React, { act } from 'react';
 import { AuthCloudPanel } from '../../src/components/AuthCloudPanel.js';
+import { AuthModal } from '../../src/components/AuthModal.js';
 import { CodegenPanel } from '../../src/components/CodegenPanel.js';
 import { MetricsPanel } from '../../src/components/MetricsPanel.js';
+import { MetricsDrawer } from '../../src/components/MetricsDrawer.js';
 import { FullCanvasShell } from '../../src/components/FullCanvasShell.js';
+import { WorkspaceOverlayHost } from '../../src/components/workspace/WorkspaceOverlayHost.js';
 import type { IOMDiagram } from '../../src/semantics/iom.js';
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -58,6 +61,36 @@ describe('Worker C shell panels', () => {
     expect(onDownloadCode).toHaveBeenCalledWith({ language: 'python', output: 'class User:\n    pass\n', diagramName: 'UserDiagram' });
     expect(onCopyInspectorJson).toHaveBeenCalledWith('{"ast":{},"iom":{}}');
     expect(onDownloadBundle).toHaveBeenCalledOnce();
+    cleanup();
+  });
+
+  it('CodegenPanel localizes unsupported-codegen state and removes the generate call to action', () => {
+    const onGenerate = vi.fn();
+    const { host, cleanup } = render(
+      React.createElement(CodegenPanel, {
+        language: 'python',
+        uiLanguage: 'ro',
+        output: '',
+        inspectorJson: '{}',
+        canGenerate: false,
+        statusMessage: 'Generarea codului este disponibilă doar pentru diagrame de clase.',
+        onLanguageChange: vi.fn(),
+        onGenerate,
+        onCopyCode: vi.fn(),
+        onDownloadCode: vi.fn(),
+        onCopyInspectorJson: vi.fn(),
+      }),
+    );
+
+    const primary = host.querySelector('.iso-btn--primary') as HTMLButtonElement | null;
+    expect(host.textContent).toContain('Generare cod');
+    expect(host.textContent).toContain('Limbaj');
+    expect(primary?.textContent).toBe('Indisponibil');
+    expect(primary?.disabled).toBe(true);
+    expect(host.querySelector('textarea')?.getAttribute('placeholder')).toBe('Tip de diagramă nesuportat');
+
+    act(() => primary?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    expect(onGenerate).not.toHaveBeenCalled();
     cleanup();
   });
 
@@ -117,6 +150,53 @@ describe('Worker C shell panels', () => {
     cleanup();
   });
 
+  it('AuthModal and cloud auth form localize account copy', () => {
+    const { host, cleanup } = render(
+      <AuthModal
+        open
+        uiLanguage="ru"
+        onClose={vi.fn()}
+        isConfigured={false}
+        remoteDiagrams={[]}
+        authEmail=""
+        authPassword=""
+        onAuthEmailChange={vi.fn()}
+        onAuthPasswordChange={vi.fn()}
+        onSignIn={vi.fn()}
+        onSignUp={vi.fn()}
+        onSave={vi.fn()}
+        onSignOut={vi.fn()}
+        onOpenRemote={vi.fn()}
+      />,
+    );
+
+    expect(host.textContent).toContain('Аккаунт и облако');
+    expect(host.textContent).toContain('Укажите переменные окружения Supabase для облачной синхронизации.');
+    expect(host.querySelector('input[type="email"]')?.getAttribute('placeholder')).toBe('Эл. почта');
+    expect(host.querySelector('input[type="password"]')?.getAttribute('placeholder')).toBe('Пароль');
+    expect(host.textContent).toContain('Войти');
+    expect(host.textContent).toContain('Зарегистрироваться');
+    cleanup();
+  });
+
+  it('WorkspaceOverlayHost localizes dock labels and close action', () => {
+    const { host, cleanup } = render(
+      <WorkspaceOverlayHost
+        uiLanguage="ro"
+        activeOverlay="codegen"
+        codegenPanel={<div>cod</div>}
+        metricsPanel={<div>metrici</div>}
+        onClose={vi.fn()}
+        onSelectOverlay={vi.fn()}
+      />,
+    );
+
+    expect(host.textContent).toContain('Cod generat');
+    expect(host.textContent).toContain('Metrici');
+    expect(host.querySelector('[aria-label="Închide panoul spațiului de lucru"]')).not.toBeNull();
+    cleanup();
+  });
+
   it('MetricsPanel shows compact report-ready numbers', () => {
     const { host, cleanup } = render(
       <MetricsPanel
@@ -140,10 +220,35 @@ describe('Worker C shell panels', () => {
     cleanup();
   });
 
+  it('MetricsPanel exposes parse, analyze, render, and typing research metrics', () => {
+    const { host, cleanup } = render(
+      <MetricsPanel
+        metrics={{
+          parseLatencyMs: 11,
+          analyzeLatencyMs: 22,
+          renderLatencyMs: 33,
+          typingDurationMs: 444,
+          linesModified: 5,
+        }}
+      />,
+    );
+
+    expect(host.textContent).toContain('Parse');
+    expect(host.textContent).toContain('11ms');
+    expect(host.textContent).toContain('Analyze');
+    expect(host.textContent).toContain('22ms');
+    expect(host.textContent).toContain('Render');
+    expect(host.textContent).toContain('33ms');
+    expect(host.textContent).toContain('Typing duration');
+    expect(host.textContent).toContain('444ms');
+    expect(host.textContent).toContain('Lines modified');
+    expect(host.textContent).toContain('5');
+    cleanup();
+  });
+
   it('FullCanvasShell exposes toolbar actions and mode changes', () => {
     const onModeChange = vi.fn();
     const onBack = vi.fn();
-    const onSave = vi.fn();
     const diagram: IOMDiagram = {
       name: 'CanvasDiagram',
       kind: 'class',
@@ -161,10 +266,7 @@ describe('Worker C shell panels', () => {
       <FullCanvasShell
         diagram={diagram}
         mode="move"
-        zoomLabel="100%"
-        fitLabel="Fit"
         onModeChange={onModeChange}
-        onSave={onSave}
         onExportSVG={vi.fn()}
         onExportPNG={vi.fn()}
         onBack={onBack}
@@ -172,14 +274,55 @@ describe('Worker C shell panels', () => {
     );
 
     act(() => host.querySelector('[aria-label="Hand"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
-    act(() => Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Save')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     act(() => Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Back')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 
     expect(host.querySelector('.iso-full-canvas-shell')).not.toBeNull();
-    expect(host.textContent).toContain('100%');
     expect(onModeChange).toHaveBeenCalledWith('hand');
-    expect(onSave).toHaveBeenCalledOnce();
     expect(onBack).toHaveBeenCalledOnce();
+    cleanup();
+  });
+
+  it('MetricsPanel localizes report labels', () => {
+    const { host, cleanup } = render(
+      <MetricsPanel
+        uiLanguage="ru"
+        metrics={{
+          compileLatencyMs: 12,
+          saveLatencyMs: 34,
+          codegenLatencyMs: 56,
+          generatedLoc: 78,
+          estimatedMinutesSaved: 35,
+          copyCount: 2,
+          pasteCount: 3,
+          exportCount: 4,
+          lineCount: 91,
+          entityCount: 5,
+          relationCount: 6,
+        }}
+      />,
+    );
+
+    expect(host.querySelector('[aria-label="Метрики"]')).not.toBeNull();
+    expect(host.textContent).toContain('Компиляция');
+    expect(host.textContent).toContain('Сгенерированные строки кода');
+    expect(host.textContent).toContain('Сэкономленное время');
+    expect(host.textContent).toContain('Строки исходника');
+    cleanup();
+  });
+
+  it('MetricsDrawer localizes dialog chrome', () => {
+    const { host, cleanup } = render(
+      <MetricsDrawer
+        open
+        uiLanguage="ro"
+        onClose={vi.fn()}
+        metrics={{ generatedLoc: 12 }}
+      />,
+    );
+
+    expect(host.querySelector('[aria-label="Raport de metrici"]')).not.toBeNull();
+    expect(host.querySelector('[aria-label="Închide metricile"]')).not.toBeNull();
+    expect(host.textContent).toContain('Metrici');
     cleanup();
   });
 
@@ -203,7 +346,6 @@ describe('Worker C shell panels', () => {
         diagram={diagram}
         mode="move"
         onModeChange={onModeChange}
-        onSave={vi.fn()}
         onExportSVG={vi.fn()}
         onExportPNG={vi.fn()}
         onBack={vi.fn()}

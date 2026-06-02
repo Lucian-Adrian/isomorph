@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { DiagramView } from './DiagramView.js';
 import type { CanvasTool } from './DiagramView.js';
 import { IconChevron, IconDiagram } from './Icons.js';
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
 import type { Language } from '../i18n.js';
 import { CanvasToolbar } from './CanvasToolbar.js';
-import { CanvasPropertiesStrip } from './CanvasPropertiesStrip.js';
+import { CanvasPropertiesPanel } from './CanvasPropertiesPanel.js';
 import { DEFAULT_CANVAS_STYLE } from '../canvas/canvasStyle.js';
-import type { CanvasElement, CanvasState } from '../canvas/canvasTypes.js';
+import type { CanvasElement, CanvasState, CanvasStyle, CanvasDraftSemanticLink, CanvasBounds } from '../canvas/canvasTypes.js';
 import { createEmptyCanvasState, parseCanvasStateText, serializeCanvasState } from '../canvas/canvasSerialization.js';
-import { createCanvasElement } from '../canvas/canvasTools.js';
+import { createCanvasElement, boundsFromPoints, boundsFromStartEnd, elementsIntersectingBounds } from '../canvas/canvasTools.js';
 import { reduceCanvasState } from '../canvas/canvasState.js';
+import { constrainToSquare, constrainLineAngle } from '../canvas/canvasConstraints.js';
 
 export type FullCanvasMode =
   | 'move'
@@ -39,16 +40,18 @@ export interface FullCanvasShellProps {
   fitLabel?: string;
   canSave?: boolean;
   canExport?: boolean;
+  strictUmlEnabled?: boolean;
   statusLabel?: string;
   onModeChange: (mode: FullCanvasMode) => void;
   onFitCanvas?: () => void;
-  onSave: () => void;
+  onSave?: () => void;
   onExportSVG: () => void;
   onExportPNG: () => void;
   onBack: () => void;
   onShare?: () => void;
   onOpenShortcuts?: () => void;
   onValidate?: () => void;
+  onStrictUmlChange?: (enabled: boolean) => void;
   onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => void;
   onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number) => void;
   onEntityEditRequest?: (entity: IOMEntity) => void;
@@ -67,6 +70,20 @@ export interface FullCanvasShellProps {
   canvasStorageKey?: string;
   onCanvasStateChange?: (state: CanvasState) => void;
 }
+
+type Point = { x: number; y: number };
+type PanningGesture = { startPointer: Point; startPan: Point };
+type ElementDragGesture = {
+  elementId: string;
+  startPointer: Point;
+  startBoundsMap: Record<string, CanvasBounds>;
+};
+type DrawingGesture = {
+  elementId: string;
+  mode: FullCanvasMode;
+  start: Point;
+  points: Point[];
+};
 
 function toolsForMode(mode: FullCanvasMode): CanvasTool[] {
   if (mode === 'add-edge' || mode === 'arrow' || mode === 'line') return ['add-edge', 'edit-node', 'edit-edge'];
@@ -119,92 +136,12 @@ function isPathMode(mode: FullCanvasMode): boolean {
   return mode === 'pen' || mode === 'eraser' || mode === 'laser' || mode === 'lasso';
 }
 
-function pointFromEvent(event: React.PointerEvent<SVGSVGElement>) {
-  const rect = event.currentTarget.getBoundingClientRect();
-  return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
-  };
-}
-
-function boundsFromStartEnd(start: { x: number; y: number }, end: { x: number; y: number }) {
-  return {
-    x: Math.min(start.x, end.x),
-    y: Math.min(start.y, end.y),
-    width: Math.max(1, Math.abs(end.x - start.x)),
-    height: Math.max(1, Math.abs(end.y - start.y)),
-  };
-}
-
 function titleForCanvasMode(mode: FullCanvasMode): string | undefined {
   if (mode === 'text') return 'Text';
   if (mode === 'uml-package') return 'Package';
   if (mode === 'frame') return 'Frame';
   if (mode === 'embed') return 'Web embed';
   return undefined;
-}
-
-function renderFreeformElement(element: CanvasElement) {
-  const common = {
-    stroke: element.style.stroke,
-    fill: element.kind === 'line' || element.kind === 'arrow' || element.kind === 'pen' ? 'none' : element.style.fill,
-    strokeWidth: element.style.strokeWidth,
-    opacity: element.style.opacity,
-  };
-
-  if (element.kind === 'ellipse') {
-    return (
-      <ellipse
-        key={element.id}
-        cx={element.bounds.x + element.bounds.width / 2}
-        cy={element.bounds.y + element.bounds.height / 2}
-        rx={element.bounds.width / 2}
-        ry={element.bounds.height / 2}
-        {...common}
-      />
-    );
-  }
-  if (element.kind === 'line' || element.kind === 'arrow') {
-    const x1 = element.bounds.x;
-    const y1 = element.bounds.y;
-    const x2 = element.bounds.x + element.bounds.width;
-    const y2 = element.bounds.y + element.bounds.height;
-    return (
-      <g key={element.id}>
-        <line x1={x1} y1={y1} x2={x2} y2={y2} {...common} markerEnd={element.kind === 'arrow' ? 'url(#isx-freeform-arrow)' : undefined} />
-      </g>
-    );
-  }
-  if (element.kind === 'pen' || element.kind === 'eraser' || element.kind === 'laser' || element.kind === 'lasso') {
-    const points = 'points' in element ? element.points : [];
-    const path = points.length > 0
-      ? points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
-      : `M ${element.bounds.x} ${element.bounds.y} L ${element.bounds.x + element.bounds.width} ${element.bounds.y + element.bounds.height}`;
-    return <path key={element.id} d={path} {...common} strokeDasharray={element.kind === 'lasso' ? '6 4' : undefined} />;
-  }
-  if (element.kind === 'text') {
-    return (
-      <text key={element.id} x={element.bounds.x} y={element.bounds.y + 18} fill={element.style.text} opacity={element.style.opacity} fontSize={'fontSize' in element ? element.fontSize : 16}>
-        {'text' in element ? element.text : 'Text'}
-      </text>
-    );
-  }
-  if (element.kind === 'image') {
-    return (
-      <g key={element.id}>
-        <rect {...element.bounds} {...common} strokeDasharray="6 4" />
-        <text x={element.bounds.x + 12} y={element.bounds.y + 24} fill={element.style.text} fontSize={13}>Image</text>
-      </g>
-    );
-  }
-  const dashed = element.kind === 'frame' || element.kind === 'embed' || element.kind === 'uml-package';
-  return (
-    <g key={element.id}>
-      <rect rx={element.kind === 'rectangle' ? 6 : 2} {...element.bounds} {...common} strokeDasharray={dashed ? '8 5' : undefined} />
-      {'title' in element && element.title ? <text x={element.bounds.x + 10} y={element.bounds.y + 22} fill={element.style.text} fontSize={13}>{element.title}</text> : null}
-      {element.kind === 'embed' ? <text x={element.bounds.x + 10} y={element.bounds.y + 42} fill={element.style.text} fontSize={12}>Web embed</text> : null}
-    </g>
-  );
 }
 
 export function FullCanvasShell({
@@ -215,6 +152,7 @@ export function FullCanvasShell({
   fitLabel = 'Fit',
   canSave = true,
   canExport = true,
+  strictUmlEnabled,
   statusLabel,
   onModeChange,
   onFitCanvas,
@@ -225,6 +163,7 @@ export function FullCanvasShell({
   onShare,
   onOpenShortcuts,
   onValidate,
+  onStrictUmlChange,
   onEntityMove,
   onEntityResize,
   onEntityEditRequest,
@@ -243,23 +182,51 @@ export function FullCanvasShell({
   canvasStorageKey,
   onCanvasStateChange,
 }: FullCanvasShellProps) {
-  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const moreToolsRef = useRef<HTMLDivElement>(null);
+  const moreActionsRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  const [drawing, setDrawing] = useState<{
-    elementId: string;
-    mode: FullCanvasMode;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [zoom, setZoom] = useState(100);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const modeRef = useRef(mode);
+  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
+  const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+  
+  const [selectionDrag, setSelectionDrag] = useState<{
     start: { x: number; y: number };
-    points: Array<{ x: number; y: number }>;
+    current: { x: number; y: number };
   } | null>(null);
+
+  const [panningCanvas, setPanningCanvas] = useState<PanningGesture | null>(null);
+  const panningCanvasRef = useRef<PanningGesture | null>(null);
+
+  const [draggingElement, setDraggingElement] = useState<ElementDragGesture | null>(null);
+  const draggingElementRef = useRef<ElementDragGesture | null>(null);
+
+  const [resizingElement, setResizingElement] = useState<{
+    elementId: string;
+    startPointer: { x: number; y: number };
+    startBounds: CanvasBounds;
+  } | null>(null);
+
+  const [drawing, setDrawing] = useState<DrawingGesture | null>(null);
+  const drawingRef = useRef<DrawingGesture | null>(null);
+
+  const [replacingImageId, setReplacingImageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
   const [canvasState, setCanvasState] = useState<CanvasState>(() => {
     if (!canvasStorageKey || typeof localStorage === 'undefined') return createEmptyCanvasState();
     return parseCanvasStateText(localStorage.getItem(canvasStorageKey));
   });
+
   const hasDiagram = Boolean(diagram);
   const semanticMode = modeToDiagramTool(mode);
   const canvasTool = activeTool ?? modeToCanvasTool(mode);
-  const hasCanvasSelection = canvasState.selectedElementIds.length > 0;
 
   useEffect(() => {
     if (!canvasStorageKey || typeof localStorage === 'undefined') return;
@@ -273,69 +240,961 @@ export function FullCanvasShell({
     onCanvasStateChange?.(canvasState);
   }, [canvasState, canvasStorageKey, onCanvasStateChange]);
 
+  const persistCanvasSnapshot = useCallback((state: CanvasState) => {
+    if (canvasStorageKey && typeof localStorage !== 'undefined') {
+      localStorage.setItem(canvasStorageKey, serializeCanvasState(state));
+    }
+    onCanvasStateChange?.(state);
+  }, [canvasStorageKey, onCanvasStateChange]);
+
   useEffect(() => {
-    if (!moreMenuOpen) return;
+    setCanvasState(state => {
+      const zScale = zoom / 100;
+      if (state.viewport.x === pan.x && state.viewport.y === pan.y && state.viewport.zoom === zScale) {
+        return state;
+      }
+      return {
+        ...state,
+        viewport: { x: pan.x, y: pan.y, zoom: zScale },
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  }, [pan, zoom]);
+
+  useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
-      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
-        setMoreMenuOpen(false);
+      const target = event.target as Node;
+      if (moreToolsRef.current && !moreToolsRef.current.contains(target)) {
+        setMoreToolsOpen(false);
+      }
+      if (moreActionsRef.current && !moreActionsRef.current.contains(target)) {
+        setMoreActionsOpen(false);
       }
     };
     document.addEventListener('click', handleOutsideClick);
     return () => document.removeEventListener('click', handleOutsideClick);
-  }, [moreMenuOpen]);
+  }, []);
+
+  useEffect(() => {
+    if (mode === 'image') {
+      fileInputRef.current?.click();
+    }
+  }, [mode]);
+
+  const handleStyleChange = useCallback((patch: Partial<CanvasStyle>) => {
+    setCanvasState(state => {
+      if (state.selectedElementIds.length > 0) {
+        const elements = state.elements.map(el => {
+          if (state.selectedElementIds.includes(el.id)) {
+            return {
+              ...el,
+              style: { ...el.style, ...patch },
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return el;
+        });
+        const next = { ...state, elements, updatedAt: new Date().toISOString() };
+        persistCanvasSnapshot(next);
+        return next;
+      } else {
+        const next = {
+          ...state,
+          styleDefaults: { ...state.styleDefaults, ...patch },
+          updatedAt: new Date().toISOString(),
+        };
+        persistCanvasSnapshot(next);
+        return next;
+      }
+    });
+  }, [persistCanvasSnapshot]);
+
+  const handleElementChange = useCallback((patch: Partial<CanvasElement>) => {
+    setCanvasState(state => {
+      const elements = state.elements.map(el => {
+        if (state.selectedElementIds.includes(el.id)) {
+          return {
+            ...el,
+            ...patch,
+            updatedAt: new Date().toISOString(),
+          } as CanvasElement;
+        }
+        return el;
+      });
+      const next = { ...state, elements, updatedAt: new Date().toISOString() };
+      persistCanvasSnapshot(next);
+      return next;
+    });
+  }, [persistCanvasSnapshot]);
+
+  const handleDraftSemanticLink = useCallback((targetKind: CanvasDraftSemanticLink['targetKind']) => {
+    setCanvasState(state => {
+      if (state.selectedElementIds.length !== 1) return state;
+      const targetId = state.selectedElementIds[0];
+      const existingIdx = state.draftSemanticLinks.findIndex(l => l.canvasElementId === targetId);
+      const newLink: CanvasDraftSemanticLink = {
+        id: `link-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+        canvasElementId: targetId,
+        targetKind,
+        status: 'draft',
+      };
+      const draftSemanticLinks = [...state.draftSemanticLinks];
+      if (existingIdx >= 0) {
+        draftSemanticLinks[existingIdx] = {
+          ...draftSemanticLinks[existingIdx],
+          targetKind,
+          status: 'draft',
+        };
+      } else {
+        draftSemanticLinks.push(newLink);
+      }
+      return { ...state, draftSemanticLinks, updatedAt: new Date().toISOString() };
+    });
+  }, []);
+
+  const handleDeleteSelected = useCallback(() => {
+    setCanvasState(state => {
+      const elements = state.elements.filter(el => !state.selectedElementIds.includes(el.id));
+      const draftSemanticLinks = state.draftSemanticLinks.filter(l => !state.selectedElementIds.includes(l.canvasElementId));
+      return {
+        ...state,
+        elements,
+        selectedElementIds: [],
+        draftSemanticLinks,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  }, []);
+
+  const handleBringForward = useCallback(() => {
+    setCanvasState(state => {
+      const next = reduceCanvasState(state, { type: 'bring-forward', ids: state.selectedElementIds });
+      persistCanvasSnapshot(next);
+      return next;
+    });
+  }, [persistCanvasSnapshot]);
+
+  const handleSendBackward = useCallback(() => {
+    setCanvasState(state => {
+      const next = reduceCanvasState(state, { type: 'send-backward', ids: state.selectedElementIds });
+      persistCanvasSnapshot(next);
+      return next;
+    });
+  }, [persistCanvasSnapshot]);
+
+  const handleDuplicate = useCallback(() => {
+    setCanvasState(state => {
+      const toDuplicate = state.elements.filter(el => state.selectedElementIds.includes(el.id));
+      if (toDuplicate.length === 0) return state;
+
+      const newElements: CanvasElement[] = [];
+      const newIds: string[] = [];
+      
+      for (const el of toDuplicate) {
+        const newId = `canvas-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+        const bounds = {
+          ...el.bounds,
+          x: el.bounds.x + 20,
+          y: el.bounds.y + 20,
+        };
+        const newEl = {
+          ...el,
+          id: newId,
+          bounds,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as CanvasElement;
+        
+        newElements.push(newEl);
+        newIds.push(newId);
+      }
+
+      return {
+        ...state,
+        elements: [...state.elements, ...newElements],
+        selectedElementIds: newIds,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  }, []);
+
+  const handleReplaceImage = useCallback(() => {
+    setCanvasState(state => {
+      if (state.selectedElementIds.length === 1) {
+        const el = state.elements.find(e => e.id === state.selectedElementIds[0]);
+        if (el && el.kind === 'image') {
+          setReplacingImageId(el.id);
+          fileInputRef.current?.click();
+        }
+      }
+      return state;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.tagName === 'SELECT' ||
+          activeEl.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        event.preventDefault();
+        handleDeleteSelected();
+        return;
+      }
+
+      const toolKeys: Record<string, FullCanvasMode> = {
+        '1': 'locked',
+        '2': 'rectangle',
+        '3': 'ellipse',
+        '4': 'arrow',
+        '5': 'line',
+        '6': 'pen',
+        '7': 'text',
+        '8': 'image',
+        '9': 'eraser',
+        '0': 'eraser',
+        'v': 'move',
+        'V': 'move',
+        'h': 'hand',
+        'H': 'hand',
+      };
+      const targetMode = toolKeys[event.key];
+      if (targetMode) {
+        event.preventDefault();
+        onModeChange(targetMode);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleDeleteSelected, onModeChange]);
+
+  const getCanvasCoords = (clientX: number, clientY: number) => {
+    const rect = overlayRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    const scale = zoom / 100;
+    return {
+      x: (clientX - rect.left - pan.x) / scale,
+      y: (clientY - rect.top - pan.y) / scale,
+    };
+  };
+
+  const deleteIntersecting = (p1: { x: number; y: number }, p2: { x: number; y: number }) => {
+    const strokeBounds = boundsFromStartEnd(p1, p2);
+    setCanvasState(state => {
+      const intersectingIds = elementsIntersectingBounds(state, strokeBounds);
+      if (intersectingIds.length === 0) return state;
+      const elements = state.elements.filter(el => !intersectingIds.includes(el.id));
+      const draftSemanticLinks = state.draftSemanticLinks.filter(l => !intersectingIds.includes(l.canvasElementId));
+      return {
+        ...state,
+        elements,
+        selectedElementIds: state.selectedElementIds.filter(id => !intersectingIds.includes(id)),
+        draftSemanticLinks,
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  };
 
   const handleFreeformPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (!isFreeformMode(mode)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const { x, y } = pointFromEvent(event);
-    const defaultSize = mode === 'text' ? { width: 120, height: 32 } : { width: 140, height: 90 };
-    const elementId = `canvas-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-    const element = createCanvasElement({
-      id: elementId,
-      kind: canvasKindForMode(mode),
-      bounds: isDragDrawMode(mode) ? { x, y, width: 1, height: 1 } : { x, y, ...defaultSize },
-      style: canvasState.styleDefaults,
-      text: titleForCanvasMode(mode),
-      points: [{ x, y }],
-    });
-    setCanvasState(state => reduceCanvasState(state, { type: 'add-element', element }));
-    if (isDragDrawMode(mode)) {
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-      setDrawing({ elementId, mode, start: { x, y }, points: [{ x, y }] });
+    const target = event.target as SVGElement;
+    const currentMode = (event.currentTarget.dataset.canvasMode as FullCanvasMode | undefined) ?? modeRef.current;
+    
+    if (currentMode === 'hand') {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch (e) {}
+      const gesture = {
+        startPointer: { x: event.clientX, y: event.clientY },
+        startPan: { ...pan },
+      };
+      panningCanvasRef.current = gesture;
+      setPanningCanvas(gesture);
+      return;
+    }
+
+    const clientPos = getCanvasCoords(event.clientX, event.clientY);
+
+    if (currentMode === 'move') {
+      const resizeHandleId = target.getAttribute('data-resize-element-id');
+      if (resizeHandleId) {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch (e) {}
+        const element = canvasState.elements.find(el => el.id === resizeHandleId);
+        if (element) {
+          setResizingElement({
+            elementId: resizeHandleId,
+            startPointer: clientPos,
+            startBounds: { ...element.bounds },
+          });
+        }
+        return;
+      }
+
+      const clickedElement = [...canvasState.elements]
+        .sort((a, b) => b.layer - a.layer)
+        .find(el => {
+          const pad = 4;
+          return (
+            clientPos.x >= el.bounds.x - pad &&
+            clientPos.x <= el.bounds.x + el.bounds.width + pad &&
+            clientPos.y >= el.bounds.y - pad &&
+            clientPos.y <= el.bounds.y + el.bounds.height + pad
+          );
+        });
+
+      if (clickedElement) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        if (clickedElement.locked) {
+          setCanvasState(state => {
+            const isAlreadySelected = state.selectedElementIds.includes(clickedElement.id);
+            const selectedElementIds = event.shiftKey
+              ? (isAlreadySelected ? state.selectedElementIds.filter(id => id !== clickedElement.id) : [...state.selectedElementIds, clickedElement.id])
+              : [clickedElement.id];
+            return { ...state, selectedElementIds };
+          });
+          return;
+        }
+
+        try {
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch (e) {}
+        
+        const startBoundsMap: Record<string, CanvasBounds> = {};
+        const alreadySelected = canvasState.selectedElementIds.includes(clickedElement.id);
+        const nextSelectedIds = event.shiftKey
+          ? (alreadySelected ? canvasState.selectedElementIds : [...canvasState.selectedElementIds, clickedElement.id])
+          : alreadySelected && canvasState.selectedElementIds.length > 1
+            ? canvasState.selectedElementIds
+          : [clickedElement.id];
+
+        canvasState.elements.forEach(el => {
+          if (nextSelectedIds.includes(el.id)) {
+            startBoundsMap[el.id] = { ...el.bounds };
+          }
+        });
+        if (!startBoundsMap[clickedElement.id]) {
+          startBoundsMap[clickedElement.id] = { ...clickedElement.bounds };
+        }
+
+        const gesture: ElementDragGesture = {
+          elementId: clickedElement.id,
+          startPointer: clientPos,
+          startBoundsMap,
+        };
+        draggingElementRef.current = gesture;
+        setDraggingElement(gesture);
+
+        setCanvasState(state => ({
+          ...state,
+          selectedElementIds: nextSelectedIds,
+        }));
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch (e) {}
+      
+      setCanvasState(state => {
+        if (state.selectedElementIds.length === 0) return state;
+        const next = { ...state, selectedElementIds: [], updatedAt: new Date().toISOString() };
+        persistCanvasSnapshot(next);
+        return next;
+      });
+      setSelectionDrag({
+        start: clientPos,
+        current: clientPos,
+      });
+      return;
+    }
+
+    if (currentMode === 'lasso') {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch (e) {}
+      const gesture = {
+        elementId: `lasso-${Date.now()}`,
+        mode: currentMode,
+        start: clientPos,
+        points: [clientPos],
+      };
+      drawingRef.current = gesture;
+      setDrawing(gesture);
+      return;
+    }
+
+    if (currentMode === 'eraser') {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch (e) {}
+      const gesture = {
+        elementId: `eraser-${Date.now()}`,
+        mode: currentMode,
+        start: clientPos,
+        points: [clientPos],
+      };
+      drawingRef.current = gesture;
+      setDrawing(gesture);
+      deleteIntersecting(clientPos, clientPos);
+      return;
+    }
+
+    if (isFreeformMode(currentMode)) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      const defaultSize = currentMode === 'text' ? { width: 120, height: 32 } : { width: 140, height: 90 };
+      const elementId = `canvas-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      const element = createCanvasElement({
+        id: elementId,
+        kind: canvasKindForMode(currentMode),
+        bounds: isDragDrawMode(currentMode) ? { x: clientPos.x, y: clientPos.y, width: 1, height: 1 } : { x: clientPos.x, y: clientPos.y, ...defaultSize },
+        style: canvasState.styleDefaults,
+        text: titleForCanvasMode(currentMode),
+        points: [clientPos],
+      });
+
+      setCanvasState(state => reduceCanvasState(state, { type: 'add-element', element }));
+      
+      if (isDragDrawMode(currentMode)) {
+        try {
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch (e) {}
+        const gesture = { elementId, mode: currentMode, start: clientPos, points: [clientPos] };
+        drawingRef.current = gesture;
+        setDrawing(gesture);
+      } else {
+        setCanvasState(state => ({
+          ...state,
+          selectedElementIds: [elementId],
+        }));
+        onModeChange('move');
+      }
     }
   };
 
   const handleFreeformPointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (!drawing) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const point = pointFromEvent(event);
-    const points = isPathMode(drawing.mode) ? [...drawing.points, point] : [drawing.start, point];
-    const bounds = boundsFromStartEnd(drawing.start, point);
-    setDrawing(current => current ? { ...current, points } : current);
-    setCanvasState(state => reduceCanvasState(state, {
-      type: 'update-element',
-      id: drawing.elementId,
-      patch: {
-        bounds,
-        ...((drawing.mode === 'line' || drawing.mode === 'arrow' || isPathMode(drawing.mode)) ? { points } : {}),
-      } as Partial<CanvasElement>,
-    }));
+    const activePanning = panningCanvasRef.current ?? panningCanvas;
+    if (activePanning) {
+      event.preventDefault();
+      event.stopPropagation();
+      const dx = event.clientX - activePanning.startPointer.x;
+      const dy = event.clientY - activePanning.startPointer.y;
+      const newPan = {
+        x: activePanning.startPan.x + dx,
+        y: activePanning.startPan.y + dy,
+      };
+      setPan(newPan);
+      setCanvasState(state => {
+        const next = {
+          ...state,
+          viewport: { x: newPan.x, y: newPan.y, zoom: zoom / 100 },
+          updatedAt: new Date().toISOString(),
+        };
+        persistCanvasSnapshot(next);
+        return next;
+      });
+      onViewportChange?.({ zoom, pan: newPan });
+      return;
+    }
+
+    const clientPos = getCanvasCoords(event.clientX, event.clientY);
+
+    const activeDrag = draggingElementRef.current ?? draggingElement;
+    if (activeDrag) {
+      event.preventDefault();
+      event.stopPropagation();
+      const dx = clientPos.x - activeDrag.startPointer.x;
+      const dy = clientPos.y - activeDrag.startPointer.y;
+      setCanvasState(state => {
+        const elements = state.elements.map(el => {
+          const startB = activeDrag.startBoundsMap[el.id];
+          if (startB) {
+            return {
+              ...el,
+              bounds: {
+                ...el.bounds,
+                x: startB.x + dx,
+                y: startB.y + dy,
+              },
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return el;
+        });
+        return { ...state, elements };
+      });
+      return;
+    }
+
+    if (resizingElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      const dx = clientPos.x - resizingElement.startPointer.x;
+      const dy = clientPos.y - resizingElement.startPointer.y;
+      setCanvasState(state => {
+        const elements = state.elements.map(el => {
+          if (el.id === resizingElement.elementId) {
+            let width = Math.max(5, resizingElement.startBounds.width + dx);
+            let height = Math.max(5, resizingElement.startBounds.height + dy);
+            
+            if (event.shiftKey) {
+              const size = Math.max(width, height);
+              width = size;
+              height = size;
+            }
+            
+            return {
+              ...el,
+              bounds: {
+                ...el.bounds,
+                width,
+                height,
+              },
+              updatedAt: new Date().toISOString(),
+            } as CanvasElement;
+          }
+          return el;
+        });
+        return { ...state, elements };
+      });
+      return;
+    }
+
+    if (selectionDrag) {
+      event.preventDefault();
+      event.stopPropagation();
+      setSelectionDrag(current => current ? { ...current, current: clientPos } : null);
+      return;
+    }
+
+    const activeDrawing = drawingRef.current ?? drawing;
+    if (activeDrawing) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      let endPoint = clientPos;
+      
+      if (event.shiftKey) {
+        if (activeDrawing.mode === 'rectangle' || activeDrawing.mode === 'ellipse') {
+          endPoint = constrainToSquare(activeDrawing.start, clientPos);
+        } else if (activeDrawing.mode === 'line' || activeDrawing.mode === 'arrow') {
+          endPoint = constrainLineAngle(activeDrawing.start, clientPos);
+        }
+      }
+
+      const points = isPathMode(activeDrawing.mode) 
+        ? [...activeDrawing.points, clientPos] 
+        : [activeDrawing.start, endPoint];
+      
+      const bounds = boundsFromStartEnd(activeDrawing.start, endPoint);
+      const nextDrawing = { ...activeDrawing, points };
+      drawingRef.current = nextDrawing;
+      setDrawing(nextDrawing);
+
+      if (activeDrawing.mode === 'lasso') {
+        return;
+      }
+      
+      if (activeDrawing.mode === 'eraser') {
+        deleteIntersecting(activeDrawing.start, clientPos);
+        return;
+      }
+
+      setCanvasState(state => {
+        const elements = state.elements.map(el => {
+          if (el.id === activeDrawing.elementId) {
+            return {
+              ...el,
+              bounds,
+              ...((el.kind === 'line' || el.kind === 'arrow' || (el.kind !== 'unknown' && isPathMode(el.kind))) ? { points } : {}),
+              updatedAt: new Date().toISOString(),
+            } as CanvasElement;
+          }
+          return el;
+        });
+        return { ...state, elements };
+      });
+    }
   };
 
   const handleFreeformPointerUp = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (!drawing) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
-    setDrawing(null);
+    if (panningCanvas) {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch (e) {}
+      panningCanvasRef.current = null;
+      setPanningCanvas(null);
+      return;
+    }
+
+    if (draggingElementRef.current || draggingElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch (e) {}
+      draggingElementRef.current = null;
+      setDraggingElement(null);
+      return;
+    }
+
+    if (resizingElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch (e) {}
+      setResizingElement(null);
+      return;
+    }
+
+    if (selectionDrag) {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch (e) {}
+      
+      const zone = boundsFromStartEnd(selectionDrag.start, selectionDrag.current);
+      const isClick = zone.width < 4 && zone.height < 4;
+      
+      setCanvasState(state => {
+        if (isClick) {
+          return { ...state, selectedElementIds: [] };
+        }
+        const selectedIds = elementsIntersectingBounds(state, zone);
+        return {
+          ...state,
+          selectedElementIds: event.shiftKey 
+            ? [...new Set([...state.selectedElementIds, ...selectedIds])]
+            : selectedIds,
+        };
+      });
+      
+      setSelectionDrag(null);
+      return;
+    }
+
+    const activeDrawing = drawingRef.current ?? drawing;
+    if (activeDrawing) {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch (e) {}
+      
+      const finishedMode = activeDrawing.mode;
+      const elementId = activeDrawing.elementId;
+      drawingRef.current = null;
+      setDrawing(null);
+
+      if (finishedMode === 'lasso') {
+        const lassoBounds = boundsFromPoints(activeDrawing.points);
+        const selectedIds = elementsIntersectingBounds(canvasState, lassoBounds);
+        setCanvasState(state => ({
+          ...state,
+          selectedElementIds: selectedIds,
+        }));
+        onModeChange('move');
+        return;
+      }
+
+      if (finishedMode === 'eraser') {
+        onModeChange('move');
+        return;
+      }
+
+      if (finishedMode !== 'pen') {
+        setCanvasState(state => ({
+          ...state,
+          selectedElementIds: [elementId],
+        }));
+        onModeChange('move');
+      }
+    }
   };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const src = reader.result as string;
+      if (replacingImageId) {
+        setCanvasState(state => {
+          const elements = state.elements.map(el => {
+            if (el.id === replacingImageId) {
+              return { ...el, src, updatedAt: new Date().toISOString() } as CanvasElement;
+            }
+            return el;
+          });
+          return { ...state, elements };
+        });
+        setReplacingImageId(null);
+      } else {
+        const elementId = `canvas-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+        const element = createCanvasElement({
+          id: elementId,
+          kind: 'image',
+          bounds: { x: 50, y: 50, width: 200, height: 150 },
+          style: canvasState.styleDefaults,
+          text: 'Image',
+          src,
+        });
+        setCanvasState(state => reduceCanvasState(state, { type: 'add-element', element }));
+        onModeChange('move');
+      }
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
+
+  const handleDiagramViewportChange = useCallback((viewport: { zoom: number; pan: { x: number; y: number } }) => {
+    setZoom(current => current === viewport.zoom ? current : viewport.zoom);
+    setPan(current => current.x === viewport.pan.x && current.y === viewport.pan.y ? current : viewport.pan);
+    setCanvasState(state => {
+      const zoomScale = viewport.zoom / 100;
+      if (state.viewport.x === viewport.pan.x && state.viewport.y === viewport.pan.y && state.viewport.zoom === zoomScale) {
+        return state;
+      }
+      return reduceCanvasState(state, {
+        type: 'set-viewport',
+        viewport: { x: viewport.pan.x, y: viewport.pan.y, zoom: zoomScale },
+      });
+    });
+    onViewportChange?.(viewport);
+  }, [onViewportChange]);
+
+  const renderFreeformElement = (element: CanvasElement) => {
+    const isSelected = canvasState.selectedElementIds.includes(element.id);
+    const strokeColor = isSelected ? '#1c7ed6' : element.style.stroke;
+    
+    const common = {
+      stroke: strokeColor,
+      fill: element.kind === 'line' || element.kind === 'arrow' || element.kind === 'pen' ? 'none' : element.style.fill,
+      strokeWidth: element.style.strokeWidth,
+      opacity: element.style.opacity,
+    };
+
+    const renderSelectionBox = () => {
+      if (!isSelected || mode !== 'move') return null;
+      const pad = 3;
+      const selectStroke = element.locked ? '#868e96' : '#1c7ed6';
+      return (
+        <g style={{ pointerEvents: 'none' }}>
+          <rect
+            x={element.bounds.x - pad}
+            y={element.bounds.y - pad}
+            width={element.bounds.width + pad * 2}
+            height={element.bounds.height + pad * 2}
+            fill="none"
+            stroke={selectStroke}
+            strokeWidth={1.2}
+            strokeDasharray={element.locked ? undefined : "3 3"}
+          />
+          {element.locked && (
+            <g transform={`translate(${element.bounds.x - pad - 6}, ${element.bounds.y - pad - 6})`}>
+              <rect x="0" y="0" width="12" height="12" rx="2" fill="#868e96" />
+              <path d="M3,5 L3,3 A3,3 0 0,1 9,3 L9,5 M4,5 L8,5 L8,9 L4,9 Z" stroke="#ffffff" strokeWidth="1" fill="none" />
+            </g>
+          )}
+        </g>
+      );
+    };
+
+    const renderResizeHandle = () => {
+      if (!isSelected || mode !== 'move' || element.locked) return null;
+      const hx = element.bounds.x + element.bounds.width;
+      const hy = element.bounds.y + element.bounds.height;
+      return (
+        <circle
+          className="iso-freeform-resize-handle"
+          data-resize-element-id={element.id}
+          aria-label={`Resize ${element.id}`}
+          cx={hx}
+          cy={hy}
+          r={5}
+          fill="#ffffff"
+          stroke="#1c7ed6"
+          strokeWidth={1.5}
+          style={{ cursor: 'se-resize', pointerEvents: 'auto' }}
+        />
+      );
+    };
+
+    if (element.kind === 'ellipse') {
+      return (
+        <g key={element.id} data-canvas-element-id={element.id}>
+          <ellipse
+            cx={element.bounds.x + element.bounds.width / 2}
+            cy={element.bounds.y + element.bounds.height / 2}
+            rx={element.bounds.width / 2}
+            ry={element.bounds.height / 2}
+            {...common}
+          />
+          {renderSelectionBox()}
+          {renderResizeHandle()}
+        </g>
+      );
+    }
+    
+    if (element.kind === 'line' || element.kind === 'arrow') {
+      const points = 'points' in element ? element.points : [];
+      const x1 = points[0] ? points[0].x : element.bounds.x;
+      const y1 = points[0] ? points[0].y : element.bounds.y;
+      const x2 = points[1] ? points[1].x : element.bounds.x + element.bounds.width;
+      const y2 = points[1] ? points[1].y : element.bounds.y + element.bounds.height;
+      return (
+        <g key={element.id} data-canvas-element-id={element.id}>
+          <line x1={x1} y1={y1} x2={x2} y2={y2} {...common} markerEnd={element.kind === 'arrow' ? 'url(#isx-freeform-arrow)' : undefined} />
+          {renderSelectionBox()}
+          {renderResizeHandle()}
+        </g>
+      );
+    }
+    
+    if (element.kind === 'pen' || element.kind === 'eraser' || element.kind === 'laser' || element.kind === 'lasso') {
+      const points = 'points' in element ? element.points : [];
+      const path = points.length > 0
+        ? points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
+        : `M ${element.bounds.x} ${element.bounds.y} L ${element.bounds.x + element.bounds.width} ${element.bounds.y + element.bounds.height}`;
+      return (
+        <g key={element.id} data-canvas-element-id={element.id}>
+          <path d={path} {...common} strokeDasharray={element.kind === 'lasso' ? '6 4' : undefined} />
+          {renderSelectionBox()}
+          {renderResizeHandle()}
+        </g>
+      );
+    }
+    
+    if (element.kind === 'text') {
+      const textVal = 'text' in element ? element.text : 'Text';
+      const fontSizeVal = 'fontSize' in element ? element.fontSize : 16;
+      return (
+        <g key={element.id} data-canvas-element-id={element.id}>
+          <text x={element.bounds.x} y={element.bounds.y + 18} fill={isSelected ? '#1c7ed6' : element.style.text} opacity={element.style.opacity} fontSize={fontSizeVal}>
+            {textVal}
+          </text>
+          {renderSelectionBox()}
+          {renderResizeHandle()}
+        </g>
+      );
+    }
+    
+    if (element.kind === 'image') {
+      const preserveAspectRatio = element.fit === 'stretch' ? 'none' : element.fit === 'cover' ? 'xMidYMid slice' : 'xMidYMid meet';
+      return (
+        <g key={element.id} data-canvas-element-id={element.id}>
+          {'src' in element && element.src ? (
+            <image href={element.src} x={element.bounds.x} y={element.bounds.y} width={element.bounds.width} height={element.bounds.height} preserveAspectRatio={preserveAspectRatio} />
+          ) : (
+            <rect {...element.bounds} {...common} strokeDasharray="6 4" />
+          )}
+          <text x={element.bounds.x + 12} y={element.bounds.y + 24} fill={isSelected ? '#1c7ed6' : element.style.text} fontSize={13}>Image</text>
+          {renderSelectionBox()}
+          {renderResizeHandle()}
+        </g>
+      );
+    }
+    
+    const dashed = element.kind === 'frame' || element.kind === 'embed' || element.kind === 'uml-package';
+    const rxVal = element.kind === 'rectangle' ? 6 : 2;
+    return (
+      <g key={element.id} data-canvas-element-id={element.id}>
+        <rect rx={rxVal} {...element.bounds} {...common} strokeDasharray={dashed ? '8 5' : undefined} />
+        {'title' in element && element.title ? <text x={element.bounds.x + 10} y={element.bounds.y + 22} fill={element.style.text} fontSize={13}>{element.title}</text> : null}
+        {element.kind === 'embed' ? <text x={element.bounds.x + 10} y={element.bounds.y + 42} fill={element.style.text} fontSize={12}>Web embed</text> : null}
+        {renderSelectionBox()}
+        {renderResizeHandle()}
+      </g>
+    );
+  };
+
+  const selectedElements = canvasState.elements.filter(el => canvasState.selectedElementIds.includes(el.id));
+  const selectedElement = selectedElements.length === 1 ? selectedElements[0] : null;
+  const activeStyle = selectedElement ? selectedElement.style : canvasState.styleDefaults;
+  const hasCanvasContent = canvasState.elements.length > 0;
+  const canExportCanvas = canExport || hasCanvasContent;
+  const draftLink = selectedElement
+    ? canvasState.draftSemanticLinks.find(link => link.canvasElementId === selectedElement.id)
+    : undefined;
 
   return (
     <section className="iso-full-canvas-shell" aria-label="Full canvas">
-      <CanvasToolbar mode={mode} disabled={!hasDiagram} onModeChange={onModeChange} onMoreTools={() => setMoreMenuOpen(open => !open)} />
-      <CanvasPropertiesStrip visible={hasCanvasSelection || (selectedItems != null && selectedItems.length > 0)} style={DEFAULT_CANVAS_STYLE} />
+      <div className="iso-full-canvas-toolbox" ref={moreToolsRef}>
+        <CanvasToolbar
+          mode={mode}
+          disabled={false}
+          language={language}
+          onModeChange={onModeChange}
+          onMoreTools={() => setMoreToolsOpen(open => !open)}
+        />
+        {moreToolsOpen && (
+          <div className="iso-dropdown-menu iso-full-canvas-tool-menu" role="menu" aria-label="More canvas tools">
+            {[
+              ['Frame', 'frame'],
+              ['Web embed', 'embed'],
+              ['Laser pointer', 'laser'],
+              ['Lasso', 'lasso'],
+              ['UML package', 'uml-package'],
+            ].map(([label, tool]) => (
+              <button
+                key={tool}
+                type="button"
+                className="iso-dropdown-item"
+                role="menuitem"
+                onClick={() => {
+                  setMoreToolsOpen(false);
+                  onModeChange(tool as FullCanvasMode);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <CanvasPropertiesPanel
+        visible={true}
+        uiLanguage={language}
+        style={activeStyle}
+        selectedElements={selectedElements}
+        draftLink={draftLink}
+        onStyleChange={handleStyleChange}
+        onElementChange={handleElementChange}
+        onDraftSemanticLink={handleDraftSemanticLink}
+        onReplaceImage={handleReplaceImage}
+        onDelete={handleDeleteSelected}
+        onBringForward={handleBringForward}
+        onSendBackward={handleSendBackward}
+        onDuplicate={handleDuplicate}
+      />
 
       <div className="iso-full-canvas-pill" aria-label="Canvas document status">
         <IconDiagram size={12} />
@@ -352,57 +1211,96 @@ export function FullCanvasShell({
         </div>
 
         <div className="iso-full-canvas-actions">
-          <button type="button" className="iso-full-canvas-action" onClick={onSave} disabled={!hasDiagram || !canSave}>Save</button>
-          <button type="button" className="iso-full-canvas-action" onClick={onExportSVG} disabled={!hasDiagram || !canExport}>SVG</button>
-          <button type="button" className="iso-full-canvas-action" onClick={onExportPNG} disabled={!hasDiagram || !canExport}>PNG</button>
-          <div className="iso-dropdown" ref={moreMenuRef}>
+          <button type="button" className="iso-full-canvas-action" onClick={onSave} disabled={!hasDiagram || !canSave || !onSave}>Save</button>
+          <button type="button" className="iso-full-canvas-action" onClick={onExportSVG} disabled={!canExportCanvas}>SVG</button>
+          <button type="button" className="iso-full-canvas-action" onClick={onExportPNG} disabled={!canExportCanvas}>PNG</button>
+          
+          <div className="iso-dropdown" ref={moreActionsRef}>
             <button
               type="button"
               className="iso-full-canvas-action"
               aria-haspopup="menu"
-              aria-expanded={moreMenuOpen}
-              onClick={() => setMoreMenuOpen(open => !open)}
+              aria-expanded={moreActionsOpen}
+              onClick={() => setMoreActionsOpen(open => !open)}
             >
-              More <IconChevron dir={moreMenuOpen ? 'up' : 'down'} />
+              More <IconChevron dir={moreActionsOpen ? 'up' : 'down'} />
             </button>
-            {moreMenuOpen && (
+            {moreActionsOpen && (
               <div className="iso-dropdown-menu iso-full-canvas-menu" role="menu" aria-label="Canvas more actions">
-                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onValidate?.(); }}>
+                <button
+                  type="button"
+                  className="iso-dropdown-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreActionsOpen(false);
+                    onValidate?.();
+                  }}
+                >
                   Validate
                 </button>
-                {[
-                  ['Frame', 'frame'],
-                  ['Web embed', 'embed'],
-                  ['Laser pointer', 'laser'],
-                  ['Lasso', 'lasso'],
-                  ['UML package', 'uml-package'],
-                ].map(([label, tool]) => (
-                  <button
-                    key={tool}
-                    type="button"
-                    className="iso-dropdown-item"
-                    role="menuitem"
-                    onClick={() => {
-                      setMoreMenuOpen(false);
-                      onModeChange(tool as FullCanvasMode);
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onFitCanvas?.(); }}>
+                <button
+                  type="button"
+                  className="iso-dropdown-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreActionsOpen(false);
+                    onFitCanvas?.();
+                  }}
+                >
                   {fitLabel}
                 </button>
-                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onBack(); }}>
+                <button
+                  type="button"
+                  className="iso-dropdown-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreActionsOpen(false);
+                    onBack();
+                  }}
+                >
                   Source view
                 </button>
-                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onOpenShortcuts?.(); }}>
+                <button
+                  type="button"
+                  className="iso-dropdown-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreActionsOpen(false);
+                    onOpenShortcuts?.();
+                  }}
+                >
                   Shortcuts
                 </button>
-                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onExportSVG(); }}>
+                {onStrictUmlChange && (
+                  <label className="iso-dropdown-item iso-dropdown-check" role="menuitemcheckbox" aria-checked={Boolean(strictUmlEnabled)}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(strictUmlEnabled)}
+                      onChange={event => onStrictUmlChange(event.target.checked)}
+                    />
+                    <span>Strict UML rules</span>
+                  </label>
+                )}
+                <button
+                  type="button"
+                  className="iso-dropdown-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreActionsOpen(false);
+                    onExportSVG();
+                  }}
+                >
                   Export SVG
                 </button>
-                <button type="button" className="iso-dropdown-item" role="menuitem" onClick={() => { setMoreMenuOpen(false); onExportPNG(); }}>
+                <button
+                  type="button"
+                  className="iso-dropdown-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setMoreActionsOpen(false);
+                    onExportPNG();
+                  }}
+                >
                   Export PNG
                 </button>
               </div>
@@ -420,7 +1318,10 @@ export function FullCanvasShell({
           showToolRail={false}
           showZoomControls={false}
           fitSignal={fitSignal}
-          onViewportChange={onViewportChange}
+          zoom={zoom}
+          pan={pan}
+          onViewportChange={handleDiagramViewportChange}
+          showEmptyState={false}
           onEntityMove={onEntityMove}
           onEntityResize={onEntityResize}
           onEntityEditRequest={onEntityEditRequest}
@@ -437,8 +1338,10 @@ export function FullCanvasShell({
         />
         <svg
           ref={overlayRef}
-          className={`iso-freeform-overlay${isFreeformMode(mode) ? ' iso-freeform-overlay--active' : ''}`}
+          className={`iso-freeform-overlay${isFreeformMode(mode) || mode === 'move' || mode === 'hand' ? ' iso-freeform-overlay--active' : ''}`}
           aria-label="Freeform canvas layer"
+          data-canvas-mode={mode}
+          style={{ pointerEvents: isFreeformMode(mode) || mode === 'move' || mode === 'hand' ? 'auto' : 'none' }}
           onPointerDown={handleFreeformPointerDown}
           onPointerMove={handleFreeformPointerMove}
           onPointerUp={handleFreeformPointerUp}
@@ -449,7 +1352,36 @@ export function FullCanvasShell({
               <path d="M0,0 L0,6 L9,3 z" fill={DEFAULT_CANVAS_STYLE.stroke} />
             </marker>
           </defs>
-          {canvasState.elements.map(renderFreeformElement)}
+          <g
+            transform={`translate(${pan.x}, ${pan.y}) scale(${zoom / 100})`}
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})`, transformOrigin: '0 0' }}
+          >
+            {canvasState.elements.map(renderFreeformElement)}
+            {selectionDrag && (
+              <rect
+                className="iso-freeform-selection-zone"
+                x={Math.min(selectionDrag.start.x, selectionDrag.current.x)}
+                y={Math.min(selectionDrag.start.y, selectionDrag.current.y)}
+                width={Math.abs(selectionDrag.current.x - selectionDrag.start.x)}
+                height={Math.abs(selectionDrag.current.y - selectionDrag.start.y)}
+                fill="rgba(28, 126, 214, 0.1)"
+                stroke="#1c7ed6"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
+            {drawing && (drawing.mode === 'lasso' || drawing.mode === 'eraser' || drawing.mode === 'pen' || drawing.mode === 'laser') && (
+              <path
+                d={drawing.points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')}
+                fill="none"
+                stroke={drawing.mode === 'lasso' ? '#1c7ed6' : drawing.mode === 'eraser' ? '#fa5252' : canvasState.styleDefaults.stroke}
+                strokeWidth={drawing.mode === 'eraser' ? 12 : canvasState.styleDefaults.strokeWidth}
+                strokeDasharray={drawing.mode === 'lasso' ? '6 4' : undefined}
+                opacity={drawing.mode === 'laser' ? 0.8 : canvasState.styleDefaults.opacity}
+              />
+            )}
+          </g>
         </svg>
       </div>
       <div className="iso-full-canvas-zoom" aria-label="Viewport controls">
@@ -458,6 +1390,7 @@ export function FullCanvasShell({
         </button>
         <span>{zoomLabel}</span>
       </div>
+      <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handleImageUpload} />
     </section>
   );
 }

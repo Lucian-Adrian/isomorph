@@ -10,7 +10,7 @@
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
   [![CodeMirror](https://img.shields.io/badge/CodeMirror-6.x-green)](https://codemirror.net/)
-  [![Tests](https://img.shields.io/badge/Tests-84%20passing-brightgreen)](#-testing--validation)
+  [![Tests](https://img.shields.io/badge/Tests-438%20passing-brightgreen)](#-testing--validation)
 
   [**Live Demo**](https://team02-faf241.github.io/isomorph/) • [**Language Spec**](grammar/Isomorph.g4) • [**Examples**](examples/) • [**Contributing**](CONTRIBUTING.md)
 </div>
@@ -29,34 +29,6 @@
 - **Pure Zero-Dependency SVG Rendering:** High-performance, template-based SVG generation directly from the Abstract Syntax Tree.
 - **Modern Editing Experience:** Embedded CodeMirror 6 with custom syntax highlighting (`.isx` format).
 - **Version Control Friendly:** Layouts are saved as standard text anchors, ensuring zero metadata drift when pushing to Git.
-
----
-
-## Symphony Dashboard
-
-This repository includes a repo-local Symphony harness plus a visual dashboard that follows the official Symphony observability extension shape: a human-readable dashboard at `/` and a JSON runtime snapshot at `/api/v1/state`.
-
-For a cheap, low-friction setup in any repo:
-
-1. Keep `tracker.kind: repo-tasks` in `WORKFLOW.md`
-2. Keep `agent.dry_run: true` while you are just validating orchestration and the dashboard
-3. Add `server.port` in `WORKFLOW.md`
-4. Launch:
-
-```bash
-npm run symphony:dashboard
-```
-
-Useful commands:
-
-```bash
-npm run symphony:check
-npm run symphony:status
-npm run symphony:once
-npm run symphony:dashboard
-```
-
-In dry-run mode, the dashboard stays useful without requiring a live coding-agent session or mandatory LLM token spend.
 
 ---
 
@@ -166,7 +138,7 @@ Before any rendering occurs, the AST is validated against **10 core Rules (SS-1 
 | Domain                  | Technology                                                                                                 |
 |-------------------------|------------------------------------------------------------------------------------------------------------|
 | **Language & Typing**   | TypeScript 5.7 *(Strict Mode)*                                                                             |
-| **Bundling & Build**    | Vite 6.x                                                                                                   |
+| **Bundling & Build**    | Vite 6.x with route/panel-level lazy chunks for CodeMirror, code generation, metrics, right rail, and full-canvas paths |
 | **UI Shell**            | React 18.x                                                                                                 |
 | **Code Editor**         | CodeMirror 6 *(Custom Lang Plugin)*                                                                        |
 | **Reference Grammar**   | ANTLR4 (`Isomorph.g4`)                                                                                     |
@@ -176,7 +148,7 @@ Before any rendering occurs, the AST is validated against **10 core Rules (SS-1 
 
 ## Testing & Validation
 
-The core of the Isomorph parser and semantics analyzer passes 84 isolated tests natively.
+The repository tracks a broad Vitest suite across lexer, parser, semantics, rendering, source rewriting, code generation, canvas state, workspace shell, telemetry, and integration helpers. Latest local verification: 438 tests passing.
 
 ```bash
 # Run the test suite
@@ -189,9 +161,10 @@ npm run typecheck      # Trigger strict TypeScript linting (tsc --noEmit)
 ```
 
 **Coverage Breakdown:**
-- `lexer.test.ts`: Keywords, operators, literals, error recovery (24 tests)
-- `parser.test.ts`: Entities, relationships, generative types (28 tests)
-- `semantics.test.ts`: IOM verification and SS-1 through SS-10 constraint validation (32 tests)
+- `lexer.test.ts`: Keywords, operators, literals, comment handling, and error recovery.
+- `parser.test.ts`: Diagram declarations, entities, packages, relationships, config, fragments, lifecycle syntax, and layout annotations.
+- `semantics.test.ts`: IOM validation from SS-1 through the active diagram-specific rule set, including inheritance, endpoints, fragments, naming, component connectors, and sequence checks.
+- Renderer/component suites: SVG output, non-class anchoring, canvas shell behavior, workspace panels, metrics, telemetry, source rewrites, code generation, and remote canvas state.
 
 ---
 

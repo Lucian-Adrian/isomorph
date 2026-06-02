@@ -6,11 +6,12 @@ export interface BottomWorkbenchMetric {
 export interface BottomWorkbenchProps {
   metrics: BottomWorkbenchMetric[];
   teamLabel?: string;
+  ariaLabel?: string;
 }
 
-export function BottomWorkbench({ metrics, teamLabel = 'FAF-241 · Team 02' }: BottomWorkbenchProps) {
+export function BottomWorkbench({ metrics, teamLabel = 'FAF-241 · Team 02', ariaLabel = 'Workspace status' }: BottomWorkbenchProps) {
   return (
-    <aside className="iso-bottom-workbench" aria-label="Workspace status">
+    <aside className="iso-bottom-workbench" aria-label={ariaLabel}>
       {metrics.map(metric => (
         <span key={metric.label} className="iso-status-pill">
           <span>{metric.label}</span>

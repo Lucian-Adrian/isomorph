@@ -93,6 +93,7 @@ export interface CanvasImageElement extends CanvasElementBase {
   kind: 'image';
   src: string;
   alt: string;
+  fit?: 'contain' | 'cover' | 'stretch';
 }
 
 export interface CanvasEmbedElement extends CanvasElementBase {
@@ -154,4 +155,5 @@ export type CanvasStateAction =
   | { type: 'bring-forward'; ids: string[] }
   | { type: 'send-backward'; ids: string[] }
   | { type: 'set-style-defaults'; style: Partial<CanvasStyle> }
-  | { type: 'add-draft-link'; link: CanvasDraftSemanticLink };
+  | { type: 'add-draft-link'; link: CanvasDraftSemanticLink }
+  | { type: 'upsert-draft-link'; link: CanvasDraftSemanticLink };

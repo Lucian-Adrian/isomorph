@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { exportPNG, serializeSVGForExport } from '../src/utils/exporter.js';
+import { createEmptyCanvasState } from '../src/canvas/canvasSerialization.js';
+import { createCanvasElement } from '../src/canvas/canvasTools.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -8,7 +10,7 @@ afterEach(() => {
 
 describe('SVG export serialization', () => {
   it('adds XML metadata, dimensions, background, and font defaults', () => {
-    document.body.innerHTML = '<svg><rect width="10" height="10"/></svg>';
+    document.body.innerHTML = '<svg></svg>';
     const svg = document.querySelector('svg')!;
     const serialized = serializeSVGForExport(svg);
 
@@ -56,6 +58,103 @@ describe('SVG export serialization', () => {
     expect(serialized).toContain('data-export-layer="freeform-canvas"');
     expect(serialized).toContain('data-freeform-id="rect-1"');
     expect(serialized).toContain('marker');
+  });
+
+  it('frames freeform overlay content outside the semantic diagram bounds', () => {
+    document.body.innerHTML = `
+      <div class="iso-full-canvas-viewport">
+        <div class="iso-canvas-wrap">
+          <svg class="semantic"><rect x="100" y="100" width="40" height="40"/></svg>
+        </div>
+        <svg class="iso-freeform-overlay">
+          <g>
+            <image data-freeform-id="image-1" href="data:image/png;base64,abc" x="-220" y="-120" width="80" height="60"></image>
+            <rect data-freeform-id="rect-2" x="420" y="300" width="90" height="50"></rect>
+          </g>
+        </svg>
+      </div>
+    `;
+    const svg = document.querySelector('.semantic') as SVGSVGElement;
+    Object.defineProperty(svg, 'getBBox', {
+      configurable: true,
+      value: () => ({ x: 100, y: 100, width: 40, height: 40 }),
+    });
+
+    const serialized = serializeSVGForExport(svg);
+
+    expect(serialized).toContain('data-freeform-id="image-1"');
+    expect(serialized).toContain('viewBox="-260 -160 810 550"');
+    expect(serialized).toContain('width="810"');
+    expect(serialized).toContain('height="550"');
+  });
+
+  it('applies exported freeform transform bounds before sizing PNG-ready SVG output', () => {
+    document.body.innerHTML = `
+      <div class="iso-full-canvas-viewport">
+        <div class="iso-canvas-wrap">
+          <svg class="semantic"><rect x="0" y="0" width="80" height="80"/></svg>
+        </div>
+        <svg class="iso-freeform-overlay">
+          <g transform="translate(200, 100) scale(2)">
+            <line data-freeform-id="line-1" x1="10" y1="20" x2="90" y2="60" stroke-width="12"></line>
+          </g>
+        </svg>
+      </div>
+    `;
+    const svg = document.querySelector('.semantic') as SVGSVGElement;
+    Object.defineProperty(svg, 'getBBox', {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, width: 80, height: 80 }),
+    });
+
+    const serialized = serializeSVGForExport(svg);
+
+    expect(serialized).toContain('data-freeform-id="line-1"');
+    expect(serialized).toContain('viewBox="-40 -40 472 312"');
+    expect(serialized).toContain('width="472"');
+    expect(serialized).toContain('height="312"');
+  });
+
+  it('composes full-canvas export from canonical canvas_state when overlay DOM is stale', () => {
+    const state = createEmptyCanvasState('2026-06-01T00:00:00.000Z');
+    const offscreenImage = createCanvasElement({
+      id: 'canonical-offscreen-image',
+      kind: 'image',
+      bounds: { x: -260, y: -180, width: 96, height: 64 },
+      style: state.styleDefaults,
+      src: 'data:image/png;base64,abc',
+      now: state.updatedAt,
+    });
+    const farRect = createCanvasElement({
+      id: 'canonical-far-rect',
+      kind: 'rectangle',
+      bounds: { x: 900, y: 620, width: 150, height: 80 },
+      style: { ...state.styleDefaults, fill: '#e03131', strokeWidth: 8 },
+      now: state.updatedAt,
+    });
+    const canvasState = { ...state, elements: [offscreenImage, farRect] };
+    document.body.innerHTML = `
+      <div class="iso-full-canvas-viewport">
+        <div class="iso-canvas-wrap">
+          <svg class="semantic"><rect x="0" y="0" width="80" height="80"/></svg>
+        </div>
+        <svg class="iso-freeform-overlay">
+          <g><rect data-canvas-element-id="stale-dom-only" x="10" y="20" width="30" height="40"></rect></g>
+        </svg>
+      </div>
+    `;
+    const svg = document.querySelector('.semantic') as SVGSVGElement;
+    Object.defineProperty(svg, 'getBBox', {
+      configurable: true,
+      value: () => ({ x: 0, y: 0, width: 80, height: 80 }),
+    });
+
+    const serialized = serializeSVGForExport(svg, { canvasState });
+
+    expect(serialized).toContain('canonical-offscreen-image');
+    expect(serialized).toContain('canonical-far-rect');
+    expect(serialized).not.toContain('stale-dom-only');
+    expect(serialized).toContain('viewBox="-300 -220 1394 964"');
   });
 
   it('prepares PNG export with serialized SVG dimensions and a download anchor', async () => {

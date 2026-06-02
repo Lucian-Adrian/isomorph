@@ -32,7 +32,7 @@ The canvas may contain semantic UML objects and freeform objects. Semantic opera
 
 ## State Ownership
 
-`.isx` remains the strict source of truth for the formal diagram. `canvas_state` stores viewport data, freeform drawing objects, selection/style state, unresolved drafts, and future collaboration metadata. Telemetry stores action metadata and latency/productivity measures, not passwords or private source text.
+`.isx` remains the strict source of truth for the formal diagram. `canvas_state` stores viewport data, freeform drawing objects, selection/style state, unresolved drafts, and collaboration-adjacent metadata used by the current workspace model. Telemetry stores action metadata and latency/productivity measures, not passwords or private source text.
 
 ## Collaboration Direction
 

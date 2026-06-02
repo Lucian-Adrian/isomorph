@@ -43,7 +43,7 @@ export function generateCodeBundle(diagram: IOMDiagram, options: CodegenOptions)
   const files = entities.map(entity => {
     const packagePath = entity.package ? `${entity.package.replace(/\./g, '/')}/` : '';
     const path = `${packagePath}${baseName(entity.name)}.java`;
-    return { path, contents: renderJavaCompilationUnit(entity) };
+    return { path, contents: renderJavaCompilationUnit(entity, entities) };
   });
   return { language: 'java', mainFile: files[0]?.path, files };
 }
@@ -73,7 +73,7 @@ function generatePython(entities: IOMEntity[]): string {
   const blocks = entities.map(entity => {
     if (entity.kind === 'enum') return renderPythonEnum(entity);
     if (entity.kind === 'interface') return renderPythonInterface(entity);
-    return renderPythonClass(entity);
+    return renderPythonClass(entity, entities);
   });
 
   return [...imports, '', ...typeVarLines, '', ...blocks].join('\n\n').trim() + '\n';
@@ -92,18 +92,19 @@ function renderPythonInterface(entity: IOMEntity): string {
   return lines.join('\n');
 }
 
-function renderPythonClass(entity: IOMEntity): string {
+function renderPythonClass(entity: IOMEntity, entities: IOMEntity[]): string {
   const params = genericParams(entity.name);
   const bases = [
-    ...(params.length ? [`Generic[${params.join(', ')}]`] : []),
     ...entity.extendsNames.map(pythonBaseName),
     ...entity.implementsNames.map(pythonBaseName),
+    ...(params.length ? [`Generic[${params.join(', ')}]`] : []),
   ];
   if (entity.isAbstract && !bases.includes('ABC')) bases.push('ABC');
   const header = `class ${baseName(entity.name)}${bases.length ? `(${bases.join(', ')})` : ''}:`;
   const lines = [header];
   if (entity.fields.length > 0) lines.push(renderPythonConstructor(entity.fields));
-  for (const method of entity.methods) lines.push(renderPythonMethod(method, method.isAbstract, false));
+  const methods = [...entity.methods, ...implementedInterfaceMethods(entity, entities, entity.methods)];
+  for (const method of methods) lines.push(renderPythonMethod(method, method.isAbstract, false));
   if (lines.length === 1) lines.push('    pass');
   return lines.join('\n\n');
 }
@@ -125,7 +126,7 @@ function renderPythonMethod(method: IOMMethod, abstractMethod: boolean, protocol
   const decorators = abstractMethod ? ['    @abstractmethod'] : [];
   const params = method.params.map(param => `${param.name}: ${pythonType(param.type)}`).join(', ');
   const returnType = pythonType(method.returnType);
-  const body = (abstractMethod || protocolMethod) ? '        ...' : '        pass';
+  const body = (abstractMethod || protocolMethod) ? '        ...' : `        ${pythonDefaultReturnStatement(method.returnType)}`;
   return [...decorators, `    def ${method.name}(self${params ? `, ${params}` : ''}) -> ${returnType}:`, body].join('\n');
 }
 
@@ -134,23 +135,25 @@ function generateJava(entities: IOMEntity[]): string {
   const blocks = entities.map(entity => {
     if (entity.kind === 'enum') return renderJavaEnum(entity);
     if (entity.kind === 'interface') return renderJavaInterface(entity);
-    return renderJavaClass(entity);
+    return renderJavaClass(entity, entities);
   });
   const header = packageName ? `package ${packageName};\n\n` : '';
-  return header + blocks.join('\n\n') + '\n';
+  const imports = [...new Set(entities.flatMap(entity => javaImports(entity, entities)))].sort();
+  const importBlock = imports.length ? `${imports.join('\n')}\n\n` : '';
+  return header + importBlock + blocks.join('\n\n') + '\n';
 }
 
-function renderJavaCompilationUnit(entity: IOMEntity): string {
+function renderJavaCompilationUnit(entity: IOMEntity, entities: IOMEntity[]): string {
   const lines: string[] = [];
   if (entity.package) lines.push(`package ${entity.package};`, '');
-  lines.push(...javaImports(entity));
+  lines.push(...javaImports(entity, entities));
   if (lines.length > 0 && lines[lines.length - 1] !== '') lines.push('');
   lines.push(
     entity.kind === 'enum'
       ? renderJavaEnum(entity)
       : entity.kind === 'interface'
         ? renderJavaInterface(entity)
-        : renderJavaClass(entity),
+        : renderJavaClass(entity, entities),
   );
   return lines.join('\n').trim() + '\n';
 }
@@ -169,24 +172,24 @@ function renderJavaInterface(entity: IOMEntity): string {
   return [`public interface ${entity.name}${extendsText} {`, ...(methods.length ? methods : ['    // define contract here']), '}'].join('\n');
 }
 
-function renderJavaClass(entity: IOMEntity): string {
+function renderJavaClass(entity: IOMEntity, entities: IOMEntity[]): string {
   const abstractText = entity.isAbstract ? 'abstract ' : '';
   const extendsText = entity.extendsNames.length ? ` extends ${entity.extendsNames[0]}` : '';
   const implementsText = entity.implementsNames.length ? ` implements ${entity.implementsNames.join(', ')}` : '';
   const lines = [`public ${abstractText}class ${entity.name}${extendsText}${implementsText} {`];
   for (const field of entity.fields) lines.push(renderJavaField(field));
   if (entity.fields.length > 0) lines.push('', renderJavaConstructor(entity));
-  for (const method of entity.methods) lines.push('', renderJavaMethod(method));
+  const methods = [...entity.methods, ...implementedInterfaceMethods(entity, entities, entity.methods)];
+  for (const method of methods) lines.push('', renderJavaMethod(method));
   lines.push('}');
   return lines.join('\n');
 }
 
 function renderJavaField(field: IOMField): string {
-  const nullable = isNullableType(field.type) ? '    @Nullable\n' : '';
   const finalText = field.isFinal ? 'final ' : '';
   const staticText = field.isStatic ? 'static ' : '';
   const defaultText = field.defaultValue !== undefined ? ` = ${javaDefaultValue(field.type, field.defaultValue)}` : '';
-  return `${nullable}    ${visibilityJava(field.visibility)} ${staticText}${finalText}${javaType(field.type)} ${field.name}${defaultText};`;
+  return `    ${visibilityJava(field.visibility)} ${staticText}${finalText}${javaType(field.type)} ${field.name}${defaultText};`;
 }
 
 function renderJavaConstructor(entity: IOMEntity): string {
@@ -199,7 +202,10 @@ function renderJavaConstructor(entity: IOMEntity): string {
 
 function renderJavaMethod(method: IOMMethod): string {
   if (method.isAbstract) return `    ${visibilityJava(method.visibility)} abstract ${javaType(method.returnType, { returnType: true })} ${method.name}(${javaParams(method)});`;
-  return `    ${visibilityJava(method.visibility)} ${javaType(method.returnType, { returnType: true })} ${method.name}(${javaParams(method)}) {\n        throw new UnsupportedOperationException(\"Not implemented yet\");\n    }`;
+  const returnType = javaType(method.returnType, { returnType: true });
+  const returnStatement = javaDefaultReturnStatement(method.returnType, returnType);
+  const body = returnStatement ? `\n        ${returnStatement}\n    ` : '\n    ';
+  return `    ${visibilityJava(method.visibility)} ${returnType} ${method.name}(${javaParams(method)}) {${body}}`;
 }
 
 function javaParams(method: IOMMethod): string {
@@ -289,6 +295,30 @@ function javaDefaultValue(type: string, value: string): string {
   return value;
 }
 
+function javaDefaultReturnStatement(sourceType: string, renderedType: string): string {
+  if (renderedType === 'void') return '';
+  if (isNullableType(sourceType) && renderedType.startsWith('Optional<')) return 'return Optional.empty();';
+  if (renderedType === 'boolean') return 'return false;';
+  if (renderedType === 'char') return "return '\\0';";
+  if (renderedType === 'double' || renderedType === 'float') return 'return 0.0;';
+  if (['byte', 'short', 'int', 'long'].includes(renderedType)) return 'return 0;';
+  return 'return null;';
+}
+
+function pythonDefaultReturnStatement(sourceType: string): string {
+  const renderedType = pythonType(sourceType);
+  if (renderedType === 'None') return 'pass';
+  if (isNullableType(sourceType) || renderedType.startsWith('Optional[')) return 'return None';
+  if (renderedType === 'bool') return 'return False';
+  if (renderedType === 'int') return 'return 0';
+  if (renderedType === 'float') return 'return 0.0';
+  if (renderedType === 'str') return "return ''";
+  if (renderedType.startsWith('list[') || renderedType === 'list') return 'return []';
+  if (renderedType.startsWith('dict[') || renderedType === 'dict') return 'return {}';
+  if (renderedType.startsWith('set[') || renderedType === 'set') return 'return set()';
+  return 'return None';
+}
+
 function pythonDefaultValue(type: string, value: string): string {
   const core = isNullableType(type) ? type.slice(0, -1) : type;
   if (value === 'true') return 'True';
@@ -356,17 +386,52 @@ function boxJavaType(type: string): string {
   }[type] ?? type;
 }
 
-function javaImports(entity: IOMEntity): string[] {
+function javaImports(entity: IOMEntity, entities: IOMEntity[]): string[] {
   const types = [
     ...entity.fields.map(field => field.type),
-    ...entity.methods.flatMap(method => [method.returnType, ...method.params.map(param => param.type)]),
+    ...[
+      ...entity.methods,
+      ...implementedInterfaceMethods(entity, entities, entity.methods),
+    ].flatMap(method => [method.returnType, ...method.params.map(param => param.type)]),
   ];
   const imports = new Set<string>();
   if (types.some(type => /\bList</.test(type))) imports.add('import java.util.List;');
   if (types.some(type => /\bMap</.test(type))) imports.add('import java.util.Map;');
   if (types.some(type => /\bSet</.test(type))) imports.add('import java.util.Set;');
-  if (types.some(type => isNullableType(type))) imports.add('import java.util.Optional;');
+  if ([...entity.methods, ...implementedInterfaceMethods(entity, entities, entity.methods)].some(method => isNullableType(method.returnType))) {
+    imports.add('import java.util.Optional;');
+  }
   return [...imports].sort();
+}
+
+function implementedInterfaceMethods(entity: IOMEntity, entities: IOMEntity[], ownMethods: IOMMethod[]): IOMMethod[] {
+  if (entity.kind !== 'class' || entity.implementsNames.length === 0) return [];
+  const methods = new Map(ownMethods.map(method => [methodSignatureKey(method), method]));
+  const interfaceMethods = entity.implementsNames.flatMap(name => collectInterfaceMethods(name, entities));
+  const missing: IOMMethod[] = [];
+  for (const method of interfaceMethods) {
+    const key = methodSignatureKey(method);
+    if (methods.has(key)) continue;
+    methods.set(key, method);
+    missing.push({ ...method, isAbstract: false });
+  }
+  return missing;
+}
+
+function collectInterfaceMethods(name: string, entities: IOMEntity[], seen = new Set<string>()): IOMMethod[] {
+  const simpleName = baseName(name);
+  if (seen.has(simpleName)) return [];
+  seen.add(simpleName);
+  const entity = entities.find(candidate => baseName(candidate.name) === simpleName && candidate.kind === 'interface');
+  if (!entity) return [];
+  return [
+    ...entity.methods,
+    ...entity.extendsNames.flatMap(parent => collectInterfaceMethods(parent, entities, seen)),
+  ];
+}
+
+function methodSignatureKey(method: IOMMethod): string {
+  return `${method.name}(${method.params.map(param => param.type).join(',')})`;
 }
 
 function bundleModuleName(diagram: IOMDiagram, entities: IOMEntity[]): string {

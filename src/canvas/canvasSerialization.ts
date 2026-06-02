@@ -1,5 +1,6 @@
 import { CANVAS_STATE_VERSION, type CanvasElement, type CanvasElementKind, type CanvasState } from './canvasTypes.js';
 import { DEFAULT_CANVAS_STYLE, normalizeCanvasStyle } from './canvasStyle.js';
+import { validateCanvasState } from './canvasValidation.js';
 
 const KNOWN_KINDS = new Set<CanvasElementKind>([
   'rectangle',
@@ -69,7 +70,7 @@ export function normalizeCanvasState(input: unknown, now = new Date().toISOStrin
     ? raw.elements.map((element, index) => normalizeElement(element, index, now))
     : [];
 
-  return {
+  return validateCanvasState({
     version: CANVAS_STATE_VERSION,
     viewport: {
       x: Number(viewport.x ?? 0),
@@ -83,7 +84,7 @@ export function normalizeCanvasState(input: unknown, now = new Date().toISOStrin
     styleDefaults: normalizeCanvasStyle(raw.styleDefaults as Partial<typeof DEFAULT_CANVAS_STYLE>),
     draftSemanticLinks: Array.isArray(raw.draftSemanticLinks) ? raw.draftSemanticLinks as CanvasState['draftSemanticLinks'] : [],
     updatedAt: String(raw.updatedAt || now),
-  };
+  }).state;
 }
 
 export function serializeCanvasState(state: CanvasState): string {

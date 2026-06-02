@@ -8,7 +8,8 @@ import {
   transitionWorkspaceMode,
 } from '../src/app/modeState.js';
 import { rightRailModeForSelection, selectionBelongsToDiagramSurface, selectionLabel } from '../src/app/selectionState.js';
-import { evaluateWorkspaceCommand, evaluateWorkspaceCommands } from '../src/app/workspaceCommands.js';
+import { evaluateWorkspaceCommand, evaluateWorkspaceCommands, isCodegenSupportedDiagram } from '../src/app/workspaceCommands.js';
+import type { IOMDiagram, IOMEntity } from '../src/semantics/iom.js';
 
 describe('workspace mode contract', () => {
   it('maps supported hash routes to the correct work mode', () => {
@@ -56,6 +57,7 @@ describe('workspace command availability', () => {
     mode: 'ide' as const,
     hasDiagram: true,
     hasSource: true,
+    supportsCodegen: true,
     isAuthenticated: true,
     selection: { type: 'none' as const },
   };
@@ -81,9 +83,52 @@ describe('workspace command availability', () => {
     expect(evaluateWorkspaceCommand('open-account', { ...baseContext, isAuthenticated: false }).enabled).toBe(true);
   });
 
+  it('does not expose codegen when a diagram has no codegen-compatible entities', () => {
+    expect(evaluateWorkspaceCommand('generate', { ...baseContext, supportsCodegen: false })).toMatchObject({
+      enabled: false,
+      reason: 'Code generation is available for class, interface, and enum models only.',
+    });
+  });
+
+  it('keeps codegen available for interface-only and enum-only diagrams', () => {
+    function diagramWith(entity: Pick<IOMEntity, 'kind' | 'name'>): IOMDiagram {
+      return {
+        name: `${entity.name}Diagram`,
+        kind: 'component',
+        entities: new Map([[entity.name, {
+          ...entity,
+          id: entity.name,
+          fields: [],
+          methods: [],
+          enumValues: entity.kind === 'enum' ? [{ name: 'ACTIVE' }] : [],
+          extendsNames: [],
+          implementsNames: [],
+          package: undefined,
+          stereotype: undefined,
+          isAbstract: entity.kind === 'interface',
+          styles: {},
+          children: [],
+          regions: [],
+        } satisfies IOMEntity]]),
+        relations: [],
+        packages: [],
+        notes: [],
+        config: {},
+        styles: {},
+        fragments: [],
+        activations: [],
+        partitions: [],
+      };
+    }
+
+    expect(isCodegenSupportedDiagram(diagramWith({ kind: 'interface', name: 'Repository' }))).toBe(true);
+    expect(isCodegenSupportedDiagram(diagramWith({ kind: 'enum', name: 'Status' }))).toBe(true);
+    expect(isCodegenSupportedDiagram(diagramWith({ kind: 'component', name: 'Gateway' }))).toBe(false);
+  });
+
   it('evaluates command groups for top bars and menus', () => {
     expect(
-      evaluateWorkspaceCommands(['validate', 'generate', 'enter-canvas'], baseContext).map(command => command.enabled),
+      evaluateWorkspaceCommands(['generate', 'generate', 'enter-canvas'], baseContext).map(command => command.enabled),
     ).toEqual([true, true, true]);
   });
 });

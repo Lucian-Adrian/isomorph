@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { reduceCanvasState } from '../src/canvas/canvasState.js';
 import { createCanvasElement, elementsInBounds, MORE_CANVAS_TOOLS, PRIMARY_CANVAS_TOOLS } from '../src/canvas/canvasTools.js';
 import { createEmptyCanvasState, parseCanvasStateText, serializeCanvasState } from '../src/canvas/canvasSerialization.js';
+import { validateCanvasState } from '../src/canvas/canvasValidation.js';
+import type { CanvasElement } from '../src/canvas/canvasTypes.js';
 
 describe('canvas state model', () => {
   it('starts with a versioned, serializable canvas_state document', () => {
@@ -97,5 +99,54 @@ describe('canvas state model', () => {
 
     expect(elementsInBounds(withRect, { x: 0, y: 0, width: 100, height: 100 })).toEqual(['rect-1']);
     expect(elementsInBounds(withRect, { x: 0, y: 0, width: 20, height: 20 })).toEqual([]);
+  });
+
+  it('upserts draft semantic links by canvas element id', () => {
+    const state = createEmptyCanvasState();
+    const linked = reduceCanvasState(state, {
+      type: 'upsert-draft-link',
+      link: { id: 'draft-1', canvasElementId: 'rect-1', targetKind: 'entity', status: 'draft' },
+    });
+    const relinked = reduceCanvasState(linked, {
+      type: 'upsert-draft-link',
+      link: { id: 'draft-1', canvasElementId: 'rect-1', targetKind: 'package', status: 'draft' },
+    });
+
+    expect(relinked.draftSemanticLinks).toEqual([
+      { id: 'draft-1', canvasElementId: 'rect-1', targetKind: 'package', status: 'draft' },
+    ]);
+  });
+
+  it('validates freeform invariants and enforces canvas performance limits', () => {
+    const state = createEmptyCanvasState('2026-06-01T00:00:00.000Z');
+    const elements: CanvasElement[] = Array.from({ length: 4 }, (_, index) => ({
+      id: `rect-${index}`,
+      kind: 'rectangle',
+      bounds: { x: Number.NaN, y: index * 10, width: index === 0 ? 0 : 12, height: 12 },
+      style: state.styleDefaults,
+      rotation: 0,
+      locked: false,
+      layer: index,
+      createdAt: state.updatedAt,
+      updatedAt: state.updatedAt,
+    }));
+
+    const result = validateCanvasState({
+      ...state,
+      elements,
+      selectedElementIds: ['rect-0', 'missing'],
+      draftSemanticLinks: [{ id: 'draft-missing', canvasElementId: 'missing', targetKind: 'entity', status: 'draft' }],
+    }, { maxElements: 2 });
+
+    expect(result.issues.map(issue => issue.code)).toEqual(expect.arrayContaining([
+      'canvas.too_many_elements',
+      'canvas.invalid_bounds',
+      'canvas.missing_selection_target',
+      'canvas.missing_draft_link_target',
+    ]));
+    expect(result.state.elements).toHaveLength(2);
+    expect(result.state.elements[0].bounds).toEqual({ x: 0, y: 0, width: 1, height: 12 });
+    expect(result.state.selectedElementIds).toEqual(['rect-0']);
+    expect(result.state.draftSemanticLinks).toEqual([]);
   });
 });

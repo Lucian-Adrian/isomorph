@@ -13,6 +13,7 @@ export function modeFromHash(routeHash: string): WorkspaceMode {
 }
 
 export function resolveProductMode(routeHash: string, hasOpenFile: boolean): ProductMode {
+  if (routeHash.includes('#/canvas')) return 'canvas';
   if (!hasOpenFile) return 'home';
   return modeFromHash(routeHash);
 }

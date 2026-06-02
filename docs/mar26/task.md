@@ -1,5 +1,7 @@
 # 🚀 Isomorph — Overachieve Execution Plan
 
+> Historical note: this file is an archived March 26 planning snapshot. Test counts, implementation gaps, and roadmap statuses here are not the current submission baseline; use the root README, ROADMAP, and TODO for current state.
+
 > **Goal:** Transform Isomorph from a solid class-diagram DSL into a **mature, multi-diagram UML platform** that exceeds expectations across grammar, parsing, semantics, rendering, testing, and documentation — all within a structured Git workflow.
 
 ---
@@ -118,14 +120,14 @@ chore(ci): add typecheck step to GitHub Actions
 | **Component Renderer**                | ⚠️ Basic      | ~270     | No ports/interfaces/lollipops              |
 | **Use Case Renderer**                 | ⚠️ Basic      | ~190     | No system boundary, no include/extend      |
 | **Collaboration Renderer**            | ⚠️ Basic      | ~150     | No numbered messages                       |
-| **Deployment Renderer**               | ❌ Missing    | N/A      | "To Be Extracted" in README                |
+| **Deployment Renderer**               | Historical gap | N/A      | Current README documents shared component/deployment rendering |
 | **Editor**                            | ✅ Good       | ~470     | CodeMirror 6 with syntax highlighting      |
-| **Tests**                             | ✅ Solid base | 84 tests | Lexer 24, Parser 28, Semantics 32          |
+| **Tests**                             | Historical count | Archived snapshot only | Current README has the verified suite count |
 | **Examples**                          | ⚠️ Limited    | 3 files  | Only class, component, usecase             |
 
 ### What's missing ❌
 
-2. **No deployment renderer** — marked "To Be Extracted"
+2. **Deployment renderer was incomplete in this snapshot** — current code routes deployment through the shared component/deployment renderer
 3. **No sequence fragments** (alt/else/end, loop, opt, par, break, critical)
 4. **No composite states** in state diagrams
 5. **No swimlanes/partitions** in activity diagrams
@@ -471,7 +473,7 @@ relOp
 
 > **Branch:** `feature/deployment-renderer`
 
-This is currently marked **"To Be Extracted"** — it needs full implementation.
+This was marked as a missing extraction in the March snapshot. Current code uses the shared component/deployment renderer path, so this section is historical planning context.
 
 #### Grammar additions:
 
@@ -817,5 +819,5 @@ A feature is "done" when:
 | **System boundary**     | No                     | Yes                                        | **∞**      |
 | **Auto-layout**         | No                     | Basic Sugiyama + force                     | **∞**      |
 | **Title/legend/config** | No                     | Yes                                        | **∞**      |
-| **Deployment renderer** | "To Be Extracted"      | Fully implemented                          | **∞**      |
+| **Deployment renderer** | Historical extraction gap | Shared component/deployment rendering path | **∞**      |
 > **This planships a genuinely competitive UML diagramming DSL.**

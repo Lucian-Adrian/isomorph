@@ -23,12 +23,12 @@ High-confidence current state:
 ### 1) Deployment renderer
 - task.md says: missing, to be extracted.
 - chat.md says: deployment exists but nesting is badly done.
-- code reality: deployment is rendered by component-renderer via renderer dispatch for deployment kind.
+- code reality: deployment is rendered by component-renderer via renderer dispatch for deployment kind, and README now documents that shared path.
 - verdict: chat is closer to reality.
 - why:
   - Renderer dispatch maps deployment to renderComponentDiagram in src/renderer/index.ts.
   - No dedicated src/renderer/deployment-renderer.ts file exists.
-  - README still says deployment is To Be Extracted, which is stale.
+  - README no longer says deployment is To Be Extracted.
 
 ### 2) Sequence fragments
 - task.md says: not implemented.
@@ -235,8 +235,8 @@ High-confidence current state:
   - nested entities are captured as children in IOM.
   - rendering path does not use children hierarchy for node-inside-node placement.
 - Documentation mismatch:
-  - README and roadmap statements conflict with actual code.
-  - grammar/Isomorph.g4 not aligned with runtime parser implementation.
+  - README and roadmap have been refreshed for the current submission baseline.
+  - older archived planning notes under `docs/mar26/` remain historical snapshots, not current product state.
 - Use-case boundary behavior mismatch:
   - renderer creates a synthetic default boundary when no system/boundary entity exists.
   - once a real system entity is added/dragged, synthetic boundary disappears by design, which looks like old boundary vanishing.
@@ -269,7 +269,7 @@ High-confidence current state:
 - [x] Resolve config keyword collisions with common member names.
   - allow title/subtitle/caption/legend/return as identifiers in member context (or implement contextual keyword parsing).
 - [x] Document true deployment renderer architecture.
-  - update README table to reflect shared renderer implementation instead of To Be Extracted.
+  - README table reflects the shared component/deployment renderer path.
 
 ## P1 High Value Functional Completion
 - [x] Add first-class relation operators for provides/requires in parser + AST + semantics.
@@ -325,6 +325,9 @@ This avoids re-implementing features that already exist while targeting the real
   - Current flow inserts lifecycle commands from relation edit modal actions; dedicated canvas draw tools for create/destroy are still pending.
 - [ ] Sequence call/response pairing is strict LIFO.
   - Response validation closes only the latest open synchronous call, which can be stricter than free-form sequence drafting.
+- [x] Current full test suite is clean.
+  - Latest local run: 438 passing, 0 failing, 438 total.
+  - Keep README test counts tied to fresh verification output.
 
 ---
 
@@ -334,8 +337,8 @@ This avoids re-implementing features that already exist while targeting the real
 - task.md says no swimlanes -> code has swimlanes, plus partition validation bug.
 - task.md says no system boundaries -> code has boundary rendering.
 - task.md says deployment missing -> deployment is routed through component renderer.
-- README says deployment To Be Extracted -> stale.
-- grammar file lags parser/lexer behavior.
+- README stale deployment/test statements -> fixed in current README.
+- grammar file lagged parser/lexer behavior -> fixed; keep this synchronized.
 - default use-case boundary is synthetic and not persisted, causing apparent disappearance when real system boundary is introduced.
 - sequence participant groups are not selectable because they miss data-entity-name attributes in SVG output.
 

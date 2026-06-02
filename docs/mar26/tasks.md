@@ -1,5 +1,7 @@
 ## Tasks
 
+> Historical note: this file is an archived March 26 planning snapshot. It may mention features as future work that are now implemented or partially implemented; use the root README, ROADMAP, and TODO for current state.
+
 # 1. Improving DSL for diagrams
 What feels missing from the DSL
 Diagram-specific syntax is too shallow
@@ -223,7 +225,7 @@ Medium-high.
 
 H. Deployment diagrams
 
-The README lists deployment diagrams as supported, but also says the renderer is “To Be Extracted.”
+At the time of this archived snapshot, README and implementation notes disagreed about deployment rendering. Current README documents the shared component/deployment renderer path.
 
 The deployment doc expects nodes, environments, devices, and artifacts, including nested artifacts.
 

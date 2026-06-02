@@ -1,53 +1,60 @@
 # Isomorph Roadmap
 
 ## Implementation Policy
-- Every new feature/fix must be documented (roadmap/docs/TODO parity) as part of delivery.
-- Every new feature/fix must respect the existing design language and include EN/RO/RU i18n + dark/light mode support from the start.
+- Every feature/fix must keep README, TODO, roadmap, and relevant docs in parity.
+- UI work must follow the existing design language and include EN/RO/RU i18n plus dark/light mode support.
+- Roadmap entries must describe current state, not only original intent.
 
-### Phase 1: Core Enhancements (High Priority)
-- **Verify UML Compliance**: Ensure all diagrams adhere to UML standards for accuracy and consistency.
-- **Custom Colors**: Allow users to customize element colors in diagrams. Hex color input with live preview and color picker. (UI: color swatch next to color input field, defaults to predefined colours).
-- **Class diagrams Package improvements**: Make canvas drag and drop over them possible and become nested containers for other entities. (UI: package boxes with dashed borders and background color, entities can be dragged into them, showing nesting visually and in code). 
-- **Documentation**: Comprehensive documentation for all features, including examples and best practices.
+## Current Product Baseline
+- Implemented: formal `.isx` parsing, semantic analysis, SVG rendering, bidirectional position rewrites, diagram examples, CodeMirror editor integration, workspace shell, full-canvas shell, code generation panel, telemetry metrics, Supabase persistence interfaces, and live QA helpers.
+- Implemented diagram paths: class, use case, component, deployment through the shared component/deployment renderer, sequence, activity/flow, state, collaboration.
+- Implemented language features include config statements, sequence fragments, sequence lifecycle syntax/visuals, sequence y-position persistence, activity partitions, use-case system boundaries, component lollipop/socket semantics, and grammar/parser parity.
+- Build improvement completed: production bundle now lazy-loads the source editor/CodeMirror path, code generation engine/panel, metrics panel, right rail, workspace overlays, and full-canvas shell instead of statically pulling all of them into the initial app chunk.
 
-### Phase 2: Animation Implementation (Medium Priority)
-- **Animation for Sequence Diagrams**: Implement light trail animation that follows message lines in sequential order.
-- **GIF Export**: Add ability to export animations as GIF files using canvas frame capturing.
-- **Communication Diagrams**: Simultaneous ping effects on connections.
-- **Activity Diagrams**: Baton pass animation across swimlanes.
-- **Flowcharts**: Split pulse for decision branches and fill-up effects.
-- **State Machine Diagrams**: Breathing nodes and leaping transitions.
-- **Class Diagrams**: Blueprint reveal animation.
+## P0 Submission Readiness
+- [x] Remove stale README claims about 84 passing tests.
+- [x] Remove the internal orchestration dashboard section from README.
+- [x] Reframe roadmap/TODO docs around actual implemented and partial behavior.
+- [x] Add bundle splitting for editor, codegen, metrics, right rail, overlay, and full-canvas paths.
+- [x] Resolve current test failures before any "all tests pass" submission claim.
+- [x] Keep release handoff verification output copied from a fresh run only.
 
-### Phase 3: Collaboration and Advanced Features (Lower Priority)
-- **Auto-Layout Improvements**: Enhanced algorithms for better handling of complex diagrams.
-- **Animation Customization**: User controls for animation speed, style, and effects.
-- **Account System**: User registration and login for saving diagrams in the cloud.
-- **Multi-User Collaboration**: Real-time collaboration with visible mouse cursors (comments, roles - viewer, commenter,editor) [WebSocket-based real-time editing with conflict resolution.].
-- **Settings Page**: User preferences for themes, colors, and collaboration options.
-- **Cloud Saves**: Per-account cloud storage with version history.
-- **Integrated Chat**: Real-time chat for collaborators.
-- **Notifications**: Alerts for diagram changes and comments.
-- **Multiple Languages**: Internationalization support.
-- **Advanced Export Options**: PDF export formats.
-- **Cloud Integration**: Google Drive and OneDrive integration for storage and sharing.
+## P1 Product Correctness
+- [x] Fix SS-10 partition layout validation.
+- [x] Stabilize partition move/resize persistence and rename/edit flow.
+- [x] Standardize non-class arrow anchoring across renderers.
+- [x] Restore sequence participant/relation selection and relation y dragging.
+- [x] Align grammar/Isomorph.g4 with runtime parser/lexer capabilities.
+- [x] Add component/deployment provides/requires operators and endpoint routing.
+- [x] Add sequence return/create/destroy semantics and visuals.
+- [ ] Finish dedicated canvas tools for drawing sequence create/destroy flows.
+- [ ] Add collaboration auto-numbering and nested message numbering.
+- [ ] Expand state composite/region rendering beyond parsed data structures.
 
-### Phase 4: New Diagram Types (Future Expansion)
-- **Data Diagrams**: JSON and YAML data visualization.
-- **Formal Diagrams**: EBNF grammar diagrams.
-- **Project Management**: Gantt diagrams.
-- **Infrastructure**: Network diagrams (nwdiag), database schema diagrams.
-- **UML Extensions**: Object diagrams, timing diagrams.
-- **Graph Theory**: Nodes and edges for graph theory diagrams.
+## P2 UX and Collaboration
+- [x] Add workspace right rail, source/canvas panels, overlay host, metrics, and codegen surfaces.
+- [x] Add Escape-to-close behavior and mobile-aware canvas/source layout.
+- [x] Add Supabase presence and persistence adapter interfaces.
+- [ ] Move concurrent source/canvas editing from adapter shape to a real CRDT/provider implementation.
+- [ ] Add collaborator comments, role-specific permissions, and visible cursors.
+- [ ] Add cloud storage version history and import/export flows for account users.
 
-### Monetization Features (Business Model)
-- **Subscription Model**: Paid web version with collaboration features.
-- **Free Trial**: Limited free access to premium features.
-- **Open Source Local Compiler**: Free local version without collaboration.
-- **Enterprise Solutions**: Custom features and support for businesses.
+## P3 Performance and Maintainability
+- [x] Split the largest optional UI/runtime paths out of the initial production chunk.
+- [ ] Continue extracting `App.tsx` orchestration into focused command/render modules.
+- [ ] Add build-size budget checks so regressions are caught in CI.
+- [ ] Consider deferring Supabase client code until account/cloud flows are opened.
+- [ ] Review source-map or bundle-analyzer output before final deployment if load time remains high.
 
-### User Experience Layers
-- **Basic User**: Create and edit diagrams locally.
-- **Power User**: Use advanced features like animations and custom exports.
-- **Collaborative User**: Real-time multi-user editing with chat.
-- **Enterprise User**: Cloud storage, integrations, and advanced sharing.
+## P4 Future Diagram Expansion
+- [ ] Object and timing diagrams.
+- [ ] Data diagrams for JSON/YAML visualization.
+- [ ] EBNF grammar diagrams.
+- [ ] Project-management diagrams such as Gantt.
+- [ ] Infrastructure diagrams such as network and database schema diagrams.
+
+## Known Current Limitations
+- Current sequence create/destroy creation is modal-assisted; dedicated canvas draw tools are still pending.
+- Sequence call/response pairing is strict LIFO.
+- Collaboration message numbering is not yet first-class.
+- Supabase collaboration has presence/persistence plumbing but not true concurrent source merging.

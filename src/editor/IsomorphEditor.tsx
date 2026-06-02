@@ -34,12 +34,14 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef      = useRef<EditorView | null>(null);
   const onChangeRef  = useRef(onChange);
+  const syncingExternalValueRef = useRef(false);
   onChangeRef.current = onChange;
 
   const updateListener = useMemo(
     () =>
       EditorView.updateListener.of(update => {
         if (update.docChanged) {
+          if (syncingExternalValueRef.current) return;
           onChangeRef.current(update.state.doc.toString());
         }
       }),
@@ -140,9 +142,14 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
     if (!view) return;
     const current = view.state.doc.toString();
     if (current !== value) {
-      view.dispatch({
-        changes: { from: 0, to: current.length, insert: value },
-      });
+      syncingExternalValueRef.current = true;
+      try {
+        view.dispatch({
+          changes: { from: 0, to: current.length, insert: value },
+        });
+      } finally {
+        syncingExternalValueRef.current = false;
+      }
     }
   }, [value]);
 

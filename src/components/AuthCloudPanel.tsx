@@ -1,4 +1,5 @@
 import { IconSave } from './Icons.js';
+import { tText, type Language } from '../i18n.js';
 
 export interface RemoteDiagramSummary {
   id: string;
@@ -16,6 +17,7 @@ export interface AuthCloudPanelProps {
   authEmail: string;
   authPassword: string;
   isWorking?: boolean;
+  uiLanguage?: Language;
   limitNotice?: string;
   onAuthEmailChange: (email: string) => void;
   onAuthPasswordChange: (password: string) => void;
@@ -26,9 +28,9 @@ export interface AuthCloudPanelProps {
   onOpenRemote: (diagram: RemoteDiagramSummary) => void;
 }
 
-function formatRemoteMeta(diagram: RemoteDiagramSummary): string {
+function formatRemoteMeta(diagram: RemoteDiagramSummary, uiLanguage: Language): string {
   const parts: string[] = [];
-  if (typeof diagram.line_count === 'number') parts.push(`${diagram.line_count} lines`);
+  if (typeof diagram.line_count === 'number') parts.push(tText(uiLanguage, 'account.lines', { count: diagram.line_count }));
   const dateValue = diagram.updated_at ?? diagram.created_at;
   if (dateValue) {
     const date = new Date(dateValue);
@@ -45,6 +47,7 @@ export function AuthCloudPanel({
   authEmail,
   authPassword,
   isWorking = false,
+  uiLanguage = 'en',
   limitNotice,
   onAuthEmailChange,
   onAuthPasswordChange,
@@ -56,16 +59,17 @@ export function AuthCloudPanel({
 }: AuthCloudPanelProps) {
   const signedIn = Boolean(userEmail);
   const authDisabled = !isConfigured || isWorking;
+  const t = (key: string, vars?: Record<string, string | number>) => tText(uiLanguage, key, vars);
 
   return (
-    <section className="iso-sidebar" style={{ borderTop: '1px solid var(--iso-divider)' }} aria-label="Cloud">
+    <section className="iso-sidebar" style={{ borderTop: '1px solid var(--iso-divider)' }} aria-label={t('account.cloud')}>
       <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-        <IconSave size={11} /> Cloud
+        <IconSave size={11} /> {t('account.cloud')}
       </div>
       <div className="iso-sidebar-body" style={{ gap: 8 }}>
         {!isConfigured && (
           <div className="iso-panel-info" style={{ marginLeft: 0 }}>
-            Set Supabase env vars to enable cloud sync.
+            {t('account.configure_supabase')}
           </div>
         )}
 
@@ -75,17 +79,17 @@ export function AuthCloudPanel({
               {userEmail}
             </div>
             <button type="button" className="iso-btn iso-btn--primary" onClick={onSave} disabled={!isConfigured || isWorking}>
-              Save to Supabase
+              {t('account.save_supabase')}
             </button>
             <button type="button" className="iso-btn" onClick={onSignOut} disabled={!isConfigured || isWorking}>
-              Sign out
+              {t('account.sign_out')}
             </button>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {remoteDiagrams.length === 0 ? (
-                <div className="iso-panel-info" style={{ marginLeft: 0 }}>No remote files yet.</div>
+                <div className="iso-panel-info" style={{ marginLeft: 0 }}>{t('account.no_remote_files')}</div>
               ) : (
                 remoteDiagrams.slice(0, 6).map(diagram => {
-                  const meta = formatRemoteMeta(diagram);
+                  const meta = formatRemoteMeta(diagram, uiLanguage);
                   return (
                     <button
                       key={diagram.id}
@@ -115,8 +119,8 @@ export function AuthCloudPanel({
               type="email"
               value={authEmail}
               onChange={event => onAuthEmailChange(event.target.value)}
-              placeholder="Email"
-              aria-label="Cloud email"
+              placeholder={t('account.email')}
+              aria-label={t('account.cloud_email')}
               disabled={authDisabled}
             />
             <input
@@ -124,16 +128,16 @@ export function AuthCloudPanel({
               type="password"
               value={authPassword}
               onChange={event => onAuthPasswordChange(event.target.value)}
-              placeholder="Password"
-              aria-label="Cloud password"
+              placeholder={t('account.password')}
+              aria-label={t('account.cloud_password')}
               disabled={authDisabled}
             />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               <button type="submit" className="iso-btn iso-btn--primary" disabled={authDisabled}>
-                Sign in
+                {t('account.sign_in')}
               </button>
               <button type="button" className="iso-btn" onClick={onSignUp} disabled={authDisabled}>
-                Sign up
+                {t('account.sign_up')}
               </button>
             </div>
           </form>
