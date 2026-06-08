@@ -78,6 +78,8 @@ export interface FullCanvasShellProps {
 }
 
 type Point = { x: number; y: number };
+type CanvasAlignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
+type CanvasDistributionAxis = 'horizontal' | 'vertical';
 type PanningGesture = { startPointer: Point; startPan: Point };
 type ElementDragGesture = {
   elementId: string;
@@ -232,6 +234,25 @@ function titleForCanvasMode(mode: FullCanvasMode): string | undefined {
   if (mode === 'frame') return 'Frame';
   if (mode === 'embed') return 'Web embed';
   return undefined;
+}
+
+function translateCanvasElement(element: CanvasElement, dx: number, dy: number): CanvasElement {
+  const next = {
+    ...element,
+    bounds: {
+      ...element.bounds,
+      x: element.bounds.x + dx,
+      y: element.bounds.y + dy,
+    },
+    updatedAt: new Date().toISOString(),
+  };
+  if ('points' in next) {
+    return {
+      ...next,
+      points: next.points.map(point => ({ x: point.x + dx, y: point.y + dy })),
+    } as CanvasElement;
+  }
+  return next as CanvasElement;
 }
 
 export function FullCanvasShell({
@@ -564,6 +585,63 @@ export function FullCanvasShell({
       };
     });
   }, []);
+
+  const handleAlign = useCallback((alignment: CanvasAlignment) => {
+    setCanvasState(state => {
+      const selected = state.elements.filter(el => state.selectedElementIds.includes(el.id));
+      if (selected.length < 2) return state;
+      const minX = Math.min(...selected.map(el => el.bounds.x));
+      const maxX = Math.max(...selected.map(el => el.bounds.x + el.bounds.width));
+      const minY = Math.min(...selected.map(el => el.bounds.y));
+      const maxY = Math.max(...selected.map(el => el.bounds.y + el.bounds.height));
+      const centerX = minX + (maxX - minX) / 2;
+      const centerY = minY + (maxY - minY) / 2;
+      const selectedIds = new Set(state.selectedElementIds);
+      const elements = state.elements.map(element => {
+        if (!selectedIds.has(element.id)) return element;
+        let dx = 0;
+        let dy = 0;
+        if (alignment === 'left') dx = minX - element.bounds.x;
+        if (alignment === 'center') dx = centerX - (element.bounds.x + element.bounds.width / 2);
+        if (alignment === 'right') dx = maxX - (element.bounds.x + element.bounds.width);
+        if (alignment === 'top') dy = minY - element.bounds.y;
+        if (alignment === 'middle') dy = centerY - (element.bounds.y + element.bounds.height / 2);
+        if (alignment === 'bottom') dy = maxY - (element.bounds.y + element.bounds.height);
+        return translateCanvasElement(element, dx, dy);
+      });
+      const next = { ...state, elements, updatedAt: new Date().toISOString() };
+      persistCanvasSnapshot(next);
+      return next;
+    });
+  }, [persistCanvasSnapshot]);
+
+  const handleDistribute = useCallback((axis: CanvasDistributionAxis) => {
+    setCanvasState(state => {
+      const selected = state.elements
+        .filter(el => state.selectedElementIds.includes(el.id))
+        .sort((a, b) => axis === 'horizontal' ? a.bounds.x - b.bounds.x : a.bounds.y - b.bounds.y);
+      if (selected.length < 3) return state;
+      const first = selected[0];
+      const last = selected[selected.length - 1];
+      const start = axis === 'horizontal' ? first.bounds.x : first.bounds.y;
+      const end = axis === 'horizontal' ? last.bounds.x : last.bounds.y;
+      const step = (end - start) / (selected.length - 1);
+      const offsets = new Map<string, Point>();
+      selected.forEach((element, index) => {
+        const target = start + step * index;
+        offsets.set(element.id, axis === 'horizontal'
+          ? { x: target - element.bounds.x, y: 0 }
+          : { x: 0, y: target - element.bounds.y });
+      });
+      const elements = state.elements.map(element => {
+        const offset = offsets.get(element.id);
+        return offset ? translateCanvasElement(element, offset.x, offset.y) : element;
+      });
+      const next = { ...state, elements, updatedAt: new Date().toISOString() };
+      persistCanvasSnapshot(next);
+      return next;
+    });
+  }, [persistCanvasSnapshot]);
 
   const handleReplaceImage = useCallback(() => {
     setCanvasState(state => {
@@ -1725,6 +1803,8 @@ export function FullCanvasShell({
         onBringForward={handleBringForward}
         onSendBackward={handleSendBackward}
         onDuplicate={handleDuplicate}
+        onAlign={handleAlign}
+        onDistribute={handleDistribute}
         onPromoteToDSL={onPromoteToDSL}
       />
 

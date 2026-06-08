@@ -342,6 +342,40 @@ describe('full canvas shell', () => {
     vi.unstubAllGlobals();
   });
 
+  it('aligns and distributes multi-selected freeform elements from the properties panel', () => {
+    const storageKey = 'isomorph-test-canvas-layout-actions-state';
+    const storage = new Map<string, string>();
+    storage.set(storageKey, storedCanvasState([
+      rectElement('rect-1', { x: 10, y: 20, width: 100, height: 80 }),
+      rectElement('rect-2', { x: 210, y: 100, width: 100, height: 80 }, 1),
+      rectElement('rect-3', { x: 510, y: 160, width: 100, height: 80 }, 2),
+    ], ['rect-1', 'rect-2', 'rect-3']));
+    installStorage(storage);
+
+    const { host, cleanup } = render(
+      <FullCanvasShell
+        diagram={diagram()}
+        mode="move"
+        canvasStorageKey={storageKey}
+        onModeChange={vi.fn()}
+        onExportSVG={vi.fn()}
+        onExportPNG={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    act(() => host.querySelector('[aria-label="Align top"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    let saved = JSON.parse(storage.get(storageKey) || '{}');
+    expect(saved.elements.map((element: CanvasElement) => element.bounds.y)).toEqual([20, 20, 20]);
+
+    act(() => host.querySelector('[aria-label="Distribute horizontally"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    saved = JSON.parse(storage.get(storageKey) || '{}');
+    expect(saved.elements.map((element: CanvasElement) => element.bounds.x)).toEqual([10, 260, 510]);
+    expect(saved.selectedElementIds).toEqual(['rect-1', 'rect-2', 'rect-3']);
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
   it('supports Excalidraw-style keyboard shortcuts without stealing form input', () => {
     const storageKey = 'isomorph-test-canvas-hotkeys-state';
     const storage = new Map<string, string>();

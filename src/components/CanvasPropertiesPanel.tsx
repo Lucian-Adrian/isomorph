@@ -25,6 +25,8 @@ export interface CanvasPropertiesPanelProps {
   onBringForward?: () => void;
   onSendBackward?: () => void;
   onDuplicate?: () => void;
+  onAlign?: (alignment: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void;
+  onDistribute?: (axis: 'horizontal' | 'vertical') => void;
   onPromoteToDSL?: (elementId: string, targetKind: string) => void;
 }
 
@@ -142,6 +144,8 @@ export function CanvasPropertiesPanel({
   onBringForward,
   onSendBackward,
   onDuplicate,
+  onAlign,
+  onDistribute,
   onPromoteToDSL,
 }: CanvasPropertiesPanelProps) {
   const [draftTargetKind, setDraftTargetKind] = useState<CanvasDraftSemanticLink['targetKind']>('entity');
@@ -415,6 +419,22 @@ export function CanvasPropertiesPanel({
                 </button>
               )}
             </div>
+            {selectedElements.length > 1 && onAlign && (
+              <div className="iso-prop-button-group" aria-label={t('canvas.props.align')}>
+                <button type="button" className="iso-prop-action" onClick={() => onAlign('left')} title={t('canvas.props.align_left')} aria-label={t('canvas.props.align_left')}>{t('canvas.props.align_left_short')}</button>
+                <button type="button" className="iso-prop-action" onClick={() => onAlign('center')} title={t('canvas.props.align_center')} aria-label={t('canvas.props.align_center')}>{t('canvas.props.align_center_short')}</button>
+                <button type="button" className="iso-prop-action" onClick={() => onAlign('right')} title={t('canvas.props.align_right')} aria-label={t('canvas.props.align_right')}>{t('canvas.props.align_right_short')}</button>
+                <button type="button" className="iso-prop-action" onClick={() => onAlign('top')} title={t('canvas.props.align_top')} aria-label={t('canvas.props.align_top')}>{t('canvas.props.align_top_short')}</button>
+                <button type="button" className="iso-prop-action" onClick={() => onAlign('middle')} title={t('canvas.props.align_middle')} aria-label={t('canvas.props.align_middle')}>{t('canvas.props.align_middle_short')}</button>
+                <button type="button" className="iso-prop-action" onClick={() => onAlign('bottom')} title={t('canvas.props.align_bottom')} aria-label={t('canvas.props.align_bottom')}>{t('canvas.props.align_bottom_short')}</button>
+              </div>
+            )}
+            {selectedElements.length > 2 && onDistribute && (
+              <div className="iso-prop-button-group" aria-label={t('canvas.props.distribute')}>
+                <button type="button" className="iso-prop-action" onClick={() => onDistribute('horizontal')} title={t('canvas.props.distribute_horizontal')} aria-label={t('canvas.props.distribute_horizontal')}>{t('canvas.props.distribute_horizontal_short')}</button>
+                <button type="button" className="iso-prop-action" onClick={() => onDistribute('vertical')} title={t('canvas.props.distribute_vertical')} aria-label={t('canvas.props.distribute_vertical')}>{t('canvas.props.distribute_vertical_short')}</button>
+              </div>
+            )}
             {onDelete && (
               <button type="button" className="iso-prop-action iso-prop-action--danger" onClick={onDelete} title={t('canvas.props.delete_selected')}>
                 <IconTrash size={12} /> {t('canvas.props.delete')}
