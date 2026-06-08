@@ -24,14 +24,14 @@ npm run symphony:check
 ```
 
 Latest local smoke:
-- `npm test -- --run`: 502 passed across 31 test files.
+- `npm test -- --run`: 504 passed across 31 test files.
 - `npm run typecheck`: passed.
-- `npm run build`: passed; current notable chunks are `index-ByPUuxkA.js` 383.30 kB, `vendor-editor-CKufDpsk.js` 357.24 kB, `vendor-supabase-Cp1pO4X2.js` 204.43 kB, and `vendor-react-CIlLrotA.js` 138.64 kB.
+- `npm run build`: passed; current notable chunks are `index-9wthjR_o.js` 389.64 kB, `vendor-editor-CKufDpsk.js` 357.24 kB, `vendor-supabase-Cp1pO4X2.js` 204.43 kB, and `vendor-react-CIlLrotA.js` 138.64 kB.
 - `npm run qa:app`: passed inside `npm run verify` and wrote timestamped logs under `artifacts/qa/`.
 
 Manual browser sanity on 2026-06-09:
-- Local dev server: `http://127.0.0.1:4176/`.
-- Verified welcome/create flow, `#/app` IDE rendering, `#/canvas` full-canvas tool palette, Back navigation to `#/app`, and zero browser console warnings/errors.
+- Local dev server: `http://127.0.0.1:5177/`.
+- Verified `#/canvas` full-canvas inspector with multi-selected objects, Align Top persistence, Distribute Horizontally persistence, preserved selection, and zero new browser console warnings/errors during the interaction.
 - `npm run symphony:check`: passed with 13 tracked tasks and no dispatchable or blocked tasks.
 
 ## Live Supabase QA
@@ -54,7 +54,7 @@ The automated default path disables live Supabase so tests do not transmit crede
 - `App.tsx` remains a large orchestrator. The new shell components provide a safer extraction path, but a later pass should move render chunks out of `App.tsx`.
 - Freeform canvas tools now have drawing, persistence, properties, upload, transform, lasso, and export coverage, but mixed semantic/freeform UX should keep getting browser-level regression checks.
 - Real-time collaboration currently covers presence and the adapter shape. Concurrent source/canvas editing should be implemented with Yjs in the next phase.
-- Bundle size has been structurally addressed with lazy-loaded editor, codegen, metrics, overlay, right-rail, and full-canvas chunks, but the current main app chunk is 383.30 kB. Remaining bundle work should focus on a CI size budget, a bundle analyzer pass, and deferring Supabase until account/cloud flows are opened.
+- Bundle size has been structurally addressed with lazy-loaded editor, codegen, metrics, overlay, right-rail, and full-canvas chunks, but the current main app chunk is 389.64 kB. Remaining bundle work should focus on a CI size budget, a bundle analyzer pass, and deferring Supabase until account/cloud flows are opened.
 
 ## Symphony Usage
 
