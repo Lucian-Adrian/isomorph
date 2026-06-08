@@ -23,7 +23,7 @@ Last refreshed: 2026-06-09 from the local `feature/infinite-canvas-ultimate-ux` 
 - [x] `npm run typecheck`: passed.
 - [x] `npm run build`: passed.
   - Current production output: `index-BKoHKtcB.js` 381.06 kB, `vendor-editor-CKufDpsk.js` 357.24 kB, `vendor-supabase-Cp1pO4X2.js` 204.43 kB, `vendor-react-CIlLrotA.js` 138.64 kB.
-- [x] `npm run qa:app`: passed and wrote `artifacts/qa/isomorph-app-qa-2026-06-08T22-02-39-288Z.jsonl.log`.
+- [x] `npm run qa:app`: passed inside `npm run verify` and wrote timestamped logs under `artifacts/qa/`.
 - [x] `npm run symphony:check`: passed with 13 tracked tasks and no dispatchable or blocked tasks.
 - [ ] `npm run qa:supabase:live`: not rerun in this refresh; previous docs mention a 2026-05-31 live proof, but current live status requires credentials.
 

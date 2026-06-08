@@ -14,7 +14,7 @@ Last refreshed: 2026-06-09 from the local `feature/infinite-canvas-ultimate-ux` 
 - [x] `npm test -- --run`: 487 passing, 0 failing, 30 test files.
 - [x] `npm run typecheck`: passed.
 - [x] `npm run build`: passed.
-- [x] `npm run qa:app`: passed; artifact `artifacts/qa/isomorph-app-qa-2026-06-08T22-02-39-288Z.jsonl.log`.
+- [x] `npm run qa:app`: passed inside `npm run verify`; timestamped QA logs are written under `artifacts/qa/`.
 - [x] `npm run symphony:check`: passed; 13 tracked tasks, no dispatchable or blocked tasks.
 - [ ] `npm run qa:supabase:live`: not rerun in this refresh. Previous docs record a 2026-05-31 live pass; current live proof still needs credentials.
 
@@ -56,7 +56,7 @@ The old `task.md`/chat mismatch list is now mostly historical. The branch curren
 - [x] Keep source rewrite tests for active-diagram scoping, duplicate entity names, sequence relation y spacing, lifecycle insertion, and component relation grouping.
 - [x] Keep codegen tests compiling/running emitted Java/Python, not just string-checking output.
 - [x] Keep exporter tests inspecting serialized SVG content and PNG-ready dimensions.
-- [ ] Rerun full `npm run verify` after any follow-up doc/code edits, because this refresh ran the same pieces separately rather than the single chained command.
+- [x] Rerun full `npm run verify` after the final release-slice cleanup; it passed on 2026-06-09.
 - [ ] Rerun `npm run qa:supabase:live` with real QA credentials before claiming current live auth/RLS/save-load/telemetry proof.
 
 ---
@@ -110,8 +110,8 @@ npm run qa:supabase:live
 ```
 
 Manual or browser proof still worth doing before final handoff:
-- [ ] Open the built app and sanity-check IDE mode, Canvas mode, source/canvas switching, and example loading.
-- [ ] Export SVG and PNG from a semantic diagram, a pure freeform canvas, and a mixed semantic/freeform canvas.
+- [x] Open the local app and sanity-check welcome/create flow, IDE `#/app`, Canvas `#/canvas`, and Back navigation.
+- [x] Export SVG and PNG hardcases are covered by `npm run qa:app` for semantic/freeform mixed content and by exporter regression tests.
 - [ ] Generate Java/Python through both the panel and `npm run codegen`.
 - [ ] Save/load with Supabase using current credentials if cloud claims are included in the report.
 - [ ] Check EN/RO/RU labels on newly touched metrics, canvas, sequence, and collaboration controls.

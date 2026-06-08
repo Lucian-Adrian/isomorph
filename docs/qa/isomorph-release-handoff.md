@@ -27,7 +27,11 @@ Latest local smoke:
 - `npm test -- --run`: 487 passed across 30 test files.
 - `npm run typecheck`: passed.
 - `npm run build`: passed; current notable chunks are `index-BKoHKtcB.js` 381.06 kB, `vendor-editor-CKufDpsk.js` 357.24 kB, `vendor-supabase-Cp1pO4X2.js` 204.43 kB, and `vendor-react-CIlLrotA.js` 138.64 kB.
-- `npm run qa:app`: passed and wrote `artifacts/qa/isomorph-app-qa-2026-06-08T22-02-39-288Z.jsonl.log`.
+- `npm run qa:app`: passed inside `npm run verify` and wrote timestamped logs under `artifacts/qa/`.
+
+Manual browser sanity on 2026-06-09:
+- Local dev server: `http://127.0.0.1:4176/`.
+- Verified welcome/create flow, `#/app` IDE rendering, `#/canvas` full-canvas tool palette, Back navigation to `#/app`, and zero browser console warnings/errors.
 - `npm run symphony:check`: passed with 13 tracked tasks and no dispatchable or blocked tasks.
 
 ## Live Supabase QA
