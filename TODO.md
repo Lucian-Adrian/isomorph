@@ -11,7 +11,7 @@ Last refreshed: 2026-06-09 from the local `feature/infinite-canvas-ultimate-ux` 
 
 ## Current Verification Snapshot
 
-- [x] `npm test -- --run`: 487 passing, 0 failing, 30 test files.
+- [x] `npm test -- --run`: 502 passing, 0 failing, 31 test files.
 - [x] `npm run typecheck`: passed.
 - [x] `npm run build`: passed.
 - [x] `npm run qa:app`: passed inside `npm run verify`; timestamped QA logs are written under `artifacts/qa/`.
@@ -19,7 +19,7 @@ Last refreshed: 2026-06-09 from the local `feature/infinite-canvas-ultimate-ux` 
 - [ ] `npm run qa:supabase:live`: not rerun in this refresh. Previous docs record a 2026-05-31 live pass; current live proof still needs credentials.
 
 Build output to keep in mind:
-- `website/dist/app/assets/index-BKoHKtcB.js`: 381.06 kB.
+- `website/dist/app/assets/index-ByPUuxkA.js`: 383.30 kB.
 - `website/dist/app/assets/vendor-editor-CKufDpsk.js`: 357.24 kB.
 - `website/dist/app/assets/vendor-supabase-Cp1pO4X2.js`: 204.43 kB.
 - `website/dist/app/assets/vendor-react-CIlLrotA.js`: 138.64 kB.
@@ -65,8 +65,8 @@ The old `task.md`/chat mismatch list is now mostly historical. The branch curren
 
 - [x] Update `ROADMAP.md` to current branch state.
 - [x] Update `TODO.md` to current branch state.
-- [x] Update `README.md` test badge and testing section from 438 to 487 passing.
-- [x] Update `docs/qa/isomorph-release-handoff.md` with the 487-test snapshot and current bundle chunk sizes.
+- [x] Update `README.md` test badge and testing section from 438 to 502 passing.
+- [x] Update `docs/qa/isomorph-release-handoff.md` with the 502-test snapshot and current bundle chunk sizes.
 - [ ] Re-scan diagram docs for claims that still describe fixed gaps as open, especially sequence, state, component, collaboration, and deployment docs.
 - [ ] Keep `docs/mar26/*` and `docs/unorganised/chat.md` clearly treated as historical/raw planning material, not current product truth.
 

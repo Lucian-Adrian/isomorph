@@ -24,9 +24,9 @@ npm run symphony:check
 ```
 
 Latest local smoke:
-- `npm test -- --run`: 487 passed across 30 test files.
+- `npm test -- --run`: 502 passed across 31 test files.
 - `npm run typecheck`: passed.
-- `npm run build`: passed; current notable chunks are `index-BKoHKtcB.js` 381.06 kB, `vendor-editor-CKufDpsk.js` 357.24 kB, `vendor-supabase-Cp1pO4X2.js` 204.43 kB, and `vendor-react-CIlLrotA.js` 138.64 kB.
+- `npm run build`: passed; current notable chunks are `index-ByPUuxkA.js` 383.30 kB, `vendor-editor-CKufDpsk.js` 357.24 kB, `vendor-supabase-Cp1pO4X2.js` 204.43 kB, and `vendor-react-CIlLrotA.js` 138.64 kB.
 - `npm run qa:app`: passed inside `npm run verify` and wrote timestamped logs under `artifacts/qa/`.
 
 Manual browser sanity on 2026-06-09:
@@ -54,7 +54,7 @@ The automated default path disables live Supabase so tests do not transmit crede
 - `App.tsx` remains a large orchestrator. The new shell components provide a safer extraction path, but a later pass should move render chunks out of `App.tsx`.
 - Freeform canvas tools now have drawing, persistence, properties, upload, transform, lasso, and export coverage, but mixed semantic/freeform UX should keep getting browser-level regression checks.
 - Real-time collaboration currently covers presence and the adapter shape. Concurrent source/canvas editing should be implemented with Yjs in the next phase.
-- Bundle size has been structurally addressed with lazy-loaded editor, codegen, metrics, overlay, right-rail, and full-canvas chunks, but the current main app chunk is 381.06 kB. Remaining bundle work should focus on a CI size budget, a bundle analyzer pass, and deferring Supabase until account/cloud flows are opened.
+- Bundle size has been structurally addressed with lazy-loaded editor, codegen, metrics, overlay, right-rail, and full-canvas chunks, but the current main app chunk is 383.30 kB. Remaining bundle work should focus on a CI size budget, a bundle analyzer pass, and deferring Supabase until account/cloud flows are opened.
 
 ## Symphony Usage
 

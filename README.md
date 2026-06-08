@@ -10,7 +10,7 @@
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
   [![CodeMirror](https://img.shields.io/badge/CodeMirror-6.x-green)](https://codemirror.net/)
-  [![Tests](https://img.shields.io/badge/Tests-487%20passing-brightgreen)](#-testing--validation)
+  [![Tests](https://img.shields.io/badge/Tests-502%20passing-brightgreen)](#-testing--validation)
 
   [**Live Demo**](https://team02-faf241.github.io/isomorph/) • [**Language Spec**](grammar/Isomorph.g4) • [**Examples**](examples/) • [**Contributing**](CONTRIBUTING.md)
 </div>
@@ -148,7 +148,7 @@ Before any rendering occurs, the AST is validated against **core rules (SS-1 to 
 
 ## Testing & Validation
 
-The repository tracks a broad Vitest suite across lexer, parser, semantics, rendering, source rewriting, code generation, canvas state, workspace shell, telemetry, and integration helpers. Latest local verification: 487 tests passing.
+The repository tracks a broad Vitest suite across lexer, parser, semantics, rendering, examples, source rewriting, code generation, canvas state, workspace shell, telemetry, and integration helpers. Latest local verification: 502 tests passing.
 
 ```bash
 # Run the test suite
@@ -164,7 +164,7 @@ npm run typecheck      # Trigger strict TypeScript linting (tsc --noEmit)
 - `lexer.test.ts`: Keywords, operators, literals, comment handling, and error recovery.
 - `parser.test.ts`: Diagram declarations, entities, packages, relationships, config, fragments, lifecycle syntax, and layout annotations.
 - `semantics.test.ts`: IOM validation from SS-1 through the active diagram-specific rule set, including inheritance, endpoints, fragments, naming, component connectors, and sequence checks.
-- Renderer/component suites: SVG output, non-class anchoring, canvas shell behavior, workspace panels, metrics, telemetry, source rewrites, code generation, and remote canvas state.
+- Renderer/component suites: SVG output, non-class anchoring, built-in examples, canvas shell behavior, workspace panels, metrics, telemetry, source rewrites, code generation, and remote canvas state.
 
 ---
 
