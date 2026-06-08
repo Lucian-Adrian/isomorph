@@ -37,9 +37,16 @@ import type { ParseError } from './parser/index.js';
 import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Language } from './i18n.js';
 import { generateCode, generateCodeBundle, type CodegenLanguage } from './codegen/index.js';
 import { supabase, isSupabaseConfigured } from './services/supabase.js';
-import { endTelemetrySession, listDiagrams, logTelemetry, saveDiagram, startTelemetrySession, type SavedDiagram } from './services/diagramStore.js';
+import { endTelemetrySession, logTelemetry, startTelemetrySession, type SavedDiagram } from './services/diagramStore.js';
 import { buildTelemetryEvent, summarizeProductivity } from './services/telemetry.js';
 import { LIMIT_CONTACT_EMAIL } from './services/limits.js';
+import { useDiagramSync } from './services/useDiagramSync.js';
+import {
+  insertRelationLine,
+  insertSequenceLifecycleRelation,
+  updateRelationVerticalPosition,
+  updateRelationVerticalPositions,
+} from './services/sourceRewrite.js';
 import { resolveProductMode, routeForMode } from './app/modeState.js';
 import type { User } from '@supabase/supabase-js';
 
@@ -255,30 +262,6 @@ function insertBeforeAnnotations(source: string, insertion: string): string {
   return source.slice(0, block.start) + header + nextLines.join('\n') + suffix;
 }
 
-function insertRelation(source: string, insertion: string): string {
-  const block = findDiagramBlock(source);
-  if (!block) return source;
-
-  const header = source.slice(block.start, block.openBrace + 1);
-  const body = source.slice(block.openBrace + 1, block.closeBrace);
-  const suffix = source.slice(block.closeBrace);
-  const lines = body.split('\n');
-  const relRx = /^\s*[A-Za-z_]\w*\s+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+[A-Za-z_]\w*/;
-  const annoRx = /^\s*@[A-Za-z_]\w*\s+at\s*\(/;
-
-  let lastRel = -1;
-  let firstAnno = -1;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (firstAnno === -1 && annoRx.test(line)) firstAnno = i;
-    if (relRx.test(line)) lastRel = i;
-  }
-
-  const insertAt = lastRel >= 0 ? lastRel + 1 : (firstAnno >= 0 ? firstAnno : lines.length);
-  const nextLines = [...lines.slice(0, insertAt), insertion, ...lines.slice(insertAt)];
-  return source.slice(0, block.start) + header + nextLines.join('\n') + suffix;
-}
-
 function insertAtEnd(source: string, insertion: string): string {
   const lastBrace = source.lastIndexOf('}');
   if (lastBrace < 0) return source;
@@ -384,41 +367,10 @@ function updateEntityPosition(source: string, name: string, x: number, y: number
   return lastBrace < 0 ? source : source.slice(0, lastBrace) + `  ${newAnnotation}\n` + source.slice(lastBrace);
 }
 
-function updateRelationVerticalPosition(source: string, relationId: string, y: number): string {
-  const idxRaw = relationId.replace('rel_', '');
-  const relationIdx = Number.parseInt(idxRaw, 10);
-  if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
-
-  const relRegex = /^(\s*)([A-Za-z_][\w]*)\s+(--\(\)|--\(|--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)\s+(?:(create|destroy|new|delete)\s+)?([A-Za-z_][\w]*)(\s*\[[^\]]*\])?\s*$/gm;
-  const matches = [...source.matchAll(relRegex)];
-  const match = matches[relationIdx];
-  if (!match || match.index == null) return source;
-
-  const [full, indent, fromRaw, opRaw, actionRaw, toRaw, attrsRaw = ''] = match;
-  const yValue = String(Math.max(0, Math.round(y)));
-  let suffix = attrsRaw || '';
-
-  if (!suffix.trim()) {
-    suffix = ` [y="${yValue}"]`;
-  } else if (/\by\s*=\s*"(?:\\"|[^"])*"/.test(suffix)) {
-    suffix = suffix.replace(/(\by\s*=\s*")((?:\\"|[^"])*)"/, `$1${yValue}"`);
-  } else {
-    suffix = suffix.replace(/\]\s*$/, `, y="${yValue}"]`);
-  }
-
-  const actionStr = actionRaw ? `${actionRaw} ` : '';
-  const replacement = `${indent}${fromRaw} ${opRaw} ${actionStr}${toRaw}${suffix}`;
-
-  return source.slice(0, match.index) + replacement + source.slice(match.index + full.length);
-}
-
-function updateRelationVerticalPositions(source: string, relationYs: Record<string, number>): string {
-  let next = source;
-  for (const [relationId, y] of Object.entries(relationYs)) {
-    next = updateRelationVerticalPosition(next, relationId, y);
-  }
-  return next;
-}
+export {
+  updateRelationVerticalPosition,
+  updateRelationVerticalPositions,
+};
 
 function parseRelationAttrs(attrs: string): Map<string, string> {
   const attrMap = new Map<string, string>();
@@ -640,7 +592,15 @@ export function updateEntityDeclaration(
   return next;
 }
 
-function normalizePartitionDeclaration(source: string, partitionName: string): string {
+function normalizePartitionDeclaration(source: string, partitionName: string, diagramName?: string): string {
+  if (diagramName) {
+    const block = findDiagramBlock(source, diagramName);
+    if (!block) return source;
+    const header = source.slice(block.start, block.openBrace + 1);
+    const body = source.slice(block.openBrace + 1, block.closeBrace);
+    const suffix = source.slice(block.closeBrace);
+    return source.slice(0, block.start) + header + normalizePartitionDeclaration(body, partitionName) + suffix;
+  }
   const bounds = findEntityBounds(source, partitionName);
   if (!bounds) return source;
 
@@ -653,7 +613,15 @@ function normalizePartitionDeclaration(source: string, partitionName: string): s
   return source.slice(0, bounds.start) + normalized + source.slice(bounds.end);
 }
 
-function normalizeBoundaryDeclaration(source: string, boundaryName: string, boundaryKind: 'system' | 'boundary'): string {
+function normalizeBoundaryDeclaration(source: string, boundaryName: string, boundaryKind: 'system' | 'boundary', diagramName?: string): string {
+  if (diagramName) {
+    const block = findDiagramBlock(source, diagramName);
+    if (!block) return source;
+    const header = source.slice(block.start, block.openBrace + 1);
+    const body = source.slice(block.openBrace + 1, block.closeBrace);
+    const suffix = source.slice(block.closeBrace);
+    return source.slice(0, block.start) + header + normalizeBoundaryDeclaration(body, boundaryName, boundaryKind) + suffix;
+  }
   const bounds = findEntityBounds(source, boundaryName);
   if (!bounds) return source;
 
@@ -771,7 +739,12 @@ export default function App() {
   const [authPassword, setAuthPassword] = useState('');
   const [authStatus, setAuthStatus] = useState('');
   const [saveStatus, setSaveStatus] = useState('');
-  const [remoteDiagrams, setRemoteDiagrams] = useState<SavedDiagram[]>([]);
+  const {
+    remoteDiagrams,
+    setRemoteDiagrams,
+    fetchDiagrams: refreshRemoteDiagrams,
+    pushDiagram,
+  } = useDiagramSync(user);
   const [activeOverlay, setActiveOverlay] = useState<WorkspaceOverlay | null>(null);
   const [codegenLanguage, setCodegenLanguage] = useState<CodegenLanguage>('python');
   const [codegenOutput, setCodegenOutput] = useState('');
@@ -781,6 +754,12 @@ export default function App() {
   const [codegenLatencyMs, setCodegenLatencyMs] = useState<number | null>(null);
   const [saveLatencyMs, setSaveLatencyMs] = useState<number | null>(null);
   const [compileLatencyMs, setCompileLatencyMs] = useState<number | null>(null);
+  const [parseLatencyMs, setParseLatencyMs] = useState<number | null>(null);
+  const [analyzeLatencyMs, setAnalyzeLatencyMs] = useState<number | null>(null);
+  const [renderLatencyMs, setRenderLatencyMs] = useState<number | null>(null);
+  const [typingDurationMs, setTypingDurationMs] = useState(0);
+  const [canvasDurationMs, setCanvasDurationMs] = useState(0);
+  const analyzeTimingRef = useRef<number | null>(null);
   const [copyCount, setCopyCount] = useState(0);
   const [pasteCount, setPasteCount] = useState(0);
   const [exportCount, setExportCount] = useState(0);
@@ -859,13 +838,24 @@ export default function App() {
   }, [source]);
 
   useEffect(() => {
-    if (parseTimingRef.current !== null) setCompileLatencyMs(parseTimingRef.current);
+    if (parseTimingRef.current !== null) {
+      setCompileLatencyMs(parseTimingRef.current);
+      setParseLatencyMs(parseTimingRef.current);
+    }
   }, [parseResult]);
 
   const analysisResult = useMemo(() => {
     if (!parseResult) return null;
+    const started = performance.now();
     try { return analyze(parseResult.program); } catch { return null; }
+    finally { analyzeTimingRef.current = Math.round(performance.now() - started); }
   }, [parseResult]);
+
+  useEffect(() => {
+    if (analyzeTimingRef.current !== null) {
+      setAnalyzeLatencyMs(analyzeTimingRef.current);
+    }
+  }, [analysisResult]);
 
   const parseErrors: ParseError[] = parseResult?.errors ?? [];
   const rawSemanticErrors = analysisResult?.errors ?? [];
@@ -962,8 +952,8 @@ export default function App() {
       setRemoteDiagrams([]);
       return;
     }
-    listDiagrams(user).then(setRemoteDiagrams).catch(error => setSaveStatus(error.message));
-  }, [user]);
+    refreshRemoteDiagrams();
+  }, [user, refreshRemoteDiagrams]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -1234,12 +1224,25 @@ export default function App() {
   }, [activeDiagram]);
 
   const handleTextRenameRequest = useCallback((oldName: string, _newName: string, type: 'diagram' | 'package') => { setEditingText({ oldName, newName: oldName, type }); }, []);
-  const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string, y?: number) => {
+  const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string, y?: number, diagramName?: string, relationType?: string) => {
     updateActiveTab(tab => {
-      const relationLine = activeDiagram?.kind === 'sequence' && y !== undefined
-        ? `  ${fromEntity} --> ${toEntity} [y="${y}"]`
-        : `  ${fromEntity} --> ${toEntity}`;
-      let newSource = insertRelation(tab.source, relationLine);
+      const targetDiagramName = diagramName ?? activeDiagram?.name;
+      const isSequence = activeDiagram?.kind === 'sequence';
+      let newSource: string;
+      if (isSequence && (relationType === 'create' || relationType === 'destroy')) {
+        newSource = insertSequenceLifecycleRelation(tab.source, targetDiagramName, fromEntity, toEntity, relationType, y);
+      } else {
+        const op = isSequence && relationType === 'async'
+          ? '--|>'
+          : isSequence && relationType === 'response'
+            ? '..>'
+            : '-->';
+        const attrs = new Map<string, string>();
+        if (isSequence && y !== undefined) attrs.set('y', String(Math.max(0, Math.round(y))));
+        const serializedAttrs = [...attrs.entries()].map(([key, value]) => `${key}="${value}"`).join(', ');
+        const relationLine = `  ${fromEntity} ${op} ${toEntity}${serializedAttrs ? ` [${serializedAttrs}]` : ''}`;
+        newSource = insertRelationLine(tab.source, relationLine, targetDiagramName);
+      }
       newSource = formatDiagramSource(newSource);
       return { ...tab, source: newSource };
     });
@@ -1309,21 +1312,21 @@ export default function App() {
               source = source.replace(identPattern, nextName);
             }
           } else {
-             source = updateEntityDeclaration(sourceIn, entityName, updates);
+             source = updateEntityDeclaration(sourceIn, entityName, updates, activeDiagram?.name);
           }
         } catch (e) {
-          source = updateEntityDeclaration(sourceIn, entityName, updates);
+          source = updateEntityDeclaration(sourceIn, entityName, updates, activeDiagram?.name);
         }
       } else {
-        source = updateEntityDeclaration(sourceIn, entityName, updates);
+        source = updateEntityDeclaration(sourceIn, entityName, updates, activeDiagram?.name);
       }
 
       if (updates.kind === 'partition') {
-        source = normalizePartitionDeclaration(source, updates.name || entityName);
+        source = normalizePartitionDeclaration(source, updates.name || entityName, activeDiagram?.name);
       } else if (updates.kind === 'system' || updates.kind === 'boundary') {
-        source = normalizeBoundaryDeclaration(source, updates.name || entityName, updates.kind);
+        source = normalizeBoundaryDeclaration(source, updates.name || entityName, updates.kind, activeDiagram?.name);
       } else if (updates.bodyText !== undefined && entitySupportsBody(updates.kind)) {
-        source = replaceEntityBody(source, updates.name || entityName, updates.bodyText);
+        source = replaceEntityBody(source, updates.name || entityName, updates.bodyText, activeDiagram?.name);
       }
       source = formatDiagramSource(source);
       return { ...tab, source };
@@ -1603,7 +1606,7 @@ export default function App() {
 
   const handleExportSVG = useCallback(() => {
     const started = performance.now();
-    exportSVG(activeDiagram?.name ?? 'diagram', '.iso-canvas-wrap svg', isFullCanvasRoute ? { canvasState: readActiveCanvasState() } : undefined);
+    exportSVG(activeDiagram?.name ?? 'diagram', '.iso-canvas-wrap svg', { canvasState: readActiveCanvasState() });
     setExportCount(count => count + 1);
     void logTelemetry({
       userId: user?.id,
@@ -1612,11 +1615,11 @@ export default function App() {
       eventType: 'export',
       payload: buildTelemetryEvent('export', { format: 'svg', latency_ms: Math.round(performance.now() - started) }).payload,
     });
-  }, [activeDiagram, activeTab, isFullCanvasRoute, readActiveCanvasState, savedDiagramIds, telemetrySessionId, user]);
+  }, [activeDiagram, activeTab, readActiveCanvasState, savedDiagramIds, telemetrySessionId, user]);
 
   const handleExportPNG = useCallback(() => {
     const started = performance.now();
-    exportPNG(activeDiagram?.name ?? 'diagram', '.iso-canvas-wrap svg', 2, isFullCanvasRoute ? { canvasState: readActiveCanvasState() } : undefined);
+    exportPNG(activeDiagram?.name ?? 'diagram', '.iso-canvas-wrap svg', 2, { canvasState: readActiveCanvasState() });
     setExportCount(count => count + 1);
     void logTelemetry({
       userId: user?.id,
@@ -1625,7 +1628,7 @@ export default function App() {
       eventType: 'export',
       payload: buildTelemetryEvent('export', { format: 'png', latency_ms: Math.round(performance.now() - started) }).payload,
     });
-  }, [activeDiagram, activeTab, isFullCanvasRoute, readActiveCanvasState, savedDiagramIds, telemetrySessionId, user]);
+  }, [activeDiagram, activeTab, readActiveCanvasState, savedDiagramIds, telemetrySessionId, user]);
 
   const handleAuth = useCallback(async (mode: 'sign-in' | 'sign-up') => {
     if (!supabase) {
@@ -1657,11 +1660,6 @@ export default function App() {
     setAuthStatus('Signed out.');
   }, []);
 
-  const refreshRemoteDiagrams = useCallback(async () => {
-    if (!user) return;
-    setRemoteDiagrams(await listDiagrams(user));
-  }, [user]);
-
   const handleCloudSave = useCallback(async () => {
     if (!activeTab || !user) {
       setSaveStatus('Sign in to save diagrams to Supabase.');
@@ -1669,19 +1667,16 @@ export default function App() {
     }
     const started = performance.now();
     try {
-      const saved = await saveDiagram({
-        user,
+      const saved = await pushDiagram({
         title: activeTab.name,
         source: activeTab.source,
         canvasState: localStorage.getItem(`isomorph-canvas:${activeTab.id}`),
         activeDiagramName: activeDiagram?.name,
         existingId: savedDiagramIds[activeTab.id],
-        currentFileCount: remoteDiagrams.length,
       });
       setSavedDiagramIds(prev => ({ ...prev, [activeTab.id]: saved.id }));
       setSaveLatencyMs(Math.round(performance.now() - started));
       setSaveStatus(`Saved ${saved.title}.`);
-      await refreshRemoteDiagrams();
       await logTelemetry({
         userId: user.id,
         sessionId: telemetrySessionId ?? undefined,
@@ -1695,7 +1690,7 @@ export default function App() {
     } catch (error) {
       setSaveStatus(error instanceof Error ? error.message : String(error));
     }
-  }, [activeTab, activeDiagram, user, savedDiagramIds, remoteDiagrams.length, refreshRemoteDiagrams, telemetrySessionId]);
+  }, [activeTab, activeDiagram, user, savedDiagramIds, pushDiagram, telemetrySessionId]);
 
   const handleRemoteOpen = useCallback((diagram: SavedDiagram) => {
     const id = `tab-${slugId()}`;
@@ -2019,6 +2014,11 @@ export default function App() {
         compileLatencyMs,
         saveLatencyMs,
         codegenLatencyMs,
+        parseLatencyMs,
+        analyzeLatencyMs,
+        renderLatencyMs,
+        typingDurationMs,
+        canvasDurationMs,
         generatedLoc: productivitySummary.generatedCodeLines,
         estimatedMinutesSaved: productivitySummary.estimatedBoilerplateMinutesSaved,
         copyCount,
@@ -2112,6 +2112,9 @@ export default function App() {
     const previousLines = source.split('\n').length;
     const currentLines = value.split('\n').length;
     const lines_modified = Math.abs(currentLines - previousLines);
+    if (duration_ms > 0 && Math.abs(value.length - previousLength) <= 20) {
+      setTypingDurationMs(current => current + duration_ms);
+    }
 
     updateActiveTab(tab => ({ ...tab, source: value }));
     if (Math.abs(value.length - previousLength) > 20) {
@@ -2133,6 +2136,19 @@ export default function App() {
       });
     }
   }, [activeTab, savedDiagramIds, source, telemetrySessionId, updateActiveTab, user?.id]);
+
+  const handleCanvasInteractionDuration = useCallback((durationMs: number) => {
+    const measured = Math.max(0, Math.round(durationMs));
+    if (measured <= 0) return;
+    setCanvasDurationMs(current => current + measured);
+    void logTelemetry({
+      userId: user?.id,
+      sessionId: telemetrySessionId ?? undefined,
+      diagramId: activeTab ? savedDiagramIds[activeTab.id] : undefined,
+      eventType: 'diagram_drag',
+      payload: buildTelemetryEvent('diagram_drag', { duration_ms: measured }).payload,
+    });
+  }, [activeTab, savedDiagramIds, telemetrySessionId, user?.id]);
 
   const sourcePane = (
     <SourcePanel
@@ -2168,6 +2184,8 @@ export default function App() {
       onTextRenameRequest={handleTextRenameRequest}
       onExportSVG={handleExportSVG}
       onDropEntity={handleDropEntity}
+      onCanvasInteractionDuration={handleCanvasInteractionDuration}
+      onRender={stats => setRenderLatencyMs(stats.latencyMs)}
     />
   );
 
@@ -2440,6 +2458,8 @@ export default function App() {
             fitSignal={fullCanvasFitToken}
             onViewportChange={handleFullCanvasViewportChange}
             canvasStorageKey="isomorph-canvas:standalone"
+            onCanvasInteractionDuration={handleCanvasInteractionDuration}
+            onRender={stats => setRenderLatencyMs(stats.latencyMs)}
           />
         </main>
       </div>
@@ -2979,6 +2999,8 @@ export default function App() {
             fitSignal={fullCanvasFitToken}
             onViewportChange={handleFullCanvasViewportChange}
             canvasStorageKey={activeTab ? `isomorph-canvas:${activeTab.id}` : undefined}
+            onCanvasInteractionDuration={handleCanvasInteractionDuration}
+            onRender={stats => setRenderLatencyMs(stats.latencyMs)}
           />
         ) : isMobileLayout ? (
           <div className="iso-mobile-main">

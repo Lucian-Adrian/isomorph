@@ -4,25 +4,26 @@
 
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type { IOMDiagram } from '../semantics/iom.js';
-import { renderDiagram } from '../renderer/index.js';
+import { renderDiagram, renderMultipleDiagrams } from '../renderer/index.js';
 import { IconPointer, IconHand, IconEdge } from './Icons';
 import type { IOMEntity } from '../semantics/iom.js';
 import { tText, type Language } from '../i18n.js';
 
-export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge';
+export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge' | 'sequence-create' | 'sequence-destroy';
 
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
+  diagrams?: IOMDiagram[] | null;
   language?: Language;
-  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => void;
-  onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number) => void;
-  onEntityEditRequest?: (entity: IOMEntity) => void;
-  onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string) => void;
-  onRelationVerticalMove?: (relationId: string, y: number, seedRelationYs?: Record<string, number>) => void;
-  onRelationAddRequest?: (fromEntity: string, toEntity: string, y?: number) => void;
+  onEntityMove?: (entityName: string, x: number, y: number, dragDx?: number, dragDy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>, diagramName?: string) => void;
+  onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number, diagramName?: string) => void;
+  onEntityEditRequest?: (entity: IOMEntity, diagramName?: string) => void;
+  onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string, diagramName?: string) => void;
+  onRelationVerticalMove?: (relationId: string, y: number, seedRelationYs?: Record<string, number>, diagramName?: string) => void;
+  onRelationAddRequest?: (fromEntity: string, toEntity: string, y?: number, diagramName?: string, relationType?: string) => void;
   onExportSVG?: () => void;
-  onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string) => void;
-  onTextRenameRequest?: (oldText: string, newText: string, type: 'diagram' | 'package') => void;
+  onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string, diagramName?: string) => void;
+  onTextRenameRequest?: (oldText: string, newText: string, type: 'diagram' | 'package', diagramName?: string) => void;
   availableTools?: CanvasTool[];
   activeTool?: CanvasTool;
   onActiveToolChange?: (tool: CanvasTool) => void;
@@ -37,11 +38,13 @@ interface DiagramViewProps {
   onConsumePendingDrop?: () => void;
   zoom?: number;
   pan?: { x: number; y: number };
+  onCanvasInteractionDuration?: (durationMs: number) => void;
   onRender?: (metrics: { latencyMs: number; svgLength: number }) => void;
 }
 
 export function DiagramView({
   diagram,
+  diagrams = null,
   language = 'en',
   onEntityMove,
   onEntityResize,
@@ -52,7 +55,7 @@ export function DiagramView({
   onDropEntity,
   onRelationAddRequest,
   onTextRenameRequest,
-  availableTools = ['move', 'hand', 'edit-node', 'edit-edge', 'add-edge'],
+  availableTools = ['move', 'hand', 'edit-node', 'edit-edge', 'add-edge', 'sequence-create', 'sequence-destroy'],
   activeTool: controlledTool,
   onActiveToolChange,
   showToolRail = true,
@@ -66,14 +69,24 @@ export function DiagramView({
   onConsumePendingDrop,
   zoom: propZoom,
   pan: propPan,
+  onCanvasInteractionDuration,
   onRender,
 }: DiagramViewProps) {
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
   const containerRef  = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const viewWrapperRef = useRef<HTMLDivElement>(null);
 
   const [localZoom, setLocalZoom] = useState(100);
   const [localPan, setLocalPan] = useState({ x: 0, y: 0 });
+  const [edgeMenu, setEdgeMenu] = useState<{
+    x: number;
+    y: number;
+    from: string;
+    to: string;
+    yPos: number;
+    diagName?: string;
+  } | null>(null);
 
   const zoom = propZoom !== undefined ? propZoom : localZoom;
   const pan = propPan !== undefined ? propPan : localPan;
@@ -81,6 +94,7 @@ export function DiagramView({
   const zoomRef = useRef(zoom);
   const panRef = useRef(pan);
   const onRenderRef = useRef(onRender);
+  const pointerDownTimeRef = useRef<number | null>(null);
   const lastRenderedSvgRef = useRef<string>('');
   useEffect(() => {
     zoomRef.current = zoom;
@@ -118,7 +132,7 @@ export function DiagramView({
   }, [propZoom, propPan, onViewportChange]);
 
   const [activeTool, setActiveTool] = useState<CanvasTool>('move');
-  const [drawingEdge, setDrawingEdge] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
+  const [drawingEdge, setDrawingEdge] = useState<{ x1: number, y1: number, x2: number, y2: number, diagramName?: string } | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
 
   const dragRef = useRef<{
@@ -163,7 +177,7 @@ export function DiagramView({
     }
   }, [diagram?.name, updatePan]);
 
-  const screenToCanvas = useCallback((clientX: number, clientY: number) => {
+  const screenToCanvas = useCallback((clientX: number, clientY: number, targetDiagName?: string) => {
     const svgEl = containerRef.current?.querySelector('svg') as SVGSVGElement | null;
     if (svgEl && typeof svgEl.createSVGPoint === 'function') {
       const ctm = svgEl.getScreenCTM();
@@ -172,6 +186,15 @@ export function DiagramView({
         point.x = clientX;
         point.y = clientY;
         const local = point.matrixTransform(ctm.inverse());
+        if (targetDiagName && diagrams && diagrams.length > 0) {
+          const idx = diagrams.findIndex(d => d.name === targetDiagName);
+          if (idx >= 0) {
+            return {
+              x: local.x - idx * 1250,
+              y: local.y - 140, // 100 frame offset + 40 header
+            };
+          }
+        }
         return { x: local.x, y: local.y };
       }
     }
@@ -180,11 +203,21 @@ export function DiagramView({
     const rect = wrap?.getBoundingClientRect();
     if (!wrap || !rect) return { x: 0, y: 0 };
     const scale = zoom / 100;
-    return {
+    const basePos = {
       x: (clientX - rect.left + (wrap.scrollLeft || 0) - pan.x) / scale,
       y: (clientY - rect.top + (wrap.scrollTop || 0) - pan.y) / scale,
     };
-  }, [zoom, pan]);
+    if (targetDiagName && diagrams && diagrams.length > 0) {
+      const idx = diagrams.findIndex(d => d.name === targetDiagName);
+      if (idx >= 0) {
+        return {
+          x: basePos.x - idx * 1250,
+          y: basePos.y - 140,
+        };
+      }
+    }
+    return basePos;
+  }, [zoom, pan, diagrams]);
 
   const handleZoomIn  = useCallback(() => updateZoom(z => Math.min(z + 20, 200)), [updateZoom]);
   const handleZoomOut = useCallback(() => updateZoom(z => Math.max(z - 20, 40)), [updateZoom]);
@@ -283,7 +316,9 @@ export function DiagramView({
         const my = e.clientY - rect.top;
         const currentZoom = zoomRef.current;
         const currentPan = panRef.current;
-        const newZ = Math.min(Math.max(currentZoom - Math.sign(e.deltaY) * 10, 40), 200);
+        const zoomSpeed = 0.003;
+        const factor = Math.exp(-e.deltaY * zoomSpeed);
+        const newZ = Math.min(Math.max(currentZoom * factor, 40), 200);
         const scaleRatio = newZ / currentZoom;
         const newPan = {
           x: mx - (mx - currentPan.x) * scaleRatio,
@@ -310,19 +345,44 @@ export function DiagramView({
     return () => window.removeEventListener('keydown', handler);
   }, [onExportSVG]);
 
+  // Close context menu on click outside or escape key
+  useEffect(() => {
+    if (!edgeMenu) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as Element;
+      if (!target.closest('.iso-edge-context-menu')) {
+        setEdgeMenu(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEdgeMenu(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick, true);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('click', handleOutsideClick, true);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [edgeMenu]);
+
   // Render SVG into container on diagram change
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
-    if (!diagram) {
+    if (!diagram && (!diagrams || diagrams.length === 0)) {
       el.innerHTML = '';
       lastRenderedSvgRef.current = '';
       return;
     }
 
     const startedAt = performance.now();
-    const svg = renderDiagram(diagram);
+    const svg = diagrams && diagrams.length > 0
+      ? renderMultipleDiagrams(diagrams)
+      : diagram ? renderDiagram(diagram) : '';
+
     if (svg === lastRenderedSvgRef.current) return;
     lastRenderedSvgRef.current = svg;
     el.innerHTML = svg;
@@ -333,7 +393,7 @@ export function DiagramView({
 
     svgEl.style.userSelect = 'none';
     svgEl.style.webkitUserSelect = 'none';
-  }, [diagram]);
+  }, [diagram, diagrams]);
 
   // Apply selection outlines separately to preserve DOM during drag
   useEffect(() => {
@@ -385,18 +445,23 @@ export function DiagramView({
 
   }, [diagram, selectedItems]);
 
-  const lastClickRef = useRef<number>(0);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!diagram || !canvasRef.current) return;
+  const lastClickRef = useRef<number>(0);  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if ((!diagram && (!diagrams || diagrams.length === 0)) || !canvasRef.current) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pointerDownTimeRef.current = performance.now();
     const target = e.target as Element;
 
+    const diagramGroup = target.closest('g[data-diagram-name]') as SVGGElement | null;
+    const diagName = diagramGroup?.getAttribute('data-diagram-name') ?? diagram?.name ?? undefined;
+    const targetDiag = diagName && diagrams && diagrams.length > 0
+      ? (diagrams.find(d => d.name === diagName) ?? diagram)
+      : diagram;
+
     if (pendingDropKeyword && onDropEntity) {
-      const pos = screenToCanvas(e.clientX, e.clientY);
+      const pos = screenToCanvas(e.clientX, e.clientY, diagName);
       const pkgGroup = target.closest('g[data-package-name]');
       const targetPackage = pkgGroup ? (pkgGroup.getAttribute('data-package-name') ?? undefined) : undefined;
-      onDropEntity(pendingDropKeyword, pos.x, pos.y, targetPackage);
+      onDropEntity(pendingDropKeyword, pos.x, pos.y, targetPackage, diagName);
       onConsumePendingDrop?.();
       e.preventDefault();
       e.stopPropagation();
@@ -415,24 +480,24 @@ export function DiagramView({
         if (relationId) {
           e.preventDefault();
           e.stopPropagation();
-          onRelationEditRequest(relationId, relationLabel, relationKind);
+          onRelationEditRequest(relationId, relationLabel, relationKind, diagName);
           return;
         }
       }
 
       const entityGroup = target.closest('g[data-entity-name]') as SVGGElement | null;
-      if (entityGroup && onEntityEditRequest && availableTools.includes('edit-node')) {
+      if (entityGroup && onEntityEditRequest && availableTools.includes('edit-node') && targetDiag) {
         const entityName = entityGroup.getAttribute('data-entity-name');
         if (entityName) {
-          const current = diagram.entities.get(entityName);
+          const current = targetDiag.entities.get(entityName);
           if (current) {
             e.preventDefault();
             e.stopPropagation();
-            onEntityEditRequest(current);
+            onEntityEditRequest(current, diagName);
             return;
           }
-          
-          const frag = diagram.fragments?.find(f => f.id === entityName);
+
+          const frag = targetDiag.fragments?.find(f => f.id === entityName);
           if (frag) {
             e.preventDefault();
             e.stopPropagation();
@@ -440,13 +505,13 @@ export function DiagramView({
               id: frag.id,
               name: frag.id,
               kind: frag.kind,
-                stereotype: frag.label,
-                elseBlocks: frag.elseBlocks, // Inject elseBlocks into custom property
-            } as any);
+              stereotype: frag.label,
+              elseBlocks: frag.elseBlocks, // Inject elseBlocks into custom property
+            } as any, diagName);
             return;
           }
 
-          const isDefaultUsecaseBoundary = diagram.kind === 'usecase' && entityGroup.getAttribute('data-default-usecase-boundary') === 'true';
+          const isDefaultUsecaseBoundary = targetDiag.kind === 'usecase' && entityGroup.getAttribute('data-default-usecase-boundary') === 'true';
           if (isDefaultUsecaseBoundary) {
             const tf = entityGroup.getAttribute('transform') ?? '';
             const tm = tf.match(/translate\(([^,]+),([^)]+)\)/);
@@ -476,14 +541,14 @@ export function DiagramView({
                 w: Number.isFinite(w) ? w : 580,
                 h: Number.isFinite(h) ? h : 400,
               },
-            });
+            }, diagName);
             return;
           }
 
           // Partitions are modeled separately from diagram.entities; still allow edit modal for rename.
           const isPartitionLane = entityGroup.getAttribute('data-partition-lane') === 'true';
           if (isPartitionLane) {
-            const part = diagram.partitions.find(p => p.name === entityName);
+            const part = targetDiag.partitions.find(p => p.name === entityName);
             if (part) {
               e.preventDefault();
               e.stopPropagation();
@@ -501,7 +566,7 @@ export function DiagramView({
                 children: [],
                 regions: [],
                 position: part.position,
-              });
+              }, diagName);
               return;
             }
           }
@@ -512,16 +577,15 @@ export function DiagramView({
       if (pkgGroup && onTextRenameRequest && availableTools.includes('edit-node')) {
         const pkgName = pkgGroup.getAttribute('data-package-name');
         if (pkgName) {
-           e.preventDefault(); e.stopPropagation(); onTextRenameRequest(pkgName, '', 'package');
+           e.preventDefault(); e.stopPropagation(); onTextRenameRequest(pkgName, '', 'package', diagName);
            return;
         }
       }
 
-      const diagramGroup = target.closest('g[data-diagram-name]') as SVGGElement | null;
       if (diagramGroup && onTextRenameRequest && availableTools.includes('edit-node')) {
-        const diagName = diagramGroup.getAttribute('data-diagram-name');
-        if (diagName) {
-           e.preventDefault(); e.stopPropagation(); onTextRenameRequest(diagName, '', 'diagram');
+        const dName = diagramGroup.getAttribute('data-diagram-name');
+        if (dName) {
+           e.preventDefault(); e.stopPropagation(); onTextRenameRequest(dName, '', 'diagram', diagName);
            return;
         }
       }
@@ -561,7 +625,8 @@ export function DiagramView({
     const canMoveEntity = availableTools.includes('move') || availableTools.includes('hand');
     const shouldPan = true; // Always allow pan if missed entity
 
-    if (relationGroup && activeTool === 'move' && diagram.kind === 'sequence' && onRelationVerticalMove) {
+    const currentDiagKind = targetDiag?.kind ?? diagram?.kind;
+    if (relationGroup && activeTool === 'move' && currentDiagKind === 'sequence' && onRelationVerticalMove) {
       const relationId = relationGroup.getAttribute('data-relation-id') ?? undefined;
       if (!relationId) return;
       const relationY = Number.parseFloat(relationGroup.getAttribute('data-relation-y') ?? '0');
@@ -576,7 +641,7 @@ export function DiagramView({
         relationOrigY: relationY,
       };
       setIsInteracting(true);
-      canvasRef.current?.setPointerCapture(e.pointerId);
+      canvasRef.current?.setPointerCapture?.(e.pointerId);
       e.preventDefault();
       return;
     }
@@ -607,32 +672,27 @@ export function DiagramView({
         resizeHandle: handle,
       };
       setIsInteracting(true);
-      canvasRef.current?.setPointerCapture(e.pointerId);
+      canvasRef.current?.setPointerCapture?.(e.pointerId);
       e.preventDefault();
       return;
     }
 
-    if (entityGroup && activeTool === 'add-edge') {
+    if (entityGroup && (activeTool === 'add-edge' || activeTool === 'sequence-create' || activeTool === 'sequence-destroy')) {
       const entityName = entityGroup.getAttribute('data-entity-name') ?? entityGroup.getAttribute('data-package-name') ?? undefined;
       if (!entityName) return;
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const scale = zoom / 100;
-      const wrap = canvasRef.current;
-      const x = (e.clientX - rect.left + (wrap.scrollLeft || 0) - pan.x) / scale;
-      const y = (e.clientY - rect.top + (wrap.scrollTop || 0) - pan.y) / scale;
+      const pos = screenToCanvas(e.clientX, e.clientY, diagName);
       dragRef.current = {
         mode: 'add-edge',
         pointerId: e.pointerId,
         startClientX: e.clientX,
         startClientY: e.clientY,
         entityName,
-        entityOrigX: x,
-        entityOrigY: y,
+        entityOrigX: pos.x,
+        entityOrigY: pos.y,
       };
-      setDrawingEdge({ x1: x, y1: y, x2: x, y2: y });
+      setDrawingEdge({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y, diagramName: diagName });
       setIsInteracting(true);
-      canvasRef.current?.setPointerCapture(e.pointerId);
+      canvasRef.current?.setPointerCapture?.(e.pointerId);
       e.preventDefault();
       return;
     }
@@ -643,10 +703,10 @@ export function DiagramView({
       const tf = entityGroup.getAttribute('transform') ?? '';
       const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
       const usesDeltaTransform = !m;
-      
+
       let entityOrigX = m ? parseFloat(m[1]) : 0;
       let entityOrigY = m ? parseFloat(m[2]) : 0;
-      
+
       // If we don't have transform (like a package or usecase diagram wrapper without at() initially)
       if (!m) {
         // Fallback to reading x/y bounds from its inner rect if available
@@ -680,7 +740,7 @@ export function DiagramView({
       };
       entityGroup.style.willChange = 'transform';
       setIsInteracting(true);
-      canvasRef.current.setPointerCapture(e.pointerId);
+      canvasRef.current.setPointerCapture?.(e.pointerId);
       e.preventDefault();
       return;
     }
@@ -695,10 +755,10 @@ export function DiagramView({
         panStartY: pan.y,
       };
       setIsInteracting(true);
-      canvasRef.current.setPointerCapture(e.pointerId);
+      canvasRef.current.setPointerCapture?.(e.pointerId);
       e.preventDefault();
     }
-  }, [diagram, availableTools, activeTool, pan, zoom, selectedItems, onSelectionChange, onRelationEditRequest, onEntityEditRequest, onRelationVerticalMove, pendingDropKeyword, onDropEntity, onConsumePendingDrop, screenToCanvas]);
+  }, [diagram, diagrams, availableTools, activeTool, pan, zoom, selectedItems, onSelectionChange, onRelationEditRequest, onEntityEditRequest, onRelationVerticalMove, pendingDropKeyword, onDropEntity, onConsumePendingDrop, screenToCanvas]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -715,10 +775,12 @@ export function DiagramView({
       const rect = canvasRef.current?.getBoundingClientRect();
       const wrap = canvasRef.current;
       if (!rect || !wrap) return;
-      const scale = zoom / 100;
-      const x2 = (e.clientX - rect.left + wrap.scrollLeft - pan.x) / scale;
-      const y2 = (e.clientY - rect.top + wrap.scrollTop - pan.y) / scale;
-      setDrawingEdge(prev => prev ? { ...prev, x2, y2 } : null);
+      const svgEl = containerRef.current?.querySelector('svg');
+      const elementNode = svgEl?.querySelector(`g[data-entity-name="${drag.entityName}"]`) ?? svgEl?.querySelector(`g[data-package-name="${drag.entityName}"]`);
+      const diagramGroup = elementNode?.closest('g[data-diagram-name]');
+      const diagName = diagramGroup?.getAttribute('data-diagram-name') ?? diagram?.name ?? undefined;
+      const pos = screenToCanvas(e.clientX, e.clientY, diagName);
+      setDrawingEdge(prev => prev ? { ...prev, x2: pos.x, y2: pos.y } : null);
       return;
     }
 
@@ -867,32 +929,61 @@ export function DiagramView({
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (drag.mode === 'none' || drag.pointerId !== e.pointerId) return;
+    const elapsed = pointerDownTimeRef.current ? performance.now() - pointerDownTimeRef.current : 0;
+    pointerDownTimeRef.current = null;
+    if (elapsed > 0) onCanvasInteractionDuration?.(elapsed);
 
     if (drag.mode === 'add-edge') {
       setDrawingEdge(null);
       const target = document.elementFromPoint(e.clientX, e.clientY);
       const targetEntityGroup = target?.closest('g[data-entity-name]');
       const toEntityName = targetEntityGroup?.getAttribute('data-entity-name');
+
+      const diagramGroup = target?.closest('g[data-diagram-name]');
+      const diagName = diagramGroup?.getAttribute('data-diagram-name') ?? diagram?.name ?? undefined;
+      const targetDiag = diagName && diagrams && diagrams.length > 0
+        ? (diagrams.find(d => d.name === diagName) ?? diagram)
+        : diagram;
+
       const isSequenceSelfReference = drag.entityName && toEntityName
         && drag.entityName === toEntityName
-        && diagram?.kind === 'sequence';
+        && targetDiag?.kind === 'sequence';
       if (drag.entityName && toEntityName && (drag.entityName !== toEntityName || isSequenceSelfReference)) {
-        if (onRelationAddRequest) {
-          const rect = canvasRef.current?.getBoundingClientRect();
-          let y: number | undefined = undefined;
-          if (rect && canvasRef.current) {
-            const scale = zoom / 100;
-            const wrap = canvasRef.current;
-            y = Math.round((drag.startClientY - rect.top + (wrap.scrollTop || 0) - pan.y) / scale);
+        const pos = screenToCanvas(e.clientX, e.clientY, diagName);
+        const directLifecycleType = activeTool === 'sequence-create'
+          ? 'create'
+          : activeTool === 'sequence-destroy'
+            ? 'destroy'
+            : null;
+        if (targetDiag?.kind === 'sequence' && directLifecycleType) {
+          onRelationAddRequest?.(drag.entityName, toEntityName, Math.round(pos.y), diagName, directLifecycleType);
+        } else if (targetDiag?.kind === 'sequence') {
+          const wrapperRect = viewWrapperRef.current?.getBoundingClientRect();
+          const menuX = e.clientX - (wrapperRect?.left ?? 0);
+          const menuY = e.clientY - (wrapperRect?.top ?? 0);
+          setEdgeMenu({
+            x: menuX,
+            y: menuY,
+            from: drag.entityName,
+            to: toEntityName,
+            yPos: Math.round(pos.y),
+            diagName,
+          });
+        } else {
+          if (onRelationAddRequest) {
+            onRelationAddRequest(drag.entityName, toEntityName, Math.round(pos.y), diagName);
           }
-          onRelationAddRequest(drag.entityName, toEntityName, y);
         }
       }
     }
 
     if (drag.mode === 'relation-vertical' && drag.relationGroup && drag.relationId && drag.relationOrigY != null) {
+      const diagramGroup = drag.relationGroup.closest('g[data-diagram-name]');
+      const diagName = diagramGroup?.getAttribute('data-diagram-name') ?? diagram?.name ?? undefined;
+
       const seededRelationYs: Record<string, number> = {};
-      const allRelationGroups = Array.from(containerRef.current?.querySelectorAll('g[data-relation-id][data-relation-y]') ?? []) as SVGGElement[];
+      const scope = diagramGroup ?? containerRef.current;
+      const allRelationGroups = Array.from(scope?.querySelectorAll('g[data-relation-id][data-relation-y]') ?? []) as SVGGElement[];
       for (const group of allRelationGroups) {
         const rid = group.getAttribute('data-relation-id');
         const yRaw = Number.parseFloat(group.getAttribute('data-relation-y') ?? '');
@@ -905,11 +996,14 @@ export function DiagramView({
       const dy = m ? parseFloat(m[1]) : 0;
       drag.relationGroup.removeAttribute('transform');
       if (onRelationVerticalMove) {
-        onRelationVerticalMove(drag.relationId, Math.round(drag.relationOrigY + dy), seededRelationYs);
+        onRelationVerticalMove(drag.relationId, Math.round(drag.relationOrigY + dy), seededRelationYs, diagName);
       }
     }
 
     if (drag.mode === 'resize-entity' && drag.entityName && drag.entityGroup && onEntityResize) {
+      const diagramGroup = drag.entityGroup.closest('g[data-diagram-name]');
+      const diagName = diagramGroup?.getAttribute('data-diagram-name') ?? diagram?.name ?? undefined;
+
       const w = parseFloat(drag.entityGroup.getAttribute('data-entity-width') || '0');
       const h = parseFloat(drag.entityGroup.getAttribute('data-entity-height') || '0');
       if (w > 0 && h > 0) {
@@ -917,11 +1011,14 @@ export function DiagramView({
         const m = tf.match(/translate\(([^,]+),([^)]+)\)/);
         const x = m ? Math.round(parseFloat(m[1])) : undefined;
         const y = m ? Math.round(parseFloat(m[2])) : undefined;
-        onEntityResize(drag.entityName, Math.round(w), Math.round(h), x, y);
+        onEntityResize(drag.entityName, Math.round(w), Math.round(h), x, y, diagName);
       }
     }
 
     if (drag.mode === 'entity' && drag.entityGroup && drag.entityName && onEntityMove) {
+      const diagramGroup = drag.entityGroup.closest('g[data-diagram-name]');
+      const diagName = diagramGroup?.getAttribute('data-diagram-name') ?? diagram?.name ?? undefined;
+
       const isPackageDrag = drag.entityGroup.hasAttribute('data-package-name');
       const scale = zoom / 100;
       // Raw cursor delta in canvas coordinates
@@ -931,7 +1028,7 @@ export function DiagramView({
       if (isPackageDrag) {
         // For packages: pass 0,0 as position and cursor delta as dx/dy.
         // App.tsx handleEntityMove will compute final positions from IOM data + delta.
-        onEntityMove(drag.entityName, 0, 0, cursorDx, cursorDy, undefined);
+        onEntityMove(drag.entityName, 0, 0, cursorDx, cursorDy, undefined, diagName);
       } else {
         let updatedX = Math.round((drag.entityOrigX ?? 0) + cursorDx);
         let updatedY = Math.round((drag.entityOrigY ?? 0) + cursorDy);
@@ -947,7 +1044,8 @@ export function DiagramView({
         }
 
         const seededPositions: Record<string, { x: number; y: number; w?: number; h?: number }> = {};
-        const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
+        const scope = diagramGroup ?? containerRef.current;
+        const allEntityGroups = Array.from(scope?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
         for (const group of allEntityGroups) {
           const entityName = group.getAttribute('data-entity-name');
           if (!entityName) continue;
@@ -975,7 +1073,7 @@ export function DiagramView({
           };
         }
 
-        onEntityMove(drag.entityName, updatedX, updatedY, cursorDx, cursorDy, seededPositions);
+        onEntityMove(drag.entityName, updatedX, updatedY, cursorDx, cursorDy, seededPositions, diagName);
       }
     }
 
@@ -990,14 +1088,14 @@ export function DiagramView({
       });
     }
 
-    if (canvasRef.current?.hasPointerCapture(e.pointerId)) {
-      canvasRef.current.releasePointerCapture(e.pointerId);
+    if (canvasRef.current?.hasPointerCapture?.(e.pointerId)) {
+      canvasRef.current.releasePointerCapture?.(e.pointerId);
     }
     setIsInteracting(false);
     dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
-  }, [diagram, zoom, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
+  }, [activeTool, diagram, diagrams, zoom, onCanvasInteractionDuration, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
 
-  const isDiagramEmpty = diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
+  const isDiagramEmpty = (!diagrams || diagrams.length === 0) && diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
 
   const selectTool = useCallback((tool: CanvasTool) => {
     setActiveTool(tool);
@@ -1005,9 +1103,9 @@ export function DiagramView({
   }, [onActiveToolChange]);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div ref={viewWrapperRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
       {/* Empty state (no code typed at all) */}
-      {showEmptyState && !diagram && (
+      {showEmptyState && !diagram && (!diagrams || diagrams.length === 0) && (
         <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none' }}>
           <svg className="iso-canvas-empty-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true" role="img">
             <title>{t('diagram.empty_placeholder')}</title>
@@ -1042,14 +1140,13 @@ export function DiagramView({
         </div>
       )}
 
-      {/* SVG canvas with zoom */}
       <div
         className="iso-canvas-wrap"
         ref={canvasRef}
         role="img"
-        aria-label={diagram ? `${diagram.name} ${diagram.kind} ${t('welcome.diagram')}` : t('diagram.canvas_label')}
+        aria-label={diagrams && diagrams.length > 0 ? 'Multiple UML diagrams' : diagram ? `${diagram.name} ${diagram.kind} ${t('welcome.diagram')}` : t('diagram.canvas_label')}
         style={{
-          display: diagram ? undefined : 'none',
+          display: diagram || (diagrams && diagrams.length > 0) ? undefined : 'none',
           backgroundPosition: `${pan.x}px ${pan.y}px`,
           backgroundSize: `${24 * (zoom / 100)}px ${24 * (zoom / 100)}px`,
           touchAction: 'none' /* prevent native zooming on trackpads */
@@ -1063,11 +1160,13 @@ export function DiagramView({
           e.preventDefault();
           const keyword = e.dataTransfer.getData('text/plain');
           if (keyword && onDropEntity) {
-            const pos = screenToCanvas(e.clientX, e.clientY);
+            const diagramGroup = (e.target as Element).closest('g[data-diagram-name]') as SVGGElement | null;
+            const diagName = diagramGroup?.getAttribute('data-diagram-name') ?? diagram?.name ?? undefined;
+            const pos = screenToCanvas(e.clientX, e.clientY, diagName);
             const target = e.target as Element;
             const pkgGroup = target.closest('g[data-package-name]');
             const targetPackage = pkgGroup ? (pkgGroup.getAttribute('data-package-name') ?? undefined) : undefined;
-            onDropEntity(keyword, pos.x, pos.y, targetPackage);
+            onDropEntity(keyword, pos.x, pos.y, targetPackage, diagName);
           }
         }}      >
         <div
@@ -1081,13 +1180,26 @@ export function DiagramView({
             transition: isInteracting ? 'none' : 'transform 150ms cubic-bezier(0.16,1,0.3,1)',
           }}
         />
-        {drawingEdge && (
-          <svg style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100}}>
-            <g style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})`, transformOrigin: 'top left' }}>
-              <line x1={drawingEdge.x1} y1={drawingEdge.y1} x2={drawingEdge.x2} y2={drawingEdge.y2} stroke="var(--accent-color, #2563eb)" strokeWidth="3" strokeDasharray="5,5" />
-            </g>
-          </svg>
-        )}
+        {drawingEdge && (() => {
+          let transX = 0;
+          let transY = 0;
+          if (drawingEdge.diagramName && diagrams && diagrams.length > 0) {
+            const idx = diagrams.findIndex(d => d.name === drawingEdge.diagramName);
+            if (idx >= 0) {
+              transX = idx * 1250;
+              transY = 140;
+            }
+          }
+          return (
+            <svg style={{position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100}}>
+              <g style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})`, transformOrigin: 'top left' }}>
+                <g transform={`translate(${transX}, ${transY})`}>
+                  <line x1={drawingEdge.x1} y1={drawingEdge.y1} x2={drawingEdge.x2} y2={drawingEdge.y2} stroke="var(--accent-color, #2563eb)" strokeWidth="3" strokeDasharray="5,5" />
+                </g>
+              </g>
+            </svg>
+          );
+        })()}
       </div>
 
       {/* Tools Array */}
@@ -1105,6 +1217,16 @@ export function DiagramView({
           )}
           {availableTools.includes('add-edge') && (
             <button className={`iso-canvas-btn ${activeTool === 'add-edge' ? 'iso-canvas-btn--active' : ''}`} onClick={() => selectTool('add-edge')} aria-label={t('tool.draw_edge')} data-tooltip={t('tool.draw_edge')}>
+              <IconEdge />
+            </button>
+          )}
+          {diagram?.kind === 'sequence' && availableTools.includes('sequence-create') && (
+            <button className={`iso-canvas-btn ${activeTool === 'sequence-create' ? 'iso-canvas-btn--active' : ''}`} onClick={() => selectTool('sequence-create')} aria-label={t('rel.seq_create')} data-tooltip={t('rel.seq_create')}>
+              <IconEdge />
+            </button>
+          )}
+          {diagram?.kind === 'sequence' && availableTools.includes('sequence-destroy') && (
+            <button className={`iso-canvas-btn ${activeTool === 'sequence-destroy' ? 'iso-canvas-btn--active' : ''}`} onClick={() => selectTool('sequence-destroy')} aria-label={t('rel.seq_destroy')} data-tooltip={t('rel.seq_destroy')}>
               <IconEdge />
             </button>
           )}
@@ -1145,10 +1267,86 @@ export function DiagramView({
           </button>
         </div>
       )}
+
+      {edgeMenu && (
+        <div
+          className="iso-edge-context-menu iso-dropdown-menu"
+          style={{
+            position: 'absolute',
+            left: `${edgeMenu.x}px`,
+            top: `${edgeMenu.y}px`,
+            display: 'flex',
+            flexDirection: 'column',
+            zIndex: 1000,
+            background: 'var(--white)',
+            border: '1px solid var(--iso-border-strong)',
+            borderRadius: 'var(--iso-radius-lg)',
+            boxShadow: 'var(--iso-shadow-lg)',
+            padding: '6px',
+            minWidth: '220px',
+          }}
+        >
+          <div style={{ padding: '6px 10px', fontSize: '11px', fontWeight: 'bold', color: 'var(--iso-text-muted)', borderBottom: '1px solid var(--iso-divider)', marginBottom: '4px' }}>
+            {t('relation.menu_title')}
+          </div>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            onClick={() => {
+              onRelationAddRequest?.(edgeMenu.from, edgeMenu.to, edgeMenu.yPos, edgeMenu.diagName, 'sync');
+              setEdgeMenu(null);
+            }}
+          >
+            <span style={{ fontWeight: '500' }}>{t('rel.seq_synchronous_call')}</span>
+            <span className="iso-dropdown-item-meta">--&gt;</span>
+          </button>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            onClick={() => {
+              onRelationAddRequest?.(edgeMenu.from, edgeMenu.to, edgeMenu.yPos, edgeMenu.diagName, 'async');
+              setEdgeMenu(null);
+            }}
+          >
+            <span style={{ fontWeight: '500' }}>{t('rel.seq_asynchronous_call')}</span>
+            <span className="iso-dropdown-item-meta">--|&gt;</span>
+          </button>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            onClick={() => {
+              onRelationAddRequest?.(edgeMenu.from, edgeMenu.to, edgeMenu.yPos, edgeMenu.diagName, 'response');
+              setEdgeMenu(null);
+            }}
+          >
+            <span style={{ fontWeight: '500' }}>{t('rel.seq_response_return')}</span>
+            <span className="iso-dropdown-item-meta">..&gt;</span>
+          </button>
+          <div className="iso-dropdown-sep" />
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            onClick={() => {
+              onRelationAddRequest?.(edgeMenu.from, edgeMenu.to, edgeMenu.yPos, edgeMenu.diagName, 'create');
+              setEdgeMenu(null);
+            }}
+          >
+            <span style={{ fontWeight: '500', color: 'var(--iso-brand, #4f46e5)' }}>{t('rel.seq_create')}</span>
+            <span className="iso-dropdown-item-meta">create</span>
+          </button>
+          <button
+            type="button"
+            className="iso-dropdown-item"
+            onClick={() => {
+              onRelationAddRequest?.(edgeMenu.from, edgeMenu.to, edgeMenu.yPos, edgeMenu.diagName, 'destroy');
+              setEdgeMenu(null);
+            }}
+          >
+            <span style={{ fontWeight: '500', color: 'var(--iso-error, #ef4444)' }}>{t('rel.seq_destroy')}</span>
+            <span className="iso-dropdown-item-meta">destroy</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
-
-
-
-

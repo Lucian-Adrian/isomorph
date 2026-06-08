@@ -407,9 +407,12 @@ let minX = Infinity;
         strokeColor = "#8b5cf6"; fillColor = "rgba(139, 92, 246, 0.05)"; textFill = "#6d28d9"; tabFill = "#f3e8ff"; break;
     }
 
-    svg += `    <g data-entity-name="${frag.id}" transform="translate(${fragLeft},${fragTop})">\n`;
-    svg += `      <rect fill="transparent" x="0" y="0" width="${fWidth}" height="${fHeight}" style="pointer-events: none;" />\n`;
-    svg += `      <rect x="0" y="0" width="${fWidth}" height="${fHeight}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1.5" rx="4" style="pointer-events: none;" />\n`;
+    svg += `    <g data-entity-name="${frag.id}" data-sequence-fragment="true" data-entity-width="${Math.round(fWidth)}" data-entity-height="${Math.round(fHeight)}" transform="translate(${fragLeft},${fragTop})">\n`;
+    svg += `      <rect fill="transparent" x="0" y="0" width="${fWidth}" height="${fHeight}" style="cursor: move; pointer-events: all;" />\n`;
+    svg += `      <rect x="0" y="0" width="${fWidth}" height="${fHeight}" fill="${fillColor}" stroke="${strokeColor}" stroke-width="1.5" rx="4" style="pointer-events: all;" />\n`;
+    svg += `      <rect data-resize-handle="e" x="${fWidth - 4}" y="${fHeight / 2 - 10}" width="8" height="20" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ew-resize; pointer-events: all;"/>\n`;
+    svg += `      <rect data-resize-handle="s" x="${fWidth / 2 - 10}" y="${fHeight - 4}" width="20" height="8" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ns-resize; pointer-events: all;"/>\n`;
+    svg += `      <rect data-resize-handle="se" x="${fWidth - 6}" y="${fHeight - 6}" width="12" height="12" rx="3" fill="#2563eb" opacity="0.75" style="cursor: nwse-resize; pointer-events: all;"/>\n`;
 const tabText = `${frag.kind.toUpperCase()}`.trim();
       const tabW = Math.max(40, tabText.length * 6 + 12);
       svg += `      <path d="M0,0 h${tabW} l5,5 v12 h-${tabW + 5} z" fill="${tabFill}" stroke="${strokeColor}" stroke-width="1.5" style="cursor: pointer; pointer-events: all;" />\n`;

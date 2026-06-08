@@ -246,11 +246,11 @@ export function computePortPositions(
   for (const f of fields) {
     if (f.type === 'provided') {
       const py = 12 + provIdx * 20;
-      ports.set(f.name, { x: -20, y: py, side: 'left' });
+      ports.set(f.name, { x: boxW + 20, y: py, side: 'right' });
       provIdx++;
     } else if (f.type === 'required') {
       const py = 12 + reqIdx * 20;
-      ports.set(f.name, { x: boxW + 20, y: py, side: 'right' });
+      ports.set(f.name, { x: -20, y: py, side: 'left' });
       reqIdx++;
     } else if (f.type === 'port') {
       const px = 20 + portIdx * 20;

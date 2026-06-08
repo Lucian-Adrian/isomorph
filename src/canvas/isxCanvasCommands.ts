@@ -8,5 +8,5 @@ export function applyIsxCanvasCommand(source: string, command: IsxCanvasCommand)
   if (command.type === 'move-entity') {
     return updateEntityPosition(source, command.entityName, command.x, command.y, command.width, command.height, command.diagramName);
   }
-  return updateRelationById(source, command.relationId, command.updates, command.diagramName);
+  return updateRelationById(source, command.relationId, command.updates, undefined, command.diagramName);
 }

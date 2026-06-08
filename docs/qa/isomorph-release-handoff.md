@@ -11,6 +11,7 @@
 - Removed the persistent bottom status bar from IDE rendering and replaced it with compact floating status pills.
 - Added/kept browser QA harness under `scripts/qa/isomorph-app-qa.mjs`.
 - Split optional production paths out of the initial app bundle: CodeMirror/source panel, codegen engine and panel, metrics, workspace overlays, right rail, and full-canvas shell now load on demand.
+- Added current branch coverage for codegen CLI `--diagram`, full-canvas image/embed/lasso/rotation/export behavior, collaboration numbering, state composite rendering, sequence lifecycle drawing, and measured metrics reporting.
 
 ## Verification Commands
 
@@ -23,8 +24,11 @@ npm run symphony:check
 ```
 
 Latest local smoke:
-- `npm test -- --run`: 438 passed.
-- `npm run build`: passed; initial app JS chunk is 261.31 kB with CodeMirror/editor, codegen, metrics, overlay, right rail, and full-canvas code split into separate chunks.
+- `npm test -- --run`: 487 passed across 30 test files.
+- `npm run typecheck`: passed.
+- `npm run build`: passed; current notable chunks are `index-BKoHKtcB.js` 381.06 kB, `vendor-editor-CKufDpsk.js` 357.24 kB, `vendor-supabase-Cp1pO4X2.js` 204.43 kB, and `vendor-react-CIlLrotA.js` 138.64 kB.
+- `npm run qa:app`: passed and wrote `artifacts/qa/isomorph-app-qa-2026-06-08T22-02-39-288Z.jsonl.log`.
+- `npm run symphony:check`: passed with 13 tracked tasks and no dispatchable or blocked tasks.
 
 ## Live Supabase QA
 
@@ -44,9 +48,9 @@ The automated default path disables live Supabase so tests do not transmit crede
 ## Remaining Product Risks
 
 - `App.tsx` remains a large orchestrator. The new shell components provide a safer extraction path, but a later pass should move render chunks out of `App.tsx`.
-- Freeform canvas tools now have a state model and toolbar surface, but full drawing/rendering/export of every freeform element should continue in a dedicated UI pass.
+- Freeform canvas tools now have drawing, persistence, properties, upload, transform, lasso, and export coverage, but mixed semantic/freeform UX should keep getting browser-level regression checks.
 - Real-time collaboration currently covers presence and the adapter shape. Concurrent source/canvas editing should be implemented with Yjs in the next phase.
-- Bundle size has been partially addressed with lazy-loaded editor, codegen, metrics, overlay, right-rail, and full-canvas chunks. Remaining bundle work should focus on a CI size budget, a bundle analyzer pass, and deferring Supabase until account/cloud flows are opened.
+- Bundle size has been structurally addressed with lazy-loaded editor, codegen, metrics, overlay, right-rail, and full-canvas chunks, but the current main app chunk is 381.06 kB. Remaining bundle work should focus on a CI size budget, a bundle analyzer pass, and deferring Supabase until account/cloud flows are opened.
 
 ## Symphony Usage
 

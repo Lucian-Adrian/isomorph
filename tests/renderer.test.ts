@@ -6,6 +6,7 @@ import { renderUseCaseDiagram } from '../src/renderer/usecase-renderer.js';
 import { renderComponentDiagram } from '../src/renderer/component-renderer.js';
 import { renderSequenceDiagram } from '../src/renderer/sequence-renderer.js';
 import { renderStateOrActivityDiagram } from '../src/renderer/state-renderer.js';
+import { renderCollaborationDiagram } from '../src/renderer/collaboration-renderer.js';
 import {
   escapeXml,
   visSymbolFor,
@@ -64,8 +65,8 @@ describe('Renderer Utils', () => {
     const ports = computePortPositions([{ name: 'p1', type: 'provided' }, { name: 'p2', type: 'required' }], 100, 50);
     expect(ports.has('p1')).toBe(true);
     expect(ports.has('p2')).toBe(true);
-    expect(ports.get('p1')?.side).toBe('left');
-    expect(ports.get('p2')?.side).toBe('right');
+    expect(ports.get('p1')?.side).toBe('right');
+    expect(ports.get('p2')?.side).toBe('left');
   });
 
   it('supports relation marker and boundary helpers for richer renderer anchoring', () => {
@@ -449,6 +450,21 @@ describe('Component Diagram Renderer — advanced', () => {
     const svg = renderComponentDiagram(diag);
     expect(svg).toContain('data-entity-name="Gateway"');
   });
+
+  it('routes provides and requires connectors to rendered component port endpoints', () => {
+    const diag = buildDiagram(`diagram D : component {
+      component Api { + out: provided }
+      component Worker { + in: required }
+      Api --() Worker [label="events"]
+      Worker --( Api [label="callbacks"]
+    }`);
+    const svg = renderComponentDiagram(diag);
+    expect(svg).toContain('data-port-name="out"');
+    expect(svg).toContain('data-port-name="in"');
+    expect(svg).toContain('data-from-port="out"');
+    expect(svg).toContain('data-to-port="in"');
+    expect(svg).not.toContain('L 120 24');
+  });
 });
 
 describe('Sequence Diagram Renderer — advanced', () => {
@@ -513,6 +529,22 @@ describe('Sequence Diagram Renderer — advanced', () => {
     // dash array check for dependency relations
     expect(svg).toContain('stroke-dasharray="6,3"');
   });
+
+  it('exposes sequence fragments as selectable and resizable canvas boxes', () => {
+    const diag = buildDiagram(`diagram D : sequence {
+      participant A
+      participant B
+      alt Login
+        A --> B [label="ok"]
+      else Fail
+        B ..> A [label="no"]
+      end
+    }`);
+    const svg = renderSequenceDiagram(diag);
+    expect(svg).toContain('data-entity-name="Login"');
+    expect(svg).toContain('data-sequence-fragment="true"');
+    expect(svg).toContain('data-resize-handle="se"');
+  });
 });
 
 describe('Activity Diagram Renderer — swimlanes', () => {
@@ -547,5 +579,73 @@ describe('Activity Diagram Renderer — swimlanes', () => {
     const svg = renderStateOrActivityDiagram(diag);
     expect(svg).toContain('data-entity-width="420"');
     expect(svg).toContain('data-entity-height="360"');
+  });
+});
+
+describe('State Diagram Renderer — composite containers', () => {
+  it('renders composite state containment and concurrent region separators', () => {
+    const diag = buildDiagram(`diagram D : state {
+      concurrent OrderFlow {
+        region {
+          state Paid
+        }
+        region {
+          state Packed
+        }
+      }
+    }`);
+    const svg = renderStateOrActivityDiagram(diag);
+    expect(svg).toContain('data-composite-state="true"');
+    expect(svg).toContain('data-entity-name="OrderFlow"');
+    expect(svg).toContain('data-state-region="reg_0"');
+    expect(svg).toContain('data-state-region="reg_1"');
+    expect(svg).toContain('stroke-dasharray="6,4"');
+  });
+
+  it('renders nested state children inside the composite container instead of as top-level boxes', () => {
+    const diag = buildDiagram(`diagram D : state {
+      composite Order {
+        state Validating
+        state Fulfilled
+        Validating --> Fulfilled [label="ok"]
+      }
+    }`);
+    const svg = renderStateOrActivityDiagram(diag);
+    expect(svg).toContain('data-composite-state="true"');
+    expect(svg).toContain('data-parent-state="Order"');
+    expect(svg).toContain('data-entity-name="Validating"');
+    expect(svg).toContain('data-entity-name="Fulfilled"');
+    expect(svg).toContain('data-relation-from="Validating"');
+    expect(svg).toContain('data-relation-to="Fulfilled"');
+  });
+});
+
+describe('Collaboration Diagram Renderer — autonumbering', () => {
+  it('adds hierarchical message numbers without requiring preformatted labels', () => {
+    const diag = buildDiagram(`diagram D : collaboration {
+      autonumber
+      object Controller
+      object Service
+      object Repo
+      Controller --> Service [label="submit"]
+      Service --> Repo [label="save"]
+      Repo ..> Service [label="saved"]
+      Service ..> Controller [label="ok"]
+    }`);
+    const svg = renderCollaborationDiagram(diag);
+    expect(svg).toContain('1. submit');
+    expect(svg).toContain('1.1. save');
+    expect(svg).toContain('1.1.1. saved');
+    expect(svg).toContain('1.2. ok');
+  });
+
+  it('supports manual message numbers via custom msg attribute when autonumber is disabled', () => {
+    const diag = buildDiagram(`diagram D : collaboration {
+      object Controller
+      object Service
+      Controller --> Service [label="submit", msg="2.5"]
+    }`);
+    const svg = renderCollaborationDiagram(diag);
+    expect(svg).toContain('2.5. submit');
   });
 });

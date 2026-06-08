@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '../src/parser/index.js';
 import {
   formatDiagramSource,
+  insertSequenceLifecycleRelation,
   removeEntityAndRelations,
   updateEntityPosition,
   updateRelationById,
@@ -61,6 +62,39 @@ describe('source rewrite relation/component regressions', () => {
     const cleared = updateRelationById(labelled, 'rel_0', { label: '' });
     expect(cleared).not.toContain('label=');
     expectParseable(cleared);
+  });
+
+  it('updates relation attributes when relations use qualified names and trailing comments', () => {
+    const source = `diagram Sys : class {
+  class domain.Book
+  class ext.Library
+  domain.Book --> ext.Library [label="reads"] // optional comment here
+}`;
+
+    const next = updateRelationById(source, 'rel_0', { label: 'queries' });
+    expect(next).toContain('domain.Book --> ext.Library [label="queries"]');
+    expectParseable(next);
+  });
+
+  it('inserts sequence create and destroy lifecycle relations into the requested diagram only', () => {
+    const source = `diagram One : sequence {
+  participant A
+  participant B
+}
+
+diagram Two : sequence {
+  participant A
+  participant B
+}`;
+
+    const created = insertSequenceLifecycleRelation(source, 'Two', 'A', 'B', 'create', 144);
+    const destroyed = insertSequenceLifecycleRelation(created, 'Two', 'B', 'A', 'destroy', 188);
+
+    expect(destroyed).toContain('A --> create B [y="144"]');
+    expect(destroyed).toContain('B --> destroy A [y="188"]');
+    expect(destroyed.indexOf('diagram Two')).toBeLessThan(destroyed.indexOf('A --> create B [y="144"]'));
+    expect(destroyed.indexOf('diagram One')).toBeLessThan(destroyed.indexOf('diagram Two'));
+    expectParseable(destroyed);
   });
 
   it('updates entity positions inside the requested diagram block only', () => {

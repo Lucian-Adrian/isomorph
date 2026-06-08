@@ -116,6 +116,8 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
 
     let fromEdge = getEdge(f, fIsLollipop, fH, tCenter);
     let toEdge   = getEdge(t, tIsLollipop, tH, fCenter);
+    let fromPortName = '';
+    let toPortName = '';
 
     if (isProvides || isRequires) {
       const fromPorts = computePortPositions(f.entity.fields, BOX_W, COMP_H);
@@ -124,24 +126,24 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
       if (isProvides) {
          if (!fIsLollipop) {
             const provPort = [...fromPorts.entries()].find(([, p]) => p.side === 'right');
-            if (provPort) { fromEdge = { x: f.x + provPort[1].x, y: f.y + provPort[1].y }; }
+            if (provPort) { fromEdge = { x: f.x + provPort[1].x, y: f.y + provPort[1].y }; fromPortName = provPort[0]; }
             else { fromEdge = { x: f.x + BOX_W, y: f.y + COMP_H / 2 }; }
             toEdge = getEdge(t, tIsLollipop, tH, fromEdge);
          }
          if (!tIsLollipop) {
             const reqPort = [...toPorts.entries()].find(([, p]) => p.side === 'left');
-            if (reqPort) { toEdge = { x: t.x + reqPort[1].x, y: t.y + reqPort[1].y }; }
+            if (reqPort) { toEdge = { x: t.x + reqPort[1].x, y: t.y + reqPort[1].y }; toPortName = reqPort[0]; }
          }
       } else {
          if (!fIsLollipop) {
             const reqPort = [...fromPorts.entries()].find(([, p]) => p.side === 'left');
-            if (reqPort) { fromEdge = { x: f.x + reqPort[1].x, y: f.y + reqPort[1].y }; }
+            if (reqPort) { fromEdge = { x: f.x + reqPort[1].x, y: f.y + reqPort[1].y }; fromPortName = reqPort[0]; }
             else { fromEdge = { x: f.x, y: f.y + COMP_H / 2 }; }
             toEdge = getEdge(t, tIsLollipop, tH, fromEdge, tIsLollipop && isRequires ? 22 : 16);
          }
          if (!tIsLollipop) {
             const provPort = [...toPorts.entries()].find(([, p]) => p.side === 'right');
-            if (provPort) { toEdge = { x: t.x + provPort[1].x, y: t.y + provPort[1].y }; }
+            if (provPort) { toEdge = { x: t.x + provPort[1].x, y: t.y + provPort[1].y }; toPortName = provPort[0]; }
          }
       }
     }
@@ -175,7 +177,9 @@ export function renderComponentDiagram(diag: IOMDiagram): string {
       ? `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
       : `M ${x1} ${y1} L ${x2} ${y2}`;
 
-    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
+    const fromPortAttr = fromPortName ? ` data-from-port="${escapeXml(fromPortName)}"` : '';
+    const toPortAttr = toPortName ? ` data-to-port="${escapeXml(toPortName)}"` : '';
+    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}"${fromPortAttr}${toPortAttr}>`;
     svg += `<path d="${linePath}" stroke="transparent" stroke-width="15" fill="none" style="cursor: pointer"/>`;
     svg += `<path d="${linePath}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dash} fill="none"/>`;
 
@@ -254,21 +258,21 @@ function renderComponent(p: Placed): string {
   
   provided.forEach((f, i) => {
     const py = 12 + i * 20;
-    s += `    <line x1="${BOX_W}" y1="${py}" x2="${BOX_W + 15}" y2="${py}" stroke="#3b82f6" stroke-width="1.5"/>\n`;
-    s += `    <circle cx="${BOX_W + 20}" cy="${py}" r="5" fill="var(--iso-bg-panel)" stroke="#3b82f6" stroke-width="1.5"/>\n`;
+    s += `    <line data-port-name="${escapeXml(f.name)}" data-port-kind="provided" x1="${BOX_W}" y1="${py}" x2="${BOX_W + 15}" y2="${py}" stroke="#3b82f6" stroke-width="1.5"/>\n`;
+    s += `    <circle data-port-name="${escapeXml(f.name)}" data-port-kind="provided" cx="${BOX_W + 20}" cy="${py}" r="5" fill="var(--iso-bg-panel)" stroke="#3b82f6" stroke-width="1.5"/>\n`;
     s += `    <text x="${BOX_W + 10}" y="${py - 6}" text-anchor="middle" font-size="10" fill="var(--iso-text-body)">${escapeXml(f.name)}</text>\n`;
   });
   
   required.forEach((f, i) => {
     const py = 12 + i * 20;
-    s += `    <line x1="0" y1="${py}" x2="-15" y2="${py}" stroke="#3b82f6" stroke-width="1.5"/>\n`;
-    s += `    <path d="M -20 ${py - 5} A 5 5 0 0 0 -20 ${py + 5}" fill="none" stroke="#3b82f6" stroke-width="1.5"/>\n`;
+    s += `    <line data-port-name="${escapeXml(f.name)}" data-port-kind="required" x1="0" y1="${py}" x2="-15" y2="${py}" stroke="#3b82f6" stroke-width="1.5"/>\n`;
+    s += `    <path data-port-name="${escapeXml(f.name)}" data-port-kind="required" d="M -20 ${py - 5} A 5 5 0 0 0 -20 ${py + 5}" fill="none" stroke="#3b82f6" stroke-width="1.5"/>\n`;
     s += `    <text x="-10" y="${py - 6}" text-anchor="middle" font-size="10" fill="var(--iso-text-body)">${escapeXml(f.name)}</text>\n`;
   });
   
   ports.forEach((f, i) => {
     const px = 20 + i * 20;
-    s += `    <rect x="${px - 4}" y="${COMP_H - 4}" width="8" height="8" fill="var(--iso-bg-panel)" stroke="#3b82f6" stroke-width="1.5"/>\n`;
+    s += `    <rect data-port-name="${escapeXml(f.name)}" data-port-kind="port" x="${px - 4}" y="${COMP_H - 4}" width="8" height="8" fill="var(--iso-bg-panel)" stroke="#3b82f6" stroke-width="1.5"/>\n`;
     s += `    <text x="${px}" y="${COMP_H + 14}" text-anchor="middle" font-size="10" fill="var(--iso-text-body)">${escapeXml(f.name)}</text>\n`;
   });
 

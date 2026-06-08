@@ -10,7 +10,7 @@
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
   [![CodeMirror](https://img.shields.io/badge/CodeMirror-6.x-green)](https://codemirror.net/)
-  [![Tests](https://img.shields.io/badge/Tests-438%20passing-brightgreen)](#-testing--validation)
+  [![Tests](https://img.shields.io/badge/Tests-487%20passing-brightgreen)](#-testing--validation)
 
   [**Live Demo**](https://team02-faf241.github.io/isomorph/) • [**Language Spec**](grammar/Isomorph.g4) • [**Examples**](examples/) • [**Contributing**](CONTRIBUTING.md)
 </div>
@@ -25,7 +25,7 @@
 
 - **Bidirectional Synchronization:** The source code *is* the diagram and the diagram *is* the source code. Moving visuals in the canvas writes `@Entity at (x,y)` layout rules straight back to your code.
 - **Formally Specified Grammar:** Defined by a strict, unambiguous [ANTLR4 grammar](grammar/Isomorph.g4) featuring **55 production rules** and **66 token kinds**.
-- **Static Semantic Analysis:** Validates your designs against 10 strict semantic rules (SS-1 to SS-10)—catching circular inheritance, duplicate methods, and invalid endpoints before rendering.
+- **Static Semantic Analysis:** Validates your designs against the core SS-1 to SS-10 rules plus diagram-specific rules for fragments, lifecycle, naming, component connectors, and sequence interactions.
 - **Pure Zero-Dependency SVG Rendering:** High-performance, template-based SVG generation directly from the Abstract Syntax Tree.
 - **Modern Editing Experience:** Embedded CodeMirror 6 with custom syntax highlighting (`.isx` format).
 - **Version Control Friendly:** Layouts are saved as standard text anchors, ensuring zero metadata drift when pushing to Git.
@@ -101,7 +101,7 @@ Isomorph parses source code through a totally pure, non-throwing functional pipe
 graph LR
     A[".isx Source"] -->|Lexer| B["Tokens []"]
     B -->|Recursive Descent Parser| C["AST: Abstract Syntax Tree"]
-    C -->|"Semantic Analyzer: SS1-SS10"| D["IOM: Isomorph Object Model"]
+    C -->|"Semantic Analyzer"| D["IOM: Isomorph Object Model"]
     D -->|Renderer Dispatcher| E["Pure SVG Output"]
     E -.->|"Drag-to-Update Hook"| A
 ```
@@ -116,7 +116,7 @@ graph LR
 
 ## Static Semantics & Safety
 
-Before any rendering occurs, the AST is validated against **10 core Rules (SS-1 to SS-10)** to enforce architectural correctness:
+Before any rendering occurs, the AST is validated against **core rules (SS-1 to SS-10)** plus active diagram-specific rules to enforce architectural correctness:
 
 | Rule   | Constraint Evaluated               | Protective Function                                          |
 |--------|------------------------------------|--------------------------------------------------------------|
@@ -148,7 +148,7 @@ Before any rendering occurs, the AST is validated against **10 core Rules (SS-1 
 
 ## Testing & Validation
 
-The repository tracks a broad Vitest suite across lexer, parser, semantics, rendering, source rewriting, code generation, canvas state, workspace shell, telemetry, and integration helpers. Latest local verification: 438 tests passing.
+The repository tracks a broad Vitest suite across lexer, parser, semantics, rendering, source rewriting, code generation, canvas state, workspace shell, telemetry, and integration helpers. Latest local verification: 487 tests passing.
 
 ```bash
 # Run the test suite

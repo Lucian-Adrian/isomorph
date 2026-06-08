@@ -48,6 +48,36 @@ export function generateCodeBundle(diagram: IOMDiagram, options: CodegenOptions)
   return { language: 'java', mainFile: files[0]?.path, files };
 }
 
+function collectInheritedFields(entity: IOMEntity, entities: IOMEntity[]): IOMField[] {
+  const inherited: IOMField[] = [];
+  const visited = new Set<string>();
+
+  function recurse(currentName: string) {
+    const simpleName = baseName(currentName);
+    if (visited.has(simpleName)) return;
+    visited.add(simpleName);
+
+    const parent = entities.find(e => baseName(e.name) === simpleName && e.kind === 'class');
+    if (!parent) return;
+
+    for (const ext of parent.extendsNames) {
+      recurse(ext);
+    }
+
+    for (const field of parent.fields) {
+      if (!inherited.some(f => f.name === field.name)) {
+        inherited.push(field);
+      }
+    }
+  }
+
+  for (const ext of entity.extendsNames) {
+    recurse(ext);
+  }
+
+  return inherited;
+}
+
 function generatePython(entities: IOMEntity[]): string {
   const needsAbstract = entities.some(e => e.isAbstract || e.methods.some(m => m.isAbstract));
   const needsProtocol = entities.some(e => e.kind === 'interface');
@@ -102,15 +132,26 @@ function renderPythonClass(entity: IOMEntity, entities: IOMEntity[]): string {
   if (entity.isAbstract && !bases.includes('ABC')) bases.push('ABC');
   const header = `class ${baseName(entity.name)}${bases.length ? `(${bases.join(', ')})` : ''}:`;
   const lines = [header];
-  if (entity.fields.length > 0) lines.push(renderPythonConstructor(entity.fields));
+  const constructorStr = renderPythonConstructor(entity, entities);
+  if (constructorStr) lines.push(constructorStr);
   const methods = [...entity.methods, ...implementedInterfaceMethods(entity, entities, entity.methods)];
   for (const method of methods) lines.push(renderPythonMethod(method, method.isAbstract, false));
   if (lines.length === 1) lines.push('    pass');
   return lines.join('\n\n');
 }
 
-function renderPythonConstructor(fields: IOMField[]): string {
-  const params = fields.map(field => {
+function renderPythonConstructor(entity: IOMEntity, entities: IOMEntity[]): string {
+  const inheritedFields = collectInheritedFields(entity, entities);
+  const ownFields = entity.fields;
+  const allFields = [...inheritedFields, ...ownFields];
+  if (allFields.length === 0) return '';
+
+  const isDefault = (field: IOMField) => field.defaultValue !== undefined || isNullableType(field.type);
+  const nonDefaultFields = allFields.filter(f => !isDefault(f));
+  const defaultFields = allFields.filter(f => isDefault(f));
+  const sortedFields = [...nonDefaultFields, ...defaultFields];
+
+  const params = sortedFields.map(field => {
     const pyType = pythonType(field.type);
     const defaultValue = field.defaultValue !== undefined
       ? pythonDefaultValue(field.type, field.defaultValue)
@@ -118,7 +159,13 @@ function renderPythonConstructor(fields: IOMField[]): string {
     return `${field.name}: ${pyType}${defaultValue !== undefined ? ` = ${defaultValue}` : ''}`;
   });
   const lines = [`    def __init__(self${params.length ? `, ${params.join(', ')}` : ''}):`];
-  for (const field of fields) lines.push(`        self.${field.name} = ${field.name}`);
+  if (entity.extendsNames.length > 0) {
+    const parentArgs = inheritedFields.map(f => f.name).join(', ');
+    lines.push(`        super().__init__(${parentArgs})`);
+  }
+  for (const field of ownFields) {
+    lines.push(`        self.${field.name} = ${field.name}`);
+  }
   return lines.join('\n');
 }
 
@@ -178,7 +225,9 @@ function renderJavaClass(entity: IOMEntity, entities: IOMEntity[]): string {
   const implementsText = entity.implementsNames.length ? ` implements ${entity.implementsNames.join(', ')}` : '';
   const lines = [`public ${abstractText}class ${entity.name}${extendsText}${implementsText} {`];
   for (const field of entity.fields) lines.push(renderJavaField(field));
-  if (entity.fields.length > 0) lines.push('', renderJavaConstructor(entity));
+  if (entity.fields.length > 0 || collectInheritedFields(entity, entities).length > 0) {
+    lines.push('', renderJavaConstructor(entity, entities));
+  }
   const methods = [...entity.methods, ...implementedInterfaceMethods(entity, entities, entity.methods)];
   for (const method of methods) lines.push('', renderJavaMethod(method));
   lines.push('}');
@@ -192,10 +241,19 @@ function renderJavaField(field: IOMField): string {
   return `    ${visibilityJava(field.visibility)} ${staticText}${finalText}${javaType(field.type)} ${field.name}${defaultText};`;
 }
 
-function renderJavaConstructor(entity: IOMEntity): string {
-  const params = entity.fields.map(field => `${javaType(field.type)} ${field.name}`).join(', ');
+function renderJavaConstructor(entity: IOMEntity, entities: IOMEntity[]): string {
+  const inheritedFields = collectInheritedFields(entity, entities);
+  const ownFields = entity.fields;
+  const allFields = [...inheritedFields, ...ownFields];
+  const params = allFields.map(field => `${javaType(field.type)} ${field.name}`).join(', ');
   const lines = [`    public ${baseName(entity.name)}(${params}) {`];
-  for (const field of entity.fields) lines.push(`        this.${field.name} = ${field.name};`);
+  if (entity.extendsNames.length > 0) {
+    const parentArgs = inheritedFields.map(f => f.name).join(', ');
+    lines.push(`        super(${parentArgs});`);
+  }
+  for (const field of ownFields) {
+    lines.push(`        this.${field.name} = ${field.name};`);
+  }
   lines.push('    }');
   return lines.join('\n');
 }

@@ -723,10 +723,10 @@ describe('Semantic Analyzer', () => {
       expect(deact?.entity).toBe('B');
     });
 
-    it('flags response without caller context as SS-33', () => {
+    it('allows response without caller context when autoactivation is disabled', () => {
       const result = analyze(parse('diagram D : sequence { participant A participant B B ..> A }').program);
       const ss33 = result.errors.filter(e => e.rule === 'SS-33');
-      expect(ss33.length).toBeGreaterThan(0);
+      expect(ss33).toHaveLength(0);
     });
 
     it('treats return as plain identifier (command removed)', () => {
@@ -735,10 +735,37 @@ describe('Semantic Analyzer', () => {
       expect(ss33).toHaveLength(0);
     });
 
-    it('flags unmatched calls without response as SS-33', () => {
+    it('allows one-way synchronous messages when autoactivation is disabled', () => {
       const result = analyze(parse('diagram D : sequence { participant A participant B A --> B }').program);
       const ss33 = result.errors.filter(e => e.rule === 'SS-33');
+      expect(ss33).toHaveLength(0);
+    });
+
+    it('flags unmatched calls when autoactivation is enabled', () => {
+      const result = analyze(parse('diagram D : sequence { autoactivation participant A participant B A --> B }').program);
+      const ss33 = result.errors.filter(e => e.rule === 'SS-33');
       expect(ss33.length).toBeGreaterThan(0);
+    });
+
+    it('preserves composite state region relation ids for renderer containment', () => {
+      const result = analyze(parse(`diagram D : state {
+        concurrent OrderFlow {
+          region {
+            state Paid
+            state Packed
+            Paid --> Packed
+          }
+          region {
+            state Shipped
+          }
+        }
+      }`).program);
+      const diag = result.iom.diagrams[0];
+      const orderFlow = diag.entities.get('OrderFlow');
+      expect(orderFlow?.regions).toHaveLength(2);
+      expect(orderFlow?.regions[0].entityNames).toEqual(['Paid', 'Packed']);
+      expect(orderFlow?.regions[0].relationIds).toEqual(['rel_0']);
+      expect(diag.relations[0]).toMatchObject({ from: 'Paid', to: 'Packed' });
     });
 
     it('allows one-way asynchronous message without requiring response', () => {

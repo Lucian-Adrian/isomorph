@@ -34,6 +34,7 @@ interface Placed {
   entity: IOMEntity;
   x: number;
   y: number;
+  parent?: string;
 }
 
 export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
@@ -41,10 +42,13 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
   if (entities.length === 0 && diag.partitions.length === 0)
     return `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>`;
 
-  const placed = placeEntities(entities);
+  const childParents = collectChildParents(entities);
+  const placed = placeEntities(entities.filter(entity => !childParents.has(entity.name)));
+  const allPlaced = flattenCompositePlacements(placed);
+  const placedByName = new Map(allPlaced.map(item => [item.entity.name, item]));
 
   let maxX = 400, maxY = 300;
-  for (const p of placed) {
+  for (const p of allPlaced) {
     const dim = getDimensions(p.entity);
     maxX = Math.max(maxX, p.x + dim.w + 40);
     maxY = Math.max(maxY, p.y + dim.h + 40);
@@ -81,45 +85,17 @@ export function renderStateOrActivityDiagram(diag: IOMDiagram): string {
 
   // Relations
   for (const rel of diag.relations) {
-    const f = placed.find(p => p.entity.name === rel.from);
-    const t = placed.find(p => p.entity.name === rel.to);
+    if (isInternalRelation(rel.from, rel.to, childParents)) continue;
+    const f = placedByName.get(rel.from);
+    const t = placedByName.get(rel.to);
     if (!f || !t) continue;
-    const fDim = getDimensions(f.entity);
-    const tDim = getDimensions(t.entity);
-
-    const fromCenterX = f.x + fDim.w / 2;
-    const fromCenterY = f.y + fDim.h / 2;
-    const toCenterX = t.x + tDim.w / 2;
-    const toCenterY = t.y + tDim.h / 2;
-    const fromEdge = relationEdgeForStateEntity(f.entity, f.x, f.y, fDim.w, fDim.h, toCenterX, toCenterY);
-    const toEdge = relationEdgeForStateEntity(t.entity, t.x, t.y, tDim.w, tDim.h, fromCenterX, fromCenterY);
-    const x1 = fromEdge.x, y1 = fromEdge.y;
-    const x2 = toEdge.x, y2 = toEdge.y;
-    const safeLabel = rel.label ? escapeXml(rel.label) : '';
-    const dash = dashForRelation(rel.kind);
-    const markerEnd = markerEndForRelation(rel.kind);
-    const markerStart = markerStartForRelation(rel.kind);
-    const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
-    const markerEndAttr = markerEnd ? ` marker-end="url(#${markerEnd})"` : '';
-    const markerStartAttr = markerStart ? ` marker-start="url(#${markerStart})"` : '';
-
-    svg += `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
-    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;
-    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dashAttr}${markerStartAttr}${markerEndAttr}/>`;
-    
-    if (rel.label) {
-      const mx = (x1 + x2) / 2;
-      const my = (y1 + y2) / 2 - 8;
-      svg += `<rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="var(--iso-bg-panel)" opacity="0.9"/>`;
-      svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text)">${safeLabel}</text>`;
-    }
-    svg += `</g>\n`;
+    svg += renderRelation(rel, f, t);
   }
 
   // Entities
   for (const p of placed) {
     if (shouldRenderSwimlanes && p.entity.kind === 'partition') continue;
-    svg += renderEntity(p);
+    svg += renderEntity(p, diag.relations);
   }
 
   svg += `  </g>\n`;
@@ -150,6 +126,40 @@ function relationEdgeForStateEntity(
     return rectBoundaryPoint(x, y, w, h, towardX, towardY);
   }
   return rectBoundaryPoint(x, y, w, h, towardX, towardY);
+}
+
+function renderRelation(rel: import('../semantics/iom.js').IOMRelation, f: Placed, t: Placed): string {
+  const fDim = getDimensions(f.entity);
+  const tDim = getDimensions(t.entity);
+
+  const fromCenterX = f.x + fDim.w / 2;
+  const fromCenterY = f.y + fDim.h / 2;
+  const toCenterX = t.x + tDim.w / 2;
+  const toCenterY = t.y + tDim.h / 2;
+  const fromEdge = relationEdgeForStateEntity(f.entity, f.x, f.y, fDim.w, fDim.h, toCenterX, toCenterY);
+  const toEdge = relationEdgeForStateEntity(t.entity, t.x, t.y, tDim.w, tDim.h, fromCenterX, fromCenterY);
+  const x1 = fromEdge.x, y1 = fromEdge.y;
+  const x2 = toEdge.x, y2 = toEdge.y;
+  const safeLabel = rel.label ? escapeXml(rel.label) : '';
+  const dash = dashForRelation(rel.kind);
+  const markerEnd = markerEndForRelation(rel.kind);
+  const markerStart = markerStartForRelation(rel.kind);
+  const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+  const markerEndAttr = markerEnd ? ` marker-end="url(#${markerEnd})"` : '';
+  const markerStartAttr = markerStart ? ` marker-start="url(#${markerStart})"` : '';
+
+  let svg = `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">`;
+  svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>`;
+  svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--iso-text-muted)" stroke-width="1.5"${dashAttr}${markerStartAttr}${markerEndAttr}/>`;
+
+  if (rel.label) {
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2 - 8;
+    svg += `<rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="var(--iso-bg-panel)" opacity="0.9"/>`;
+    svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text)">${safeLabel}</text>`;
+  }
+  svg += `</g>\n`;
+  return svg;
 }
 
 function renderActivitySwimlanes(partitions: import('../semantics/iom.js').IOMPartition[], placed: Placed[], height: number): string {
@@ -205,8 +215,38 @@ function getDimensions(entity: IOMEntity): { w: number, h: number } {
     case 'merge':   return { w: DIAMOND_S, h: DIAMOND_S };
     case 'fork':
     case 'join':    return { w: BAR_W, h: BAR_H };
+    case 'composite':
+    case 'concurrent': return { w: 320, h: Math.max(170, 70 + Math.max(entity.children.length, entity.regions.length) * 52) };
     default:        return { w: BOX_W, h: BOX_H };
   }
+}
+
+function collectChildParents(entities: IOMEntity[]): Map<string, string> {
+  const out = new Map<string, string>();
+  function visit(parent: IOMEntity) {
+    for (const child of parent.children) {
+      out.set(child.name, parent.name);
+      visit(child);
+    }
+  }
+  for (const entity of entities) visit(entity);
+  return out;
+}
+
+function isInternalRelation(from: string, to: string, childParents: Map<string, string>): boolean {
+  const fromParent = childParents.get(from);
+  return Boolean(fromParent && fromParent === childParents.get(to));
+}
+
+function flattenCompositePlacements(placed: Placed[]): Placed[] {
+  const out = [...placed];
+  for (const item of placed) {
+    for (const child of placeChildrenInsideComposite(item.entity, item.x, item.y)) {
+      out.push(child);
+      out.push(...flattenCompositePlacements([child]).slice(1));
+    }
+  }
+  return out;
 }
 
 function placeEntities(entities: IOMEntity[]): Placed[] {
@@ -237,10 +277,40 @@ function placeEntities(entities: IOMEntity[]): Placed[] {
   return result;
 }
 
-function renderEntity(p: Placed): string {
+function placeChildrenInsideComposite(entity: IOMEntity, parentX = 0, parentY = 0): Placed[] {
+  if ((entity.kind !== 'composite' && entity.kind !== 'concurrent') || entity.children.length === 0) return [];
+  const dim = getDimensions(entity);
+  const headerH = 34;
+  const pad = 18;
+  const regionCount = Math.max(entity.regions.length, entity.kind === 'concurrent' ? 2 : 1);
+  const regionH = (dim.h - headerH) / regionCount;
+  const placed: Placed[] = [];
+  const used = new Set<string>();
+
+  const placeInRegion = (children: IOMEntity[], regionIndex: number) => {
+    children.forEach((child, idx) => {
+      const childDim = getDimensions(child);
+      const x = parentX + pad + idx * Math.min(150, childDim.w + 24);
+      const y = parentY + headerH + regionIndex * regionH + Math.max(14, (regionH - childDim.h) / 2);
+      placed.push({ entity: child, x, y, parent: entity.name });
+      used.add(child.name);
+    });
+  };
+
+  entity.regions.forEach((region, idx) => {
+    placeInRegion(entity.children.filter(child => region.entityNames.includes(child.name)), idx);
+  });
+
+  const unregioned = entity.children.filter(child => !used.has(child.name));
+  if (unregioned.length > 0) placeInRegion(unregioned, 0);
+  return placed;
+}
+
+function renderEntity(p: Placed, relations: import('../semantics/iom.js').IOMRelation[] = []): string {
   const { entity, x, y } = p;
   const label = entity.name;
-  let s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(label)}">\n`;
+  const parentAttr = p.parent ? ` data-parent-state="${escapeXml(p.parent)}"` : '';
+  let s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(label)}"${parentAttr}>\n`;
 
   if (entity.kind === 'start') {
     s += `    <circle cx="${CIRCLE_R}" cy="${CIRCLE_R}" r="${CIRCLE_R}" fill="var(--iso-text)" filter="url(#shadow)"/>\n`;
@@ -262,6 +332,41 @@ function renderEntity(p: Placed): string {
     s += `    <text x="${BAR_W / 2}" y="${BAR_H + 15}" text-anchor="middle" font-size="12" fill="var(--iso-text)">${escapeXml(label)}</text>\n`;
   } else {
     // Action / State / Composite / Concurrent node
+    if (entity.kind === 'composite' || entity.kind === 'concurrent') {
+      const dim = getDimensions(entity);
+      const headerH = 34;
+      s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(label)}"${parentAttr} data-composite-state="true" data-entity-width="${dim.w}" data-entity-height="${dim.h}">\n`;
+      s += `    <rect width="${dim.w}" height="${dim.h}" rx="10" fill="var(--iso-bg-panel)" stroke="#14b8a6" stroke-width="1.6" filter="url(#shadow)"/>\n`;
+      s += `    <text x="${dim.w / 2}" y="22" text-anchor="middle" font-size="13" font-weight="700" fill="var(--iso-text)">${escapeXml(label)}</text>\n`;
+      s += `    <line x1="0" y1="${headerH}" x2="${dim.w}" y2="${headerH}" stroke="#14b8a6" stroke-width="1"/>\n`;
+      const regionCount = Math.max(entity.regions.length, entity.kind === 'concurrent' ? 2 : 1);
+      if (regionCount > 1) {
+        for (let i = 1; i < regionCount; i++) {
+          const sepY = headerH + ((dim.h - headerH) / regionCount) * i;
+          const regionId = entity.regions[i - 1]?.id ?? `reg_${i - 1}`;
+          s += `    <line data-state-region="${escapeXml(regionId)}" x1="0" y1="${sepY}" x2="${dim.w}" y2="${sepY}" stroke="#14b8a6" stroke-width="1" stroke-dasharray="6,4"/>\n`;
+        }
+        const lastRegionId = entity.regions[regionCount - 1]?.id ?? `reg_${regionCount - 1}`;
+        s += `    <rect data-state-region="${escapeXml(lastRegionId)}" x="0" y="${headerH}" width="${dim.w}" height="${dim.h - headerH}" fill="transparent" pointer-events="none"/>\n`;
+      } else if (entity.regions[0]) {
+        s += `    <rect data-state-region="${escapeXml(entity.regions[0].id)}" x="0" y="${headerH}" width="${dim.w}" height="${dim.h - headerH}" fill="transparent" pointer-events="none"/>\n`;
+      }
+      s += `    <rect data-resize-handle="e" x="${dim.w - 4}" y="${dim.h / 2 - 10}" width="8" height="20" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ew-resize"/>\n`;
+      s += `    <rect data-resize-handle="s" x="${dim.w / 2 - 10}" y="${dim.h - 4}" width="20" height="8" rx="2" fill="#3b82f6" opacity="0.55" style="cursor: ns-resize"/>\n`;
+      s += `    <rect data-resize-handle="se" x="${dim.w - 6}" y="${dim.h - 6}" width="12" height="12" rx="3" fill="#2563eb" opacity="0.75" style="cursor: nwse-resize"/>\n`;
+      const childPlacements = placeChildrenInsideComposite(entity, 0, 0);
+      const childByName = new Map(childPlacements.map(child => [child.entity.name, child]));
+      for (const rel of relations) {
+        const f = childByName.get(rel.from);
+        const t = childByName.get(rel.to);
+        if (f && t) s += renderRelation(rel, f, t);
+      }
+      for (const child of childPlacements) {
+        s += renderEntity(child, relations);
+      }
+      s += `  </g>\n`;
+      return s;
+    }
     // Rounded rect
     const r = entity.kind === 'action' ? 16 : 8; // Action is more pill-shaped, State is slightly rounded box
     let fill = 'url(#grad-state)';

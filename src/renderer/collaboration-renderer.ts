@@ -26,6 +26,48 @@ interface Rect {
   h: number;
 }
 
+interface NumberFrame {
+  from: string;
+  to: string;
+  prefix: number[];
+  child: number;
+}
+
+function collaborationNumbers(diag: IOMDiagram): Map<string, string> {
+  const labels = new Map<string, string>();
+  if (!diag.config.autonumber) return labels;
+
+  const stack: NumberFrame[] = [];
+  let root = 0;
+  for (const rel of diag.relations) {
+    const isResponse = rel.kind === 'dependency';
+    if (isResponse && stack.length > 0) {
+      const frame = stack[stack.length - 1];
+      if (rel.from === frame.to && rel.to === frame.from) {
+        frame.child += 1;
+        labels.set(rel.id, [...frame.prefix, frame.child].join('.'));
+        stack.pop();
+        continue;
+      }
+    }
+
+    const parent = stack[stack.length - 1];
+    const isNestedCall = parent && rel.from === parent.to;
+    const prefix = isNestedCall
+      ? (() => {
+          parent.child += 1;
+          return [...parent.prefix, parent.child];
+        })()
+      : [++root];
+
+    labels.set(rel.id, prefix.join('.'));
+    if (!isResponse) {
+      stack.push({ from: rel.from, to: rel.to, prefix, child: 0 });
+    }
+  }
+  return labels;
+}
+
 function entityBounds(p: Placed): Rect {
   if (p.entity.kind === 'actor') {
     return { x: p.x + BOX_W / 2 - 18, y: p.y + 5, w: 36, h: 65 };
@@ -61,6 +103,7 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
 
   const relationPairCounts = new Map<string, number>();
   const relationPairIndexes = new Map<string, number>();
+  const autoNumbers = collaborationNumbers(diag);
   for (const rel of diag.relations) {
     const key = [rel.from, rel.to].sort().join('::');
     relationPairCounts.set(key, (relationPairCounts.get(key) ?? 0) + 1);
@@ -114,7 +157,15 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
       // Draw message direction arrow (just arbitrary heuristics)
       const isLeftToRight = x2 > x1;
       const arrow = isLeftToRight ? '→' : '←';
-      const displayText = `${rel.label} ${arrow}`;
+      let numberedLabel = rel.label;
+      if (diag.config.autonumber) {
+        if (autoNumbers.has(rel.id)) {
+          numberedLabel = `${autoNumbers.get(rel.id)}. ${rel.label}`;
+        }
+      } else if (rel.styles && rel.styles.msg) {
+        numberedLabel = `${rel.styles.msg}. ${rel.label}`;
+      }
+      const displayText = `${numberedLabel} ${arrow}`;
       const safeText = escapeXml(displayText);
       const labelWidth = displayText.length * 7 + 8;
       const labelHeight = 16;

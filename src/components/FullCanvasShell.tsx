@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { DiagramView } from './DiagramView.js';
 import type { CanvasTool } from './DiagramView.js';
-import { IconChevron, IconDiagram } from './Icons.js';
+import { IconDiagram } from './Icons.js';
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
 import type { Language } from '../i18n.js';
 import { CanvasToolbar } from './CanvasToolbar.js';
@@ -17,6 +17,8 @@ export type FullCanvasMode =
   | 'move'
   | 'hand'
   | 'add-edge'
+  | 'sequence-create'
+  | 'sequence-destroy'
   | 'locked'
   | 'rectangle'
   | 'ellipse'
@@ -34,6 +36,7 @@ export type FullCanvasMode =
 
 export interface FullCanvasShellProps {
   diagram: IOMDiagram | null;
+  diagrams?: IOMDiagram[] | null;
   language?: Language;
   mode: FullCanvasMode;
   zoomLabel?: string;
@@ -52,14 +55,14 @@ export interface FullCanvasShellProps {
   onOpenShortcuts?: () => void;
   onValidate?: () => void;
   onStrictUmlChange?: (enabled: boolean) => void;
-  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => void;
-  onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number) => void;
-  onEntityEditRequest?: (entity: IOMEntity) => void;
-  onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string) => void;
-  onRelationVerticalMove?: (relationId: string, y: number, seedRelationYs?: Record<string, number>) => void;
-  onRelationAddRequest?: (fromEntity: string, toEntity: string, y?: number) => void;
-  onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string) => void;
-  onTextRenameRequest?: (oldText: string, newText: string, type: 'diagram' | 'package') => void;
+  onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>, diagramName?: string) => void;
+  onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number, diagramName?: string) => void;
+  onEntityEditRequest?: (entity: IOMEntity, diagramName?: string) => void;
+  onRelationEditRequest?: (relationId: string, currentLabel: string, currentKind: string, diagramName?: string) => void;
+  onRelationVerticalMove?: (relationId: string, y: number, seedRelationYs?: Record<string, number>, diagramName?: string) => void;
+  onRelationAddRequest?: (fromEntity: string, toEntity: string, y?: number, diagramName?: string, relationType?: string) => void;
+  onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string, diagramName?: string) => void;
+  onTextRenameRequest?: (oldText: string, newText: string, type: 'diagram' | 'package', diagramName?: string) => void;
   selectedItems?: { type: 'entity' | 'relation'; id: string }[];
   onSelectionChange?: (selection: { type: 'entity' | 'relation'; id: string }[]) => void;
   pendingDropKeyword?: string | null;
@@ -69,6 +72,9 @@ export interface FullCanvasShellProps {
   onViewportChange?: (viewport: { zoom: number; pan: { x: number; y: number } }) => void;
   canvasStorageKey?: string;
   onCanvasStateChange?: (state: CanvasState) => void;
+  onCanvasInteractionDuration?: (durationMs: number) => void;
+  onPromoteToDSL?: (elementId: string, targetKind: string) => void;
+  onRender?: (stats: { latencyMs: number; svgLength: number }) => void;
 }
 
 type Point = { x: number; y: number };
@@ -77,6 +83,7 @@ type ElementDragGesture = {
   elementId: string;
   startPointer: Point;
   startBoundsMap: Record<string, CanvasBounds>;
+  startElementsMap?: Record<string, CanvasElement>;
 };
 type DrawingGesture = {
   elementId: string;
@@ -84,21 +91,104 @@ type DrawingGesture = {
   start: Point;
   points: Point[];
 };
+type ResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
+
+function getRotatedCursor(handle: ResizeHandle, rotation: number = 0): string {
+  const angle = ((rotation % 360) + 360) % 360;
+  const handleAngles: Record<ResizeHandle, number> = {
+    n: 0,
+    ne: 45,
+    e: 90,
+    se: 135,
+    s: 180,
+    sw: 225,
+    w: 270,
+    nw: 315,
+  };
+  const baseAngle = handleAngles[handle];
+  const totalAngle = (baseAngle + angle) % 360;
+  const index = Math.round(totalAngle / 45) % 8;
+  const cursors = [
+    'ns-resize',
+    'nesw-resize',
+    'ew-resize',
+    'nwse-resize',
+    'ns-resize',
+    'nesw-resize',
+    'ew-resize',
+    'nwse-resize',
+  ];
+  return cursors[index];
+}
+
+
+function resizeBounds(
+  start: CanvasBounds,
+  handle: ResizeHandle,
+  dx: number,
+  dy: number,
+  shiftKey: boolean
+): CanvasBounds {
+  let { x, y, width, height } = start;
+
+  if (handle.includes('e')) {
+    width = Math.max(5, start.width + dx);
+  } else if (handle.includes('w')) {
+    const maxW = start.x + start.width - 5;
+    x = Math.min(start.x + dx, maxW);
+    width = start.x + start.width - x;
+  }
+
+  if (handle.includes('s')) {
+    height = Math.max(5, start.height + dy);
+  } else if (handle.includes('n')) {
+    const maxH = start.y + start.height - 5;
+    y = Math.min(start.y + dy, maxH);
+    height = start.y + start.height - y;
+  }
+
+  if (shiftKey) {
+    const startRatio = start.width / start.height;
+    if (handle === 'e' || handle === 'w') {
+      height = width / startRatio;
+    } else if (handle === 'n' || handle === 's') {
+      width = height * startRatio;
+    } else {
+      if (width / start.width > height / start.height) {
+        height = width / startRatio;
+      } else {
+        width = height * startRatio;
+      }
+    }
+
+    if (handle.includes('w')) {
+      x = start.x + start.width - width;
+    }
+    if (handle.includes('n')) {
+      y = start.y + start.height - height;
+    }
+  }
+
+  return { x, y, width, height };
+}
 
 function toolsForMode(mode: FullCanvasMode): CanvasTool[] {
-  if (mode === 'add-edge' || mode === 'arrow' || mode === 'line') return ['add-edge', 'edit-node', 'edit-edge'];
+  if (mode === 'sequence-create' || mode === 'sequence-destroy') return [mode, 'add-edge', 'edit-node', 'edit-edge'];
+  if (mode === 'add-edge' || mode === 'arrow' || mode === 'line') return ['add-edge', 'sequence-create', 'sequence-destroy', 'edit-node', 'edit-edge'];
   if (mode === 'hand') return ['hand', 'edit-node', 'edit-edge'];
   if (mode === 'locked') return ['hand'];
-  return ['move', 'hand', 'edit-node', 'edit-edge', 'add-edge'];
+  return ['move', 'hand', 'edit-node', 'edit-edge', 'add-edge', 'sequence-create', 'sequence-destroy'];
 }
 
 function modeToDiagramTool(mode: FullCanvasMode): FullCanvasMode {
+  if (mode === 'sequence-create' || mode === 'sequence-destroy') return mode;
   if (mode === 'arrow' || mode === 'line') return 'add-edge';
   return mode;
 }
 
 function modeToCanvasTool(mode: FullCanvasMode): CanvasTool {
   if (mode === 'hand' || mode === 'locked') return 'hand';
+  if (mode === 'sequence-create' || mode === 'sequence-destroy') return mode;
   if (mode === 'add-edge' || mode === 'arrow' || mode === 'line') return 'add-edge';
   return 'move';
 }
@@ -124,7 +214,7 @@ function isFreeformMode(mode: FullCanvasMode): boolean {
 }
 
 function canvasKindForMode(mode: FullCanvasMode): Exclude<CanvasElement['kind'], 'unknown'> {
-  if (mode === 'locked' || mode === 'move' || mode === 'hand' || mode === 'add-edge') return 'rectangle';
+  if (mode === 'locked' || mode === 'move' || mode === 'hand' || mode === 'add-edge' || mode === 'sequence-create' || mode === 'sequence-destroy') return 'rectangle';
   return mode;
 }
 
@@ -146,6 +236,7 @@ function titleForCanvasMode(mode: FullCanvasMode): string | undefined {
 
 export function FullCanvasShell({
   diagram,
+  diagrams,
   language,
   mode,
   zoomLabel = '100%',
@@ -181,18 +272,23 @@ export function FullCanvasShell({
   onViewportChange,
   canvasStorageKey,
   onCanvasStateChange,
+  onCanvasInteractionDuration,
+  onPromoteToDSL,
+  onRender,
 }: FullCanvasShellProps) {
+  const pointerDownTimeRef = useRef<number | null>(null);
   const moreToolsRef = useRef<HTMLDivElement>(null);
   const moreActionsRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   const [zoom, setZoom] = useState(100);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const modeRef = useRef(mode);
   const [moreToolsOpen, setMoreToolsOpen] = useState(false);
   const [moreActionsOpen, setMoreActionsOpen] = useState(false);
-  
+
   const [selectionDrag, setSelectionDrag] = useState<{
     start: { x: number; y: number };
     current: { x: number; y: number };
@@ -208,6 +304,16 @@ export function FullCanvasShell({
     elementId: string;
     startPointer: { x: number; y: number };
     startBounds: CanvasBounds;
+    startElement?: CanvasElement;
+    handle?: ResizeHandle;
+    vertexIndex?: number;
+    startPoints?: Point[];
+  } | null>(null);
+  const [rotatingElement, setRotatingElement] = useState<{
+    elementId: string;
+    center: Point;
+    startAngle: number;
+    startRotation: number;
   } | null>(null);
 
   const [drawing, setDrawing] = useState<DrawingGesture | null>(null);
@@ -280,6 +386,47 @@ export function FullCanvasShell({
       fileInputRef.current?.click();
     }
   }, [mode]);
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.defaultPrevented) return;
+      e.preventDefault();
+
+      const rect = el.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      if (e.ctrlKey) {
+        // Smooth touchpad pinch-to-zoom or Ctrl+scroll
+        const zoomSpeed = 0.003;
+        const factor = Math.exp(-e.deltaY * zoomSpeed);
+
+        setZoom(currentZoom => {
+          const newZ = Math.min(Math.max(currentZoom * factor, 40), 200);
+          const scaleRatio = newZ / currentZoom;
+          setPan(currentPan => ({
+            x: mx - (mx - currentPan.x) * scaleRatio,
+            y: my - (my - currentPan.y) * scaleRatio,
+          }));
+          return newZ;
+        });
+      } else {
+        // Panning (scroll / touchpad drag)
+        setPan(currentPan => ({
+          x: currentPan.x - e.deltaX,
+          y: currentPan.y - e.deltaY,
+        }));
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', handleWheel);
+    };
+  }, []);
 
   const handleStyleChange = useCallback((patch: Partial<CanvasStyle>) => {
     setCanvasState(state => {
@@ -389,7 +536,7 @@ export function FullCanvasShell({
 
       const newElements: CanvasElement[] = [];
       const newIds: string[] = [];
-      
+
       for (const el of toDuplicate) {
         const newId = `canvas-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
         const bounds = {
@@ -404,7 +551,7 @@ export function FullCanvasShell({
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         } as CanvasElement;
-        
+
         newElements.push(newEl);
         newIds.push(newId);
       }
@@ -505,9 +652,10 @@ export function FullCanvasShell({
   };
 
   const handleFreeformPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
+    pointerDownTimeRef.current = performance.now();
     const target = event.target as SVGElement;
     const currentMode = (event.currentTarget.dataset.canvasMode as FullCanvasMode | undefined) ?? modeRef.current;
-    
+
     if (currentMode === 'hand') {
       event.preventDefault();
       event.stopPropagation();
@@ -526,6 +674,51 @@ export function FullCanvasShell({
     const clientPos = getCanvasCoords(event.clientX, event.clientY);
 
     if (currentMode === 'move') {
+      const rotateHandleId = target.getAttribute('data-rotate-element-id');
+      if (rotateHandleId) {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch (e) {}
+        const element = canvasState.elements.find(el => el.id === rotateHandleId);
+        if (element) {
+          const center = {
+            x: element.bounds.x + element.bounds.width / 2,
+            y: element.bounds.y + element.bounds.height / 2,
+          };
+          setRotatingElement({
+            elementId: rotateHandleId,
+            center,
+            startAngle: Math.atan2(clientPos.y - center.y, clientPos.x - center.x),
+            startRotation: element.rotation ?? 0,
+          });
+        }
+        return;
+      }
+
+      const vertexHandleId = target.getAttribute('data-vertex-element-id');
+      const vertexIdxAttr = target.getAttribute('data-vertex-index');
+      if (vertexHandleId && vertexIdxAttr != null) {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+        } catch (e) {}
+        const element = canvasState.elements.find(el => el.id === vertexHandleId);
+        if (element && 'points' in element) {
+          const vertexIndex = parseInt(vertexIdxAttr, 10);
+          setResizingElement({
+            elementId: vertexHandleId,
+            startPointer: clientPos,
+            startBounds: { ...element.bounds },
+            vertexIndex,
+            startPoints: JSON.parse(JSON.stringify(element.points)),
+          });
+        }
+        return;
+      }
+
       const resizeHandleId = target.getAttribute('data-resize-element-id');
       if (resizeHandleId) {
         event.preventDefault();
@@ -539,6 +732,8 @@ export function FullCanvasShell({
             elementId: resizeHandleId,
             startPointer: clientPos,
             startBounds: { ...element.bounds },
+            startElement: JSON.parse(JSON.stringify(element)),
+            handle: (target.getAttribute('data-resize-handle') as ResizeHandle | null) ?? 'se',
           });
         }
         return;
@@ -559,7 +754,7 @@ export function FullCanvasShell({
       if (clickedElement) {
         event.preventDefault();
         event.stopPropagation();
-        
+
         if (clickedElement.locked) {
           setCanvasState(state => {
             const isAlreadySelected = state.selectedElementIds.includes(clickedElement.id);
@@ -574,8 +769,9 @@ export function FullCanvasShell({
         try {
           event.currentTarget.setPointerCapture?.(event.pointerId);
         } catch (e) {}
-        
+
         const startBoundsMap: Record<string, CanvasBounds> = {};
+        const startElementsMap: Record<string, CanvasElement> = {};
         const alreadySelected = canvasState.selectedElementIds.includes(clickedElement.id);
         const nextSelectedIds = event.shiftKey
           ? (alreadySelected ? canvasState.selectedElementIds : [...canvasState.selectedElementIds, clickedElement.id])
@@ -586,16 +782,19 @@ export function FullCanvasShell({
         canvasState.elements.forEach(el => {
           if (nextSelectedIds.includes(el.id)) {
             startBoundsMap[el.id] = { ...el.bounds };
+            startElementsMap[el.id] = JSON.parse(JSON.stringify(el));
           }
         });
         if (!startBoundsMap[clickedElement.id]) {
           startBoundsMap[clickedElement.id] = { ...clickedElement.bounds };
+          startElementsMap[clickedElement.id] = JSON.parse(JSON.stringify(clickedElement));
         }
 
         const gesture: ElementDragGesture = {
           elementId: clickedElement.id,
           startPointer: clientPos,
           startBoundsMap,
+          startElementsMap,
         };
         draggingElementRef.current = gesture;
         setDraggingElement(gesture);
@@ -612,7 +811,7 @@ export function FullCanvasShell({
       try {
         event.currentTarget.setPointerCapture?.(event.pointerId);
       } catch (e) {}
-      
+
       setCanvasState(state => {
         if (state.selectedElementIds.length === 0) return state;
         const next = { ...state, selectedElementIds: [], updatedAt: new Date().toISOString() };
@@ -664,7 +863,7 @@ export function FullCanvasShell({
     if (isFreeformMode(currentMode)) {
       event.preventDefault();
       event.stopPropagation();
-      
+
       const defaultSize = currentMode === 'text' ? { width: 120, height: 32 } : { width: 140, height: 90 };
       const elementId = `canvas-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
       const element = createCanvasElement({
@@ -677,7 +876,7 @@ export function FullCanvasShell({
       });
 
       setCanvasState(state => reduceCanvasState(state, { type: 'add-element', element }));
-      
+
       if (isDragDrawMode(currentMode)) {
         try {
           event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -730,21 +929,44 @@ export function FullCanvasShell({
       const dy = clientPos.y - activeDrag.startPointer.y;
       setCanvasState(state => {
         const elements = state.elements.map(el => {
-          const startB = activeDrag.startBoundsMap[el.id];
-          if (startB) {
+          const startEl = activeDrag.startElementsMap?.[el.id];
+          if (startEl) {
             return {
               ...el,
               bounds: {
                 ...el.bounds,
-                x: startB.x + dx,
-                y: startB.y + dy,
+                x: startEl.bounds.x + dx,
+                y: startEl.bounds.y + dy,
               },
+              ...('points' in startEl && Array.isArray(startEl.points) ? {
+                points: startEl.points.map((p: any) => ({ x: p.x + dx, y: p.y + dy }))
+              } : {}),
               updatedAt: new Date().toISOString(),
-            };
+            } as CanvasElement;
           }
           return el;
         });
         return { ...state, elements };
+      });
+      return;
+    }
+
+    if (rotatingElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      const currentAngle = Math.atan2(clientPos.y - rotatingElement.center.y, clientPos.x - rotatingElement.center.x);
+      const deltaDeg = ((currentAngle - rotatingElement.startAngle) * 180) / Math.PI;
+      let rotation = Math.round(rotatingElement.startRotation + deltaDeg);
+      if (event.shiftKey) {
+        rotation = Math.round(rotation / 15) * 15;
+      }
+      setCanvasState(state => {
+        const elements = state.elements.map(el => (
+          el.id === rotatingElement.elementId
+            ? { ...el, rotation, updatedAt: new Date().toISOString() } as CanvasElement
+            : el
+        ));
+        return { ...state, elements, updatedAt: new Date().toISOString() };
       });
       return;
     }
@@ -757,24 +979,75 @@ export function FullCanvasShell({
       setCanvasState(state => {
         const elements = state.elements.map(el => {
           if (el.id === resizingElement.elementId) {
-            let width = Math.max(5, resizingElement.startBounds.width + dx);
-            let height = Math.max(5, resizingElement.startBounds.height + dy);
-            
-            if (event.shiftKey) {
-              const size = Math.max(width, height);
-              width = size;
-              height = size;
+            if (resizingElement.vertexIndex !== undefined && resizingElement.startPoints) {
+              const startPoints = resizingElement.startPoints;
+              const vertexIndex = resizingElement.vertexIndex;
+              let movingPoint = {
+                x: startPoints[vertexIndex].x + dx,
+                y: startPoints[vertexIndex].y + dy,
+              };
+              if (event.shiftKey) {
+                const otherPoint = startPoints[1 - vertexIndex];
+                movingPoint = constrainLineAngle(otherPoint, movingPoint);
+              }
+              const points = [...startPoints];
+              points[vertexIndex] = movingPoint;
+              const bounds = boundsFromPoints(points);
+              return {
+                ...el,
+                bounds,
+                points,
+                updatedAt: new Date().toISOString(),
+              } as CanvasElement;
+            } else {
+              const rotation = el.rotation || 0;
+              const rad = (rotation * Math.PI) / 180;
+              const cos = Math.cos(rad);
+              const sin = Math.sin(rad);
+
+              const dxLocal = dx * cos + dy * sin;
+              const dyLocal = -dx * sin + dy * cos;
+
+              const handle = resizingElement.handle ?? 'se';
+              const localBounds = resizeBounds(resizingElement.startBounds, handle, dxLocal, dyLocal, event.shiftKey);
+
+              const cxOriginal = resizingElement.startBounds.x + resizingElement.startBounds.width / 2;
+              const cyOriginal = resizingElement.startBounds.y + resizingElement.startBounds.height / 2;
+
+              const cxLocal = localBounds.x + localBounds.width / 2;
+              const cyLocal = localBounds.y + localBounds.height / 2;
+
+              const dcxLocal = cxLocal - cxOriginal;
+              const dcyLocal = cyLocal - cyOriginal;
+
+              const dcxGlobal = dcxLocal * cos - dcyLocal * sin;
+              const dcyGlobal = dcxLocal * sin + dcyLocal * cos;
+
+              const cxNew = cxOriginal + dcxGlobal;
+              const cyNew = cyOriginal + dcyGlobal;
+
+              const xNew = cxNew - localBounds.width / 2;
+              const yNew = cyNew - localBounds.height / 2;
+
+              const bounds = {
+                x: xNew,
+                y: yNew,
+                width: localBounds.width,
+                height: localBounds.height,
+              };
+
+              return {
+                ...el,
+                bounds,
+                ...('points' in (resizingElement.startElement ?? {}) && Array.isArray((resizingElement.startElement as any).points) ? {
+                  points: (resizingElement.startElement as any).points.map((point: Point) => ({
+                    x: bounds.x + ((point.x - resizingElement.startBounds.x) * bounds.width) / Math.max(1, resizingElement.startBounds.width),
+                    y: bounds.y + ((point.y - resizingElement.startBounds.y) * bounds.height) / Math.max(1, resizingElement.startBounds.height),
+                  })),
+                } : {}),
+                updatedAt: new Date().toISOString(),
+              } as CanvasElement;
             }
-            
-            return {
-              ...el,
-              bounds: {
-                ...el.bounds,
-                width,
-                height,
-              },
-              updatedAt: new Date().toISOString(),
-            } as CanvasElement;
           }
           return el;
         });
@@ -794,9 +1067,9 @@ export function FullCanvasShell({
     if (activeDrawing) {
       event.preventDefault();
       event.stopPropagation();
-      
+
       let endPoint = clientPos;
-      
+
       if (event.shiftKey) {
         if (activeDrawing.mode === 'rectangle' || activeDrawing.mode === 'ellipse') {
           endPoint = constrainToSquare(activeDrawing.start, clientPos);
@@ -805,10 +1078,10 @@ export function FullCanvasShell({
         }
       }
 
-      const points = isPathMode(activeDrawing.mode) 
-        ? [...activeDrawing.points, clientPos] 
+      const points = isPathMode(activeDrawing.mode)
+        ? [...activeDrawing.points, clientPos]
         : [activeDrawing.start, endPoint];
-      
+
       const bounds = boundsFromStartEnd(activeDrawing.start, endPoint);
       const nextDrawing = { ...activeDrawing, points };
       drawingRef.current = nextDrawing;
@@ -817,7 +1090,7 @@ export function FullCanvasShell({
       if (activeDrawing.mode === 'lasso') {
         return;
       }
-      
+
       if (activeDrawing.mode === 'eraser') {
         deleteIntersecting(activeDrawing.start, clientPos);
         return;
@@ -841,6 +1114,20 @@ export function FullCanvasShell({
   };
 
   const handleFreeformPointerUp = (event: React.PointerEvent<SVGSVGElement>) => {
+    const wasActive = Boolean(
+      panningCanvas ||
+      draggingElementRef.current || draggingElement ||
+      resizingElement ||
+      rotatingElement ||
+      selectionDrag ||
+      (drawingRef.current ?? drawing)
+    );
+    const elapsed = pointerDownTimeRef.current ? performance.now() - pointerDownTimeRef.current : 0;
+    pointerDownTimeRef.current = null;
+    if (wasActive && elapsed > 0) {
+      onCanvasInteractionDuration?.(elapsed);
+    }
+
     if (panningCanvas) {
       event.preventDefault();
       event.stopPropagation();
@@ -873,16 +1160,26 @@ export function FullCanvasShell({
       return;
     }
 
+    if (rotatingElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      } catch (e) {}
+      setRotatingElement(null);
+      return;
+    }
+
     if (selectionDrag) {
       event.preventDefault();
       event.stopPropagation();
       try {
         event.currentTarget.releasePointerCapture?.(event.pointerId);
       } catch (e) {}
-      
+
       const zone = boundsFromStartEnd(selectionDrag.start, selectionDrag.current);
       const isClick = zone.width < 4 && zone.height < 4;
-      
+
       setCanvasState(state => {
         if (isClick) {
           return { ...state, selectedElementIds: [] };
@@ -890,12 +1187,12 @@ export function FullCanvasShell({
         const selectedIds = elementsIntersectingBounds(state, zone);
         return {
           ...state,
-          selectedElementIds: event.shiftKey 
+          selectedElementIds: event.shiftKey
             ? [...new Set([...state.selectedElementIds, ...selectedIds])]
             : selectedIds,
         };
       });
-      
+
       setSelectionDrag(null);
       return;
     }
@@ -907,7 +1204,7 @@ export function FullCanvasShell({
       try {
         event.currentTarget.releasePointerCapture?.(event.pointerId);
       } catch (e) {}
-      
+
       const finishedMode = activeDrawing.mode;
       const elementId = activeDrawing.elementId;
       drawingRef.current = null;
@@ -993,13 +1290,16 @@ export function FullCanvasShell({
   const renderFreeformElement = (element: CanvasElement) => {
     const isSelected = canvasState.selectedElementIds.includes(element.id);
     const strokeColor = isSelected ? '#1c7ed6' : element.style.stroke;
-    
+
     const common = {
       stroke: strokeColor,
       fill: element.kind === 'line' || element.kind === 'arrow' || element.kind === 'pen' ? 'none' : element.style.fill,
       strokeWidth: element.style.strokeWidth,
       opacity: element.style.opacity,
     };
+    const centerX = element.bounds.x + element.bounds.width / 2;
+    const centerY = element.bounds.y + element.bounds.height / 2;
+    const rotationTransform = element.rotation ? `rotate(${element.rotation} ${centerX} ${centerY})` : undefined;
 
     const renderSelectionBox = () => {
       if (!isSelected || mode !== 'move') return null;
@@ -1027,42 +1327,115 @@ export function FullCanvasShell({
       );
     };
 
-    const renderResizeHandle = () => {
+    const renderTransformControls = () => {
       if (!isSelected || mode !== 'move' || element.locked) return null;
-      const hx = element.bounds.x + element.bounds.width;
-      const hy = element.bounds.y + element.bounds.height;
+      const pad = 3;
+      const x = element.bounds.x - pad;
+      const y = element.bounds.y - pad;
+      const w = element.bounds.width + pad * 2;
+      const h = element.bounds.height + pad * 2;
+      const handles: Array<{ handle: ResizeHandle; x: number; y: number; cursor: string }> = [
+        { handle: 'se', x: x + w, y: y + h, cursor: 'nwse-resize' },
+        { handle: 'nw', x, y, cursor: 'nwse-resize' },
+        { handle: 'n', x: x + w / 2, y, cursor: 'ns-resize' },
+        { handle: 'ne', x: x + w, y, cursor: 'nesw-resize' },
+        { handle: 'e', x: x + w, y: y + h / 2, cursor: 'ew-resize' },
+        { handle: 's', x: x + w / 2, y: y + h, cursor: 'ns-resize' },
+        { handle: 'sw', x, y: y + h, cursor: 'nesw-resize' },
+        { handle: 'w', x, y: y + h / 2, cursor: 'ew-resize' },
+      ];
+      const rotateX = x + w / 2;
+      const rotateY = y - 24;
       return (
-        <circle
-          className="iso-freeform-resize-handle"
-          data-resize-element-id={element.id}
-          aria-label={`Resize ${element.id}`}
-          cx={hx}
-          cy={hy}
-          r={5}
-          fill="#ffffff"
-          stroke="#1c7ed6"
-          strokeWidth={1.5}
-          style={{ cursor: 'se-resize', pointerEvents: 'auto' }}
-        />
+        <g className="iso-freeform-transform-controls" style={{ pointerEvents: 'auto' }}>
+          <line x1={rotateX} y1={y} x2={rotateX} y2={rotateY + 6} stroke="#1c7ed6" strokeWidth={1} pointerEvents="none" />
+          <circle
+            className="iso-freeform-rotate-handle"
+            data-rotate-element-id={element.id}
+            aria-label={`Rotate ${element.id}`}
+            cx={rotateX}
+            cy={rotateY}
+            r={6}
+            fill="#ffffff"
+            stroke="#1c7ed6"
+            strokeWidth={1.5}
+            style={{ cursor: 'grab', pointerEvents: 'auto' }}
+          />
+          {handles.map(handle => (
+            <rect
+              key={handle.handle}
+              className="iso-freeform-resize-handle"
+              data-resize-element-id={element.id}
+              data-resize-handle={handle.handle}
+              aria-label={handle.handle === 'se' ? `Resize ${element.id}` : `Resize ${element.id} from ${handle.handle}`}
+              x={handle.x - 4}
+              y={handle.y - 4}
+              width={8}
+              height={8}
+              rx={2}
+              fill="#ffffff"
+              stroke="#1c7ed6"
+              strokeWidth={1.5}
+              style={{ cursor: getRotatedCursor(handle.handle, element.rotation), pointerEvents: 'auto' }}
+            />
+          ))}
+        </g>
+      );
+    };
+
+    const renderLineResizeHandles = () => {
+      if (!isSelected || mode !== 'move' || element.locked) return null;
+      const points = 'points' in element ? element.points : [];
+      if (points.length < 2) return null;
+      return (
+        <g style={{ pointerEvents: 'auto' }}>
+          <circle
+            className="iso-freeform-vertex-handle"
+            data-vertex-element-id={element.id}
+            data-vertex-index="0"
+            aria-label={`Move start of ${element.id}`}
+            cx={points[0].x}
+            cy={points[0].y}
+            r={5}
+            fill="#ffffff"
+            stroke="#1c7ed6"
+            strokeWidth={1.5}
+            style={{ cursor: 'move', pointerEvents: 'auto' }}
+          />
+          <circle
+            className="iso-freeform-vertex-handle"
+            data-vertex-element-id={element.id}
+            data-vertex-index="1"
+            aria-label={`Move end of ${element.id}`}
+            cx={points[1].x}
+            cy={points[1].y}
+            r={5}
+            fill="#ffffff"
+            stroke="#1c7ed6"
+            strokeWidth={1.5}
+            style={{ cursor: 'move', pointerEvents: 'auto' }}
+          />
+        </g>
       );
     };
 
     if (element.kind === 'ellipse') {
       return (
-        <g key={element.id} data-canvas-element-id={element.id}>
+        <g key={element.id} data-canvas-element-id={element.id} transform={rotationTransform}>
           <ellipse
             cx={element.bounds.x + element.bounds.width / 2}
             cy={element.bounds.y + element.bounds.height / 2}
             rx={element.bounds.width / 2}
             ry={element.bounds.height / 2}
             {...common}
+            style={{ cursor: mode === 'move' ? (element.locked ? 'not-allowed' : 'move') : undefined, pointerEvents: 'all' }}
           />
           {renderSelectionBox()}
-          {renderResizeHandle()}
+          {renderTransformControls()}
         </g>
       );
     }
-    
+
     if (element.kind === 'line' || element.kind === 'arrow') {
       const points = 'points' in element ? element.points : [];
       const x1 = points[0] ? points[0].x : element.bounds.x;
@@ -1070,67 +1443,92 @@ export function FullCanvasShell({
       const x2 = points[1] ? points[1].x : element.bounds.x + element.bounds.width;
       const y2 = points[1] ? points[1].y : element.bounds.y + element.bounds.height;
       return (
-        <g key={element.id} data-canvas-element-id={element.id}>
-          <line x1={x1} y1={y1} x2={x2} y2={y2} {...common} markerEnd={element.kind === 'arrow' ? 'url(#isx-freeform-arrow)' : undefined} />
+        <g key={element.id} data-canvas-element-id={element.id} transform={rotationTransform}>
+          <line
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="transparent"
+            strokeWidth={24}
+            style={{ cursor: mode === 'move' ? (element.locked ? 'not-allowed' : 'move') : undefined, pointerEvents: 'stroke' }}
+          />
+          <line x1={x1} y1={y1} x2={x2} y2={y2} {...common} style={{ pointerEvents: 'none' }} markerEnd={element.kind === 'arrow' ? 'url(#isx-freeform-arrow)' : undefined} />
           {renderSelectionBox()}
-          {renderResizeHandle()}
+          {renderTransformControls()}
+          {renderLineResizeHandles()}
         </g>
       );
     }
-    
+
     if (element.kind === 'pen' || element.kind === 'eraser' || element.kind === 'laser' || element.kind === 'lasso') {
       const points = 'points' in element ? element.points : [];
       const path = points.length > 0
         ? points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
         : `M ${element.bounds.x} ${element.bounds.y} L ${element.bounds.x + element.bounds.width} ${element.bounds.y + element.bounds.height}`;
       return (
-        <g key={element.id} data-canvas-element-id={element.id}>
-          <path d={path} {...common} strokeDasharray={element.kind === 'lasso' ? '6 4' : undefined} />
+        <g key={element.id} data-canvas-element-id={element.id} transform={rotationTransform}>
+          <path
+            d={path}
+            fill="none"
+            stroke="transparent"
+            strokeWidth={24}
+            style={{ cursor: mode === 'move' ? (element.locked ? 'not-allowed' : 'move') : undefined, pointerEvents: 'stroke' }}
+          />
+          <path d={path} {...common} style={{ pointerEvents: 'none' }} strokeDasharray={element.kind === 'lasso' ? '6 4' : undefined} />
           {renderSelectionBox()}
-          {renderResizeHandle()}
+          {renderTransformControls()}
         </g>
       );
     }
-    
+
     if (element.kind === 'text') {
       const textVal = 'text' in element ? element.text : 'Text';
       const fontSizeVal = 'fontSize' in element ? element.fontSize : 16;
       return (
-        <g key={element.id} data-canvas-element-id={element.id}>
-          <text x={element.bounds.x} y={element.bounds.y + 18} fill={isSelected ? '#1c7ed6' : element.style.text} opacity={element.style.opacity} fontSize={fontSizeVal}>
+        <g key={element.id} data-canvas-element-id={element.id} transform={rotationTransform}>
+          <rect
+            x={element.bounds.x}
+            y={element.bounds.y}
+            width={element.bounds.width}
+            height={element.bounds.height}
+            fill="transparent"
+            style={{ cursor: mode === 'move' ? (element.locked ? 'not-allowed' : 'move') : undefined, pointerEvents: 'all' }}
+          />
+          <text x={element.bounds.x} y={element.bounds.y + 18} fill={isSelected ? '#1c7ed6' : element.style.text} opacity={element.style.opacity} fontSize={fontSizeVal} style={{ pointerEvents: 'none' }}>
             {textVal}
           </text>
           {renderSelectionBox()}
-          {renderResizeHandle()}
+          {renderTransformControls()}
         </g>
       );
     }
-    
+
     if (element.kind === 'image') {
       const preserveAspectRatio = element.fit === 'stretch' ? 'none' : element.fit === 'cover' ? 'xMidYMid slice' : 'xMidYMid meet';
       return (
-        <g key={element.id} data-canvas-element-id={element.id}>
+        <g key={element.id} data-canvas-element-id={element.id} transform={rotationTransform}>
           {'src' in element && element.src ? (
-            <image href={element.src} x={element.bounds.x} y={element.bounds.y} width={element.bounds.width} height={element.bounds.height} preserveAspectRatio={preserveAspectRatio} />
+            <image href={element.src} x={element.bounds.x} y={element.bounds.y} width={element.bounds.width} height={element.bounds.height} preserveAspectRatio={preserveAspectRatio} style={{ cursor: mode === 'move' ? (element.locked ? 'not-allowed' : 'move') : undefined, pointerEvents: 'all' }} />
           ) : (
-            <rect {...element.bounds} {...common} strokeDasharray="6 4" />
+            <rect {...element.bounds} {...common} strokeDasharray="6 4" style={{ cursor: mode === 'move' ? (element.locked ? 'not-allowed' : 'move') : undefined, pointerEvents: 'all' }} />
           )}
-          <text x={element.bounds.x + 12} y={element.bounds.y + 24} fill={isSelected ? '#1c7ed6' : element.style.text} fontSize={13}>Image</text>
+          <text x={element.bounds.x + 12} y={element.bounds.y + 24} fill={isSelected ? '#1c7ed6' : element.style.text} fontSize={13} style={{ pointerEvents: 'none' }}>Image</text>
           {renderSelectionBox()}
-          {renderResizeHandle()}
+          {renderTransformControls()}
         </g>
       );
     }
-    
+
     const dashed = element.kind === 'frame' || element.kind === 'embed' || element.kind === 'uml-package';
     const rxVal = element.kind === 'rectangle' ? 6 : 2;
     return (
-      <g key={element.id} data-canvas-element-id={element.id}>
-        <rect rx={rxVal} {...element.bounds} {...common} strokeDasharray={dashed ? '8 5' : undefined} />
-        {'title' in element && element.title ? <text x={element.bounds.x + 10} y={element.bounds.y + 22} fill={element.style.text} fontSize={13}>{element.title}</text> : null}
-        {element.kind === 'embed' ? <text x={element.bounds.x + 10} y={element.bounds.y + 42} fill={element.style.text} fontSize={12}>Web embed</text> : null}
+      <g key={element.id} data-canvas-element-id={element.id} transform={rotationTransform}>
+        <rect rx={rxVal} {...element.bounds} {...common} strokeDasharray={dashed ? '8 5' : undefined} style={{ cursor: mode === 'move' ? (element.locked ? 'not-allowed' : 'move') : undefined, pointerEvents: 'all' }} />
+        {'title' in element && element.title ? <text x={element.bounds.x + 10} y={element.bounds.y + 22} fill={element.style.text} fontSize={13} style={{ pointerEvents: 'none' }}>{element.title}</text> : null}
+        {element.kind === 'embed' ? <text x={element.bounds.x + 10} y={element.bounds.y + 42} fill={element.style.text} fontSize={12} style={{ pointerEvents: 'none' }}>Web embed</text> : null}
         {renderSelectionBox()}
-        {renderResizeHandle()}
+        {renderTransformControls()}
       </g>
     );
   };
@@ -1145,7 +1543,140 @@ export function FullCanvasShell({
     : undefined;
 
   return (
-    <section className="iso-full-canvas-shell" aria-label="Full canvas">
+    <section className="iso-full-canvas-shell" aria-label="Full canvas" data-canvas-storage-key={canvasStorageKey}>
+      <div className="iso-dropdown iso-full-canvas-actions-dropdown" ref={moreActionsRef} style={{ position: 'fixed', top: '14px', left: '14px', zIndex: 70 }}>
+        <button
+          type="button"
+          className="iso-full-canvas-action iso-full-canvas-hamburger"
+          style={{
+            border: '1px solid var(--iso-border)',
+            background: 'color-mix(in srgb, var(--iso-bg-panel) 88%, transparent)',
+            boxShadow: 'var(--iso-shadow)',
+            backdropFilter: 'blur(18px)',
+            width: '32px',
+            height: '32px',
+            borderRadius: '999px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '3px',
+            cursor: 'pointer'
+          }}
+          aria-label="More actions"
+          aria-haspopup="menu"
+          aria-expanded={moreActionsOpen}
+          onClick={() => setMoreActionsOpen(open => !open)}
+        >
+          <span aria-hidden="true" style={{ width: '14px', height: '1.5px', background: 'currentColor', borderRadius: '999px' }}></span>
+          <span aria-hidden="true" style={{ width: '14px', height: '1.5px', background: 'currentColor', borderRadius: '999px' }}></span>
+          <span aria-hidden="true" style={{ width: '14px', height: '1.5px', background: 'currentColor', borderRadius: '999px' }}></span>
+        </button>
+        {moreActionsOpen && (
+          <div className="iso-dropdown-menu iso-full-canvas-menu" role="menu" aria-label="Canvas more actions" style={{ top: 'calc(100% + 8px)', bottom: 'auto' }}>
+            <div className="iso-dropdown-group-title" style={{ padding: '6px 12px 2px', fontSize: '10px', textTransform: 'uppercase', color: 'var(--iso-text-muted)', fontWeight: 600 }}>Document Actions</div>
+            <button
+              type="button"
+              className="iso-dropdown-item"
+              role="menuitem"
+              disabled={!hasDiagram || !canSave || !onSave}
+              onClick={() => {
+                setMoreActionsOpen(false);
+                onSave?.();
+              }}
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              className="iso-dropdown-item"
+              role="menuitem"
+              disabled={!canExportCanvas}
+              onClick={() => {
+                setMoreActionsOpen(false);
+                onExportSVG();
+              }}
+            >
+              Export SVG
+            </button>
+            <button
+              type="button"
+              className="iso-dropdown-item"
+              role="menuitem"
+              disabled={!canExportCanvas}
+              onClick={() => {
+                setMoreActionsOpen(false);
+                onExportPNG();
+              }}
+            >
+              Export PNG
+            </button>
+
+            <div style={{ height: '1px', background: 'var(--iso-border)', margin: '4px 0' }} />
+
+            <div className="iso-dropdown-group-title" style={{ padding: '6px 12px 2px', fontSize: '10px', textTransform: 'uppercase', color: 'var(--iso-text-muted)', fontWeight: 600 }}>Analysis Tools</div>
+            <button
+              type="button"
+              className="iso-dropdown-item"
+              role="menuitem"
+              onClick={() => {
+                setMoreActionsOpen(false);
+                onValidate?.();
+              }}
+            >
+              Validate
+            </button>
+            <button
+              type="button"
+              className="iso-dropdown-item"
+              role="menuitem"
+              onClick={() => {
+                setMoreActionsOpen(false);
+                onFitCanvas?.();
+              }}
+            >
+              Zoom to Fit
+            </button>
+
+            <div style={{ height: '1px', background: 'var(--iso-border)', margin: '4px 0' }} />
+
+            <div className="iso-dropdown-group-title" style={{ padding: '6px 12px 2px', fontSize: '10px', textTransform: 'uppercase', color: 'var(--iso-text-muted)', fontWeight: 600 }}>Settings</div>
+            <button
+              type="button"
+              className="iso-dropdown-item"
+              role="menuitem"
+              onClick={() => {
+                setMoreActionsOpen(false);
+                onBack();
+              }}
+            >
+              Source view
+            </button>
+            <button
+              type="button"
+              className="iso-dropdown-item"
+              role="menuitem"
+              onClick={() => {
+                setMoreActionsOpen(false);
+                onOpenShortcuts?.();
+              }}
+            >
+              Shortcuts
+            </button>
+            {onStrictUmlChange && (
+              <label className="iso-dropdown-item iso-dropdown-check" role="menuitemcheckbox" aria-checked={Boolean(strictUmlEnabled)}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(strictUmlEnabled)}
+                  onChange={event => onStrictUmlChange(event.target.checked)}
+                />
+                <span>Strict UML rules</span>
+              </label>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="iso-full-canvas-toolbox" ref={moreToolsRef}>
         <CanvasToolbar
           mode={mode}
@@ -1181,7 +1712,7 @@ export function FullCanvasShell({
       </div>
 
       <CanvasPropertiesPanel
-        visible={true}
+        visible={mode === 'move' && selectedElements.length > 0}
         uiLanguage={language}
         style={activeStyle}
         selectedElements={selectedElements}
@@ -1194,6 +1725,7 @@ export function FullCanvasShell({
         onBringForward={handleBringForward}
         onSendBackward={handleSendBackward}
         onDuplicate={handleDuplicate}
+        onPromoteToDSL={onPromoteToDSL}
       />
 
       <div className="iso-full-canvas-pill" aria-label="Canvas document status">
@@ -1209,109 +1741,12 @@ export function FullCanvasShell({
           <button type="button" className="iso-full-canvas-action" onClick={onShare}>Share</button>
           <button type="button" className="iso-full-canvas-action" onClick={onBack}>Back</button>
         </div>
-
-        <div className="iso-full-canvas-actions">
-          <button type="button" className="iso-full-canvas-action" onClick={onSave} disabled={!hasDiagram || !canSave || !onSave}>Save</button>
-          <button type="button" className="iso-full-canvas-action" onClick={onExportSVG} disabled={!canExportCanvas}>SVG</button>
-          <button type="button" className="iso-full-canvas-action" onClick={onExportPNG} disabled={!canExportCanvas}>PNG</button>
-          
-          <div className="iso-dropdown" ref={moreActionsRef}>
-            <button
-              type="button"
-              className="iso-full-canvas-action"
-              aria-haspopup="menu"
-              aria-expanded={moreActionsOpen}
-              onClick={() => setMoreActionsOpen(open => !open)}
-            >
-              More <IconChevron dir={moreActionsOpen ? 'up' : 'down'} />
-            </button>
-            {moreActionsOpen && (
-              <div className="iso-dropdown-menu iso-full-canvas-menu" role="menu" aria-label="Canvas more actions">
-                <button
-                  type="button"
-                  className="iso-dropdown-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMoreActionsOpen(false);
-                    onValidate?.();
-                  }}
-                >
-                  Validate
-                </button>
-                <button
-                  type="button"
-                  className="iso-dropdown-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMoreActionsOpen(false);
-                    onFitCanvas?.();
-                  }}
-                >
-                  {fitLabel}
-                </button>
-                <button
-                  type="button"
-                  className="iso-dropdown-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMoreActionsOpen(false);
-                    onBack();
-                  }}
-                >
-                  Source view
-                </button>
-                <button
-                  type="button"
-                  className="iso-dropdown-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMoreActionsOpen(false);
-                    onOpenShortcuts?.();
-                  }}
-                >
-                  Shortcuts
-                </button>
-                {onStrictUmlChange && (
-                  <label className="iso-dropdown-item iso-dropdown-check" role="menuitemcheckbox" aria-checked={Boolean(strictUmlEnabled)}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(strictUmlEnabled)}
-                      onChange={event => onStrictUmlChange(event.target.checked)}
-                    />
-                    <span>Strict UML rules</span>
-                  </label>
-                )}
-                <button
-                  type="button"
-                  className="iso-dropdown-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMoreActionsOpen(false);
-                    onExportSVG();
-                  }}
-                >
-                  Export SVG
-                </button>
-                <button
-                  type="button"
-                  className="iso-dropdown-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setMoreActionsOpen(false);
-                    onExportPNG();
-                  }}
-                >
-                  Export PNG
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
-      <div className="iso-full-canvas-viewport">
+      <div className="iso-full-canvas-viewport" ref={viewportRef}>
         <DiagramView
           diagram={diagram}
+          diagrams={diagrams}
           language={language}
           availableTools={toolsForMode(semanticMode)}
           activeTool={canvasTool}
@@ -1335,6 +1770,7 @@ export function FullCanvasShell({
           onSelectionChange={onSelectionChange}
           pendingDropKeyword={pendingDropKeyword}
           onConsumePendingDrop={onConsumePendingDrop}
+          onRender={onRender}
         />
         <svg
           ref={overlayRef}

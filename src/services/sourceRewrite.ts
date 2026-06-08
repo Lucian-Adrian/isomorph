@@ -1,3 +1,8 @@
+import { parse } from '../parser/index.js';
+import type { BodyItem, RelationDecl, DiagramKind } from '../parser/ast.js';
+
+export type SequenceMessageType = 'synchronous' | 'asynchronous' | 'response' | 'self-call';
+
 export const RELATION_TOKENS = [
   '--()',
   '--(',
@@ -69,6 +74,8 @@ export interface RelationRewriteUpdates {
   direction?: 'forward' | 'reverse';
   fromMult?: string;
   toMult?: string;
+  seqMessageType?: SequenceMessageType;
+  msg?: string;
 }
 
 const REL_TOKENS_BY_KIND: Record<string, string> = {
@@ -90,6 +97,13 @@ function escapeRegex(value: string): string {
 
 function escapeAttrValue(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+export function inferSequenceMessageType(kind: string, from?: string, to?: string): SequenceMessageType {
+  if (from && to && from === to) return 'self-call';
+  if (kind === 'dependency') return 'response';
+  if (kind === 'inheritance') return 'asynchronous';
+  return 'synchronous';
 }
 
 export function findDiagramBlock(source: string, diagramName?: string): DiagramBlock | null {
@@ -132,6 +146,13 @@ function parseRelationAttrs(attrs: string): Map<string, string> {
   return out;
 }
 
+export interface DiagramBlock {
+  start: number;
+  openBrace: number;
+  closeBrace: number;
+  name: string;
+}
+
 export function serializeRelationAttrs(attrs: Map<string, string>): string {
   const serialized = [...attrs.entries()]
     .filter(([, value]) => value !== '')
@@ -142,7 +163,7 @@ export function serializeRelationAttrs(attrs: Map<string, string>): string {
 
 function relationRegex(global = true): RegExp {
   return new RegExp(
-    `^(\\s*)([A-Za-z_]\\w*)\\s+(${RELATION_TOKEN_PATTERN})\\s+(?:(create|destroy|new|delete)\\s+)?([A-Za-z_]\\w*)(\\s*\\[[^\\]]*\\])?\\s*$`,
+    `^(\\s*)([A-Za-z_][\\w.]*)\\s+(${RELATION_TOKEN_PATTERN})\\s+(?:(create|destroy|new|delete)\\s+)?([A-Za-z_][\\w.]*)(\\s*\\[[^\\]]*\\])?(?:\\s*\\/\\/.*)?\\s*$`,
     global ? 'gm' : '',
   );
 }
@@ -182,7 +203,12 @@ export function formatDiagramSource(source: string, diagramName?: string): strin
           block += `\n    ${inner}`;
           i++;
         }
-        headerLines.push(block);
+        const isFragment = /^\s*(?:alt|loop|opt|par|break|critical)\b/.test(trimmed);
+        if (isFragment) {
+          relationLines.push(block);
+        } else {
+          headerLines.push(block);
+        }
       } else if (entityDeclRx.test(lines[i]) || packageRx.test(lines[i])) {
         headerLines.push(`  ${trimmed}`);
         i++;
@@ -217,15 +243,108 @@ export function updateEntityPosition(
   }, diagramName);
 }
 
+export function getRelationDeclByIndex(
+  source: string,
+  relationIdx: number,
+  diagramName?: string
+): RelationDecl | null {
+  try {
+    const ast = parse(source);
+    const diag = ast.program.diagrams.find(d => !diagramName || d.name === diagramName);
+    if (!diag) return null;
+
+    let currentIdx = 0;
+    let foundNode: RelationDecl | null = null;
+
+    function walk(items: BodyItem[]) {
+      if (foundNode) return;
+      for (const item of items) {
+        if (item.kind === 'RelationDecl') {
+          if (currentIdx === relationIdx) {
+            foundNode = item;
+            return;
+          }
+          currentIdx++;
+        } else if (item.kind === 'PackageDecl') {
+          walk(item.body);
+        } else if (item.kind === 'PartitionDecl') {
+          walk(item.body);
+        } else if (item.kind === 'FragmentDecl') {
+          walk(item.body);
+          if (item.elseBlocks) {
+            for (const block of item.elseBlocks) {
+              walk(block.body);
+            }
+          }
+        }
+      }
+    }
+
+    walk(diag.body);
+    return foundNode;
+  } catch (e) {
+    return null;
+  }
+}
+
 export function updateRelationById(
   source: string,
   relationId: string,
   updates: RelationRewriteUpdates,
+  diagramKind?: DiagramKind,
   diagramName?: string,
 ): string {
   const relationIdx = Number.parseInt(relationId.replace('rel_', ''), 10);
   if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
 
+  // Try AST first
+  const node = getRelationDeclByIndex(source, relationIdx, diagramName);
+  if (node && node.span) {
+    let from = node.from;
+    let to = node.to;
+    if (updates.direction === 'reverse') {
+      from = node.to;
+      to = node.from;
+    }
+
+    const attrs = new Map<string, string>();
+    if (node.label) attrs.set('label', node.label);
+    if (node.fromMult) attrs.set('fromMult', node.fromMult);
+    if (node.toMult) attrs.set('toMult', node.toMult);
+    if (node.style) {
+      for (const [k, v] of Object.entries(node.style)) {
+        if (k !== 'label' && k !== 'fromMult' && k !== 'toMult' && k !== 'msg') {
+          attrs.set(k, v);
+        }
+      }
+    }
+
+    if (updates.label !== undefined) updates.label ? attrs.set('label', updates.label) : attrs.delete('label');
+    if (updates.fromMult !== undefined) updates.fromMult ? attrs.set('fromMult', updates.fromMult) : attrs.delete('fromMult');
+    if (updates.toMult !== undefined) updates.toMult ? attrs.set('toMult', updates.toMult) : attrs.delete('toMult');
+    if (updates.msg !== undefined) updates.msg ? attrs.set('msg', updates.msg) : attrs.delete('msg');
+
+    let op = REL_TOKENS_BY_KIND[updates.kind ?? ''] ?? node.relKind;
+    const isSequence = diagramKind === 'sequence';
+    if (isSequence) {
+      const inferredKind = (node.relKind === '..>' || node.relKind === '<..')
+        ? 'dependency'
+        : (node.relKind === '--|>' || node.relKind === '<|--' ? 'inheritance' : 'directed-association');
+      const nextType = updates.seqMessageType ?? inferSequenceMessageType(inferredKind, from, to);
+      if (nextType === 'response') op = '..>';
+      else if (nextType === 'asynchronous') op = '--|>';
+      else op = '-->';
+      if (nextType === 'self-call') {
+        to = from;
+        op = '-->';
+      }
+    }
+
+    const replacement = `${from} ${op} ${node.style?.action ? `${node.style.action} ` : ''}${to}${serializeRelationAttrs(attrs)}`;
+    return source.slice(0, node.span.start) + replacement + source.slice(node.span.end);
+  }
+
+  // Fallback to regex
   return rewriteDiagramBody(source, (body) => {
     const matches = [...body.matchAll(relationRegex(true))];
     const match = matches[relationIdx];
@@ -243,11 +362,126 @@ export function updateRelationById(
     if (updates.label !== undefined) updates.label ? attrs.set('label', updates.label) : attrs.delete('label');
     if (updates.fromMult !== undefined) updates.fromMult ? attrs.set('fromMult', updates.fromMult) : attrs.delete('fromMult');
     if (updates.toMult !== undefined) updates.toMult ? attrs.set('toMult', updates.toMult) : attrs.delete('toMult');
+    if (updates.msg !== undefined) updates.msg ? attrs.set('msg', updates.msg) : attrs.delete('msg');
 
-    const op = REL_TOKENS_BY_KIND[updates.kind ?? ''] ?? opRaw;
+    let op = REL_TOKENS_BY_KIND[updates.kind ?? ''] ?? opRaw;
+    const isSequence = diagramKind === 'sequence';
+    if (isSequence) {
+      const inferredKind = (opRaw === '..>' || opRaw === '<..')
+        ? 'dependency'
+        : (opRaw === '--|>' || opRaw === '<|--' ? 'inheritance' : 'directed-association');
+      const nextType = updates.seqMessageType ?? inferSequenceMessageType(inferredKind, from, to);
+      if (nextType === 'response') op = '..>';
+      else if (nextType === 'asynchronous') op = '--|>';
+      else op = '-->';
+      if (nextType === 'self-call') {
+        to = from;
+        op = '-->';
+      }
+    }
+
     const actionPart = actionRaw ? `${actionRaw} ` : '';
     const replacement = `${indent}${from} ${op} ${actionPart}${to}${serializeRelationAttrs(attrs)}`;
     return body.slice(0, match.index) + replacement + body.slice(match.index + full.length);
+  }, diagramName);
+}
+
+export function updateRelationVerticalPosition(
+  source: string,
+  relationId: string,
+  y: number,
+  diagramName?: string,
+): string {
+  const relationIdx = Number.parseInt(relationId.replace('rel_', ''), 10);
+  if (!Number.isInteger(relationIdx) || relationIdx < 0) return source;
+
+  // Try AST first
+  const node = getRelationDeclByIndex(source, relationIdx, diagramName);
+  if (node && node.span) {
+    const yValue = String(Math.max(0, Math.round(y)));
+    const attrs = new Map<string, string>();
+    if (node.label) attrs.set('label', node.label);
+    if (node.fromMult) attrs.set('fromMult', node.fromMult);
+    if (node.toMult) attrs.set('toMult', node.toMult);
+    if (node.style) {
+      for (const [k, v] of Object.entries(node.style)) {
+        if (k !== 'label' && k !== 'fromMult' && k !== 'toMult') {
+          attrs.set(k, v);
+        }
+      }
+    }
+    attrs.set('y', yValue);
+
+    const op = node.relKind;
+    const actionKeyword = node.style?.action ?? '';
+    const actionPart = actionKeyword ? `${actionKeyword} ` : '';
+
+    const replacement = `${node.from} ${op} ${actionPart}${node.to}${serializeRelationAttrs(attrs)}`;
+    return source.slice(0, node.span.start) + replacement + source.slice(node.span.end);
+  }
+
+  // Fallback to regex
+  return rewriteDiagramBody(source, (body) => {
+    const matches = [...body.matchAll(relationRegex(true))];
+    const match = matches[relationIdx];
+    if (!match || match.index == null) return body;
+
+    const [full, indent, fromRaw, opRaw, actionRaw, toRaw, attrsRaw = ''] = match;
+    const yValue = String(Math.max(0, Math.round(y)));
+    const attrs = parseRelationAttrs(attrsRaw);
+    attrs.set('y', yValue);
+
+    const actionStr = actionRaw ? `${actionRaw} ` : '';
+    const replacement = `${indent}${fromRaw} ${opRaw} ${actionStr}${toRaw}${serializeRelationAttrs(attrs)}`;
+
+    return body.slice(0, match.index) + replacement + body.slice(match.index + full.length);
+  }, diagramName);
+}
+
+export function updateRelationVerticalPositions(
+  source: string,
+  relationYs: Record<string, number>,
+  diagramName?: string,
+): string {
+  let next = source;
+  for (const [relationId, y] of Object.entries(relationYs)) {
+    next = updateRelationVerticalPosition(next, relationId, y, diagramName);
+  }
+  return next;
+}
+
+export type SequenceLifecycleAction = 'create' | 'destroy';
+
+export function insertSequenceLifecycleRelation(
+  source: string,
+  diagramName: string | undefined,
+  fromEntity: string,
+  toEntity: string,
+  action: SequenceLifecycleAction,
+  y?: number,
+): string {
+  const attrs = new Map<string, string>();
+  if (y !== undefined) attrs.set('y', String(Math.max(0, Math.round(y))));
+  const relationLine = `  ${fromEntity} --> ${action} ${toEntity}${serializeRelationAttrs(attrs)}`;
+  return insertRelationLine(source, relationLine, diagramName);
+}
+
+export function insertRelationLine(source: string, relationLine: string, diagramName?: string): string {
+  return rewriteDiagramBody(source, (body) => {
+    const lines = body.split('\n');
+    const relRx = relationRegex(false);
+    const annoRx = /^\s*@[A-Za-z_][\w.]*\s+at\s*\(/;
+
+    let lastRel = -1;
+    let firstAnno = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (firstAnno === -1 && annoRx.test(line)) firstAnno = i;
+      if (relRx.test(line)) lastRel = i;
+    }
+
+    const insertAt = lastRel >= 0 ? lastRel + 1 : (firstAnno >= 0 ? firstAnno : lines.length);
+    return [...lines.slice(0, insertAt), relationLine, ...lines.slice(insertAt)].join('\n');
   }, diagramName);
 }
 
@@ -265,5 +499,49 @@ export function removeEntityAndRelations(source: string, entityName: string, dia
       return !(rel && (rel[2] === entityName || rel[5] === entityName));
     });
     return kept.join('\n');
+  }, diagramName);
+}
+
+export function promoteEntityToDSL(
+  source: string,
+  diagramName: string | undefined,
+  name: string,
+  kind: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): string {
+  return rewriteDiagramBody(source, (body) => {
+    const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum'];
+    let declaration = `  ${kind} ${name}`;
+    if (BRACE_KINDS.includes(kind)) {
+      declaration += ' {\n\n  }';
+    }
+    const annotation = `@${name} at (${Math.round(x)}, ${Math.round(y)}, ${Math.round(w)}, ${Math.round(h)})`;
+    let nextBody = body;
+    if (!nextBody.endsWith('\n')) {
+      nextBody += '\n';
+    }
+    nextBody += `${declaration}\n  ${annotation}\n`;
+    return nextBody;
+  }, diagramName);
+}
+
+export function promoteRelationToDSL(
+  source: string,
+  diagramName: string | undefined,
+  fromEntity: string,
+  toEntity: string,
+  arrowType: string = '-->'
+): string {
+  return rewriteDiagramBody(source, (body) => {
+    const declaration = `  ${fromEntity} ${arrowType} ${toEntity}`;
+    let nextBody = body;
+    if (!nextBody.endsWith('\n')) {
+      nextBody += '\n';
+    }
+    nextBody += `${declaration}\n`;
+    return nextBody;
   }, diagramName);
 }

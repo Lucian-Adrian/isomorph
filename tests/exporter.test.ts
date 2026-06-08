@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { exportPNG, serializeSVGForExport } from '../src/utils/exporter.js';
+import { exportPNG, serializeSVGForExport, parseTransform } from '../src/utils/exporter.js';
 import { createEmptyCanvasState } from '../src/canvas/canvasSerialization.js';
 import { createCanvasElement } from '../src/canvas/canvasTools.js';
 
@@ -110,9 +110,9 @@ describe('SVG export serialization', () => {
     const serialized = serializeSVGForExport(svg);
 
     expect(serialized).toContain('data-freeform-id="line-1"');
-    expect(serialized).toContain('viewBox="-40 -40 472 312"');
-    expect(serialized).toContain('width="472"');
-    expect(serialized).toContain('height="312"');
+    expect(serialized).toContain('viewBox="-40 -40 176 160"');
+    expect(serialized).toContain('width="176"');
+    expect(serialized).toContain('height="160"');
   });
 
   it('composes full-canvas export from canonical canvas_state when overlay DOM is stale', () => {
@@ -213,5 +213,48 @@ describe('SVG export serialization', () => {
 
     expect(objectUrlSpy).toHaveBeenCalledWith(expect.objectContaining({ type: 'image/png' }));
     expect(clickSpy).toHaveBeenCalledOnce();
+  });
+
+  it('includes xmlns:xlink attribute on the serialized root SVG', () => {
+    document.body.innerHTML = '<svg></svg>';
+    const svg = document.querySelector('svg')!;
+    const serialized = serializeSVGForExport(svg);
+    expect(serialized).toContain('xmlns:xlink="http://www.w3.org/1999/xlink"');
+  });
+
+  it('exports rotated elements from canvas state with transform="rotate(angle cx cy)"', () => {
+    const state = createEmptyCanvasState('2026-06-01T00:00:00.000Z');
+    const rotatedRect = createCanvasElement({
+      id: 'rotated-rect',
+      kind: 'rectangle',
+      bounds: { x: 100, y: 100, width: 80, height: 60 },
+      style: state.styleDefaults,
+      now: state.updatedAt,
+    });
+    rotatedRect.rotation = 45;
+
+    const canvasState = { ...state, elements: [rotatedRect] };
+    document.body.innerHTML = `
+      <div class="iso-full-canvas-viewport">
+        <div class="iso-canvas-wrap">
+          <svg class="semantic"><rect x="0" y="0" width="80" height="80"/></svg>
+        </div>
+        <svg class="iso-freeform-overlay"></svg>
+      </div>
+    `;
+    const svg = document.querySelector('.semantic') as SVGSVGElement;
+
+    const serialized = serializeSVGForExport(svg, { canvasState });
+    expect(serialized).toContain('transform="rotate(45 140 130)"');
+  });
+
+  it('parses rotate transform matrix correctly in parseTransform', () => {
+    const matrix = parseTransform('rotate(90 100 200)');
+    expect(matrix.a).toBeCloseTo(0);
+    expect(matrix.b).toBeCloseTo(1);
+    expect(matrix.c).toBeCloseTo(-1);
+    expect(matrix.d).toBeCloseTo(0);
+    expect(matrix.e).toBeCloseTo(300);
+    expect(matrix.f).toBeCloseTo(100);
   });
 });

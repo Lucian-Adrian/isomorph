@@ -59,6 +59,10 @@ function copyFreeformOverlayIntoSvg(clone: SVGSVGElement, overlayEl?: Element | 
     if (element.tagName.toLowerCase() === 'defs') {
       clone.insertBefore(element, clone.firstChild);
     } else {
+      if (element.tagName.toLowerCase() === 'g') {
+        element.removeAttribute('transform');
+        element.removeAttribute('style');
+      }
       group.appendChild(element);
     }
   }
@@ -114,6 +118,11 @@ function appendCanvasStateElement(parent: SVGGElement, element: CanvasElement, s
   const selected = selectedElementIds.has(element.id);
   const group = document.createElementNS(SVG_NS, 'g');
   group.setAttribute('data-canvas-element-id', element.id);
+  if (element.rotation) {
+    const cx = element.bounds.x + element.bounds.width / 2;
+    const cy = element.bounds.y + element.bounds.height / 2;
+    group.setAttribute('transform', `rotate(${element.rotation} ${cx} ${cy})`);
+  }
   const common = commonCanvasAttrs(element, selected);
 
   if (element.kind === 'ellipse') {
@@ -153,6 +162,7 @@ function appendCanvasStateElement(parent: SVGGElement, element: CanvasElement, s
       const preserveAspectRatio = element.fit === 'stretch' ? 'none' : element.fit === 'cover' ? 'xMidYMid slice' : 'xMidYMid meet';
       setAttrs(image, {
         href: element.src,
+        'xlink:href': element.src,
         x: element.bounds.x,
         y: element.bounds.y,
         width: element.bounds.width,
@@ -267,10 +277,10 @@ function transformBounds(bounds: Bounds, matrix: Matrix): Bounds {
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
-function parseTransform(transform: string | null): Matrix {
+export function parseTransform(transform: string | null): Matrix {
   if (!transform) return IDENTITY_MATRIX;
   let matrix = IDENTITY_MATRIX;
-  const commands = transform.matchAll(/(matrix|translate|scale)\(([^)]*)\)/g);
+  const commands = transform.matchAll(/(matrix|translate|scale|rotate)\(([^)]*)\)/g);
   for (const command of commands) {
     const values = command[2]
       .split(/[\s,]+/)
@@ -286,6 +296,21 @@ function parseTransform(transform: string | null): Matrix {
       const sx = values[0] ?? 1;
       const sy = values[1] ?? sx;
       next = { a: sx, b: 0, c: 0, d: sy, e: 0, f: 0 };
+    } else if (command[1] === 'rotate') {
+      const angleDeg = values[0] ?? 0;
+      const cx = values[1] ?? 0;
+      const cy = values[2] ?? 0;
+      const alpha = (angleDeg * Math.PI) / 180;
+      const cos = Math.cos(alpha);
+      const sin = Math.sin(alpha);
+      next = {
+        a: cos,
+        b: sin,
+        c: -sin,
+        d: cos,
+        e: cx - cx * cos + cy * sin,
+        f: cy - cx * sin - cy * cos,
+      };
     }
     matrix = multiplyMatrix(matrix, next);
   }
@@ -438,10 +463,19 @@ export function serializeSVGForExport(svgEl: Element, overlayOrOptions?: ExportO
   const options = resolveExportOptions(svgEl, overlayOrOptions);
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
   if (options.canvasState) {
     copyCanvasStateIntoSvg(clone, options.canvasState);
   } else {
     copyFreeformOverlayIntoSvg(clone, options.overlayEl ?? findFreeformOverlay(svgEl));
+  }
+
+  const images = clone.querySelectorAll('image');
+  for (const img of Array.from(images)) {
+    const src = img.getAttribute('href');
+    if (src && !img.getAttribute('xlink:href')) {
+      img.setAttribute('xlink:href', src);
+    }
   }
   
   const bounds = calculateExportBounds(svgEl, clone);
@@ -518,7 +552,8 @@ export function exportPNG(
   if (!svgEl) return;
 
   const svgStr = serializeSVGForExport(svgEl, options);
-  const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
+  const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
 
   const img = new Image();
   img.onload = () => {
@@ -535,15 +570,19 @@ export function exportPNG(
     canvas.height = nativeH * scale;
 
     const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!ctx) {
+      URL.revokeObjectURL(url);
+      return;
+    }
 
     ctx.scale(scale, scale);
     ctx.fillStyle = '#fafafa';
     ctx.fillRect(0, 0, nativeW, nativeH);
     ctx.drawImage(img, 0, 0, nativeW, nativeH);
-    canvas.toBlob(blob => {
-      if (blob) {
-        const pngUrl = URL.createObjectURL(blob);
+    canvas.toBlob(blobResult => {
+      URL.revokeObjectURL(url);
+      if (blobResult) {
+        const pngUrl = URL.createObjectURL(blobResult);
         const anchor = document.createElement('a');
         anchor.href = pngUrl;
         anchor.download = `${diagramName}.png`;
@@ -566,6 +605,9 @@ export function exportPNG(
       anchor.click();
       anchor.remove();
     }, 'image/png');
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
   };
   img.src = url;
 }

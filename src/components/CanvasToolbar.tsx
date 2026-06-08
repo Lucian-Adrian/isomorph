@@ -28,6 +28,8 @@ function ToolGlyph({ tool }: { tool: FullCanvasMode | 'more' }) {
   if (tool === 'move') return <IconPointer size={18} />;
   if (tool === 'hand') return <IconHand size={18} />;
   if (tool === 'add-edge') return <IconEdge size={18} />;
+  if (tool === 'sequence-create') return <IconEdge size={18} />;
+  if (tool === 'sequence-destroy') return <IconEdge size={18} />;
   if (tool === 'locked') return <IconLock size={18} />;
   if (tool === 'rectangle') return <IconRectangle size={18} />;
   if (tool === 'ellipse') return <IconEllipse size={18} />;
@@ -48,6 +50,8 @@ const FLOATING_TOOLS: Array<{ mode: FullCanvasMode; labelKey: string }> = [
   { mode: 'ellipse', labelKey: 'canvas.tool.ellipse' },
   { mode: 'arrow', labelKey: 'canvas.tool.arrow' },
   { mode: 'line', labelKey: 'canvas.tool.line' },
+  { mode: 'sequence-create', labelKey: 'rel.seq_create' },
+  { mode: 'sequence-destroy', labelKey: 'rel.seq_destroy' },
   { mode: 'pen', labelKey: 'canvas.tool.pen' },
   { mode: 'text', labelKey: 'canvas.tool.text' },
   { mode: 'image', labelKey: 'canvas.tool.image' },
@@ -62,6 +66,8 @@ const HOTKEY_HINTS: Record<string, string> = {
   ellipse: 'O',
   arrow: 'A',
   line: 'L',
+  'sequence-create': '',
+  'sequence-destroy': '',
   pen: 'P',
   text: 'T',
   image: 'I',

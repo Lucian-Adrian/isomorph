@@ -72,6 +72,30 @@ export class Parser {
     return kind === 'IDENT' || this.contextualIdentifierKinds.includes(kind);
   }
 
+  private parseQualifiedIdentifier(): string {
+    let name = this.expectIdentifierLike().value;
+    while (this.at('DOT')) {
+      this.advance();
+      name += '.' + this.expectIdentifierLike().value;
+    }
+    return name;
+  }
+
+  private isRelationDeclAhead(): boolean {
+    let offset = 0;
+    while (true) {
+      const t = this.peek(offset);
+      if (!this.isIdentifierLikeToken(t.kind)) return false;
+      offset++;
+      const next = this.peek(offset);
+      if (next.kind === 'DOT') {
+        offset++;
+      } else {
+        return this.isRelationOperator(next.kind);
+      }
+    }
+  }
+
   private expectIdentifierLike(): Token {
     const t = this.peek();
     if (!this.isIdentifierLikeToken(t.kind)) {
@@ -203,8 +227,8 @@ export class Parser {
     // ── Entity (class/interface/enum/actor/usecase/component/node or with abstract modifier) ──
     if (this.isEntityStart()) return this.parseEntityDecl();
 
-    // ── Relation (IDENT followed by a relation operator) ──
-    if (t.kind === 'IDENT' && this.isRelationOperator(this.peek(1).kind)) return this.parseRelationDecl();
+    // ── Relation (qualified identifier followed by a relation operator) ──
+    if (this.isRelationDeclAhead()) return this.parseRelationDecl();
 
     // Unknown — skip with error
     this.errors.push({ message: `Unexpected token '${t.value}' in diagram body`, ...this.currentPos() });
@@ -234,7 +258,7 @@ export class Parser {
 
   private parsePackageDecl(): PackageDecl {
     const kw = this.expect('package');
-    let name = this.expect('IDENT').value;
+    let name = this.parseQualifiedIdentifier();
     if (this.at('LT')) {
       const genericStart = this.advance();
       const typeParams = this.parseIdentList();
@@ -256,7 +280,7 @@ export class Parser {
     const modifiers = this.parseModifierList();
     const entityKindToken = this.advance(); // consume the entity kind keyword
     const entityKind = (entityKindToken.value === 'activity' ? 'action' : entityKindToken.value) as EntityKind;
-    let name = this.expect('IDENT').value;
+    let name = this.parseQualifiedIdentifier();
     if (this.at('LT')) {
       const genericStart = this.advance();
       const typeParams = this.parseIdentList();
@@ -329,10 +353,10 @@ export class Parser {
 
   private parseIdentList(): string[] {
     const list: string[] = [];
-    list.push(this.expect('IDENT').value);
+    list.push(this.parseQualifiedIdentifier());
     while (this.at('COMMA')) {
       this.advance();
-      list.push(this.expect('IDENT').value);
+      list.push(this.parseQualifiedIdentifier());
     }
     return list;
   }
@@ -346,6 +370,11 @@ export class Parser {
     // Nested Entities
     if (this.isEntityStart()) {
       return this.parseEntityDecl();
+    }
+
+    // Nested transitions inside composite/concurrent states.
+    if (this.isRelationDeclAhead()) {
+      return this.parseRelationDecl();
     }
     
     // Concurrent regions
@@ -486,8 +515,8 @@ export class Parser {
   // ── Rules 31-38: relations ──────────────────────────────────
 
   private parseRelationDecl(): RelationDecl {
-    const fromToken = this.expectIdentifierLike();
-    const from = fromToken.value;
+    const fromToken = this.peek();
+    const from = this.parseQualifiedIdentifier();
     const relOpToken = this.advance();
     const relKind = this.tokenToRelKind(relOpToken.kind);
 
@@ -502,7 +531,7 @@ export class Parser {
       isDestroy = true;
     }
 
-    const to = this.expectIdentifierLike().value;
+    const to = this.parseQualifiedIdentifier();
 
     let label: string | undefined;
     let fromMult: string | undefined;

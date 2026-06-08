@@ -226,6 +226,7 @@ async function triggerDownloadFromMenu(page, itemPattern, description) {
 
 async function clickFullCanvasMenuItem(page, itemPattern, description) {
   await clickFirst(page, [
+    page.locator('.iso-full-canvas-actions-dropdown').getByRole('button', { name: /more actions/i }),
     page.locator('.iso-full-canvas-dock').getByRole('button', { name: /^More$/i }),
   ], 'full-canvas More button');
   await page.locator('.iso-full-canvas-menu').first().waitFor({ state: 'visible', timeout: 10_000 });
@@ -811,7 +812,7 @@ try {
     }
 
     await step('full-canvas export frames off-bounds freeform images in SVG and PNG', async () => {
-      const svgDownload = await triggerDownloadFromFullCanvasAction(page, /^SVG$/i, 'full-canvas SVG export action');
+      const svgDownload = await triggerDownloadFromFullCanvasMenu(page, /^Export SVG$/i, 'full-canvas SVG export action');
       const svgPath = resolve(artifactDir, `full-canvas-export-${runId}.svg`);
       await svgDownload.saveAs(svgPath);
       const svgText = await readFile(svgPath, 'utf8');
@@ -827,7 +828,7 @@ try {
         throw new Error(`Expected SVG export viewBox to frame off-bounds freeform content. viewBox=${viewBox.join(' ')}`);
       }
 
-      const pngDownload = await triggerDownloadFromFullCanvasAction(page, /^PNG$/i, 'full-canvas PNG export action');
+      const pngDownload = await triggerDownloadFromFullCanvasMenu(page, /^Export PNG$/i, 'full-canvas PNG export action');
       const pngPath = resolve(artifactDir, `full-canvas-export-${runId}.png`);
       await pngDownload.saveAs(pngPath);
       const pngDimensions = readPngDimensions(await readFile(pngPath));

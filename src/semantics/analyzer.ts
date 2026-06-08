@@ -51,7 +51,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
   const relations: IOMRelation[] = [];
   const packages:  IOMPackage[]  = [];
   const notes:     IOMNote[]     = [];
-  const config:    IOMConfig     = { autoactivation: diag.diagramKind === 'sequence' };
+  const config:    IOMConfig     = { autoactivation: false };
   const styles:    Record<string, string> = {};
   const fragments: IOMFragment[] = [];
   const activations: IOMActivation[] = [];
@@ -136,7 +136,8 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
   const destroyedEntities = new Set<string>();
   let relationDeclCount = 0;
 
-  function collectRelationsInner(items: BodyItem[]) {
+  function collectRelationsInner(items: BodyItem[]): string[] {
+    const collectedRelationIds: string[] = [];
     for (const item of items) {
       if (item.kind === 'RelationDecl') {
         if (!entities.has(item.from)) {
@@ -152,6 +153,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         }
         const rel = buildRelation(item, relationDeclCount++, errors);
         relations.push(rel);
+        collectedRelationIds.push(rel.id);
 
         if (diag.diagramKind === 'sequence') {
           if (item.style?.action === 'destroy') {
@@ -183,7 +185,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
               activations.push({ id: `act_${activations.length}`, entity: rel.to, kind: 'activate', afterRelationIdx: relations.length, source: 'auto' });
               activations.push({ id: `act_${activations.length}`, entity: rel.to, kind: 'deactivate', afterRelationIdx: relations.length, source: 'auto' });
             }
-          } else if (seqType === 'response') {
+          } else if (seqType === 'response' && config.autoactivation) {
             const lastCall = callStack[callStack.length - 1];
             if (!lastCall || lastCall.from !== rel.to || lastCall.to !== rel.from) {
               errors.push({
@@ -201,10 +203,10 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           }
         }
       } else if (item.kind === 'PackageDecl') {
-        collectRelationsInner(item.body);
+        collectedRelationIds.push(...collectRelationsInner(item.body));
       } else if (item.kind === 'FragmentDecl') {
         const startRelIdx = relations.length;
-        collectRelationsInner(item.body);
+        collectedRelationIds.push(...collectRelationsInner(item.body));
         const endRelIdx = relations.length;
         const mainRelIds = relations.slice(startRelIdx, endRelIdx).map(r => r.id);
 
@@ -212,7 +214,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         if (item.elseBlocks) {
           for (const block of item.elseBlocks) {
             const sIdx = relations.length;
-            collectRelationsInner(block.body);
+            collectedRelationIds.push(...collectRelationsInner(block.body));
             const eIdx = relations.length;
             elseBlocks.push({ label: block.label, relationIds: relations.slice(sIdx, eIdx).map(r => r.id) });
           }
@@ -265,6 +267,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           entityNames: pContent.entityNames,
           relationIds: pContent.relationIds,
         });
+        collectedRelationIds.push(...collectRelationsInner(item.body));
       } else if (item.kind === 'CreateDecl') {
         if (!entities.has(item.entity)) {
           errors.push({ message: `Create references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
@@ -276,13 +279,34 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           errors.push({ message: `Destroy references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });
         }
         activations.push({ id: `act_${activations.length}`, entity: item.entity, kind: 'destroy', afterRelationIdx: relations.length, source: 'lifecycle' });
+      } else if (item.kind === 'EntityDecl') {
+        const parent = entities.get(item.name);
+        if (!parent) continue;
+        let regionIndex = 0;
+        const nestedItems: BodyItem[] = [];
+        for (const member of item.members) {
+          if (member.kind === 'RelationDecl') {
+            nestedItems.push(member);
+          } else if (member.kind === 'EntityDecl') {
+            nestedItems.push(member);
+          } else if (member.kind === 'RegionDecl') {
+            const relationIds = collectRelationsInner(member.body);
+            if (parent.regions[regionIndex]) {
+              parent.regions[regionIndex].relationIds = relationIds;
+            }
+            collectedRelationIds.push(...relationIds);
+            regionIndex++;
+          }
+        }
+        collectedRelationIds.push(...collectRelationsInner(nestedItems));
       }
     }
+    return collectedRelationIds;
   }
 
   collectRelationsInner(diag.body);
 
-  if (diag.diagramKind === 'sequence' && callStack.length > 0) {
+  if (diag.diagramKind === 'sequence' && config.autoactivation && callStack.length > 0) {
     for (const openCall of callStack) {
       errors.push({
         message: `Call '${openCall.from} -> ${openCall.to}' requires a matching response message`,
@@ -548,10 +572,15 @@ function buildEntity(decl: EntityDecl, pkg: string | undefined, errors: Semantic
       children.push(buildEntity(member, decl.name, errors));
     } else if (member.kind === 'RegionDecl') {
       const regContent = collectRegionItems(member.body);
+      for (const item of member.body) {
+        if (item.kind === 'EntityDecl') {
+          children.push(buildEntity(item, decl.name, errors));
+        }
+      }
       regions.push({
         id: `reg_${regions.length}`,
         entityNames: regContent.entityNames,
-        relationIds: regContent.relationIds,
+        relationIds: [],
       });
     }
   }

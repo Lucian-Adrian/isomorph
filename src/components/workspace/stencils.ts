@@ -46,6 +46,8 @@ export function getStencilsForKind(kind?: DiagramKind): DiagramStencil[] {
         { label: 'Par Fragment', keyword: 'par' },
         { label: 'Break Fragment', keyword: 'break' },
         { label: 'Critical Fragment', keyword: 'critical' },
+        { label: 'Create Lifecycle', keyword: 'create' },
+        { label: 'Destroy Lifecycle', keyword: 'destroy' },
       ];
     case 'state':
       return [

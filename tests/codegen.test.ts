@@ -209,4 +209,47 @@ diagram Defaults : class {
 
     expectCommandSucceeds('python', ['probe.py'], dir);
   });
+
+  it('generates correct inheritance constructors with super calls in Python and Java', () => {
+    const diagram = classDiagram(`
+diagram School : class {
+  class Person {
+    -name: String
+  }
+  class Student extends Person {
+    -grade: int
+  }
+}`);
+
+    const pyOutput = generateCode(diagram, { language: 'python' });
+    expect(pyOutput).toContain('class Student(Person):');
+    expect(pyOutput).toContain('def __init__(self, name: str, grade: int):');
+    expect(pyOutput).toContain('super().__init__(name)');
+    expect(pyOutput).toContain('self.grade = grade');
+
+    const javaOutput = generateCode(diagram, { language: 'java' });
+    expect(javaOutput).toContain('public class Student extends Person {');
+    expect(javaOutput).toContain('public Student(String name, int grade) {');
+    expect(javaOutput).toContain('super(name);');
+    expect(javaOutput).toContain('this.grade = grade;');
+  });
+
+  it('generates constructor parameters sorted with non-defaults first in Python', () => {
+    const diagram = classDiagram(`
+diagram School : class {
+  class Person {
+    -name: String = "anonymous"
+  }
+  class Student extends Person {
+    -grade: int
+    -email: String?
+  }
+}`);
+
+    const pyOutput = generateCode(diagram, { language: 'python' });
+    expect(pyOutput).toContain('class Student(Person):');
+    expect(pyOutput).toContain('def __init__(self, grade: int, name: str = "anonymous", email: Optional[str] = None):');
+    expect(pyOutput).toContain('super().__init__(name)');
+    expect(pyOutput).toContain('self.grade = grade');
+  });
 });

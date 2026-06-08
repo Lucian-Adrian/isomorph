@@ -35,6 +35,20 @@ function diagramFixture(): IOMDiagram {
   return diagram;
 }
 
+function sequenceDiagramFixture(): IOMDiagram {
+  const parsed = parse(`diagram SeqHarness : sequence {
+  participant A
+  participant B
+  @A at (80, 40)
+  @B at (260, 40)
+}`);
+  if (parsed.errors.length > 0) throw new Error(parsed.errors[0].message);
+  const analyzed = analyze(parsed.program);
+  const diagram = analyzed.iom.diagrams[0];
+  if (!diagram) throw new Error('Expected sequence fixture diagram');
+  return diagram;
+}
+
 function cloneDiagram(diagram: IOMDiagram): IOMDiagram {
   return {
     ...diagram,
@@ -70,6 +84,38 @@ describe('DiagramView render telemetry', () => {
     const { cleanup } = render(<Harness />);
 
     expect(onRender).toHaveBeenCalledTimes(1);
+    cleanup();
+  });
+
+  it('draws sequence create lifecycle messages directly without opening the relation menu', () => {
+    const onRelationAddRequest = vi.fn();
+    const diagram = sequenceDiagramFixture();
+    const { host, cleanup } = render(
+      <DiagramView
+        diagram={diagram}
+        activeTool="sequence-create"
+        availableTools={['move', 'sequence-create', 'sequence-destroy']}
+        showZoomControls={false}
+        onRelationAddRequest={onRelationAddRequest}
+      />,
+    );
+
+    const wrapper = host.querySelector('.iso-canvas-wrap') as HTMLDivElement;
+    const groups = host.querySelectorAll('g[data-entity-name]');
+    const a = groups[0] as SVGGElement;
+    const b = groups[1] as SVGGElement;
+
+    act(() => a.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 7, clientX: 90, clientY: 80 })));
+    act(() => wrapper.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 7, clientX: 270, clientY: 120 })));
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: vi.fn(() => b),
+    });
+    act(() => wrapper.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 7, clientX: 270, clientY: 120 })));
+
+    expect(onRelationAddRequest).toHaveBeenCalledWith('A', 'B', expect.any(Number), 'SeqHarness', 'create');
+    expect(host.querySelector('.iso-edge-context-menu')).toBeNull();
+    vi.restoreAllMocks();
     cleanup();
   });
 });

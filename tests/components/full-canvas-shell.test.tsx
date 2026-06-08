@@ -85,9 +85,11 @@ function setOverlayBox(host: HTMLElement) {
 }
 
 function setControlValue(control: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string, eventName = 'input') {
-  const prototype = control instanceof HTMLTextAreaElement
+  if (!control) return;
+  const tagName = control.tagName.toUpperCase();
+  const prototype = tagName === 'TEXTAREA'
     ? HTMLTextAreaElement.prototype
-    : control instanceof HTMLSelectElement
+    : tagName === 'SELECT'
       ? HTMLSelectElement.prototype
       : HTMLInputElement.prototype;
   const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
@@ -787,12 +789,21 @@ describe('full canvas shell', () => {
       />,
     );
 
-    const svgButton = Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'SVG') as HTMLButtonElement;
-    const pngButton = Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'PNG') as HTMLButtonElement;
+    const moreActionsButton = host.querySelector('[aria-label="More actions"]');
+    act(() => {
+      moreActionsButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+
+    const svgButton = Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Export SVG') as HTMLButtonElement;
+    const pngButton = Array.from(host.querySelectorAll('button')).find(button => button.textContent === 'Export PNG') as HTMLButtonElement;
+    expect(svgButton).not.toBeNull();
+    expect(pngButton).not.toBeNull();
     expect(svgButton.disabled).toBe(false);
     expect(pngButton.disabled).toBe(false);
-    act(() => svgButton.dispatchEvent(new MouseEvent('click', { bubbles: true })));
-    act(() => pngButton.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    act(() => {
+      svgButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      pngButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
     expect(onExportSVG).toHaveBeenCalledTimes(1);
     expect(onExportPNG).toHaveBeenCalledTimes(1);
     cleanup();
@@ -820,11 +831,132 @@ describe('full canvas shell', () => {
       />,
     );
 
-    act(() => Array.from(host.querySelectorAll('button')).find(button => button.textContent?.includes('More'))?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+    act(() => host.querySelector('[aria-label="More actions"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     const toggle = host.querySelector('.iso-full-canvas-menu input[type="checkbox"]') as HTMLInputElement;
     expect(toggle.checked).toBe(true);
     act(() => toggle.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     expect(onStrictUmlChange).toHaveBeenCalledWith(false);
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it('resizes line and arrow elements by dragging their vertex handles', () => {
+    const storageKey = 'isomorph-test-canvas-line-vertex-resize-state';
+    const storage = new Map<string, string>();
+    const lineElement: CanvasElement = {
+      id: 'line-1',
+      kind: 'line',
+      bounds: { x: 100, y: 100, width: 100, height: 100 },
+      rotation: 0,
+      locked: false,
+      layer: 0,
+      style: baseStyle,
+      points: [{ x: 100, y: 100 }, { x: 200, y: 200 }],
+      createdAt: '2026-05-23T00:00:00.000Z',
+      updatedAt: '2026-05-23T00:00:00.000Z',
+    };
+    storage.set(storageKey, storedCanvasState([lineElement], ['line-1']));
+    installStorage(storage);
+    const { host, cleanup } = render(
+      <FullCanvasShell
+        diagram={diagram()}
+        mode="move"
+        canvasStorageKey={storageKey}
+        onModeChange={vi.fn()}
+        onExportSVG={vi.fn()}
+        onExportPNG={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const overlay = setOverlayBox(host);
+    const endHandle = host.querySelector('[aria-label="Move end of line-1"]') as SVGCircleElement;
+    expect(endHandle).not.toBeNull();
+
+    act(() => endHandle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 5, clientX: 200, clientY: 200 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 5, clientX: 250, clientY: 220 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 5, clientX: 250, clientY: 220 })));
+
+    const saved = JSON.parse(storage.get(storageKey) || '{}');
+    const updatedLine = saved.elements[0];
+    expect(updatedLine.points[1]).toEqual({ x: 250, y: 220 });
+    expect(updatedLine.bounds).toMatchObject({ x: 100, y: 100, width: 150, height: 120 });
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it('shows full transform controls only for selected editable freeform elements', () => {
+    const storageKey = 'isomorph-test-canvas-transform-controls-state';
+    const storage = new Map<string, string>();
+    const textElement: CanvasElement = {
+      ...rectElement('text-1', { x: 120, y: 90, width: 160, height: 44 }),
+      kind: 'text',
+      text: 'Resizable text',
+      fontSize: 18,
+    };
+    storage.set(storageKey, storedCanvasState([textElement], []));
+    installStorage(storage);
+    const { host, cleanup } = render(
+      <FullCanvasShell
+        diagram={diagram()}
+        mode="move"
+        canvasStorageKey={storageKey}
+        onModeChange={vi.fn()}
+        onExportSVG={vi.fn()}
+        onExportPNG={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(host.querySelector('.iso-canvas-props')).toBeNull();
+    expect(host.querySelectorAll('[data-resize-element-id="text-1"]')).toHaveLength(0);
+
+    const text = host.querySelector('[data-canvas-element-id="text-1"] text') as SVGTextElement;
+    act(() => text.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 6, clientX: 130, clientY: 110 })));
+
+    expect(host.querySelector('.iso-canvas-props')).not.toBeNull();
+    expect(host.querySelectorAll('[data-resize-element-id="text-1"]')).toHaveLength(8);
+    expect(host.querySelector('[data-rotate-element-id="text-1"]')).not.toBeNull();
+
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  it('resizes from northwest handles and rotates selected freeform elements', () => {
+    const storageKey = 'isomorph-test-canvas-resize-rotate-state';
+    const storage = new Map<string, string>();
+    storage.set(storageKey, storedCanvasState([rectElement('rect-1', { x: 100, y: 100, width: 100, height: 80 })], ['rect-1']));
+    installStorage(storage);
+    const { host, cleanup } = render(
+      <FullCanvasShell
+        diagram={diagram()}
+        mode="move"
+        canvasStorageKey={storageKey}
+        onModeChange={vi.fn()}
+        onExportSVG={vi.fn()}
+        onExportPNG={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const overlay = setOverlayBox(host);
+    const nw = host.querySelector('[aria-label="Resize rect-1 from nw"]') as SVGRectElement;
+    expect(nw).not.toBeNull();
+    act(() => nw.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 7, clientX: 100, clientY: 100 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 7, clientX: 80, clientY: 70 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 7, clientX: 80, clientY: 70 })));
+
+    let saved = JSON.parse(storage.get(storageKey) || '{}');
+    expect(saved.elements[0].bounds).toMatchObject({ x: 80, y: 70, width: 120, height: 110 });
+
+    const rotate = host.querySelector('[aria-label="Rotate rect-1"]') as SVGCircleElement;
+    expect(rotate).not.toBeNull();
+    act(() => rotate.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 8, clientX: 140, clientY: 46 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 8, clientX: 235, clientY: 125 })));
+    act(() => overlay.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 8, clientX: 235, clientY: 125 })));
+
+    saved = JSON.parse(storage.get(storageKey) || '{}');
+    expect(Math.abs(saved.elements[0].rotation)).toBeGreaterThan(20);
     cleanup();
     vi.unstubAllGlobals();
   });

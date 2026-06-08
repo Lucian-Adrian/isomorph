@@ -57,7 +57,7 @@ export type BodyItem =
 
 // ─── Members ─────────────────────────────────────────────────
 
-export type Member = FieldDecl | MethodDecl | EnumValueDecl | EntityDecl | RegionDecl;
+export type Member = FieldDecl | MethodDecl | EnumValueDecl | EntityDecl | RegionDecl | RelationDecl;
 
 // ─── Package ─────────────────────────────────────────────────
 

@@ -25,6 +25,7 @@ export interface CanvasPropertiesPanelProps {
   onBringForward?: () => void;
   onSendBackward?: () => void;
   onDuplicate?: () => void;
+  onPromoteToDSL?: (elementId: string, targetKind: string) => void;
 }
 
 function ColorSwatch({ color, active, onClick, label }: { color: string; active: boolean; onClick: () => void; label: string }) {
@@ -40,7 +41,21 @@ function ColorSwatch({ color, active, onClick, label }: { color: string; active:
   );
 }
 
-function ColorPicker({ label, value = '', pickerLabel, transparentLabel, onChange }: { label: string; value?: string; pickerLabel: string; transparentLabel: string; onChange: (v: string) => void }) {
+function ColorPickerButton({
+  icon,
+  title,
+  value = '',
+  pickerLabel,
+  transparentLabel,
+  onChange
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value?: string;
+  pickerLabel: string;
+  transparentLabel: string;
+  onChange: (v: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState(value);
   const popRef = useRef<HTMLDivElement>(null);
@@ -66,16 +81,24 @@ function ColorPicker({ label, value = '', pickerLabel, transparentLabel, onChang
     }
   }, [custom, onChange]);
 
+  const isTransparent = value === 'transparent' || value === 'none' || !value;
+
   return (
-    <div className="iso-prop-row" ref={popRef}>
-      <span className="iso-prop-label">{label}</span>
+    <div className="iso-color-picker-wrapper" ref={popRef}>
       <button
         type="button"
-        className="iso-color-preview"
-        style={{ background: value || 'transparent' }}
+        className={`iso-color-btn-trigger${open ? ' iso-color-btn-trigger--active' : ''}`}
         onClick={() => setOpen(!open)}
+        title={title}
         aria-label={pickerLabel}
-      />
+      >
+        <span className="iso-color-btn-icon">{icon}</span>
+        <span
+          className="iso-color-btn-swatch"
+          style={{ background: isTransparent ? 'transparent' : value }}
+          data-transparent={isTransparent ? 'true' : 'false'}
+        />
+      </button>
       {open && (
         <div className="iso-color-popover">
           <div className="iso-color-grid">
@@ -119,6 +142,7 @@ export function CanvasPropertiesPanel({
   onBringForward,
   onSendBackward,
   onDuplicate,
+  onPromoteToDSL,
 }: CanvasPropertiesPanelProps) {
   const [draftTargetKind, setDraftTargetKind] = useState<CanvasDraftSemanticLink['targetKind']>('entity');
   if (!visible) return null;
@@ -152,13 +176,40 @@ export function CanvasPropertiesPanel({
 
       <section className="iso-prop-section" aria-label={t('canvas.props.appearance')}>
         <span className="iso-prop-section-title">{t('canvas.props.appearance')}</span>
-        <ColorPicker label={t('canvas.props.stroke')} pickerLabel={t('canvas.props.pick_stroke')} transparentLabel={t('canvas.props.transparent')} value={style.stroke} onChange={v => onStyleChange({ stroke: v })} />
-        <ColorPicker label={t('canvas.props.fill')} pickerLabel={t('canvas.props.pick_fill')} transparentLabel={t('canvas.props.transparent')} value={style.fill} onChange={v => onStyleChange({ fill: v })} />
-        <ColorPicker label={t('canvas.props.text_color')} pickerLabel={t('canvas.props.pick_text')} transparentLabel={t('canvas.props.transparent')} value={style.text} onChange={v => onStyleChange({ text: v })} />
+
+        <div className="iso-prop-row">
+          <span className="iso-prop-label">{t('canvas.props.colors') ?? 'Colors'}</span>
+          <div className="iso-color-pickers-group">
+            <ColorPickerButton
+              icon={<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="8" cy="8" r="6" /></svg>}
+              title={t('canvas.props.stroke')}
+              pickerLabel={t('canvas.props.pick_stroke')}
+              transparentLabel={t('canvas.props.transparent')}
+              value={style.stroke}
+              onChange={v => onStyleChange({ stroke: v })}
+            />
+            <ColorPickerButton
+              icon={<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" /></svg>}
+              title={t('canvas.props.fill')}
+              pickerLabel={t('canvas.props.pick_fill')}
+              transparentLabel={t('canvas.props.transparent')}
+              value={style.fill}
+              onChange={v => onStyleChange({ fill: v })}
+            />
+            <ColorPickerButton
+              icon={<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 13l5-10 5 10 M4.5 10h7"/></svg>}
+              title={t('canvas.props.text_color')}
+              pickerLabel={t('canvas.props.pick_text')}
+              transparentLabel={t('canvas.props.transparent')}
+              value={style.text}
+              onChange={v => onStyleChange({ text: v })}
+            />
+          </div>
+        </div>
 
         <div className="iso-prop-row">
           <span className="iso-prop-label">{t('canvas.props.width')}</span>
-          <div className="iso-prop-chips">
+          <div className="iso-prop-button-group">
             {STROKE_WIDTHS.map(w => (
               <button
                 key={w}
@@ -297,29 +348,78 @@ export function CanvasPropertiesPanel({
         </section>
       )}
 
+      {selectedElement && onPromoteToDSL && (
+        <section className="iso-prop-section iso-prop-promote" aria-label={t('canvas.props.promote_to_dsl')}>
+          <span className="iso-prop-section-title">{t('canvas.props.promote_to_dsl')}</span>
+          <div className="iso-prop-actions-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {selectedElement.kind === 'rectangle' && (
+              <>
+                <button type="button" className="iso-prop-action" onClick={() => onPromoteToDSL(selectedElement.id, 'class')}>
+                  {t('canvas.props.promote.class')}
+                </button>
+                <button type="button" className="iso-prop-action" onClick={() => onPromoteToDSL(selectedElement.id, 'interface')}>
+                  {t('canvas.props.promote.interface')}
+                </button>
+                <button type="button" className="iso-prop-action" onClick={() => onPromoteToDSL(selectedElement.id, 'usecase')}>
+                  {t('canvas.props.promote.usecase')}
+                </button>
+                <button type="button" className="iso-prop-action" onClick={() => onPromoteToDSL(selectedElement.id, 'state')}>
+                  {t('canvas.props.promote.state')}
+                </button>
+                <button type="button" className="iso-prop-action" onClick={() => onPromoteToDSL(selectedElement.id, 'package')}>
+                  {t('canvas.props.promote.package')}
+                </button>
+              </>
+            )}
+            {selectedElement.kind === 'ellipse' && (
+              <>
+                <button type="button" className="iso-prop-action" onClick={() => onPromoteToDSL(selectedElement.id, 'actor')}>
+                  {t('canvas.props.promote.actor')}
+                </button>
+                <button type="button" className="iso-prop-action" onClick={() => onPromoteToDSL(selectedElement.id, 'usecase')}>
+                  {t('canvas.props.promote.usecase')}
+                </button>
+                <button type="button" className="iso-prop-action" onClick={() => onPromoteToDSL(selectedElement.id, 'state')}>
+                  {t('canvas.props.promote.state')}
+                </button>
+              </>
+            )}
+            {(selectedElement.kind === 'line' || selectedElement.kind === 'arrow') && (
+              <button type="button" className="iso-prop-action" onClick={() => onPromoteToDSL(selectedElement.id, 'relation')}>
+                {t('canvas.props.promote.relation')}
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+
       {hasSelection && (
         <section className="iso-prop-section" aria-label={t('canvas.props.arrange')}>
           <span className="iso-prop-section-title">{t('canvas.props.arrange')}</span>
-          <div className="iso-prop-actions">
-          {onBringForward && <button type="button" className="iso-prop-action" onClick={onBringForward} title={t('canvas.props.bring_forward')} aria-label={t('canvas.props.bring_forward')}>{t('canvas.props.forward')}</button>}
-          {onSendBackward && <button type="button" className="iso-prop-action" onClick={onSendBackward} title={t('canvas.props.send_backward')} aria-label={t('canvas.props.send_backward')}>{t('canvas.props.backward')}</button>}
-          {onDuplicate && <button type="button" className="iso-prop-action" onClick={onDuplicate} title={t('canvas.props.duplicate')} aria-label={t('canvas.props.duplicate')}>{t('canvas.props.duplicate')}</button>}
-          {selectedElement && onElementChange && (
-            <button
-              type="button"
-              className={`iso-prop-action${selectedElement.locked ? ' iso-prop-action--active' : ''}`}
-              onClick={() => onElementChange({ locked: !selectedElement.locked })}
-              title={selectedElement.locked ? t('canvas.props.unlock') : t('canvas.props.lock')}
-              aria-label={selectedElement.locked ? t('canvas.props.unlock') : t('canvas.props.lock')}
-            >
-              {selectedElement.locked ? t('canvas.props.unlock_label') : t('canvas.props.lock_label')}
-            </button>
-          )}
-          {onDelete && (
-            <button type="button" className="iso-prop-action iso-prop-action--danger" onClick={onDelete} title={t('canvas.props.delete_selected')}>
-              <IconTrash size={12} /> {t('canvas.props.delete')}
-            </button>
-          )}
+          <div className="iso-prop-actions-group">
+            <div className="iso-prop-button-group">
+              {onBringForward && <button type="button" className="iso-prop-action" onClick={onBringForward} title={t('canvas.props.bring_forward')} aria-label={t('canvas.props.bring_forward')}>{t('canvas.props.forward')}</button>}
+              {onSendBackward && <button type="button" className="iso-prop-action" onClick={onSendBackward} title={t('canvas.props.send_backward')} aria-label={t('canvas.props.send_backward')}>{t('canvas.props.backward')}</button>}
+            </div>
+            <div className="iso-prop-button-group">
+              {onDuplicate && <button type="button" className="iso-prop-action" onClick={onDuplicate} title={t('canvas.props.duplicate')} aria-label={t('canvas.props.duplicate')}>{t('canvas.props.duplicate')}</button>}
+              {selectedElement && onElementChange && (
+                <button
+                  type="button"
+                  className={`iso-prop-action${selectedElement.locked ? ' iso-prop-action--active' : ''}`}
+                  onClick={() => onElementChange({ locked: !selectedElement.locked })}
+                  title={selectedElement.locked ? t('canvas.props.unlock') : t('canvas.props.lock')}
+                  aria-label={selectedElement.locked ? t('canvas.props.unlock') : t('canvas.props.lock')}
+                >
+                  {selectedElement.locked ? t('canvas.props.unlock_label') : t('canvas.props.lock_label')}
+                </button>
+              )}
+            </div>
+            {onDelete && (
+              <button type="button" className="iso-prop-action iso-prop-action--danger" onClick={onDelete} title={t('canvas.props.delete_selected')}>
+                <IconTrash size={12} /> {t('canvas.props.delete')}
+              </button>
+            )}
           </div>
         </section>
       )}

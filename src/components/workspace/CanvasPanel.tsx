@@ -24,6 +24,7 @@ interface CanvasPanelProps {
   onExportSVG?: () => void;
   onDropEntity?: (keyword: string, x: number, y: number, targetPackage?: string) => void;
   onConsumePendingDrop?: () => void;
+  onCanvasInteractionDuration?: (durationMs: number) => void;
   onRender?: (stats: { latencyMs: number; svgLength: number }) => void;
 
   // Diagram tabs props:
@@ -53,6 +54,7 @@ export function CanvasPanel({
   onExportSVG,
   onDropEntity,
   onConsumePendingDrop,
+  onCanvasInteractionDuration,
   onRender,
   diagrams = [],
   activeDiagramIdx = 0,
@@ -116,6 +118,7 @@ export function CanvasPanel({
           onTextRenameRequest={onTextRenameRequest}
           onExportSVG={onExportSVG}
           onDropEntity={onDropEntity}
+          onCanvasInteractionDuration={onCanvasInteractionDuration}
           onRender={onRender}
           pendingDropKeyword={pendingDropKeyword}
           onConsumePendingDrop={onConsumePendingDrop}
