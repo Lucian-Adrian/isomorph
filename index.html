@@ -1,0 +1,2360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Isomorph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200;0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,200;1,9..40,300;1,9..40,400&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet">
+<link rel="icon" type="image/jpeg" href="app/isomorph.jpg" />
+<link rel="shortcut icon" type="image/jpeg" href="app/isomorph.jpg" />
+<link rel="apple-touch-icon" href="app/isomorph.jpg" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --white: #ffffff;
+    --off: #f7f7f5;
+    --stone: #e8e8e3;
+    --ink-light: #c8c8c0;
+    --ink-mid: #8a8a82;
+    --ink: #3a3a35;
+    --ink-deep: #1a1a16;
+    --accent: #1a1a16;
+    --glass-bg: rgba(255,255,255,0.72);
+    --glass-border: rgba(0,0,0,0.06);
+    --glass-shadow: 0 1px 40px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --radius: 20px;
+    --radius-sm: 12px;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --chrome-bg: rgba(255,255,255,0.5);
+  }
+
+  /* Dark Theme Overrides */
+  :root[data-theme="dark"] {
+    --white: #111110;
+    --off: #161615;
+    --stone: #20201f;
+    --ink-light: #444443;
+    --ink-mid: #8a8a82;
+    --ink: #cfcfcb;
+    --ink-deep: #f7f7f5;
+    --accent: #f7f7f5;
+    --glass-bg: rgba(17,17,16,0.72);
+    --glass-border: rgba(255,255,255,0.06);
+    --glass-shadow: 0 1px 40px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.2);
+    --nav-bg: rgba(17,17,16,0.85);
+    --chrome-bg: #f3f4f6;
+  }
+
+  .theme-toggle-btn {
+    background: none;
+    border: none;
+    color: var(--ink-mid);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 50%;
+    transition: color 0.2s, background 0.2s;
+  }
+  .theme-toggle-btn:hover {
+    color: var(--ink-deep);
+    background: var(--stone);
+  }
+
+  .lang-select {
+    background: transparent;
+    border: 0.5px solid var(--glass-border);
+    color: var(--ink-mid);
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 300;
+    font-family: var(--sans);
+    padding: 6px 10px;
+    min-width: auto;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+
+  .lang-select:hover {
+    color: var(--ink-deep);
+    border-color: var(--ink-light);
+    background: var(--stone);
+  }
+
+  .lang-select:focus-visible {
+    outline: 2px solid var(--ink-deep);
+    outline-offset: 2px;
+  }
+
+  .lang-select option {
+    background: var(--white);
+    color: var(--ink-deep);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--white);
+    color: var(--ink-deep);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 60px;
+    background: var(--nav-bg, rgba(255,255,255,0.85));
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 0.5px solid var(--glass-border);
+    padding: 0 40px;
+  }
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 1200px;
+    position: relative;
+  }
+
+  .nav-logo {
+    font-size: 15px;
+    font-weight: 300;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-deep);
+    text-decoration: none;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 40px;
+    list-style: none;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .nav-links a {
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--ink-mid);
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--ink-deep); }
+
+  .nav-right { display: flex; align-items: center; gap: 16px; }
+
+  .nav-right { display: flex; align-items: center; gap: 16px; }
+
+  .nav-cta {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--white);
+    background: var(--ink-deep);
+    border: none;
+    padding: 8px 20px;
+    border-radius: 100px;
+    cursor: pointer;
+    text-decoration: none;
+    letter-spacing: 0.02em;
+    transition: opacity 0.2s;
+  }
+
+  .nav-cta:hover { opacity: 0.75; }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100svh;
+    display: grid;
+    place-items: center;
+    padding: 120px 40px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Subtle organic background shapes */
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .hero-bg-circle {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,0,0,0.025) 0%, transparent 70%);
+  }
+
+  .hero-bg-circle.a { width: 800px; height: 800px; top: -200px; right: -100px; }
+  .hero-bg-circle.b { width: 500px; height: 500px; bottom: 0; left: -100px; }
+
+  .hero-inner {
+    text-align: center;
+    max-width: 840px;
+    position: relative;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mid);
+    margin-bottom: 40px;
+  }
+
+  .hero-eyebrow-dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--ink-light);
+  }
+
+  .hero-title {
+    font-size: clamp(52px, 8vw, 96px);
+    font-weight: 200;
+    line-height: 1.02;
+    letter-spacing: -0.03em;
+    color: var(--ink-deep);
+    margin-bottom: 32px;
+  }
+
+  .hero-title em {
+    font-style: italic;
+    font-weight: 200;
+  }
+
+  .hero-sub {
+    font-size: 17px;
+    font-weight: 300;
+    line-height: 1.7;
+    color: var(--ink-mid);
+    max-width: 520px;
+    margin: 0 auto 56px;
+    letter-spacing: 0.01em;
+  }
+
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--ink-deep);
+    color: var(--white);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    padding: 13px 28px;
+    border-radius: 100px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+
+  .btn-primary:hover { opacity: 0.75; }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+    padding: 13px 28px;
+    border-radius: 100px;
+    border: 0.5px solid var(--stone);
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-secondary:hover { border-color: var(--ink-mid); color: var(--ink-deep); }
+
+  /* ── HERO DIAGRAM PREVIEW ── */
+  .hero-diagram {
+    margin-top: 80px;
+    position: relative;
+  }
+
+  .diagram-window {
+    background: var(--glass-bg);
+    backdrop-filter: saturate(180%) blur(30px);
+    -webkit-backdrop-filter: saturate(180%) blur(30px);
+    border: 0.5px solid var(--glass-border);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: var(--glass-shadow), 0 0 0 0.5px rgba(0,0,0,0.04) inset;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .window-chrome {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 20px;
+    border-bottom: 0.5px solid var(--glass-border);
+    background: var(--chrome-bg);
+  }
+
+  .window-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+
+  .window-dot.r { background: #ff5f57; }
+  .window-dot.y { background: #febc2e; }
+  .window-dot.g { background: #28c840; }
+
+  .window-title {
+    flex: 1;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--ink-mid);
+    letter-spacing: 0.04em;
+    font-family: var(--mono);
+  }
+
+  .window-body {
+    display: grid;
+    grid-template-columns: 1fr 1px 1fr;
+    min-height: 340px;
+    text-align: left;
+  }
+
+  .window-pane {
+    padding: 28px 28px;
+    text-align: left;
+  }
+
+  .window-divider {
+    background: var(--glass-border);
+  }
+
+  .pane-label {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 16px;
+    font-family: var(--mono);
+    font-weight: 400;
+  }
+
+  /* Code view */
+  .code-line {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 300;
+    line-height: 1.9;
+    color: var(--ink);
+    white-space: pre;
+    text-align: left;
+  }
+
+  .code-line .kw   { color: #8b8bf0; }
+  .code-line .str  { color: #50a990; }
+  .code-line .cmt  { color: var(--ink-light); }
+  .code-line .ann  { color: #c67a3c; }
+  .code-line .vis  { color: var(--ink-mid); }
+  .code-line .num  { color: #c07ad1; }
+
+  /* SVG canvas preview */
+  .canvas-preview {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 280px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  /* ── SPLIT SECTION ── */
+  .section {
+    padding: 140px 40px;
+  }
+
+  .section.alt { background: var(--off); }
+
+  .section-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 100px;
+    align-items: center;
+  }
+
+  .split.reverse { direction: rtl; }
+  .split.reverse > * { direction: ltr; }
+
+  .section-tag {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    font-weight: 400;
+    font-family: var(--mono);
+    margin-bottom: 24px;
+  }
+
+  .section-heading {
+    font-size: clamp(28px, 3.5vw, 44px);
+    font-weight: 200;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    color: var(--ink-deep);
+    margin-bottom: 24px;
+  }
+
+  .section-heading em { font-style: italic; }
+
+  .section-body {
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 1.8;
+    color: var(--ink-mid);
+  }
+
+  /* ── GLASS CARD ── */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    border: 0.5px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: 32px;
+    box-shadow: var(--glass-shadow);
+  }
+
+  /* ── FEATURES GRID ── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--stone);
+    border: 0.5px solid var(--stone);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .feature-cell {
+    background: var(--white);
+    padding: 40px 36px;
+  }
+
+  .feature-icon {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 20px;
+  }
+
+  .feature-title {
+    font-size: 16px;
+    font-weight: 300;
+    color: var(--ink-deep);
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+  }
+
+  .feature-body {
+    font-size: 13px;
+    font-weight: 300;
+    line-height: 1.75;
+    color: var(--ink-mid);
+  }
+
+  /* ── COMPARISON TABLE ── */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .compare-table th {
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mid);
+    padding: 14px 12px;
+    text-align: center;
+    border-bottom: 0.5px solid var(--stone);
+  }
+
+  .compare-table th:first-child {
+    text-align: left;
+    width: 30%;
+  }
+
+  .compare-table th:last-child {
+    color: var(--ink-deep);
+    font-weight: 400;
+  }
+
+  .compare-table td {
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--ink);
+    padding: 16px 12px;
+    border-bottom: 0.5px solid var(--off);
+    vertical-align: middle;
+    text-align: center;
+  }
+
+  .compare-table tr:last-child td { border-bottom: none; }
+
+  .compare-table td:first-child {
+    color: var(--ink-mid);
+    font-size: 12px;
+    text-align: left;
+    font-weight: 400;
+  }
+
+  .compare-table th:last-child,
+  .compare-table td:last-child {
+    background: var(--stone);
+  }
+
+  .check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+  }
+
+  .check.yes { background: var(--ink-deep); color: var(--white); font-size: 10px; }
+  .check.no  { background: var(--off); color: var(--ink-light); font-size: 12px; }
+  .check.partial { background: var(--stone); color: var(--ink-mid); font-size: 9px; font-family: var(--mono); }
+
+  /* ── SYNTAX SHOWCASE ── */
+  .syntax-block {
+    background: #111319;
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: var(--radius);
+    overflow: hidden;
+    text-align: left;
+    box-shadow: none;
+  }
+
+  .syntax-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: #14171d;
+  }
+
+  .syntax-filename {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 300;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.04em;
+  }
+
+  .syntax-lang {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .syntax-body {
+    padding: 28px 28px 32px;
+    overflow-x: auto;
+    text-align: left;
+    background: #14161b;
+  }
+
+  .syntax-body code {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.88;
+    display: block;
+    white-space: pre;
+    text-align: left;
+    color: #e6e9ef;
+  }
+
+  .compare-card {
+    padding: 24px 24px 18px;
+    overflow: hidden;
+  }
+
+
+  /* syntax tokens */
+  .t-kw   { color: #b7a8e6; font-weight: 500; }
+  .t-type { color: #8fc8b5; font-weight: 500; }
+  .t-str  { color: #d8b184; font-weight: 400; }
+  .t-ann  { color: #d9c16f; font-weight: 500; }
+  .t-cmt  { color: rgba(230,233,239,0.44); font-style: italic; }
+  .t-rel  { color: #d4a7b5; font-weight: 500; }
+  .t-vis  { color: rgba(230,233,239,0.72); font-weight: 400; }
+  .t-num  { color: #9fc0d8; font-weight: 400; }
+  .t-def  { color: #edf1f6; font-weight: 500; }
+    .pipeline-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--stone); border: 0.5px solid var(--stone); border-radius: var(--radius); overflow: hidden; margin-top: 1px; }
+
+
+  /* ── RULES TABLE ── */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--stone);
+    border: 0.5px solid var(--stone);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .rule-item {
+    background: var(--white);
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .rule-id {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--ink-light);
+    padding-top: 2px;
+    letter-spacing: 0.04em;
+  }
+
+  .rule-desc {
+    font-size: 13px;
+    font-weight: 300;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+
+  /* ── STATS ROW ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--stone);
+    border: 0.5px solid var(--stone);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin: 60px 0;
+  }
+
+  .stat-cell {
+    background: var(--white);
+    padding: 36px 28px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-size: 44px;
+    font-weight: 200;
+    letter-spacing: -0.04em;
+    color: var(--ink-deep);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 300;
+    color: var(--ink-light);
+    letter-spacing: 0.06em;
+    font-family: var(--mono);
+    text-transform: uppercase;
+  }
+
+  /* ── SCROLL REVEAL ── */
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1);
+  }
+
+  [data-reveal].visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  [data-reveal-delay="1"] { transition-delay: 0.1s; }
+  [data-reveal-delay="2"] { transition-delay: 0.2s; }
+  [data-reveal-delay="3"] { transition-delay: 0.3s; }
+  [data-reveal-delay="4"] { transition-delay: 0.4s; }
+  [data-reveal-delay="5"] { transition-delay: 0.5s; }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 60px 40px;
+    border-top: 0.5px solid var(--stone);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  footer p {
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--ink-light);
+    letter-spacing: 0.04em;
+    font-family: var(--mono);
+  }
+
+  footer a {
+    font-size: 12px;
+    color: var(--ink-mid);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+    font-family: var(--mono);
+    font-weight: 300;
+    transition: color 0.2s;
+  }
+
+  footer a:hover { color: var(--ink-deep); }
+
+  /* ── DIAGRAM TYPES PILLS ── */
+  .diagram-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 28px;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 300;
+    font-family: var(--mono);
+    color: var(--ink-mid);
+    border: 0.5px solid var(--stone);
+    padding: 6px 14px;
+    border-radius: 100px;
+    letter-spacing: 0.02em;
+    background: var(--white);
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .pill:hover { border-color: var(--ink-mid); color: var(--ink-deep); }
+
+  /* ── ROUND TRIP VISUAL ── */
+  .roundtrip {
+    display: grid;
+    grid-template-columns: 1fr 48px 1fr;
+    gap: 0;
+    align-items: center;
+  }
+
+  .roundtrip-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .arrow-icon {
+    font-size: 20px;
+    color: var(--ink-light);
+  }
+
+  /* ── INVARIANT BLOCK ── */
+  .invariant {
+    border: 0.5px solid var(--stone);
+    border-radius: var(--radius);
+    padding: 40px 48px;
+    text-align: center;
+    background: var(--off);
+  }
+
+  .invariant-formula {
+    font-family: var(--mono);
+    font-size: clamp(18px, 2.5vw, 28px);
+    font-weight: 300;
+    color: var(--ink-deep);
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+  }
+
+  .invariant-label {
+    font-size: 12px;
+    font-weight: 300;
+    color: var(--ink-light);
+    font-family: var(--mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .breadth-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 36px;
+  }
+
+  .breadth-card {
+    background: var(--white);
+    border: 0.5px solid var(--stone);
+    border-radius: var(--radius);
+    padding: 28px;
+  }
+
+  .breadth-title {
+    font-size: 20px;
+    font-weight: 300;
+    color: var(--ink-deep);
+    letter-spacing: -0.02em;
+    margin-bottom: 14px;
+  }
+
+  .breadth-body {
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1.75;
+    color: var(--ink-mid);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    nav { padding: 0 24px; }
+    .nav-links { display: none; }
+    .hero { padding: 100px 24px 60px; }
+    .section { padding: 80px 24px; }
+    .split { grid-template-columns: 1fr; gap: 48px; }
+    .split.reverse { direction: ltr; }
+    .features-grid { grid-template-columns: 1fr; }
+    .rules-grid, .pipeline-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: repeat(3, 1fr); }
+    .breadth-grid { grid-template-columns: 1fr; }
+    .window-body { grid-template-columns: 1fr; }
+    .window-divider { display: none; }
+    footer { flex-direction: column; gap: 16px; }
+  }
+
+  @media (max-width: 1200px) {
+    .split { gap: 64px; }
+    .hero-diagram { margin-top: 56px; }
+  }
+
+  @media (max-width: 720px) {
+    nav {
+      height: auto;
+      min-height: 64px;
+      padding: 10px 18px;
+    }
+    .nav-inner {
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      align-items: center;
+      max-width: 100%;
+    }
+    nav .nav-inner > * { min-width: 0; }
+    .nav-logo { flex-shrink: 0; }
+    .nav-links {
+      display: flex;
+      order: 3;
+      width: 100%;
+      gap: 18px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      position: static;
+      transform: none;
+    }
+    .nav-links::-webkit-scrollbar { display: none; }
+    .nav-cta {
+      display: inline-flex;
+      margin-left: auto;
+      flex-shrink: 0;
+      padding: 8px 14px;
+      font-size: 12px;
+    }
+    .hero { padding: 88px 18px 44px; min-height: auto; }
+    .hero-title { font-size: clamp(44px, 16vw, 84px); }
+    .hero-sub { font-size: 16px; margin-bottom: 32px; }
+    .hero-diagram { margin-top: 40px; }
+    .diagram-window { border-radius: 18px; }
+    .window-pane { padding: 18px; }
+    .window-body { min-height: 0; }
+    .canvas-preview { min-height: 220px; }
+    .section { padding: 64px 18px; }
+    .section-heading { font-size: clamp(34px, 10vw, 52px); }
+    .section-body { font-size: 15px; line-height: 1.7; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .compare-card {
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 20px 14px 16px;
+    }
+    .compare-table { width: 100%; min-width: unset; }
+    .compare-table th, .compare-table td { padding: 12px 10px; }
+    .syntax-header { padding: 14px 16px; }
+    .syntax-body { padding: 18px 16px 20px; }
+    .syntax-body code { font-size: 12px; line-height: 1.75; }
+  }
+
+  @media (max-width: 480px) {
+    nav {
+      padding: 10px 14px;
+    }
+    .nav-inner {
+      gap: 8px 10px;
+    }
+    .nav-links {
+      gap: 14px;
+      font-size: 12px;
+    }
+    .nav-cta {
+      padding: 7px 12px;
+      font-size: 11px;
+    }
+    .hero { padding: 80px 14px 36px; }
+    .section { padding: 52px 14px; }
+    .hero-sub { font-size: 15px; }
+    .hero-actions {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+    .btn-primary, .btn-secondary {
+      width: 100%;
+      justify-content: center;
+    }
+    .pane-label, .syntax-filename, .syntax-lang { font-size: 9px; }
+    .code-line { font-size: 11px; line-height: 1.7; }
+    .canvas-preview { min-height: 180px; }
+    .stats-row { grid-template-columns: 1fr; }
+    .compare-card { padding: 18px 10px 14px; }
+    .compare-table { width: 100%; min-width: unset; }
+      .compare-table th { font-size: 8px; letter-spacing: 0.05em; }
+      .compare-table td, .compare-table th { padding: 10px 4px; }
+      .compare-table td { font-size: 11px; }
+      .compare-table td:first-child { font-size: 10px; }
+    .syntax-body { padding: 16px 14px 18px; }
+    .syntax-body code { font-size: 11px; line-height: 1.7; }
+    .section-heading br { display: none; }
+  }
+</style>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('isomorph-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+      else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+  </script>
+</head>
+<body>
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">Isomorph</a>
+    <ul class="nav-links">
+      <li><a href="#language" data-i18n="nav.language">Language</a></li>
+      <li><a href="#architecture" data-i18n="nav.architecture">Architecture</a></li>
+      <li><a href="#validation" data-i18n="nav.validation">Validation</a></li>
+      <li><a href="#demo" data-i18n="nav.demo">Demo</a></li>
+    </ul>
+    <div class="nav-right">
+      <select id="language-select" class="lang-select" aria-label="Language">
+        <option value="en">EN</option>
+        <option value="ro">RO</option>
+        <option value="ru">RU</option>
+      </select>
+      <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="theme-icon"></svg>
+      </button>
+      <a href="./app/" class="nav-cta" data-i18n="nav.cta">Try live IDE →</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg">
+    <div class="hero-bg-circle a"></div>
+    <div class="hero-bg-circle b"></div>
+  </div>
+  <div class="hero-inner">
+    <p class="hero-eyebrow" data-reveal>
+      <span class="hero-eyebrow-dot"></span>
+      DSL Course · FAF-241 · Technical University of Moldova
+      <span class="hero-eyebrow-dot"></span>
+    </p>
+    <h1 class="hero-title" data-reveal data-reveal-delay="1">
+      Diagrams that<br>
+      <em>remember themselves</em>
+    </h1>
+    <p class="hero-sub" data-reveal data-reveal-delay="2" data-i18n="hero.sub">
+      A domain-specific language where layout is source data.
+      Edit text or drag the canvas — the model stays canonical.
+    </p>
+    <div class="hero-actions" data-reveal data-reveal-delay="3">
+      <a href="./app/" class="btn-primary">
+        Try live IDE
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M7.5 3l4 4-4 4" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="https://github.com/Lucian-Adrian/isomorph" class="btn-secondary">
+        View on GitHub
+      </a>
+    </div>
+
+    <!-- Diagram window preview -->
+    <div class="hero-diagram" data-reveal data-reveal-delay="4">
+      <div class="diagram-window">
+        <div class="window-chrome">
+          <div class="window-dot r"></div>
+          <div class="window-dot y"></div>
+          <div class="window-dot g"></div>
+          <span class="window-title">library-system.isx</span>
+        </div>
+        <div class="window-body">
+          <!-- Code pane -->
+          <div class="window-pane">
+            <p class="pane-label">Source</p>
+            <div class="code-line"><span class="kw">diagram</span> LibrarySystem : <span class="kw">class</span> {</div>
+            <div class="code-line"></div>
+            <div class="code-line">  <span class="kw">package</span> domain {</div>
+            <div class="code-line"></div>
+            <div class="code-line">    <span class="kw">abstract class</span> Book <span class="kw">implements</span> Borrowable {</div>
+            <div class="code-line">      <span class="vis">+</span> title : <span class="kw">string</span></div>
+            <div class="code-line">      <span class="vis">+</span> isbn  : <span class="kw">string</span></div>
+            <div class="code-line">      <span class="vis">-</span> stock : <span class="kw">int</span> = <span class="num">0</span></div>
+            <div class="code-line">    }</div>
+            <div class="code-line"></div>
+            <div class="code-line">    <span class="kw">class</span> Library {</div>
+            <div class="code-line">      <span class="vis">+</span> addBook(b : Book) : <span class="kw">void</span></div>
+            <div class="code-line">      <span class="vis">+</span> search() : <span class="kw">List&lt;Book&gt;</span></div>
+            <div class="code-line">    }</div>
+            <div class="code-line"></div>
+            <div class="code-line">    <span class="kw">interface</span> Borrowable {</div>
+            <div class="code-line">      <span class="vis">+</span> borrow() : <span class="kw">void</span></div>
+            <div class="code-line">    }</div>
+            <div class="code-line">  }</div>
+            <div class="code-line"></div>
+            <div class="code-line">  Library <span class="kw">--*</span> Book   [label=<span class="str">"contains"</span>]</div>
+            <div class="code-line">  Book    <span class="kw">..|></span> Borrowable</div>
+            <div class="code-line"></div>
+            <div class="code-line">  <span class="cmt">// Layout — first-class source data</span></div>
+            <div class="code-line">  <span class="ann">@Book</span>    at (<span class="num">120</span>, <span class="num">140</span>)</div>
+            <div class="code-line">  <span class="ann">@Library</span> at (<span class="num">400</span>, <span class="num">140</span>)</div>
+            <div class="code-line">  <span class="ann">@Borrowable</span> at (<span class="num">260</span>, <span class="num">245</span>)</div>
+            <div class="code-line">}</div>
+          </div>
+
+          <div class="window-divider"></div>
+
+          <!-- Canvas pane -->
+          <div class="window-pane">
+            <p class="pane-label">Canvas</p>
+            <div class="canvas-preview">
+              <svg width="100%" height="280" viewBox="0 0 420 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="14" y="26" width="392" height="204" rx="10" fill="none" stroke="var(--stone)" stroke-width="1" stroke-dasharray="5 4"/>
+                <text x="28" y="20" font-family="DM Mono, monospace" font-size="10" fill="var(--ink-light)">package domain</text>
+
+                <rect x="30" y="52" width="152" height="118" rx="10" fill="var(--white)" stroke="var(--stone)" stroke-width="1"/>
+                <rect x="30" y="52" width="152" height="38" rx="10" fill="var(--off)" stroke="var(--stone)" stroke-width="1"/>
+                <rect x="30" y="74" width="152" height="16" fill="var(--off)"/>
+                <text x="106" y="69" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="var(--ink-mid)" font-style="italic">abstract class</text>
+                <text x="106" y="84" text-anchor="middle" font-family="DM Mono, monospace" font-size="12" fill="var(--ink-deep)">Book</text>
+                <line x1="30" y1="90" x2="182" y2="90" stroke="var(--stone)" stroke-width="0.75"/>
+                <text x="42" y="109" font-family="DM Mono, monospace" font-size="10" fill="var(--ink-mid)">+ title : string</text>
+                <text x="42" y="126" font-family="DM Mono, monospace" font-size="10" fill="var(--ink-mid)">+ isbn : string</text>
+                <text x="42" y="143" font-family="DM Mono, monospace" font-size="10" fill="var(--ink-mid)">- stock : int = 0</text>
+
+                <rect x="238" y="52" width="152" height="102" rx="10" fill="var(--white)" stroke="var(--stone)" stroke-width="1"/>
+                <rect x="238" y="52" width="152" height="38" rx="10" fill="var(--off)" stroke="var(--stone)" stroke-width="1"/>
+                <rect x="238" y="74" width="152" height="16" fill="var(--off)"/>
+                <text x="314" y="84" text-anchor="middle" font-family="DM Mono, monospace" font-size="12" fill="var(--ink-deep)">Library</text>
+                <line x1="238" y1="90" x2="390" y2="90" stroke="var(--stone)" stroke-width="0.75"/>
+                <text x="250" y="109" font-family="DM Mono, monospace" font-size="10" fill="var(--ink-mid)">+ addBook(b : Book)</text>
+                <text x="250" y="126" font-family="DM Mono, monospace" font-size="10" fill="var(--ink-mid)">+ search() : List&lt;Book&gt;</text>
+
+                <rect x="150" y="188" width="126" height="42" rx="10" fill="var(--white)" stroke="var(--stone)" stroke-width="1"/>
+                <text x="213" y="205" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="var(--ink-mid)">interface</text>
+                <text x="213" y="220" text-anchor="middle" font-family="DM Mono, monospace" font-size="12" fill="var(--ink-deep)">Borrowable</text>
+
+                <line x1="238" y1="108" x2="183" y2="108" stroke="var(--ink-light)" stroke-width="1.2"/>
+                <polygon points="238,108 228,103 218,108 228,113" fill="var(--ink-deep)"/>
+                <polyline points="191,103 183,108 191,113" stroke="var(--ink-light)" stroke-width="1.2" fill="none"/>
+                <text x="210" y="99" text-anchor="middle" font-family="DM Mono, monospace" font-size="9" fill="var(--ink-light)">contains</text>
+
+                <line x1="137" y1="170" x2="188" y2="188" stroke="var(--ink-light)" stroke-width="1.1" stroke-dasharray="4 4"/>
+                <polyline points="180,183 188,188 178,190" stroke="var(--ink-light)" stroke-width="1.1" fill="none"/>
+
+                <rect x="30" y="242" width="134" height="22" rx="5" fill="var(--off)" stroke="var(--stone)" stroke-width="0.75"/>
+                <text x="42" y="257" font-family="DM Mono, monospace" font-size="9" fill="#c67a3c">@Book at (120, 140)</text>
+                <rect x="238" y="242" width="150" height="22" rx="5" fill="var(--off)" stroke="var(--stone)" stroke-width="0.75"/>
+                <text x="250" y="257" font-family="DM Mono, monospace" font-size="9" fill="#c67a3c">@Library at (400, 140)</text>
+
+                <circle cx="378" cy="154" r="13" fill="var(--white)" stroke="var(--stone)" stroke-width="0.75"/>
+                <text x="378" y="159" text-anchor="middle" font-family="DM Mono, monospace" font-size="14" fill="var(--ink-deep)">⊹</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section style="padding: 0 40px 80px;">
+  <div style="max-width: 1100px; margin: 0 auto;">
+    <div class="stats-row" data-reveal>
+      <div class="stat-cell">
+        <div class="stat-num">9</div>
+        <div class="stat-label">Diagram types</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">4</div>
+        <div class="stat-label">Competitors compared</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">55</div>
+        <div class="stat-label">Grammar rules</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">66</div>
+        <div class="stat-label">Token kinds</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">14</div>
+        <div class="stat-label">Semantic rules</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="section alt" id="language">
+  <div class="section-inner">
+    <div class="split">
+      <div class="split-text" data-reveal>
+        <p class="section-tag">The problem</p>
+        <h2 class="section-heading">One tool makes you<br><em>choose a side</em></h2>
+        <p class="section-body" data-i18n="desc.plantuml">
+        Textual tools like PlantUML give you Git diffs and version control, but any edit can scramble your carefully arranged diagram. Visual editors give you stable layouts, but their binary formats are unreadable in pull requests. No tool has ever satisfied both at once — until now.
+      </p>
+      </div>
+      <div data-reveal data-reveal-delay="2">
+        <div class="glass-card compare-card">
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th>Property</th>
+                <th>PlantUML</th>
+                <th>draw.io</th>
+                <th>Mermaid</th>
+                <th style="color: var(--ink-deep);">Isomorph</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Text-based source</td>
+                <td><span class="check yes">✓</span></td>
+                <td><span class="check no">✗</span></td>
+                <td><span class="check yes">✓</span></td>
+                <td><span class="check yes">✓</span></td>
+              </tr>
+              <tr>
+                <td>Stable layout</td>
+                <td><span class="check no">✗</span></td>
+                <td><span class="check yes">✓</span></td>
+                <td><span class="check no">✗</span></td>
+                <td><span class="check yes">✓</span></td>
+              </tr>
+              <tr>
+                <td>VCS-friendly</td>
+                <td><span class="check yes">✓</span></td>
+                <td><span class="check no">✗</span></td>
+                <td><span class="check yes">✓</span></td>
+                <td><span class="check yes">✓</span></td>
+              </tr>
+              <tr>
+                <td>Bidirectional architecture</td>
+                <td><span class="check no">✗</span></td>
+                <td><span class="check no">✗</span></td>
+                <td><span class="check no">✗</span></td>
+                <td><span class="check yes">✓</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LANGUAGE -->
+<section class="section" id="architecture">
+  <div class="section-inner">
+    <div style="max-width: 680px; margin-bottom: 64px;" data-reveal>
+      <p class="section-tag">The language</p>
+      <h2 class="section-heading">Reads like English.<br><em>Compiles like a type system.</em></h2>
+      <p class="section-body" data-i18n="desc.entitykw">
+        Every entity keyword is a first-class UML citizen. Visibility modifiers, generics, stereotypes, inheritance — all native syntax. Layout annotations live inline with the semantic body, not in a sidecar file.
+      </p>
+    </div>
+
+    <div class="split" data-reveal data-reveal-delay="1">
+      <div class="syntax-block">
+        <div class="syntax-header">
+          <span class="syntax-filename">library.isx</span>
+          <span class="syntax-lang">Isomorph · class</span>
+        </div>
+        <div class="syntax-body">
+          <code><span class="t-kw">diagram</span> <span class="t-def">LibrarySystem</span> : <span class="t-kw">class</span> {
+
+  <span class="t-kw">package</span> <span class="t-def">domain</span> {
+
+    <span class="t-kw">abstract class</span> <span class="t-type">Book</span> &lt;&lt;<span class="t-def">Entity</span>&gt;&gt;
+        <span class="t-kw">implements</span> <span class="t-type">Borrowable</span> {
+      <span class="t-vis">+</span> <span class="t-def">title</span>  : <span class="t-kw">string</span>
+      <span class="t-vis">+</span> <span class="t-def">isbn</span>   : <span class="t-kw">string</span>
+      <span class="t-vis">-</span> <span class="t-def">stock</span>  : <span class="t-kw">int</span> = <span class="t-num">0</span>
+      <span class="t-vis">+</span> <span class="t-def">checkOut</span>(<span class="t-def">user</span> : <span class="t-kw">string</span>) : <span class="t-kw">bool</span>
+    }
+
+    <span class="t-kw">class</span> <span class="t-type">Library</span> {
+      <span class="t-vis">+</span> <span class="t-def">name</span> : <span class="t-kw">string</span>
+      <span class="t-vis">+</span> <span class="t-def">addBook</span>(<span class="t-def">book</span> : <span class="t-type">Book</span>) : <span class="t-kw">void</span>
+      <span class="t-vis">+</span> <span class="t-def">search</span>(<span class="t-def">query</span> : <span class="t-kw">string</span>) : <span class="t-type">List</span>&lt;<span class="t-type">Book</span>&gt;
+    }
+
+    <span class="t-kw">interface</span> <span class="t-type">Borrowable</span> {
+      <span class="t-vis">+</span> <span class="t-def">borrow</span>(<span class="t-def">user</span> : <span class="t-kw">string</span>) : <span class="t-kw">void</span>
+      <span class="t-vis">+</span> <span class="t-def">return</span>() : <span class="t-kw">void</span>
+    }
+
+    <span class="t-kw">enum</span> <span class="t-type">BookStatus</span> {
+      <span class="t-def">AVAILABLE</span>
+      <span class="t-def">CHECKED_OUT</span>
+      <span class="t-def">RESERVED</span>
+    }
+  }
+
+  <span class="t-cmt">// Relation operators — 6 native forms shown</span>
+  <span class="t-type">Library</span> <span class="t-rel">--*</span> <span class="t-type">Book</span>  [<span class="t-def">label</span>=<span class="t-str">"contains"</span>, <span class="t-def">toMult</span>=<span class="t-str">"1..*"</span>]
+  <span class="t-type">Book</span>    <span class="t-rel">..|&gt;</span> <span class="t-type">Borrowable</span>
+
+  <span class="t-cmt">// Layout — rewritten only on drag, never on edit</span>
+  <span class="t-ann">@Book</span>       at (<span class="t-num">100</span>, <span class="t-num">130</span>)
+  <span class="t-ann">@Library</span>    at (<span class="t-num">400</span>, <span class="t-num">130</span>)
+  <span class="t-ann">@Borrowable</span> at (<span class="t-num">100</span>, <span class="t-num">360</span>)
+  <span class="t-ann">@BookStatus</span> at (<span class="t-num">400</span>, <span class="t-num">360</span>)
+}</code>
+        </div>
+      </div>
+
+      <div style="text-align: left;">
+        <p class="section-tag">Diagram types</p>
+        <p style="font-size: 15px; font-weight: 300; color: var(--ink-mid); line-height: 1.75; margin-bottom: 8px;">
+          Nine complete UML diagram types — one language, one canonical model.
+        </p>
+        <div class="diagram-pills">
+          <span class="pill">class</span>
+          <span class="pill">usecase</span>
+          <span class="pill">sequence</span>
+          <span class="pill">component</span>
+          <span class="pill">deployment</span>
+          <span class="pill">state</span>
+          <span class="pill">activity</span>
+          <span class="pill">collaboration</span>
+          <span class="pill">flow</span>
+        </div>
+
+        <div style="margin-top: 40px;">
+          <p class="section-tag">Relation operators</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--stone); border: 0.5px solid var(--stone); border-radius: 12px; overflow: hidden;">
+            <div style="background: var(--white); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+              <code style="font-family: var(--mono); font-size: 12px; color: #b4a7f5; min-width: 36px;">--></code>
+              <span style="font-size: 12px; font-weight: 300; color: var(--ink-mid);">Association</span>
+            </div>
+            <div style="background: var(--white); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+              <code style="font-family: var(--mono); font-size: 12px; color: #b4a7f5; min-width: 36px;">-|></code>
+              <span style="font-size: 12px; font-weight: 300; color: var(--ink-mid);">Generalization</span>
+            </div>
+            <div style="background: var(--white); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+              <code style="font-family: var(--mono); font-size: 12px; color: #b4a7f5; min-width: 36px;">..|></code>
+              <span style="font-size: 12px; font-weight: 300; color: var(--ink-mid);">Realization</span>
+            </div>
+            <div style="background: var(--white); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+              <code style="font-family: var(--mono); font-size: 12px; color: #b4a7f5; min-width: 36px;">--*</code>
+              <span style="font-size: 12px; font-weight: 300; color: var(--ink-mid);">Composition</span>
+            </div>
+            <div style="background: var(--white); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+              <code style="font-family: var(--mono); font-size: 12px; color: #b4a7f5; min-width: 36px;">--o</code>
+              <span style="font-size: 12px; font-weight: 300; color: var(--ink-mid);">Aggregation</span>
+            </div>
+            <div style="background: var(--white); padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+              <code style="font-family: var(--mono); font-size: 12px; color: #b4a7f5; min-width: 36px;">..></code>
+              <span style="font-size: 12px; font-weight: 300; color: var(--ink-mid);">Dependency</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="breadth-grid" data-reveal data-reveal-delay="2">
+      <div class="breadth-card">
+        <p class="section-tag">Structural breadth</p>
+        <p class="breadth-title" data-i18n="Architecture, modules, and deployment.">Architecture, modules, and deployment.</p>
+        <p class="breadth-body"><span data-i18n="desc.structviews">Class, component, deployment, package, and module views describe what exists and how systems are organized. These are first-class constructs in the grammar, not ad-hoc templates.</span></p>
+      </div>
+      <div class="breadth-card">
+        <p class="section-tag">Behavioral breadth</p>
+        <p class="breadth-title" data-i18n="Runtime flow, state, and interaction.">Runtime flow, state, and interaction.</p>
+        <p class="breadth-body"><span data-i18n="desc.behavviews">Sequence, state, activity, collaboration, and flow diagrams capture what the system does over time. Structure and behavior live in one language and one canonical model.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROUND TRIP -->
+<section class="section alt">
+  <div class="section-inner">
+    <div style="max-width: 680px; margin-bottom: 64px;" data-reveal>
+      <p class="section-tag">Bidirectional architecture</p>
+      <h2 class="section-heading" data-i18n="The only invariant that matters">The only invariant<br><em>that matters</em></h2>
+    </div>
+
+    <div class="invariant" data-reveal data-reveal-delay="1">
+      <p class="invariant-formula">parse(serialise(M)) = M</p>
+      <p class="invariant-label">Layout stays in the source, not in a sidecar file</p>
+    </div>
+
+    <div class="pipeline-grid" data-reveal data-reveal-delay="2">
+      <div style="background: var(--white); padding: 32px 28px;">
+        <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 16px;">01 · Lex</p>
+        <p style="font-size: 20px; font-weight: 200; color: var(--ink-deep); letter-spacing: -0.02em; margin-bottom: 10px;">66 tokens</p>
+        <p style="font-size: 13px; font-weight: 300; color: var(--ink-mid); line-height: 1.65;"><span data-i18n="desc.lexertoks">Longest-match-first scanning. Whitespace and comments discarded. 271 lines, zero dependencies.</span></p>
+      </div>
+      <div style="background: var(--white); padding: 32px 28px;">
+        <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 16px;">02 · Parse</p>
+        <p style="font-size: 20px; font-weight: 200; color: var(--ink-deep); letter-spacing: -0.02em; margin-bottom: 10px;">LL(1) hand-written</p>
+        <p style="font-size: 13px; font-weight: 300; color: var(--ink-mid); line-height: 1.65;"><span data-i18n="desc.parserules">55 production rules. 22-node typed AST. Errors returned as values, never thrown. 541 lines.</span></p>
+      </div>
+      <div style="background: var(--white); padding: 32px 28px;">
+        <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 16px;">03 · Analyse</p>
+        <p style="font-size: 20px; font-weight: 200; color: var(--ink-deep); letter-spacing: -0.02em; margin-bottom: 10px;">14 static rules</p>
+        <p style="font-size: 13px; font-weight: 300; color: var(--ink-mid); line-height: 1.65;"><span data-i18n="desc.analyzerrules">Two-pass analysis. Symbol table built first, constraints evaluated second. Catches cyclic inheritance, referential integrity, enum safety.</span></p>
+      </div>
+      <div style="background: var(--white); padding: 32px 28px;">
+        <p style="font-family: var(--mono); font-size: 10px; color: var(--ink-light); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 16px;">04 · Render</p>
+        <p style="font-size: 20px; font-weight: 200; color: var(--ink-deep); letter-spacing: -0.02em; margin-bottom: 10px;">9 SVG renderers</p>
+        <p style="font-size: 13px; font-weight: 300; color: var(--ink-mid); line-height: 1.65;"><span data-i18n="desc.svgrenderers">@Entity at (x,y) coordinates applied from source. ELK fallback for unplaced entities.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-inner">
+    <div class="split">
+      <div class="split-text" data-reveal>
+        <p class="section-tag">ISX file</p>
+        <h2 class="section-heading" data-i18n="One file for code, layout, and round-trip edits">One file for code,<br><em>layout, and round-trip edits</em></h2>
+        <p class="section-body">
+          <span data-i18n="desc.isxfile">An `.isx` file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.</span>
+        </p>
+      </div>
+      <div data-reveal data-reveal-delay="1">
+        <div class="syntax-block">
+          <div class="syntax-header">
+            <span class="syntax-filename">payments.isx</span>
+            <span class="syntax-lang">Source of truth</span>
+          </div>
+          <div class="syntax-body">
+            <code><span class="t-kw">diagram</span> <span class="t-def">Payments</span> : <span class="t-kw">component</span> {
+  <span class="t-kw">component</span> <span class="t-type">Gateway</span>
+  <span class="t-kw">component</span> <span class="t-type">Ledger</span>
+  <span class="t-type">Gateway</span> <span class="t-rel">--&gt;</span> <span class="t-type">Ledger</span>
+
+  <span class="t-ann">@Gateway</span> at (<span class="t-num">120</span>, <span class="t-num">140</span>)
+  <span class="t-ann">@Ledger</span>  at (<span class="t-num">420</span>, <span class="t-num">140</span>)
+}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section alt">
+  <div class="section-inner">
+    <div class="split">
+      <div class="split-text" data-reveal>
+        <p class="section-tag">Core tech stack</p>
+        <h2 class="section-heading" data-i18n="Handcrafted recursive descent. No ANTLR, no Chevrotain.">Handcrafted recursive descent.<br><em>No ANTLR, no Chevrotain.</em></h2>
+        <p class="section-body">
+          <span data-i18n="desc.customparser">We chose a custom parser and analyzer stack so grammar control, source-mapped errors, round-trip serialization, and invariant preservation all remain under our control. The renderer and editor were built around that same architecture, not bolted on later.</span>
+        </p>
+      </div>
+      <div data-reveal data-reveal-delay="1">
+        <div class="glass-card">
+          <p class="section-tag">Why custom</p>
+          <p class="feature-body" style="font-size: 14px;">
+            <span data-i18n="desc.recdescent">Recursive-descent parsing gave us exact control over the language, deterministic edits, and compiler-style diagnostics. That matters when the same source file must drive both text editing and visual geometry.</span>
+          </p>
+          <div style="display: grid; gap: 1px; margin-top: 24px; background: var(--stone); border: 0.5px solid var(--stone); border-radius: 12px; overflow: hidden;">
+            <div style="background: var(--white); padding: 16px 18px; font-size: 13px; font-weight: 300; color: var(--ink-mid);">Handwritten lexer + recursive-descent parser</div>
+            <div style="background: var(--white); padding: 16px 18px; font-size: 13px; font-weight: 300; color: var(--ink-mid);">Two-pass analyzer with 14 semantic rules</div>
+            <div style="background: var(--white); padding: 16px 18px; font-size: 13px; font-weight: 300; color: var(--ink-mid);">Custom renderer and editor integration</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VALIDATION -->
+<section class="section" id="validation">
+  <div class="section-inner">
+    <div style="max-width: 680px; margin-bottom: 64px;" data-reveal>
+      <p class="section-tag">Semantic safety</p>
+      <h2 class="section-heading" data-i18n="Errors are values, not surprises">Errors are values,<br><em>not surprises</em></h2>
+      <p class="section-body">
+        <span data-i18n="desc.14rules">14 named static semantic rules validated at compile time, before any rendering occurs. Every violation carries a rule identifier, entity name, and exact source location — not a blank canvas.</span>
+      </p>
+    </div>
+
+    <div class="rules-grid" data-reveal data-reveal-delay="1">
+      <div class="rule-item">
+        <span class="rule-id">SS-1</span>
+        <span class="rule-desc">Entity name uniqueness within diagram scope</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-2</span>
+        <span class="rule-desc">Member name uniqueness within each entity</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-3</span>
+        <span class="rule-desc">Referential integrity of relation endpoints</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-4</span>
+        <span class="rule-desc">Enum non-emptiness — at least one value required</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-5</span>
+        <span class="rule-desc">Interface fields carry no default values</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-6</span>
+        <span class="rule-desc">Acyclic direct inheritance — no A extends B extends A</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-7</span>
+        <span class="rule-desc">Style target references a declared entity</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-8</span>
+        <span class="rule-desc">Enum value uniqueness within each enum body</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-9</span>
+        <span class="rule-desc">Diagram kind compatibility — entity type matches context</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-10</span>
+        <span class="rule-desc">Layout annotation references a declared entity</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-11</span>
+        <span class="rule-desc">Abstract and final are mutually exclusive modifiers</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-12</span>
+        <span class="rule-desc">Method parameter name uniqueness per signature</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-13</span>
+        <span class="rule-desc">Extends target must reference a declared entity</span>
+      </div>
+      <div class="rule-item">
+        <span class="rule-id">SS-14</span>
+        <span class="rule-desc">Implements target must reference a declared entity</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section alt" id="demo">
+  <div class="section-inner">
+    <div style="max-width: 680px; margin-bottom: 64px;" data-reveal>
+      <p class="section-tag">What's shipped</p>
+      <h2 class="section-heading" data-i18n="A complete IDE, deployed today">A complete IDE,<br><em>deployed today</em></h2>
+    </div>
+    <div class="features-grid" data-reveal data-reveal-delay="1">
+      <div class="feature-cell">
+        <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
+          <rect x="4" y="8" width="28" height="20" rx="3" stroke="var(--ink-deep)" stroke-width="1"/>
+          <path d="M10 14l4 4-4 4M18 22h8" stroke="var(--ink-deep)" stroke-width="1" stroke-linecap="round"/>
+        </svg>
+        <p class="feature-title">CodeMirror 6 IDE</p>
+        <p class="feature-body" data-i18n="desc.multitab">Multi-tab workspace with syntax highlighting, keyboard shortcuts, and a built-in example gallery for real architecture work.</p>
+      </div>
+      <div class="feature-cell">
+        <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
+          <rect x="4" y="4" width="13" height="13" rx="2" stroke="var(--ink-deep)" stroke-width="1"/>
+          <rect x="19" y="4" width="13" height="13" rx="2" stroke="var(--ink-deep)" stroke-width="1"/>
+          <path d="M10.5 17v4M10.5 21h15M25.5 17v4" stroke="var(--ink-deep)" stroke-width="1" stroke-linecap="round"/>
+          <rect x="12" y="25" width="12" height="7" rx="1.5" stroke="var(--ink-deep)" stroke-width="1"/>
+        </svg>
+        <p class="feature-title">Drag-and-drop canvas</p>
+        <p class="feature-body" data-i18n="desc.move">Move any entity on the SVG canvas. Only its @Entity annotation changes. Every other byte in the file stays untouched.</p>
+      </div>
+      <div class="feature-cell">
+        <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
+          <circle cx="18" cy="18" r="12" stroke="var(--ink-deep)" stroke-width="1"/>
+          <path d="M14 18l3 3 6-6" stroke="var(--ink-deep)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="feature-title">Real-time validation</p>
+        <p class="feature-body" data-i18n="desc.ss1">SS-1 through SS-14 fire on every keystroke. Structured errors with rule ID and source location, never silent failure.</p>
+      </div>
+      <div class="feature-cell">
+        <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
+          <rect x="6" y="6" width="11" height="11" rx="1.5" stroke="var(--ink-deep)" stroke-width="1"/>
+          <rect x="19" y="6" width="11" height="11" rx="1.5" stroke="var(--ink-deep)" stroke-width="1"/>
+          <rect x="6" y="19" width="11" height="11" rx="1.5" stroke="var(--ink-deep)" stroke-width="1"/>
+          <rect x="19" y="19" width="11" height="11" rx="1.5" stroke="var(--ink-deep)" stroke-width="1"/>
+        </svg>
+        <p class="feature-title">9 diagram renderers</p>
+        <p class="feature-body" data-i18n="desc.classusecase">Class, use-case, sequence, component, deployment, state, activity, collaboration, and flow — all producing SVG from one model.</p>
+      </div>
+      <div class="feature-cell">
+        <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
+          <path d="M18 6v6M18 24v6M6 18h6M24 18h6" stroke="var(--ink-deep)" stroke-width="1" stroke-linecap="round"/>
+          <circle cx="18" cy="18" r="6" stroke="var(--ink-deep)" stroke-width="1"/>
+        </svg>
+        <p class="feature-title">ELK auto-layout</p>
+        <p class="feature-body" data-i18n="desc.elk">Entities without @annotations are automatically placed using the Eclipse Layout Kernel, stable across re-parses.</p>
+      </div>
+      <div class="feature-cell">
+        <svg class="feature-icon" viewBox="0 0 36 36" fill="none">
+          <path d="M9 10h18M9 18h18M9 26h12" stroke="var(--ink-deep)" stroke-width="1" stroke-linecap="round"/>
+          <path d="M23 22l4 4 5-7" stroke="var(--ink-deep)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="feature-title">Canonical `.isx` source</p>
+        <p class="feature-body" data-i18n="desc.onefile">One file stores the model and the layout. Visual edits remain deterministic text edits instead of hidden binary state.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="padding: 140px 40px; display: flex; justify-content: center; align-items: center; flex-direction: column;">
+  <div style="max-width: 640px; display: flex; flex-direction: column; align-items: center; text-align: center; margin: 0 auto;">
+    <p class="section-tag" style="margin-bottom: 24px;" data-reveal>Structure · behavior · invariants</p>
+    <h2 style="font-size: clamp(36px, 5vw, 64px); font-weight: 200; letter-spacing: -0.03em; line-height: 1.08; color: var(--ink-deep); margin-bottom: 24px;" data-reveal data-reveal-delay="1">
+      Explore the IDE,<br><em>inspect the source</em>
+    </h2>
+    <p style="font-size: 15px; font-weight: 300; color: var(--ink-mid); line-height: 1.75; margin-bottom: 48px;" data-reveal data-reveal-delay="2">
+      Open the editor, drag the canvas, and verify that the source stays reviewable while the geometry remains stable.
+    </p>
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; width: 100%;" data-reveal data-reveal-delay="3">
+      <a href="https://lucian-adrian.github.io/isomorph/app" class="btn-primary" style="font-size: 15px; padding: 15px 36px; display: inline-flex; justify-content: center; align-items: center; width: auto;">
+        Open Isomorph IDE
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7h9M7.5 3l4 4-4 4" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="https://github.com/Lucian-Adrian/isomorph" class="btn-secondary" style="display: inline-flex; justify-content: center; align-items: center; width: auto;">
+        View on GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>© 2025 Isomorph · FAF-241 Team 02</p>
+  <div style="display: flex; gap: 32px;">
+    <a href="https://github.com/Lucian-Adrian/isomorph">GitHub</a>
+    <a href="https://lucian-adrian.github.io/isomorph/  ">Live IDE</a>
+    <a href="https://www.utm.md/">UTM</a>
+  </div>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        observer.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+
+  document.querySelectorAll('[data-reveal]').forEach(el => {
+    observer.observe(el);
+  });
+
+  // Immediately reveal hero elements
+  setTimeout(() => {
+    document.querySelectorAll('.hero [data-reveal]').forEach(el => el.classList.add('visible'));
+  }, 100);
+
+    const languageStorageKey = 'isomorph-language';
+    const languageSelect = document.getElementById('language-select');
+    const themeBtn = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+
+    const siteTranslations = {
+      ro: {
+        'ui.language': 'Limba',
+        'Language': 'Limbă',
+        'ui.toggle_theme': 'Afișare / ascundere temă',
+        'Try live IDE \u2192': 'Încearcă IDE live \u2192',
+        'Architecture': 'Arhitectură',
+        'Validation': 'Validare',
+        'Demo': 'Demo',
+        'DSL Course · FAF-241 · Technical University of Moldova': 'Curs DSL · FAF-241 · Universitatea Tehnică a Moldovei',
+        'Diagrams that remember themselves': 'Diagrame care rețin informația',
+        'A domain-specific language where layout is source data. Edit text or drag the canvas \u2014 the model stays canonical.': 'Un limbaj specific domeniului în care aspectul este stocat în codul sursă. Editați textul sau mutați vizual elementele \u2014 modelul rămâne canonic.',
+        'hero.sub': 'Un limbaj specific domeniului în care aspectul este stocat în codul sursă. Editați textul sau mutați vizual elementele — modelul rămâne canonic.',
+        'Try live IDE': 'Încearcă IDE live',
+        'View on GitHub': 'Vedeți pe GitHub',
+        'Diagram types': 'Tipuri de diagrame',
+        'Competitors compared': 'Competitori comparați',
+        'Grammar rules': 'Reguli gramaticale',
+        'Token kinds': 'Tipuri de tokeni',
+        'Semantic rules': 'Reguli semantice',
+        'The problem': 'Problema',
+        'One tool makes you choose a side': 'Un singur instrument te obligă să alegi o parte',
+        'desc.plantuml': 'Instrumentele textuale precum PlantUML îți oferă diferențe în Git (diffs) și controlul versiunilor, dar orice editare îți poate amesteca diagrama aranjată cu grijă. Editoarele vizuale îți oferă aspecte stabile, dar formatele lor binare sunt imposibil de citit în "pull requests". Niciun instrument nu le-a satisfăcut pe ambele până acum.',
+        'The language': 'Limbajul',
+        'Reads like English. Compiles like a type system.': 'Se citește ca engleza. Se compilează ca un sistem de tipuri.',
+        'desc.entitykw': 'Fiecare cuvânt cheie pentru entitate este un cetățean UML de primă clasă. Modificatori de vizibilitate, generice, stereotipuri, moștenire — toată sintaxa esențială. Adnotările decizionale pentru design stau pe același rând cu corpul semantic, nu într-un fișier adițional.',
+        
+        'diagram.class': 'class',
+        'diagram.usecase': 'usecase',
+        'diagram.sequence': 'sequence',
+        'diagram.component': 'component',
+        'diagram.deployment': 'deployment',
+        'diagram.state': 'state',
+        'diagram.activity': 'activity',
+        'diagram.collaboration': 'collaboration',
+        'diagram.flow': 'flow',
+
+        'Relation operators': 'Operatori de relație',
+        'rel.association': 'Asociere',
+        'rel.generalization': 'Generalizare',
+        'rel.realization': 'Realizare',
+        'rel.composition': 'Compoziție',
+        'rel.aggregation': 'Agregare',
+        'rel.dependency': 'Dependență',
+
+        'Structural breadth': 'Acoperire structurală',
+        'Behavioral breadth': 'Acoperire comportamentală',
+        'Bidirectional architecture': 'Arhitectură bidirecțională',
+
+        'The only invariant that matters': 'Singurul invariant care contează',
+        '66 tokens': '66 de tokeni',
+        '02 · Parse': '02 · Analiză Sintactică',
+        'LL(1) hand-written': 'LL(1) scris manual',
+        '03 · Analyse': '03 · Analiză Semantică',
+        '14 static rules': '14 reguli statice',
+        '04 · Render': '04 · Randare',
+        '9 SVG renderers': '9 randere SVG',
+
+        'One file for code, layout, and round-trip edits': 'Un fișier pentru cod, aspect și editări în două sensuri',
+        'Handcrafted recursive descent. No ANTLR, no Chevrotain.': 'Parser cu coborâre recursivă creat manual. Fără ANTLR, fără Chevrotain.',
+        'Layout stays in the source, not in a sidecar file': 'Aranjamentul rămâne în sursă, nu într-un fișier adițional',
+        'ISX file': 'Fișier ISX',
+        'Core tech stack': 'Sistemul de bază al tehnologiei',
+        'Why custom': 'Motivația alegerii',
+        
+        'Semantic safety': 'Siguranță semantică',
+        'Errors are values, not surprises': 'Erorile sunt valori, nu surprize',
+        
+        '<span data-i18n="SS-1 Entity name uniqueness within diagram scope">SS-1 Entity name uniqueness within diagram scope</span>': 'SS-1 Unicitatea numelui entității definind scopul diagramei',
+        '<span data-i18n="SS-2 Member name uniqueness within each entity">SS-2 Member name uniqueness within each entity</span>': 'SS-2 Unicitatea numelui membrului în fiecare entitate',
+        '<span data-i18n="SS-3 Referential integrity of relation endpoints">SS-3 Referential integrity of relation endpoints</span>': 'SS-3 Integritatea referențială a capetelor de relație',
+        '<span data-i18n="SS-4 Enum non-emptiness — at least one value required">SS-4 Enum non-emptiness — at least one value required</span>': 'SS-4 Enum nevid — obligatoriu minim o valoare',
+        '<span data-i18n="SS-5 Interface fields carry no default values">SS-5 Interface fields carry no default values</span>': 'SS-5 Câmpurile interfeței nu au valori implicite',
+        '<span data-i18n="SS-6 Acyclic direct inheritance — no A extends B extends A">SS-6 Acyclic direct inheritance — no A extends B extends A</span>': 'SS-6 Moștenire directă aciclică — nu poți extinde pe tine însuți',
+        '<span data-i18n="SS-7 Style target references a declared entity">SS-7 Style target references a declared entity</span>': 'SS-7 Ținta de stil trebuie să facă referință la o entitate declarată',
+        '<span data-i18n="SS-8 Enum value uniqueness within each enum body">SS-8 Enum value uniqueness within each enum body</span>': 'SS-8 Unicitatea valorii enum în fiecare corp enum',
+        '<span data-i18n="SS-9 Diagram kind compatibility — entity type matches context">SS-9 Diagram kind compatibility — entity type matches context</span>': 'SS-9 Compatibilitatea tipului de diagramă — tipul de entitate se potrivește cu contextul',
+        '<span data-i18n="SS-10 Layout annotation references a declared entity">SS-10 Layout annotation references a declared entity</span>': 'SS-10 Adnotarea de organizare referențiază o entitate declarată',
+        '<span data-i18n="SS-11 Abstract and final are mutually exclusive modifiers">SS-11 Abstract and final are mutually exclusive modifiers</span>': 'SS-11 Abstract și final sunt modificatori mutu excludeți',
+        '<span data-i18n="SS-12 Method parameter name uniqueness per signature">SS-12 Method parameter name uniqueness per signature</span>': 'SS-12 Unicitatea numelui parametrului de metodă pe semnătură',
+        '<span data-i18n="SS-13 Extends target must reference a declared entity">SS-13 Extends target must reference a declared entity</span>': 'SS-13 Clasa extinsă trebuie să referențieze o entitate declarată',
+        '<span data-i18n="SS-14 Implements target must reference a declared entity">SS-14 Implements target must reference a declared entity</span>': 'SS-14 Target pentru Implement trebuie să referențieze o entitate',
+
+
+        "What's shipped": 'Ce a fost lansat',
+        'A complete IDE, deployed today': 'Un IDE complet, lansat astăzi',
+        'CodeMirror 6 IDE': 'IDE CodeMirror 6',
+        'Drag-and-drop canvas': 'Spațiu de desenare drag-and-drop',
+        'Real-time validation': 'Validare în timp real',
+        '9 diagram renderers': '9 module de creare diagrame',
+        'ELK auto-layout': 'Auto-aranjare prin ELK',
+        'Canonical `.isx` source': 'Sursă canonică `.isx`',
+        'Explore the IDE, inspect the source': 'Explorează IDE-ul, examinează sursa',
+        'Open Isomorph IDE': 'Deschide Isomorph IDE',
+        'GitHub': 'GitHub',
+        'Live IDE': 'IDE Live',
+        
+        'Property': 'Proprietate',
+        'Text-based source': 'Sursă bazată pe text',
+        'Stable layout': 'Aranjament vizual constant',
+        'VCS-friendly': 'Adecvat controlului versiunilor',
+        
+        // Detailed Descriptions
+        'desc.multitab': 'Spațiu de lucru cu mai multe file, evidențiere de sintaxă, comenzi rapide și o galerie de exemple integrată pentru lucrul arhitectural real.',
+        'desc.move': 'Mutați orice entitate pe pânza SVG. Se modifică doar adnotarea sa @Entity. Orice alt octet din fișier rămâne neatins.',
+        'desc.ss1': 'Regulile SS-1 până la SS-14 rulează la fiecare apăsare de tastă. Erori structurate cu ID de regulă și locație a sursei, niciodată eșecuri silențioase.',
+        'desc.classusecase': 'Clasă, caz de utilizare, secvență, componentă, implementare, stare, activitate, colaborare și flux — toate producând SVG dintr-un singur model.',
+        'desc.elk': 'Entitățile fără @adnotări sunt plasate automat folosind Eclipse Layout Kernel, stabil peste re-parsări.',
+        'desc.onefile': 'Un singur fișier stochează modelul și aspectul. Editările vizuale rămân editări de text deterministe în loc de stare binară ascunsă.',
+        'desc.14rules': '14 reguli semantice statice validate la compilare, înainte de orice randare. Fiecare încălcare poartă un identificator de regulă, numele entității și zona exactă în sursă — fără pânze goale.',
+        'desc.customparser': 'Am ales un sistem personalizat de analiză și parsare, astfel încât controlul gramaticii, erorile mapate pe sursă, serializarea dus-întors și păstrarea invarianței rămân direct sub controlul nostru. Sistemul de redare și editorul au fost construite în jurul aceleiași arhitecturi, nu adăugate ulterior.',
+        'desc.recdescent': 'Parsarea cu coborâre recursivă ne-a oferit un control exact asupra limbajului, editări deterministe și diagnosticare asemănătoare unui compilator. Acest lucru contează atunci când același fișier sursă trebuie să controleze atât editarea de text, cât și geometria vizuală.',
+        'desc.isxfile': 'Un fișier `.isx` stochează împreună structura semantică și coordonatele vizuale exacte. Tragerea pe pânză va rescrie doar adnotările de localizare, astfel încât editarea vizuală rămâne deterministă și ușor de revizuit în sistemul de control al versiunilor.',
+        
+        'desc.lexertoks': 'Scanare cu potrivire pe cel mai lung tipar. Spațiile albe și comentariile sunt ignorate. 271 linii de cod, zero dependențe externe.',
+        'desc.parserules': '55 de reguli de producție. Arbore sintactic abstract structurat cu un puternic sistem de tipuri (22 noduri). Erori evaluate prin valori, nestruncate nicicând. 541 de linii de cod.',
+        'desc.analyzerrules': 'Analiză pe două faze. Tabelul de simboluri generat în prima instanță, validarea constrângerilor în treapta a doua. Previne moștenirea ciclică, păstrează integritatea la identificatori, siguranță pe tipul enum.',
+        'desc.svgrenderers': 'Aplicare directă @Entity conform coordonatelor din sursă. Algoritm integrat via ELK pentru spațierea elementelor fără adnotări.',
+        
+        'desc.structviews': 'Diagramele class, component, deployment, package și module descriu ce există și modul cum sunt organizate sistemele. Acestea sunt constructe fundamentale în gramatică, nu șabloane ad-hoc.',
+        'desc.behavviews': 'Diagramele sequence, state, activity, collaboration și flow observă ce face sistemul în timp. Structura și comportamentul sunt evaluate într-un singur limbaj și se regăsesc într-un model canonic unitar.',
+        'Architecture, modules, and deployment.': 'Arhitectură, module și implementare.',
+        'Runtime flow, state, and interaction.': 'Flux de execuție, stare și interacțiune.',
+        'Diagrams that': 'Diagrame care',
+        'remember themselves': 'se rețin pe ele însele',
+        'One tool makes you': 'Un singur instrument te obligă să',
+        'choose a side': 'alegi o parte',
+        'Textual tools like PlantUML give you Git diffs and version control, but any edit can scramble your carefully arranged diagram. Visual editors give you stable layouts, but their binary formats are unreadable in pull requests. No tool has ever satisfied both at once — until now.': 'Instrumentele textuale precum PlantUML îți oferă diferențe GitHub și control de versiune, dar orice editare poate amesteca diagrama aranjată cu grijă. Editoarele vizuale oferă o dispunere stabilă, dar formatele binare nu pot fi citite în pull requests. Niciun instrument nu le-a satisfăcut pe ambele — până acum.',
+        'Reads like English.': 'Se citește ca engleza.',
+        'Compiles like a type system.': 'Se compilează ca un sistem de tipuri.',
+        'Every entity keyword is a first-class UML citizen. Visibility modifiers, generics, stereotypes, inheritance — all native syntax. Layout annotations live inline with the semantic body, not in a sidecar file.': 'Fiecare cuvânt cheie de entitate este un cetățean UML de primă clasă. Modificatorii de vizibilitate, genericele, stereotipurile, moștenirea — toate au o sintaxă nativă. Adnotările de aspect funcționează direct (inline) cu corpul semantic, nu într-un fișier secundar.',
+        'class': 'class',
+        'usecase': 'usecase',
+        'sequence': 'sequence',
+        'component': 'component',
+        'deployment': 'deployment',
+        'state': 'state',
+        'activity': 'activity',
+        'collaboration': 'collaboration',
+        'flow': 'flow',
+        'Operatori de relație': 'Operatori de relație',
+        '-->': '-->',
+        'Association': 'Asociere',
+        '-|>': '-|>',
+        'Generalizare': 'Generalizare',
+        'Generalization': 'Generalizare',
+        '..|>': '..|>',
+        'Realization': 'Realizare',
+        '--*': '--*',
+        'Composition': 'Compoziție',
+        '--o': '--o',
+        'Aggregation': 'Agregare',
+        '..>': '..>',
+        'Dependency': 'Dependență',
+        'Class, component, deployment, package, and module views describe what exists and how systems are organized. These are first-class constructs in the grammar, not ad-hoc templates.': 'Clasa, componenta, desfășurarea, pachetul și modulul descriu ceea ce există și felul în care sistemele sunt organizate. Acestea sunt structuri de primă clasă în gramatică, nu template-uri ad-hoc.',
+        'Sequence, state, activity, collaboration, and flow diagrams capture what the system does over time. Structure and behavior live in one language and one canonical model.': 'Diagramele de secvență, stare, activitate, colaborare și flux captează ceea ce face sistemul în timp. Structura și comportamentul trăiesc într-un singur limbaj și un model canonic.',
+        'The only invariant': 'Singurul invariant',
+        'that matters': 'care contează',
+        '66 tokens': '66 de tokeni',
+        'Longest-match-first scanning. Whitespace and comments discarded. 271 lines, zero dependencies.': 'Scanare cu potrivirea-cea-mai-lungă. Spațiile albe și comentariile ignorate. 271 de linii, zero dependențe.',
+        '02 · Parse': '02 · Analiză',
+        'LL(1) hand-written': 'LL(1) scris manual',
+        '55 production rules. 22-node typed AST. Errors returned as values, never thrown. 541 lines.': '55 reguli de generare. AST tipizat de 22 noduri. Erori returnate ca valori, niciodată aruncate ca excepții. 541 rânduri.',
+        '03 · Analyse': '03 · Analiză Sem.',
+        '14 static rules': '14 reguli statice',
+        'Two-pass analysis. Symbol table built first, constraints evaluated second. Catches cyclic inheritance, referential integrity, enum safety.': 'Analiză în 2 pași. Tabel de simboluri construit primar, evaluarea constrângerilor secundar. Surprinde moștenirea ciclică, integritatea referențială, siguranța enum.',
+        '04 · Render': '04 · Randare',
+        '9 SVG renderers': '9 randere SVG',
+        '@Entity at (x,y) coordinates applied from source. ELK fallback for unplaced entities.': 'Coordonatele @Entity aplicate direct din sursă. Pentru entitățile nepoziționate, se transferă automat către ELK.',
+        'One file for code,': 'Un fișier pt. cod,',
+        'layout, and round-trip edits': 'aspect, și editări circulare',
+        'An .isx file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.': 'Un fișier .isx salvează atât structura semantică cât și coordonatele de vizualizare folosite, în același document. Acțiunea de drag (mutare) redesenează adnotările aspectului, deci editarea pe panou va fi în continuare deterministă și revizuibilă.',
+        'Handcrafted recursive descent.': 'Descent recursiv fabricat manual.',
+        'No ANTLR, no Chevrotain.': 'Fără ANTLR, fără Chevrotain.',
+        'We chose a custom parser and analyzer stack so grammar control, source-mapped errors, round-trip serialization, and invariant preservation all remain under our control. The renderer and editor were built around that same architecture, not bolted on later.': 'Am ales un parser și analizator personalizat pentru un control gramatical desăvârșit, erori legate de sursă, generare fișierului, cât și conservării la maximum. Atât funcțiile de generare grafică cât și de editare au fost concepute pe baza aceleiași arhitecturii, nefiind integrate ulterior.',
+        'Motivația alegerii': 'Motivul alegerii',
+        'Recursive-descent parsing gave us exact control over the language, deterministic edits, and compiler-style diagnostics. That matters when the same source file must drive both text editing and visual geometry.': 'Parsarea manuală descendentă recursiv, ne oferă o adaptabilitate completă a limbajului, modificări sigure (deterministe), cât și mesaje complete tip-compilator. Orice document principal conduce logica atât de editare clasică cât și grafică a diagramei.',
+        'Handwritten lexer + recursive-descent parser': 'Lexer scris de mână + analizor sintactic recursiv-descent',
+        'Two-pass analyzer with 14 semantic rules': 'Analizor intern bi-pas cu 14 reguli semantice',
+        'Custom renderer and editor integration': 'Randare personalizată și integrare al editorului',
+        'Errors are values,': 'Erorile sunt valori,',
+        'not surprises': 'nu surprize',
+        '14 named static semantic rules validated at compile time, before any rendering occurs. Every violation carries a rule identifier, entity name, and exact source location — not a blank canvas.': 'Avem 14 reguli semantice cu denumiri fixe analizate la timp de compilare, anterior a inițierii procesului de desenare. O ignorare are inclus propriul cod de regulă, identificant de context și locația fișierului fix. Ecran alb eliminat din listă.',
+        'A complete IDE,': 'IDE Complet,',
+        'deployed today': 'publicat azi',
+        'IDE CodeMirror 6': 'IDE CodeMirror 6',
+        'Multi-tab workspace with syntax highlighting, keyboard shortcuts, and a built-in example gallery for real architecture work.': 'Spațiu de lucru Multi-tab cu iluminare a sintaxei textelor, scurtături tastatură, listă completă de posibile ex. grafice spre de studiat în caz real.',
+        'Spațiu de desenare drag-and-drop': 'Spațiu de drag-and-drop',
+        'Move any entity on the SVG canvas. Only its @Entity annotation changes. Every other byte in the file stays untouched.': 'Poți reloca un cub direct pe ecran fără cod prin cursor. Se va reseta exclusiv linia semantică legată din sursă. Fiecare alt bit rămâne nemodificat.',
+        'Validare în timp real': 'Analiză constant-live',
+        'SS-1 through SS-14 fire on every keystroke. Structured errors with rule ID and source location, never silent failure.': 'Orice reg. începînd la S-1 la 14 pot activa la clik tastă. Tipuri organizate ce raportează precis erorile, ignorarea tăcută eliminată.',
+        '9 module de creare diagrame': '9 modele-țintă vizuale',
+        'Class, use-case, sequence, component, deployment, state, activity, collaboration, and flow — all producing SVG from one model.': 'Clasă (Class), use-case (caz-utilizare), secvenţă (structură program), componente (component), deployment (implementare), stare (state), activity (activitate), collaboration (colaborare), și Flow — toate producând un SVG unic.',
+        'Auto-aranjare prin ELK': 'Alinierea ELK automat',
+        'Entities without @annotations are automatically placed using the Eclipse Layout Kernel, stable across re-parses.': 'Acel conținut text ignorat a parametrilor fix de poziție i-se acordă o aliniere stabilită automat de algoritmul auto-aranjament tip ELK, perfect fiabil chiar peste reîncârcări diverse.',
+        'Sursă canonică `.isx`': 'Doc bază funcțional `.isx`',
+        'One file stores the model and the layout. Visual edits remain deterministic text edits instead of hidden binary state.': 'Același fișier canonic principal definește la fel graficele ca model. Transformându-i editările interactive exclusiv in transformări tip text stabile decât un fișier necunoscut criptat binar.',
+        'Diagrams that': 'Diagrame care',
+        'remember themselves': 'se rețin pe ele însele',
+        'One tool makes you': 'Un singur instrument te obligă să',
+        'choose a side': 'alegi o parte',
+        'Textual tools like PlantUML give you Git diffs and version control, but any edit can scramble your carefully arranged diagram. Visual editors give you stable layouts, but their binary formats are unreadable in pull requests. No tool has ever satisfied both at once — until now.': 'Instrumentele textuale precum PlantUML îți oferă diferențe GitHub și control de versiune, dar orice editare poate amesteca diagrama aranjată cu grijă. Editoarele vizuale oferă o dispunere stabilă, dar formatele binare nu pot fi citite în pull requests. Niciun instrument nu le-a satisfăcut pe ambele — până acum.',
+        'Reads like English.': 'Se citește ca engleza.',
+        'Compiles like a type system.': 'Se compilează ca un sistem de tipuri.',
+        'Every entity keyword is a first-class UML citizen. Visibility modifiers, generics, stereotypes, inheritance — all native syntax. Layout annotations live inline with the semantic body, not in a sidecar file.': 'Fiecare cuvânt cheie de entitate este un cetățean UML de primă clasă. Modificatorii de vizibilitate, genericele, stereotipurile, moștenirea — toate au o sintaxă nativă. Adnotările de aspect funcționează direct (inline) cu corpul semantic, nu într-un fișier secundar.',
+        'class': 'class',
+        'usecase': 'usecase',
+        'sequence': 'sequence',
+        'component': 'component',
+        'deployment': 'deployment',
+        'state': 'state',
+        'activity': 'activity',
+        'collaboration': 'collaboration',
+        'flow': 'flow',
+        'Operatori de relație': 'Operatori de relație',
+        '-->': '-->',
+        'Association': 'Asociere',
+        '-|>': '-|>',
+        'Generalizare': 'Generalizare',
+        'Generalization': 'Generalizare',
+        '..|>': '..|>',
+        'Realization': 'Realizare',
+        '--*': '--*',
+        'Composition': 'Compoziție',
+        '--o': '--o',
+        'Aggregation': 'Agregare',
+        '..>': '..>',
+        'Dependency': 'Dependență',
+        'Class, component, deployment, package, and module views describe what exists and how systems are organized. These are first-class constructs in the grammar, not ad-hoc templates.': 'Clasa, componenta, desfășurarea, pachetul și modulul descriu ceea ce există și felul în care sistemele sunt organizate. Acestea sunt structuri de primă clasă în gramatică, nu template-uri ad-hoc.',
+        'Sequence, state, activity, collaboration, and flow diagrams capture what the system does over time. Structure and behavior live in one language and one canonical model.': 'Diagramele de secvență, stare, activitate, colaborare și flux captează ceea ce face sistemul în timp. Structura și comportamentul trăiesc într-un singur limbaj și un model canonic.',
+        'The only invariant': 'Singurul invariant',
+        'that matters': 'care contează',
+        '66 tokens': '66 de tokeni',
+        'Longest-match-first scanning. Whitespace and comments discarded. 271 lines, zero dependencies.': 'Scanare cu potrivirea-cea-mai-lungă. Spațiile albe și comentariile ignorate. 271 de linii, zero dependențe.',
+        '02 · Parse': '02 · Analiză',
+        'LL(1) hand-written': 'LL(1) scris manual',
+        '55 production rules. 22-node typed AST. Errors returned as values, never thrown. 541 lines.': '55 reguli de generare. AST tipizat de 22 noduri. Erori returnate ca valori, niciodată aruncate ca excepții. 541 rânduri.',
+        '03 · Analyse': '03 · Analiză Sem.',
+        '14 static rules': '14 reguli statice',
+        'Two-pass analysis. Symbol table built first, constraints evaluated second. Catches cyclic inheritance, referential integrity, enum safety.': 'Analiză în 2 pași. Tabel de simboluri construit primar, evaluarea constrângerilor secundar. Surprinde moștenirea ciclică, integritatea referențială, siguranța enum.',
+        '04 · Render': '04 · Randare',
+        '9 SVG renderers': '9 randere SVG',
+        '@Entity at (x,y) coordinates applied from source. ELK fallback for unplaced entities.': 'Coordonatele @Entity aplicate direct din sursă. Pentru entitățile nepoziționate, se transferă automat către ELK.',
+        'One file for code,': 'Un fișier pt. cod,',
+        'layout, and round-trip edits': 'aspect, și editări circulare',
+        'An .isx file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.': 'Un fișier .isx salvează atât structura semantică cât și coordonatele de vizualizare folosite, în același document. Acțiunea de drag (mutare) redesenează adnotările aspectului, deci editarea pe panou va fi în continuare deterministă și revizuibilă.',
+        'Handcrafted recursive descent.': 'Descent recursiv fabricat manual.',
+        'No ANTLR, no Chevrotain.': 'Fără ANTLR, fără Chevrotain.',
+        'We chose a custom parser and analyzer stack so grammar control, source-mapped errors, round-trip serialization, and invariant preservation all remain under our control. The renderer and editor were built around that same architecture, not bolted on later.': 'Am ales un parser și analizator personalizat pentru un control gramatical desăvârșit, erori legate de sursă, generare fișierului, cât și conservării la maximum. Atât funcțiile de generare grafică cât și de editare au fost concepute pe baza aceleiași arhitecturii, nefiind integrate ulterior.',
+        'Motivația alegerii': 'Motivul alegerii',
+        'Recursive-descent parsing gave us exact control over the language, deterministic edits, and compiler-style diagnostics. That matters when the same source file must drive both text editing and visual geometry.': 'Parsarea manuală descendentă recursiv, ne oferă o adaptabilitate completă a limbajului, modificări sigure (deterministe), cât și mesaje complete tip-compilator. Orice document principal conduce logica atât de editare clasică cât și grafică a diagramei.',
+        'Handwritten lexer + recursive-descent parser': 'Lexer scris de mână + analizor sintactic recursiv-descent',
+        'Two-pass analyzer with 14 semantic rules': 'Analizor intern bi-pas cu 14 reguli semantice',
+        'Custom renderer and editor integration': 'Randare personalizată și integrare al editorului',
+        'Errors are values,': 'Erorile sunt valori,',
+        'not surprises': 'nu surprize',
+        '14 named static semantic rules validated at compile time, before any rendering occurs. Every violation carries a rule identifier, entity name, and exact source location — not a blank canvas.': 'Avem 14 reguli semantice cu denumiri fixe analizate la timp de compilare, anterior a inițierii procesului de desenare. O ignorare are inclus propriul cod de regulă, identificant de context și locația fișierului fix. Ecran alb eliminat din listă.',
+        'A complete IDE,': 'IDE Complet,',
+        'deployed today': 'publicat azi',
+        'IDE CodeMirror 6': 'IDE CodeMirror 6',
+        'Multi-tab workspace with syntax highlighting, keyboard shortcuts, and a built-in example gallery for real architecture work.': 'Spațiu de lucru Multi-tab cu iluminare a sintaxei textelor, scurtături tastatură, listă completă de posibile ex. grafice spre de studiat în caz real.',
+        'Spațiu de desenare drag-and-drop': 'Spațiu de drag-and-drop',
+        'Move any entity on the SVG canvas. Only its @Entity annotation changes. Every other byte in the file stays untouched.': 'Poți reloca un cub direct pe ecran fără cod prin cursor. Se va reseta exclusiv linia semantică legată din sursă. Fiecare alt bit rămâne nemodificat.',
+        'Validare în timp real': 'Analiză constant-live',
+        'SS-1 through SS-14 fire on every keystroke. Structured errors with rule ID and source location, never silent failure.': 'Orice reg. începînd la S-1 la 14 pot activa la clik tastă. Tipuri organizate ce raportează precis erorile, ignorarea tăcută eliminată.',
+        '9 module de creare diagrame': '9 modele-țintă vizuale',
+        'Class, use-case, sequence, component, deployment, state, activity, collaboration, and flow — all producing SVG from one model.': 'Clasă (Class), use-case (caz-utilizare), secvenţă (structură program), componente (component), deployment (implementare), stare (state), activity (activitate), collaboration (colaborare), și Flow — toate producând un SVG unic.',
+        'Auto-aranjare prin ELK': 'Alinierea ELK automat',
+        'Entities without @annotations are automatically placed using the Eclipse Layout Kernel, stable across re-parses.': 'Acel conținut text ignorat a parametrilor fix de poziție i-se acordă o aliniere stabilită automat de algoritmul auto-aranjament tip ELK, perfect fiabil chiar peste reîncârcări diverse.',
+        'Sursă canonică `.isx`': 'Doc bază funcțional `.isx`',
+        'One file stores the model and the layout. Visual edits remain deterministic text edits instead of hidden binary state.': 'Același fișier canonic principal definește la fel graficele ca model. Transformându-i editările interactive exclusiv in transformări tip text stabile decât un fișier necunoscut criptat binar.',
+        'Entity name uniqueness within diagram scope': 'Unicitatea numelui entității în scopul diagramei',
+        'Member name uniqueness within each entity': 'Unicitatea numelui membrului în fiecare entitate',
+        'Referential integrity of relation endpoints': 'Integritatea referențială a capetelor de relație',
+        'Enum non-emptiness — at least one value required': 'Enum-ul nu poate fi gol — cel puțin o valoare obligatorie',
+        'Interface fields carry no default values': 'Câmpurile interfeței nu au valori implicite',
+        'Acyclic direct inheritance — no A extends B extends A': 'Moștenire directă aciclică — fără A extends B extends A',
+        'Style target references a declared entity': 'Stilul țintă referențiază o entitate declarată',
+        'Enum value uniqueness within each enum body': 'Unicitatea valorii enum în interiorul corpului enum',
+        'Diagram kind compatibility — entity type matches context': 'Compatibilitatea tipului diagramei — tipul de entitate se potrivește cu contextul',
+        'Layout annotation references a declared entity': 'Adnotarea aspectului referențiază o entitate declarată',
+        'Abstract and final are mutually exclusive modifiers': 'Abstract și final sunt modificatori reciproc exclusivi',
+        'Method parameter name uniqueness per signature': 'Unicitatea numelui parametrului metodei pe semnătură',
+        'Extends target must reference a declared entity': 'Ținta extinderii trebuie să referențieze o entitate declarată',
+        'Implements target must reference a declared entity': 'Ținta implementării trebuie să referențieze o entitate declarată',
+        'Entity name uniqueness within diagram scope': 'Unicitatea numelui entității în scopul diagramei',
+        'Member name uniqueness within each entity': 'Unicitatea numelui membrului în fiecare entitate',
+        'Referential integrity of relation endpoints': 'Integritatea referențială a capetelor de relație',
+        'Enum non-emptiness — at least one value required': 'Enum-ul nu poate fi gol — cel puțin o valoare obligatorie',
+        'Interface fields carry no default values': 'Câmpurile interfeței nu au valori implicite',
+        'Acyclic direct inheritance — no A extends B extends A': 'Moștenire directă aciclică — fără A extends B extends A',
+        'Style target references a declared entity': 'Stilul țintă referențiază o entitate declarată',
+        'Enum value uniqueness within each enum body': 'Unicitatea valorii enum în interiorul corpului enum',
+        'Diagram kind compatibility — entity type matches context': 'Compatibilitatea tipului diagramei — tipul de entitate se potrivește cu contextul',
+        'Layout annotation references a declared entity': 'Adnotarea aspectului referențiază o entitate declarată',
+        'Abstract and final are mutually exclusive modifiers': 'Abstract și final sunt modificatori reciproc exclusivi',
+        'Method parameter name uniqueness per signature': 'Unicitatea numelui parametrului metodei pe semnătură',
+        'Extends target must reference a declared entity': 'Ținta extinderii trebuie să referențieze o entitate declarată',
+        'Implements target must reference a declared entity': 'Ținta implementării trebuie să referențieze o entitate declarată',
+        'An `.isx` file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.': 'Un fișier `.isx` stochează structura semantică și coordonatele precise ale ecranului împreună. Tragerea (drag) pe panou rescrie doar adnotările de aspect, așadar editarea vizuală rămâne deterministă și revizuibilă în sistemul de control al versiunilor.',
+        'Explore the IDE,': 'Explorează IDE-ul,',
+        'inspect the source': 'inspectează sursa',
+        'Open the editor, drag the canvas, and verify that the source stays reviewable while the geometry remains stable.': 'Deschide editorul, mută panoul și verifică faptul că sursa rămâne revizuibilă în timp ce geometria rămâne stabilă.',
+        'Nine complete UML diagram types — one language, one canonical model.': 'Nouă tipuri complete de diagrame UML — un limbaj, un model canonic.',
+        'An `.isx` file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.': 'Un fișier `.isx` stochează structura semantică și coordonatele precise ale ecranului împreună. Tragerea (drag) pe panou rescrie doar adnotările de aspect, așadar editarea vizuală rămâne deterministă și revizuibilă în sistemul de control al versiunilor.',
+        'Explore the IDE,': 'Explorează IDE-ul,',
+        'inspect the source': 'inspectează sursa',
+        'Open the editor, drag the canvas, and verify that the source stays reviewable while the geometry remains stable.': 'Deschide editorul, mută panoul și verifică faptul că sursa rămâne revizuibilă în timp ce geometria rămâne stabilă.',
+        'Nine complete UML diagram types — one language, one canonical model.': 'Nouă tipuri complete de diagrame UML — un limbaj, un model canonic.',
+      },
+      ru: {
+        'ui.language': 'Язык',
+        'Language': 'Язык',
+        'ui.toggle_theme': 'Переключить тему',
+        'Try live IDE \u2192': 'Попробовать IDE \u2192',
+        'Architecture': 'Архитектура',
+        'Validation': 'Валидация',
+        'Demo': 'Демо',
+        'DSL Course · FAF-241 · Technical University of Moldova': 'Курс DSL · FAF-241 · Технический университет Молдовы',
+        
+        'Diagrams that remember themselves': 'Диаграммы, которые помнят себя',
+        'A domain-specific language where layout is source data. Edit text or drag the canvas \u2014 the model stays canonical.': 'Предметно-ориентированный язык, в котором макет — это исходные данные. Редактируйте текст или перетаскивайте холст \u2014 модель остается неизменной.',
+        'hero.sub': 'Предметно-ориентированный язык, в котором макет — это исходные данные. Редактируйте текст или перетаскивайте холст — модель остается канонической.',
+        'Try live IDE': 'Попробовать IDE',
+        'View on GitHub': 'Смотреть на GitHub',
+        'Diagram types': 'Типы диаграмм',
+        'Competitors compared': 'Сравнение конкурентов',
+        'Grammar rules': 'Правила грамматики',
+        'Token kinds': 'Типы токенов',
+        'Semantic rules': 'Семантические правила',
+        
+        'The problem': 'Проблема',
+        'One tool makes you choose a side': 'Один инструмент заставляет выбирать сторону',
+        'desc.plantuml': 'Текстовые инструменты, такие как PlantUML, предоставляют вам Git diff(сравнения) и контроль версий, но любое редактирование может нарушить аккуратно составленную диаграмму. Визуальные редакторы предлагают стабильные макеты, но их бинарные форматы нечитаемы в pull requests. До сих пор ни один инструмент не удовлетворял обоим требованиям одновременно.',
+        
+        'The language': 'Язык',
+        'Reads like English. Compiles like a type system.': 'Читается как английский. Компилируется как система типов.',
+        'desc.entitykw': 'Каждое ключевое слово сущности — полноправный элемент UML. Модификаторы видимости, обобщения(Generics), стереотипы, наследование — все это встроенный синтаксис. Аннотации макета(layout) располагаются вместе с семантическим блоком, а не в отдельном файле.',
+
+        'diagram.class': 'class',
+        'diagram.usecase': 'usecase',
+        'diagram.sequence': 'sequence',
+        'diagram.component': 'component',
+        'diagram.deployment': 'deployment',
+        'diagram.state': 'state',
+        'diagram.activity': 'activity',
+        'diagram.collaboration': 'collaboration',
+        'diagram.flow': 'flow',
+
+        'Relation operators': 'Операторы связей',
+        'rel.association': 'Ассоциация',
+        'rel.generalization': 'Обобщение',
+        'rel.realization': 'Реализация',
+        'rel.composition': 'Композиция',
+        'rel.aggregation': 'Агрегация',
+        'rel.dependency': 'Зависимость',
+
+        'Structural breadth': 'Структурный охват',
+        'Behavioral breadth': 'Поведенческий охват',
+        'Bidirectional architecture': 'Двунаправленная архитектура',
+        
+        'The only invariant that matters': 'Единственный важный инвариант',
+        '66 tokens': '66 токенов',
+        '02 · Parse': '02 · Синтаксический анализ',
+        'LL(1) hand-written': 'LL(1) ручной парсер',
+        '03 · Analyse': '03 · Семантический анализ',
+        '14 static rules': '14 статических правил',
+        '04 · Render': '04 · Рендеринг',
+        '9 SVG renderers': '9 рендереров SVG',
+
+        'One file for code, layout, and round-trip edits': 'Один файл для кода, макета и сквозного редактирования',
+        'Handcrafted recursive descent. No ANTLR, no Chevrotain.': 'Рекурсивный спуск ручной работы. Ни ANTLR, ни Chevrotain.',
+        'Layout stays in the source, not in a sidecar file': 'Макет остается в исходнике, а не в отдельном файле',
+        'ISX file': 'Файл ISX',
+        'Core tech stack': 'Основной технологический стек',
+        'Why custom': 'Почему собственный',
+        
+        'Semantic safety': 'Семантическая безопасность',
+        'Errors are values, not surprises': 'Ошибки — это значения, а не сюрпризы',
+        
+        '<span data-i18n="SS-1 Entity name uniqueness within diagram scope">SS-1 Entity name uniqueness within diagram scope</span>': 'SS-1 Уникальность имени сущности в рамках области диаграммы',
+        '<span data-i18n="SS-2 Member name uniqueness within each entity">SS-2 Member name uniqueness within each entity</span>': 'SS-2 Уникальность имени члена внутри каждой сущности',
+        '<span data-i18n="SS-3 Referential integrity of relation endpoints">SS-3 Referential integrity of relation endpoints</span>': 'SS-3 Ссылочная целостность точек связи',
+        '<span data-i18n="SS-4 Enum non-emptiness — at least one value required">SS-4 Enum non-emptiness — at least one value required</span>': 'SS-4 Enum не пуст - требуется как минимум одно значение',
+        '<span data-i18n="SS-5 Interface fields carry no default values">SS-5 Interface fields carry no default values</span>': 'SS-5 Поля интерфейса не имеют значений по умолчанию',
+        '<span data-i18n="SS-6 Acyclic direct inheritance — no A extends B extends A">SS-6 Acyclic direct inheritance — no A extends B extends A</span>': 'SS-6 Ациклическое прямое наследование — нельзя наследовать самого себя',
+        '<span data-i18n="SS-7 Style target references a declared entity">SS-7 Style target references a declared entity</span>': 'SS-7 Цель стиля ссылается на объявленную сущность',
+        '<span data-i18n="SS-8 Enum value uniqueness within each enum body">SS-8 Enum value uniqueness within each enum body</span>': 'SS-8 Уникальность значения enum внутри тела каждого enum',
+        '<span data-i18n="SS-9 Diagram kind compatibility — entity type matches context">SS-9 Diagram kind compatibility — entity type matches context</span>': 'SS-9 Совместимость типа диаграммы — тип сущности соответствует контексту',
+        '<span data-i18n="SS-10 Layout annotation references a declared entity">SS-10 Layout annotation references a declared entity</span>': 'SS-10 Аннотация макета ссылается на объявленную сущность',
+        '<span data-i18n="SS-11 Abstract and final are mutually exclusive modifiers">SS-11 Abstract and final are mutually exclusive modifiers</span>': 'SS-11 "Abstract" и "final" являются взаимоисключающими модификаторами',
+        '<span data-i18n="SS-12 Method parameter name uniqueness per signature">SS-12 Method parameter name uniqueness per signature</span>': 'SS-12 Уникальность имени параметра метода на сигнатуру',
+        '<span data-i18n="SS-13 Extends target must reference a declared entity">SS-13 Extends target must reference a declared entity</span>': 'SS-13 Цель наследования (extends) должна ссылаться на объявленную сущность',
+        '<span data-i18n="SS-14 Implements target must reference a declared entity">SS-14 Implements target must reference a declared entity</span>': 'SS-14 Цель реализации (implements) должна ссылаться на объявленную сущность',
+
+        "What's shipped": 'Что уже готово',
+        'A complete IDE, deployed today': 'Полноценная IDE, доступная сегодня',
+        'CodeMirror 6 IDE': 'IDE на базе CodeMirror 6',
+        'Drag-and-drop canvas': 'Холст с функцией перетаскивания',
+        'Real-time validation': 'Валидация в реальном времени',
+        '9 diagram renderers': '9 рендереров диаграмм',
+        'ELK auto-layout': 'Авторазмещение ELK',
+        'Canonical `.isx` source': 'Канонический исходник `.isx`',
+        'Explore the IDE, inspect the source': 'Изучите IDE и исходники',
+        'Open Isomorph IDE': 'Открыть Isomorph IDE',
+        'GitHub': 'GitHub',
+        'Live IDE': 'Live IDE',
+
+        'Property': 'Свойство',
+        'Text-based source': 'Текстовый формат',
+        'Stable layout': 'Стабильный макет',
+        'VCS-friendly': 'Подходит для систем контроля версий (VCS)',
+        
+        // Detailed Descriptions
+        'desc.multitab': 'Многовкладочная рабочая область с подсветкой синтаксиса, горячими клавишами и встроенной галереей примеров для реальной архитектурной работы.',
+        'desc.move': 'Перемещайте любую сущность на SVG-холсте. Изменяется только её аннотация @Entity. Остальной код в файле остается нетронутым.',
+        'desc.ss1': 'Правила SS-1 — SS-14 срабатывают при каждом нажатии клавиши. Структурированные ошибки с ID правила и точным расположением в коде, никакого скрытого игнорирования.',
+        'desc.classusecase': 'Класс, прецедент, последовательность, компонент, развертывание, состояние, активность, кооперация и поток — все они создают SVG из единой модели.',
+        'desc.elk': 'Сущности без @аннотаций автоматически размещаются с помощью Eclipse Layout Kernel, стабильно после каждого повторного разбора.',
+        'desc.onefile': 'Один файл хранит как модель, так и её макет. Визуальные изменения остаются детерминированными текстовыми правками вместо скрытого бинарного состояния.',
+        'desc.14rules': '14 статических семантических правил проверяются во время компиляции до начала рендеринга. Каждое нарушение содержит идентификатор правила, имя сущности и точное местоположение в исходниках — никаких пустых холстов.',
+        'desc.customparser': 'Мы выбрали собственный стек синтаксического и семантического анализа, поэтому контроль грамматики, ошибки с привязкой к исходному коду, двунаправленная сериализация и сохранение инвариантов остаются под нашим контролем. Рендерер и редактор были построены вокруг той же самой архитектуры, а не добавлены после.',
+        'desc.recdescent': 'Парсинг методом рекурсивного спуска дал нам точный контроль над языком, детерминированные правки и диагностику на уровне компилятора. Это важно, когда один и тот же исходный файл должен управляться как редактированием текста, так и визуальной геометрией.',
+        'desc.isxfile': 'Файл `.isx` хранит семантическую структуру и точные координаты экрана вместе. Перетаскивание на холсте переписывает только аннотации макета, поэтому визуальное редактирование остается детерминированным и удобным для просмотра в системе контроля версий.',
+        
+        'desc.lexertoks': 'Сканирование по принципу "самое длинное совпадение первым". Пробелы и комментарии отбрасываются. 271 строка, ноль внешних зависимостей.',
+        'desc.parserules': '55 правил продукции. Типизированное AST из 22 узлов. Ошибки возвращаются как значения, никогда не выбрасываются как исключения. 541 строка.',
+        'desc.analyzerrules': 'Анализ в два прохода. Сначала строится таблица символов, затем оцениваются ограничения. Ловит циклическое наследование, нарушение ссылочной целостности, обеспечивает безопасность перечислений.',
+        'desc.svgrenderers': 'Координаты @Entity (x,y) применяются из исходника. Автоматическое размещение ELK для сущностей без координат.',
+        
+        'desc.structviews': 'Диаграммы классов, компонентов, развертывания, пакетов и модулей описывают, что существует и как организованы системы. Они являются встроенными конструкциями грамматики, а не временными шаблонами.',
+        'desc.behavviews': 'Диаграммы последовательности, состояний, активности, взаимодействия и потока описывают то, что делает система с течением времени. Структура и поведение живут в рамках одного языка и одной канонической модели.',
+        'Architecture, modules, and deployment.': 'Архитектура, модули и развертывание.',
+        'Runtime flow, state, and interaction.': 'Поток выполнения, состояние и взаимодействие.',
+        'Diagrams that': 'Диаграммы,',
+        'remember themselves': 'которые помнят себя',
+        'One tool makes you': 'Один инструмент заставляет',
+        'choose a side': 'вас выбрать сторону',
+        'Textual tools like PlantUML give you Git diffs and version control, but any edit can scramble your carefully arranged diagram. Visual editors give you stable layouts, but their binary formats are unreadable in pull requests. No tool has ever satisfied both at once — until now.': 'Текстовые инструменты вроде PlantUML дают контроль версий и разницу Git, но любая правка может нарушить тщательно выстроенную диаграмму. Визуальные редакторы предлагают устойчивую разметку, однако их бинарные файлы не читаются в pull-request-ах. Ранее ни один инструмент не обеспечивал всё одновременно — до сегодняшнего дня.',
+        'Reads like English.': 'Читается как текст на английском.',
+        'Compiles like a type system.': 'Компилируется как система типов.',
+        'Every entity keyword is a first-class UML citizen. Visibility modifiers, generics, stereotypes, inheritance — all native syntax. Layout annotations live inline with the semantic body, not in a sidecar file.': 'Все ключевые слова — это сущности первоклассного объекта UML. Модификаторы видимости, типы обобщений, стереотипы или наследование — полностью встроенная грамматика. Пометки пространственной разметки находятся внутри семантики текста, а не в сторонних файлах.',
+        'class': 'class',
+        'usecase': 'usecase',
+        'sequence': 'sequence',
+        'component': 'component',
+        'deployment': 'deployment',
+        'state': 'state',
+        'activity': 'activity',
+        'collaboration': 'collaboration',
+        'flow': 'flow',
+        'Operatori de relație': 'Операторы отношений',
+        'Relation operators': 'Операторы',
+        '-->': '-->',
+        'Association': 'Ассоциация',
+        '-|>': '-|>',
+        'Generalizare': 'Обобщение',
+        'Generalization': 'Обобщение',
+        '..|>': '..|>',
+        'Realization': 'Реализация',
+        '--*': '--*',
+        'Composition': 'Композиция',
+        '--o': '--o',
+        'Aggregation': 'Агрегация',
+        '..>': '..>',
+        'Dependency': 'Зависимость',
+        'Class, component, deployment, package, and module views describe what exists and how systems are organized. These are first-class constructs in the grammar, not ad-hoc templates.': 'Представление классов, пакетов, модулей и развёртывания описывает текущую базу системы и их связь в проекте (её архитектуры). Названные элементы первоочерёдные конструкции в грамматике; не внешние шаблоны.',
+        'Sequence, state, activity, collaboration, and flow diagrams capture what the system does over time. Structure and behavior live in one language and one canonical model.': 'Такие графики структур-поведения (секвенций), временных активностей и сотрудничества определяют динамику действий платформы. Архитектура и временное поведение работают через единый текст и каноническую модель.',
+        'The only invariant': 'Единственный',
+        'that matters': 'важный инвариант',
+        '66 tokens': '66 токенов',
+        'Longest-match-first scanning. Whitespace and comments discarded. 271 lines, zero dependencies.': 'Схема разбора длинного совпадения первая. Лишние пробелы вместе с комментариями пропускаются. 271 строка кода, никаких библиотек-зависимостей.',
+        '02 · Parse': '02 · Синтаксис',
+        'LL(1) hand-written': 'Самописный LL(1)',
+        '55 production rules. 22-node typed AST. Errors returned as values, never thrown. 541 lines.': '55 грамматик правил. AST дерева (AST) типизировано на 22 вида. Все ошибки выводятся напрямую в значение-результат, вместо скрытых исключений. Код 541 строка.',
+        '03 · Analyse': '03 · Анализ',
+        '14 static rules': '14 стат. правил',
+        'Two-pass analysis. Symbol table built first, constraints evaluated second. Catches cyclic inheritance, referential integrity, enum safety.': 'Анализ семантики на 2-шага. Сначала генерируется таблица символов, потом запускается учёт ошибок базы-ограничений (ссылочные закольцованности наследования, целостность переменных и безопасность списков типа enum).',
+        '04 · Render': '04 · Рендеринг',
+        '9 SVG renderers': 'Рендеринг 9 SVG',
+        '@Entity at (x,y) coordinates applied from source. ELK fallback for unplaced entities.': 'Географические векторы x:y у @Entity вставляется прямо из текста. Неуказанные (скрытые) объекты рендерятся и размещаются автоматом через бэкэнд-ELK.',
+        'One file for code,': 'Одиночный исходник,',
+        'layout, and round-trip edits': 'внешний вид и 2-сторонний перенос',
+        'An .isx file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.': 'Текстовый .isx хранит как саму информацию по структуре, так и текущее-расположение координат. От перетягивания окон по SVG перезаписываются только визуальные теги атрибутов (отметки), соответственно всё наглядное-редактирование абсолютно чёткое.',
+        'Handcrafted recursive descent.': 'Анализатор рекурсивного спуска.',
+        'No ANTLR, no Chevrotain.': 'Ни ANTLR. Ни Chevrotain.',
+        'We chose a custom parser and analyzer stack so grammar control, source-mapped errors, round-trip serialization, and invariant preservation all remain under our control. The renderer and editor were built around that same architecture, not bolted on later.': 'Ради полноценного технического контроля от самого базового звена (контроль вывода об ошибках прямо в месте координат строки и так далее), был выбран свой индивидуальный алгоритм-анализатор. Компонента вывода SVG графики (равно как текстовый-IDE) спроектированы внутри основного ядра.',
+        'Motivația alegerii': 'Мотивация выбора',
+        'Recursive-descent parsing gave us exact control over the language, deterministic edits, and compiler-style diagnostics. That matters when the same source file must drive both text editing and visual geometry.': 'Рекурсивно-исходящий алгоритм предоставил жесткое управление грамматикой, без-сюрпризов и предсказуемое управление, вместе с мощной системой определения конфигураций. Начиная с базового уровня-архитектуры.',
+        'Handwritten lexer + recursive-descent parser': 'Движок само-написанный: лексер и рекурсивно нисходящий движок',
+        'Two-pass analyzer with 14 semantic rules': '2-кратный Анализатор (14 спец-правил)',
+        'Custom renderer and editor integration': 'Спец.-интеграции IDE вместе выводом Графики',
+        'Errors are values,': 'Ошибки как статус,',
+        'not surprises': 'без сюрпризов',
+        '14 named static semantic rules validated at compile time, before any rendering occurs. Every violation carries a rule identifier, entity name, and exact source location — not a blank canvas.': 'Имеем строгие 14-правил грамматики и семантики, проверенных именно при-компиляции (ДО отрисовки рисунков SVG). Ошибки указываются конкретно в виде понятного индекса-отсылки к проблеме и указанием позиции. Больше вы не получите пустую таблицу.',
+        'A complete IDE,': 'Функциональная IDE,',
+        'deployed today': 'запускается сейчас',
+        'IDE CodeMirror 6': 'Вектор CodeMirror 6',
+        'Multi-tab workspace with syntax highlighting, keyboard shortcuts, and a built-in example gallery for real architecture work.': 'Мультиоконная система-редактор, с подсветкой синтаксиса на-лету, шорткатами кнопок и базовой коллекцией тестовых заданий для наглядности готовой архитектуры.',
+        'Spațiu de desenare drag-and-drop': 'Поле для drag-and-drop',
+        'Move any entity on the SVG canvas. Only its @Entity annotation changes. Every other byte in the file stays untouched.': 'Перемещай сущность прямо на векторном SVG-полотне; меняется лишь специальный атрибут позиции-Entity. Любые другие данные байт за байтом безболезненно сохраняются.',
+        'Validare în timp real': 'Live Проверка',
+        'SS-1 through SS-14 fire on every keystroke. Structured errors with rule ID and source location, never silent failure.': 'Индикация 14 семантик при самом минимальном нажатии кнопок на клавиатуре. Проверенные типы ID ошибок-статусов без фатальных закрытий.',
+        '9 module de creare diagrame': 'Серия из 9-разновидностей рисунков',
+        'Class, use-case, sequence, component, deployment, state, activity, collaboration, and flow — all producing SVG from one model.': 'Категория class (класс), use-case (взаимодействие), sequence (логика секвенций), state (состояния), deployment (развёртывание) и другие... Все создаются в формате SVG из одной модели.',
+        'Auto-aranjare prin ELK': 'Auto-дизайн от ELK',
+        'Entities without @annotations are automatically placed using the Eclipse Layout Kernel, stable across re-parses.': 'Все те не-передвинутые лично пользователем объекты, собираются по дизайну автоматически используя известный алгоритм от Eclipse Layout Kernel.',
+        'Sursă canonică `.isx`': 'Идеально каноничный `.isx`',
+        'One file stores the model and the layout. Visual edits remain deterministic text edits instead of hidden binary state.': 'Единое решение хранит и логику-связи модуля и её данные по координатам. Поэтому любые перемещения мышки-по окну SVG, отображают лишь детерминированные строчные трансформации, исключая какие-либо бинарные мусорные теги.',
+        'Diagrams that': 'Диаграммы,',
+        'remember themselves': 'которые помнят себя',
+        'One tool makes you': 'Один инструмент заставляет',
+        'choose a side': 'вас выбрать сторону',
+        'Textual tools like PlantUML give you Git diffs and version control, but any edit can scramble your carefully arranged diagram. Visual editors give you stable layouts, but their binary formats are unreadable in pull requests. No tool has ever satisfied both at once — until now.': 'Текстовые инструменты вроде PlantUML дают контроль версий и разницу Git, но любая правка может нарушить тщательно выстроенную диаграмму. Визуальные редакторы предлагают устойчивую разметку, однако их бинарные файлы не читаются в pull-request-ах. Ранее ни один инструмент не обеспечивал всё одновременно — до сегодняшнего дня.',
+        'Reads like English.': 'Читается как текст на английском.',
+        'Compiles like a type system.': 'Компилируется как система типов.',
+        'Every entity keyword is a first-class UML citizen. Visibility modifiers, generics, stereotypes, inheritance — all native syntax. Layout annotations live inline with the semantic body, not in a sidecar file.': 'Все ключевые слова — это сущности первоклассного объекта UML. Модификаторы видимости, типы обобщений, стереотипы или наследование — полностью встроенная грамматика. Пометки пространственной разметки находятся внутри семантики текста, а не в сторонних файлах.',
+        'class': 'class',
+        'usecase': 'usecase',
+        'sequence': 'sequence',
+        'component': 'component',
+        'deployment': 'deployment',
+        'state': 'state',
+        'activity': 'activity',
+        'collaboration': 'collaboration',
+        'flow': 'flow',
+        'Operatori de relație': 'Операторы отношений',
+        'Relation operators': 'Операторы',
+        '-->': '-->',
+        'Association': 'Ассоциация',
+        '-|>': '-|>',
+        'Generalizare': 'Обобщение',
+        'Generalization': 'Обобщение',
+        '..|>': '..|>',
+        'Realization': 'Реализация',
+        '--*': '--*',
+        'Composition': 'Композиция',
+        '--o': '--o',
+        'Aggregation': 'Агрегация',
+        '..>': '..>',
+        'Dependency': 'Зависимость',
+        'Class, component, deployment, package, and module views describe what exists and how systems are organized. These are first-class constructs in the grammar, not ad-hoc templates.': 'Представление классов, пакетов, модулей и развёртывания описывает текущую базу системы и их связь в проекте (её архитектуры). Названные элементы первоочерёдные конструкции в грамматике; не внешние шаблоны.',
+        'Sequence, state, activity, collaboration, and flow diagrams capture what the system does over time. Structure and behavior live in one language and one canonical model.': 'Такие графики структур-поведения (секвенций), временных активностей и сотрудничества определяют динамику действий платформы. Архитектура и временное поведение работают через единый текст и каноническую модель.',
+        'The only invariant': 'Единственный',
+        'that matters': 'важный инвариант',
+        '66 tokens': '66 токенов',
+        'Longest-match-first scanning. Whitespace and comments discarded. 271 lines, zero dependencies.': 'Схема разбора длинного совпадения первая. Лишние пробелы вместе с комментариями пропускаются. 271 строка кода, никаких библиотек-зависимостей.',
+        '02 · Parse': '02 · Синтаксис',
+        'LL(1) hand-written': 'Самописный LL(1)',
+        '55 production rules. 22-node typed AST. Errors returned as values, never thrown. 541 lines.': '55 грамматик правил. AST дерева (AST) типизировано на 22 вида. Все ошибки выводятся напрямую в значение-результат, вместо скрытых исключений. Код 541 строка.',
+        '03 · Analyse': '03 · Анализ',
+        '14 static rules': '14 стат. правил',
+        'Two-pass analysis. Symbol table built first, constraints evaluated second. Catches cyclic inheritance, referential integrity, enum safety.': 'Анализ семантики на 2-шага. Сначала генерируется таблица символов, потом запускается учёт ошибок базы-ограничений (ссылочные закольцованности наследования, целостность переменных и безопасность списков типа enum).',
+        '04 · Render': '04 · Рендеринг',
+        '9 SVG renderers': 'Рендеринг 9 SVG',
+        '@Entity at (x,y) coordinates applied from source. ELK fallback for unplaced entities.': 'Географические векторы x:y у @Entity вставляется прямо из текста. Неуказанные (скрытые) объекты рендерятся и размещаются автоматом через бэкэнд-ELK.',
+        'One file for code,': 'Одиночный исходник,',
+        'layout, and round-trip edits': 'внешний вид и 2-сторонний перенос',
+        'An .isx file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.': 'Текстовый .isx хранит как саму информацию по структуре, так и текущее-расположение координат. От перетягивания окон по SVG перезаписываются только визуальные теги атрибутов (отметки), соответственно всё наглядное-редактирование абсолютно чёткое.',
+        'Handcrafted recursive descent.': 'Анализатор рекурсивного спуска.',
+        'No ANTLR, no Chevrotain.': 'Ни ANTLR. Ни Chevrotain.',
+        'We chose a custom parser and analyzer stack so grammar control, source-mapped errors, round-trip serialization, and invariant preservation all remain under our control. The renderer and editor were built around that same architecture, not bolted on later.': 'Ради полноценного технического контроля от самого базового звена (контроль вывода об ошибках прямо в месте координат строки и так далее), был выбран свой индивидуальный алгоритм-анализатор. Компонента вывода SVG графики (равно как текстовый-IDE) спроектированы внутри основного ядра.',
+        'Motivația alegerii': 'Мотивация выбора',
+        'Recursive-descent parsing gave us exact control over the language, deterministic edits, and compiler-style diagnostics. That matters when the same source file must drive both text editing and visual geometry.': 'Рекурсивно-исходящий алгоритм предоставил жесткое управление грамматикой, без-сюрпризов и предсказуемое управление, вместе с мощной системой определения конфигураций. Начиная с базового уровня-архитектуры.',
+        'Handwritten lexer + recursive-descent parser': 'Движок само-написанный: лексер и рекурсивно нисходящий движок',
+        'Two-pass analyzer with 14 semantic rules': '2-кратный Анализатор (14 спец-правил)',
+        'Custom renderer and editor integration': 'Спец.-интеграции IDE вместе выводом Графики',
+        'Errors are values,': 'Ошибки как статус,',
+        'not surprises': 'без сюрпризов',
+        '14 named static semantic rules validated at compile time, before any rendering occurs. Every violation carries a rule identifier, entity name, and exact source location — not a blank canvas.': 'Имеем строгие 14-правил грамматики и семантики, проверенных именно при-компиляции (ДО отрисовки рисунков SVG). Ошибки указываются конкретно в виде понятного индекса-отсылки к проблеме и указанием позиции. Больше вы не получите пустую таблицу.',
+        'A complete IDE,': 'Функциональная IDE,',
+        'deployed today': 'запускается сейчас',
+        'IDE CodeMirror 6': 'Вектор CodeMirror 6',
+        'Multi-tab workspace with syntax highlighting, keyboard shortcuts, and a built-in example gallery for real architecture work.': 'Мультиоконная система-редактор, с подсветкой синтаксиса на-лету, шорткатами кнопок и базовой коллекцией тестовых заданий для наглядности готовой архитектуры.',
+        'Spațiu de desenare drag-and-drop': 'Поле для drag-and-drop',
+        'Move any entity on the SVG canvas. Only its @Entity annotation changes. Every other byte in the file stays untouched.': 'Перемещай сущность прямо на векторном SVG-полотне; меняется лишь специальный атрибут позиции-Entity. Любые другие данные байт за байтом безболезненно сохраняются.',
+        'Validare în timp real': 'Live Проверка',
+        'SS-1 through SS-14 fire on every keystroke. Structured errors with rule ID and source location, never silent failure.': 'Индикация 14 семантик при самом минимальном нажатии кнопок на клавиатуре. Проверенные типы ID ошибок-статусов без фатальных закрытий.',
+        '9 module de creare diagrame': 'Серия из 9-разновидностей рисунков',
+        'Class, use-case, sequence, component, deployment, state, activity, collaboration, and flow — all producing SVG from one model.': 'Категория class (класс), use-case (взаимодействие), sequence (логика секвенций), state (состояния), deployment (развёртывание) и другие... Все создаются в формате SVG из одной модели.',
+        'Auto-aranjare prin ELK': 'Auto-дизайн от ELK',
+        'Entities without @annotations are automatically placed using the Eclipse Layout Kernel, stable across re-parses.': 'Все те не-передвинутые лично пользователем объекты, собираются по дизайну автоматически используя известный алгоритм от Eclipse Layout Kernel.',
+        'Sursă canonică `.isx`': 'Идеально каноничный `.isx`',
+        'One file stores the model and the layout. Visual edits remain deterministic text edits instead of hidden binary state.': 'Единое решение хранит и логику-связи модуля и её данные по координатам. Поэтому любые перемещения мышки-по окну SVG, отображают лишь детерминированные строчные трансформации, исключая какие-либо бинарные мусорные теги.',
+        'Entity name uniqueness within diagram scope': 'Уникальность имени сущности в рамках области диаграммы',
+        'Member name uniqueness within each entity': 'Уникальность имени члена внутри каждой сущности',
+        'Referential integrity of relation endpoints': 'Ссылочная целостность конечных точек отношения',
+        'Enum non-emptiness — at least one value required': 'Перечисление не пусто — требуется минимум одно значение',
+        'Interface fields carry no default values': 'Поля интерфейса не имеют значений по умолчанию',
+        'Acyclic direct inheritance — no A extends B extends A': 'Ациклическое прямое наследование — без A наследует B наследует A',
+        'Style target references a declared entity': 'Целевой стиль ссылается на объявленную сущность',
+        'Enum value uniqueness within each enum body': 'Уникальность значения перечисления в каждом теле',
+        'Diagram kind compatibility — entity type matches context': 'Совместимость типа диаграммы — тип сущности соответствует контексту',
+        'Layout annotation references a declared entity': 'Аннотация макета ссылается на объявленную сущность',
+        'Abstract and final are mutually exclusive modifiers': 'Модификаторы abstract и final взаимоисключающи',
+        'Method parameter name uniqueness per signature': 'Уникальность имени параметра метода в рамках сигнатуры',
+        'Extends target must reference a declared entity': 'Цель наследования должна ссылаться на объявленную сущность',
+        'Implements target must reference a declared entity': 'Цель реализации должна ссылаться на объявленную сущность',
+        'Entity name uniqueness within diagram scope': 'Уникальность имени сущности в рамках области диаграммы',
+        'Member name uniqueness within each entity': 'Уникальность имени члена внутри каждой сущности',
+        'Referential integrity of relation endpoints': 'Ссылочная целостность конечных точек отношения',
+        'Enum non-emptiness — at least one value required': 'Перечисление не пусто — требуется минимум одно значение',
+        'Interface fields carry no default values': 'Поля интерфейса не имеют значений по умолчанию',
+        'Acyclic direct inheritance — no A extends B extends A': 'Ациклическое прямое наследование — без A наследует B наследует A',
+        'Style target references a declared entity': 'Целевой стиль ссылается на объявленную сущность',
+        'Enum value uniqueness within each enum body': 'Уникальность значения перечисления в каждом теле',
+        'Diagram kind compatibility — entity type matches context': 'Совместимость типа диаграммы — тип сущности соответствует контексту',
+        'Layout annotation references a declared entity': 'Аннотация макета ссылается на объявленную сущность',
+        'Abstract and final are mutually exclusive modifiers': 'Модификаторы abstract и final взаимоисключающи',
+        'Method parameter name uniqueness per signature': 'Уникальность имени параметра метода в рамках сигнатуры',
+        'Extends target must reference a declared entity': 'Цель наследования должна ссылаться на объявленную сущность',
+        'Implements target must reference a declared entity': 'Цель реализации должна ссылаться на объявленную сущность',
+        'An `.isx` file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.': 'Файл `.isx` хранит семантическую структуру и точные экранные координаты вместе. Перетаскивание холста перезаписывает только аннотации макета, поэтому визуальное редактирование остается детерминированным и проверяемым в системе контроля версий.',
+        'Explore the IDE,': 'Исследуйте IDE,',
+        'inspect the source': 'изучите исходный код',
+        'Open the editor, drag the canvas, and verify that the source stays reviewable while the geometry remains stable.': 'Откройте редактор, перетащите элементы на холсте и убедитесь, что исходный код остается проверяемым, в то время как геометрия остается стабильной.',
+        'Nine complete UML diagram types — one language, one canonical model.': 'Девять полных типов диаграмм UML — один язык, одна каноническая модель.',
+        'An `.isx` file stores semantic structure and exact screen coordinates together. Dragging the canvas only rewrites the layout annotations, so visual editing stays deterministic and reviewable in version control.': 'Файл `.isx` хранит семантическую структуру и точные экранные координаты вместе. Перетаскивание холста перезаписывает только аннотации макета, поэтому визуальное редактирование остается детерминированным и проверяемым в системе контроля версий.',
+        'Explore the IDE,': 'Исследуйте IDE,',
+        'inspect the source': 'изучите исходный код',
+        'Open the editor, drag the canvas, and verify that the source stays reviewable while the geometry remains stable.': 'Откройте редактор, перетащите элементы на холсте и убедитесь, что исходный код остается проверяемым, в то время как геометрия остается стабильной.',
+        'Nine complete UML diagram types — one language, one canonical model.': 'Девять полных типов диаграмм UML — один язык, одна каноническая модель.',
+      }
+    };
+
+    const isSkippableTextNode = (node) => {
+      const parent = node.parentElement;
+      if (!parent) return true;
+      if (parent.closest('script, style, code, pre, .code-line, .syntax-body')) return true;
+      return false;
+    };
+
+    const textNodes = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let current;
+    while ((current = walker.nextNode())) {
+      if (isSkippableTextNode(current)) continue;
+      const raw = current.textContent || '';
+      if (!raw.trim()) continue;
+      textNodes.push({ node: current, original: raw });
+    }
+
+    const normalize = (value) => value.replace(/\s+/g, ' ').trim();
+
+    function translateText(raw, language) {
+      if (language === 'en') return raw;
+      const dict = siteTranslations[language] || {};
+      const trimmed = normalize(raw);
+      const translated = dict[trimmed];
+      if (!translated) return raw;
+      const leading = raw.match(/^\s*/)?.[0] || '';
+      const trailing = raw.match(/\s*$/)?.[0] || '';
+      return `${leading}${translated}${trailing}`;
+    }
+
+    function applyLanguage(language) {
+      const normalized = ['en', 'ro', 'ru'].includes(language) ? language : 'en';
+      document.documentElement.setAttribute('lang', normalized);
+      if (languageSelect) languageSelect.value = normalized;
+      textNodes.forEach(item => {
+        item.node.textContent = translateText(item.original, normalized);
+      });
+      themeBtn.setAttribute('aria-label', normalized === 'en' ? 'Toggle theme' : (siteTranslations[normalized]['ui.toggle_theme'] || 'Toggle theme'));
+      if (languageSelect) {
+        languageSelect.setAttribute('aria-label', normalized === 'en' ? 'Language' : (siteTranslations[normalized]['ui.language'] || 'Language'));
+      }
+    }
+
+    const storedLanguage = localStorage.getItem(languageStorageKey);
+    const initialLanguage = ['en', 'ro', 'ru'].includes(storedLanguage) ? storedLanguage : 'en';
+    applyLanguage(initialLanguage);
+
+    if (languageSelect) {
+      languageSelect.addEventListener('change', () => {
+        const nextLanguage = ['en', 'ro', 'ru'].includes(languageSelect.value) ? languageSelect.value : 'en';
+        localStorage.setItem(languageStorageKey, nextLanguage);
+        applyLanguage(nextLanguage);
+      });
+    }
+
+    window.addEventListener('storage', (event) => {
+      if (event.key !== languageStorageKey) return;
+      const nextLanguage = ['en', 'ro', 'ru'].includes(event.newValue) ? event.newValue : 'en';
+      applyLanguage(nextLanguage);
+    });
+
+    // Theme toggle logic
+
+    function updateThemeIcon(theme) {
+      if (theme === 'dark') {
+        // Moon icon for dark mode (to switch back to light)
+        themeIcon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+      } else {
+        // Sun icon for light mode (to switch to dark)
+        themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+      }
+    }
+
+    // Set initial icon based on current data-theme
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    updateThemeIcon(currentTheme);
+
+    themeBtn.addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const newTheme = isDark ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('isomorph-theme', newTheme);
+      updateThemeIcon(newTheme);
+    });
+</script>
+</body>
+</html>
+
+
+
+
+
