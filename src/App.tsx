@@ -357,17 +357,20 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Interface', keyword: 'interface' },
         { label: 'Enum', keyword: 'enum' },
         { label: 'Package', keyword: 'package' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'usecase':
       return [
         { label: 'Actor', keyword: 'actor' },
         { label: 'Use Case', keyword: 'usecase' },
         { label: 'System', keyword: 'system' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'component':
       return [
         { label: 'Component', keyword: 'component' },
         { label: 'Interface', keyword: 'interface' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'deployment':
       return [
@@ -376,6 +379,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Device', keyword: 'node <<device>>' },
         { label: 'Artifact', keyword: 'artifact' },
         { label: 'Environment', keyword: 'environment' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'sequence':
       return [
@@ -387,6 +391,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Par Fragment', keyword: 'par' },
         { label: 'Break Fragment', keyword: 'break' },
         { label: 'Critical Fragment', keyword: 'critical' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'state':
       return [
@@ -399,6 +404,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'History', keyword: 'history' },
         { label: 'Concurrent', keyword: 'concurrent' },
         { label: 'Composite', keyword: 'composite' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'activity':
       return [
@@ -410,6 +416,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Fork', keyword: 'fork' },
         { label: 'Join', keyword: 'join' },
         { label: 'Partition', keyword: 'partition' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'collaboration':
       return [
@@ -418,6 +425,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Multiobject', keyword: 'multiobject' },
         { label: 'Active Object', keyword: 'active_object' },
         { label: 'Composite Obj', keyword: 'composite_object' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'flow':
       return [
@@ -427,6 +435,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'End', keyword: 'stop' },
         { label: 'Fork', keyword: 'fork' },
         { label: 'Join', keyword: 'join' },
+        { label: 'Note', keyword: 'note' },
       ];
     default:
       return [];
@@ -2453,8 +2462,8 @@ export default function App() {
               <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
                 <label style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
                   <span>{t('edit.body')} (Markdown)</span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button type="button" className="iso-btn" style={{ padding: '2px 8px', fontWeight: 'bold' }} onClick={(e) => {
+                  <div style={{ display: 'flex', gap: '4px', userSelect: 'none' }}>
+                    <button type="button" className="iso-btn" title="Bold (Ctrl+B)" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', fontWeight: 'bold' }} onClick={(e) => {
                       e.stopPropagation();
                       const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
                       if (!target) return;
@@ -2473,7 +2482,7 @@ export default function App() {
                       setEditingEntity({ ...editingEntity, bodyText: newVal });
                       setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
                     }}>B</button>
-                    <button type="button" className="iso-btn" style={{ padding: '2px 8px', fontStyle: 'italic' }} onClick={(e) => {
+                    <button type="button" className="iso-btn" title="Italic (Ctrl+I)" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', fontStyle: 'italic' }} onClick={(e) => {
                       e.stopPropagation();
                       const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
                       if (!target) return;
@@ -2492,7 +2501,7 @@ export default function App() {
                       setEditingEntity({ ...editingEntity, bodyText: newVal });
                       setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
                     }}>I</button>
-                    <button type="button" className="iso-btn" style={{ padding: '2px 8px', textDecoration: 'underline' }} onClick={(e) => {
+                    <button type="button" className="iso-btn" title="Underline (Ctrl+U)" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', textDecoration: 'underline' }} onClick={(e) => {
                       e.stopPropagation();
                       const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
                       if (!target) return;
@@ -2511,7 +2520,7 @@ export default function App() {
                       setEditingEntity({ ...editingEntity, bodyText: newVal });
                       setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
                     }}>U</button>
-                    <button type="button" className="iso-btn" style={{ padding: '2px 8px', textDecoration: 'line-through' }} onClick={(e) => {
+                    <button type="button" className="iso-btn" title="Strikethrough" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', textDecoration: 'line-through' }} onClick={(e) => {
                       e.stopPropagation();
                       const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
                       if (!target) return;

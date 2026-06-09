@@ -38,6 +38,23 @@ function getExportSVGString(svgEl: Element): string {
   clone.style.minWidth = '';
   clone.style.minHeight = '';
 
+  // Inject CSS variables to make the SVG self-contained (fixes missing arrows)
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+    svg {
+      --iso-text-muted: #64748b;
+      --iso-bg-panel: #ffffff;
+      --iso-bg-blue: #f0f9ff;
+      --iso-bg-green: #f0fdf4;
+      --iso-bg-purple: #fdf4ff;
+      --iso-bg-orange: #fffbeb;
+      --iso-bg-yellow: #fefce8;
+      --iso-border: #e2e8f0;
+      --iso-text: #0f172a;
+    }
+  `;
+  clone.prepend(styleEl);
+
   return new XMLSerializer().serializeToString(clone);
 }
 

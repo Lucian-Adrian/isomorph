@@ -1124,7 +1124,7 @@ export function DiagramView({
     }
     setIsInteracting(false);
     dragRef.current = { mode: 'none', hasMoved: false, pointerId: -1, startClientX: 0, startClientY: 0 };
-  }, [diagram, zoom, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
+  }, [diagram, zoom, pan, marqueeState, selectedItems, onSelectionChange, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
 
   const isDiagramEmpty = diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
 
