@@ -7,7 +7,6 @@
 
 function getExportSVGString(svgEl: Element): string {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   
   try {
     if (svgEl instanceof SVGSVGElement && typeof svgEl.getBBox === 'function') {
