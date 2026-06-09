@@ -115,6 +115,8 @@ describe('full canvas shell', () => {
     for (const label of ['Lock tool', 'Select', 'Hand', 'Rectangle', 'Ellipse', 'Arrow', 'Line', 'Pen', 'Text', 'Image', 'Eraser', 'More tools']) {
       expect(host.querySelector(`[aria-label="${label}"]`)).not.toBeNull();
     }
+    expect(host.querySelector('[aria-label="Create Participant"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Destroy Participant"]')).toBeNull();
 
     act(() => host.querySelector('[aria-label="More tools"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
     expect(host.textContent).toContain('Frame');

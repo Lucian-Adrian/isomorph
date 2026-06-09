@@ -19,7 +19,7 @@ Last refreshed: 2026-06-09 from the local `feature/infinite-canvas-ultimate-ux` 
 - [ ] `npm run qa:supabase:live`: not rerun in this refresh. Previous docs record a 2026-05-31 live pass; current live proof still needs credentials.
 
 Build output to keep in mind:
-- `website/dist/app/assets/index-9wthjR_o.js`: 389.64 kB.
+- `website/dist/app/assets/index-BMlJFpO1.js`: 389.50 kB.
 - `website/dist/app/assets/vendor-editor-CKufDpsk.js`: 357.24 kB.
 - `website/dist/app/assets/vendor-supabase-Cp1pO4X2.js`: 204.43 kB.
 - `website/dist/app/assets/vendor-react-CIlLrotA.js`: 138.64 kB.
