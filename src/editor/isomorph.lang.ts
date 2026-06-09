@@ -14,17 +14,36 @@ import { tags as t } from '@lezer/highlight';
  * Isomorph DSL stream language definition for CodeMirror 6.
  * Uses the StreamLanguage adapter from @codemirror/language.
  */
-export const isomorphLanguage = StreamLanguage.define({
+export const isomorphLanguage = StreamLanguage.define<{ inComment: boolean }>({
   name: 'isomorph',
-  token(stream) {
+  languageData: {
+    commentTokens: { line: '//', block: { open: '/*', close: '*/' } }
+  },
+  startState() { return { inComment: false }; },
+  token(stream, state) {
+    if (state.inComment) {
+      while (!stream.eol()) {
+        if (stream.match('*/')) {
+          state.inComment = false;
+          return 'comment';
+        }
+        stream.next();
+      }
+      return 'comment';
+    }
+
     // Whitespace
     if (stream.eatSpace()) return null;
 
     // Comments
     if (stream.match('//')) { stream.skipToEnd(); return 'comment'; }
     if (stream.match('/*')) {
+      state.inComment = true;
       while (!stream.eol()) {
-        if (stream.match('*/')) break;
+        if (stream.match('*/')) {
+          state.inComment = false;
+          break;
+        }
         stream.next();
       }
       return 'comment';

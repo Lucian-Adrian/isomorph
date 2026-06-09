@@ -57,5 +57,6 @@ Any new feature/fix must include documentation updates when applicable:
 - ROADMAP.md scope/status updates,
 - diagram-specific docs updates if user-visible behavior changed,
 - examples/tests updated for parity.
+- **Always write all the changes you implement nicely formatted into `changes.md` after they have been done.**
 
 - Keep verification strict: old + new tests, build pass, and manual test instructions after each batch.

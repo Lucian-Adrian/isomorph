@@ -1346,8 +1346,8 @@ export default function App() {
           }, false);
         }
 
-        // Copy selected items
-        if (e.key === 'c' && selectedItems.length > 0 && activeDiagram) {
+        // Duplicate selected items (Ctrl+D) or Copy (Ctrl+C)
+        if ((e.key === 'c' || e.key === 'd') && selectedItems.length > 0 && activeDiagram) {
           e.preventDefault();
           const snippets: string[] = [];
           for (const item of selectedItems) {
@@ -1364,7 +1364,45 @@ export default function App() {
             }
           }
           if (snippets.length > 0) {
-            navigator.clipboard.writeText(snippets.join('\n')).catch(() => {});
+            const textToCopy = snippets.join('\n');
+            if (e.key === 'c') {
+              navigator.clipboard.writeText(textToCopy).catch(() => {});
+            } else if (e.key === 'd') {
+              // Re-use paste logic for duplicate
+              const doPaste = (text: string) => {
+                if (!text.trim()) return;
+                let pasteText = text;
+                const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
+                const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
+                
+                for (const name of namesToReplace) {
+                  const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
+                  const baseStr = baseMatch ? baseMatch[1] : name;
+                  let newName = baseStr + '1';
+                  let i = 2;
+                  const isNameTaken = (n: string) => {
+                    const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
+                    return rx.test(activeTab?.source || '') || rx.test(pasteText);
+                  };
+                  let emergencyBreak = 0;
+                  while (isNameTaken(newName) && emergencyBreak < 1000) {
+                    newName = baseStr + i;
+                    i++;
+                    emergencyBreak++;
+                  }
+                  pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
+                }
+                pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
+                  return `@${n} at (${Math.round(parseFloat(x) + 30)}, ${Math.round(parseFloat(y) + 30)}${sizeSuffix || ''})`;
+                });
+                updateActiveTab(tab => {
+                  let src = insertBeforeAnnotations(tab.source, pasteText.trim());
+                  src = formatDiagramSource(src);
+                  return { ...tab, source: src };
+                });
+              };
+              doPaste(textToCopy);
+            }
           }
         }
 
@@ -1542,7 +1580,7 @@ export default function App() {
       if (e.ctrlKey && !e.shiftKey && e.key === 'o') { e.preventDefault(); fileInputRef.current?.click(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'e') { e.preventDefault(); handleExportSVG(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); handleExportPNG(); }
-      if (e.ctrlKey && e.key === '/') { e.preventDefault(); setShortcutsOpen(o => !o); }
+      if (e.ctrlKey && e.key === 'q') { e.preventDefault(); setShortcutsOpen(o => !o); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);

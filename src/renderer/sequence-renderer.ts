@@ -373,7 +373,7 @@ let minX = Infinity;
     const inset = 15 + (depth * 8);
 
     let fragTop = minY !== Infinity ? minY - 35 + (depth * 6) : 50;
-    let fragBottom = maxY !== -Infinity ? maxY + 35 - (depth * 6) : 150;
+    let fragBottom = maxY !== -Infinity ? maxY + 44 - (depth * 6) : 150;
     
     let fragLeft;
     let fragRight;
@@ -431,7 +431,7 @@ const tabText = `${frag.kind.toUpperCase()}`.trim();
           
           let sepY = lastValidSepY;
           if (lastY !== -Infinity) {
-            sepY = lastY + 28 - fragTop;
+            sepY = lastY + 36 - fragTop;
             lastValidSepY = sepY + 30; // advance fallback
           } else {
             sepY = lastValidSepY;

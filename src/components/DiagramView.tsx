@@ -55,10 +55,12 @@ export function DiagramView({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [activeTool, setActiveTool] = useState<CanvasTool>('move');
   const [drawingEdge, setDrawingEdge] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
+  const [marqueeState, setMarqueeState] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
 
   const dragRef = useRef<{
-    mode: 'none' | 'entity' | 'pan' | 'add-edge' | 'resize-entity' | 'relation-vertical';
+    mode: 'none' | 'entity' | 'pan' | 'add-edge' | 'resize-entity' | 'relation-vertical' | 'marquee';
+    hasMoved: boolean;
     pointerId: number;
     startClientX: number;
     startClientY: number;
@@ -75,7 +77,8 @@ export function DiagramView({
     relationOrigY?: number;
     panStartX?: number;
     panStartY?: number;
-  }>({ mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 });
+    selectedOrigs?: Record<string, { x: number, y: number, usesDelta: boolean, group: SVGGElement }>;
+  }>({ mode: 'none', hasMoved: false, pointerId: -1, startClientX: 0, startClientY: 0 });
 
   const SNAP_THRESHOLD = 10;
 
@@ -214,6 +217,72 @@ export function DiagramView({
     return () => window.removeEventListener('keydown', handler);
   }, [onExportSVG]);
 
+  // Keyboard shortcut: Arrow keys for moving selected entities
+  useEffect(() => {
+    if (!onEntityMove || selectedItems.length === 0) return;
+    const handler = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const delta = e.shiftKey ? 20 : 5;
+        const dx = e.key === 'ArrowRight' ? delta : e.key === 'ArrowLeft' ? -delta : 0;
+        const dy = e.key === 'ArrowDown' ? delta : e.key === 'ArrowUp' ? -delta : 0;
+
+        const seededPositions: Record<string, { x: number; y: number; w?: number; h?: number }> = {};
+        const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
+        for (const group of allEntityGroups) {
+          const entityName = group.getAttribute('data-entity-name');
+          if (!entityName) continue;
+          const tfAll = group.getAttribute('transform') ?? '';
+          const mAll = tfAll.match(/translate\(([^,]+),([^)]+)\)/);
+          if (!mAll) continue;
+          let xAll = Math.round(parseFloat(mAll[1]));
+          let yAll = Math.round(parseFloat(mAll[2]));
+          const ePkgGroup = group.closest('g[data-package-name]') as SVGGElement | null;
+          if (ePkgGroup) {
+            const ptf = ePkgGroup.getAttribute('transform') ?? '';
+            const pm = ptf.match(/translate\(([^,]+),([^)]+)\)/);
+            if (pm) {
+              xAll += Math.round(parseFloat(pm[1]));
+              yAll += Math.round(parseFloat(pm[2]));
+            }
+          }
+          const wAll = Number.parseFloat(group.getAttribute('data-entity-width') ?? '');
+          const hAll = Number.parseFloat(group.getAttribute('data-entity-height') ?? '');
+          seededPositions[entityName] = {
+            x: xAll,
+            y: yAll,
+            w: Number.isFinite(wAll) ? Math.round(wAll) : undefined,
+            h: Number.isFinite(hAll) ? Math.round(hAll) : undefined,
+          };
+        }
+
+        const updatedPositions = { ...seededPositions };
+        let anyMoved = false;
+        let mainEntityId = '';
+
+        selectedItems.forEach(item => {
+          if (item.type === 'entity') {
+            const currentPos = updatedPositions[item.id];
+            if (currentPos) {
+              updatedPositions[item.id] = { ...currentPos, x: currentPos.x + dx, y: currentPos.y + dy };
+              anyMoved = true;
+              if (!mainEntityId) mainEntityId = item.id;
+            }
+          }
+        });
+        
+        if (anyMoved) {
+          onEntityMove(mainEntityId, updatedPositions[mainEntityId].x, updatedPositions[mainEntityId].y, dx, dy, updatedPositions);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedItems, onEntityMove]);
+
   // Render SVG into container on diagram change
   useEffect(() => {
     const el = containerRef.current;
@@ -288,7 +357,7 @@ export function DiagramView({
 
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!diagram || !canvasRef.current) return;
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 2) return;
     const target = e.target as Element;
 
     if (pendingDropKeyword && onDropEntity) {
@@ -303,9 +372,10 @@ export function DiagramView({
     }
 
     const now = Date.now();
-    if (now - lastClickRef.current < 300) {
+    const isRightClick = e.button === 2;
+    if (now - lastClickRef.current < 300 || isRightClick) {
       lastClickRef.current = 0;
-      // It's a double click!
+      // It's a double click or right click!
       const relationGroup = target.closest('g[data-relation-id]') as SVGGElement | null;
       if (relationGroup && onRelationEditRequest && availableTools.includes('edit-edge')) {
         const relationId = relationGroup.getAttribute('data-relation-id');
@@ -437,17 +507,27 @@ export function DiagramView({
       if (entityGroup) {
         const entityName = entityGroup.getAttribute('data-entity-name') || entityGroup.getAttribute('data-package-name');
         if (entityName) {
-          if (e.shiftKey) {
-            onSelectionChange([...selectedItems, { type: 'entity', id: entityName }]);
+          if (e.shiftKey || e.ctrlKey || e.metaKey) {
+            if (!selectedItems.some(i => i.type === 'entity' && i.id === entityName)) {
+              onSelectionChange([...selectedItems, { type: 'entity', id: entityName }]);
+            } else {
+              onSelectionChange(selectedItems.filter(i => !(i.type === 'entity' && i.id === entityName)));
+            }
           } else {
-            onSelectionChange([{ type: 'entity', id: entityName }]);
+            if (!selectedItems.some(i => i.type === 'entity' && i.id === entityName)) {
+              onSelectionChange([{ type: 'entity', id: entityName }]);
+            }
           }
         }
       } else if (relationGroup) {
         const relationId = relationGroup.getAttribute('data-relation-id');
         if (relationId) {
-          if (e.shiftKey) {
-            onSelectionChange([...selectedItems, { type: 'relation', id: relationId }]);
+          if (e.shiftKey || e.ctrlKey || e.metaKey) {
+            if (!selectedItems.some(i => i.type === 'relation' && i.id === relationId)) {
+              onSelectionChange([...selectedItems, { type: 'relation', id: relationId }]);
+            } else {
+              onSelectionChange(selectedItems.filter(i => !(i.type === 'relation' && i.id === relationId)));
+            }
           } else {
             onSelectionChange([{ type: 'relation', id: relationId }]);
           }
@@ -458,7 +538,8 @@ export function DiagramView({
     }
 
     const canMoveEntity = availableTools.includes('move') || availableTools.includes('hand');
-    const shouldPan = true; // Always allow pan if missed entity
+    const shouldPan = activeTool === 'hand';
+    const shouldMarquee = activeTool === 'move';
 
     if (relationGroup && activeTool === 'move' && diagram.kind === 'sequence' && onRelationVerticalMove) {
       const relationId = relationGroup.getAttribute('data-relation-id') ?? undefined;
@@ -566,8 +647,35 @@ export function DiagramView({
         });
       }
 
+      // Gather multi-selection data if this entity is selected
+      const selectedOrigs: Record<string, { x: number, y: number, usesDelta: boolean, group: SVGGElement }> = {};
+      const isSelected = selectedItems.some(i => i.type === 'entity' && i.id === entityName);
+      if (isSelected && selectedItems.length > 0) {
+        selectedItems.forEach(item => {
+          if (item.type === 'entity') {
+            const group = containerRef.current?.querySelector(`g[data-entity-name="${item.id}"], g[data-package-name="${item.id}"]`) as SVGGElement | null;
+            if (group) {
+              const itemTf = group.getAttribute('transform') ?? '';
+              const itemM = itemTf.match(/translate\(([^,]+),([^)]+)\)/);
+              let ix = itemM ? parseFloat(itemM[1]) : 0;
+              let iy = itemM ? parseFloat(itemM[2]) : 0;
+              if (!itemM) {
+                const iRect = group.querySelector('rect');
+                if (iRect) {
+                  ix = parseFloat(iRect.getAttribute('x') || '0');
+                  iy = parseFloat(iRect.getAttribute('y') || '0');
+                }
+              }
+              selectedOrigs[item.id] = { x: ix, y: iy, usesDelta: !itemM, group };
+              group.style.willChange = 'transform';
+            }
+          }
+        });
+      }
+
       dragRef.current = {
         mode: 'entity',
+        hasMoved: false,
         pointerId: e.pointerId,
         startClientX: e.clientX,
         startClientY: e.clientY,
@@ -576,6 +684,7 @@ export function DiagramView({
         entityOrigX,
         entityOrigY,
         entityUsesDeltaTransform: usesDeltaTransform,
+        selectedOrigs,
       };
       entityGroup.style.willChange = 'transform';
       setIsInteracting(true);
@@ -587,12 +696,33 @@ export function DiagramView({
     if (shouldPan) {
       dragRef.current = {
         mode: 'pan',
+        hasMoved: false,
         pointerId: e.pointerId,
         startClientX: e.clientX,
         startClientY: e.clientY,
         panStartX: pan.x,
         panStartY: pan.y,
       };
+      setIsInteracting(true);
+      canvasRef.current.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    } else if (shouldMarquee) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const scale = zoom / 100;
+      const wrap = canvasRef.current;
+      const x = (e.clientX - rect.left + (wrap.scrollLeft || 0) - pan.x) / scale;
+      const y = (e.clientY - rect.top + (wrap.scrollTop || 0) - pan.y) / scale;
+      dragRef.current = {
+        mode: 'marquee',
+        hasMoved: false,
+        pointerId: e.pointerId,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        entityOrigX: x,
+        entityOrigY: y,
+      };
+      setMarqueeState({ x, y, w: 0, h: 0 });
       setIsInteracting(true);
       canvasRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
@@ -607,6 +737,24 @@ export function DiagramView({
       const dx = e.clientX - drag.startClientX;
       const dy = e.clientY - drag.startClientY;
       setPan({ x: drag.panStartX + dx, y: drag.panStartY + dy });
+      return;
+    }
+
+    if (drag.mode !== 'none') {
+      drag.hasMoved = true;
+    }
+
+    if (drag.mode === 'marquee' && drag.entityOrigX != null && drag.entityOrigY != null) {
+      const scale = zoom / 100;
+      const dx = (e.clientX - drag.startClientX) / scale;
+      const dy = (e.clientY - drag.startClientY) / scale;
+      let x = drag.entityOrigX;
+      let y = drag.entityOrigY;
+      let w = Math.abs(dx);
+      let h = Math.abs(dy);
+      if (dx < 0) x = x + dx;
+      if (dy < 0) y = y + dy;
+      setMarqueeState({ x, y, w, h });
       return;
     }
 
@@ -755,10 +903,22 @@ export function DiagramView({
         }
       }
 
-      if (drag.entityUsesDeltaTransform) {
-        drag.entityGroup.setAttribute('transform', `translate(${dx},${dy})`);
+      if (drag.selectedOrigs && Object.keys(drag.selectedOrigs).length > 0) {
+        Object.values(drag.selectedOrigs).forEach(item => {
+          const ix = item.x + dx;
+          const iy = item.y + dy;
+          if (item.usesDelta) {
+            item.group.setAttribute('transform', `translate(${dx},${dy})`);
+          } else {
+            item.group.setAttribute('transform', `translate(${ix},${iy})`);
+          }
+        });
       } else {
-        drag.entityGroup.setAttribute('transform', `translate(${nextX},${nextY})`);
+        if (drag.entityUsesDeltaTransform) {
+          drag.entityGroup.setAttribute('transform', `translate(${dx},${dy})`);
+        } else {
+          drag.entityGroup.setAttribute('transform', `translate(${nextX},${nextY})`);
+        }
       }
     }
   }, [diagram, zoom, pan]);
@@ -766,6 +926,50 @@ export function DiagramView({
   const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (drag.mode === 'none' || drag.pointerId !== e.pointerId) return;
+
+    if (drag.mode === 'entity' && !drag.hasMoved) {
+      if (!e.shiftKey && !e.ctrlKey && !e.metaKey && drag.entityName && onSelectionChange) {
+        onSelectionChange([{ type: 'entity', id: drag.entityName }]);
+      }
+    }
+
+    if (drag.mode === 'marquee' && marqueeState && onSelectionChange) {
+      setMarqueeState(null);
+      const { x: mx, y: my, w: mw, h: mh } = marqueeState;
+      const mRight = mx + mw;
+      const mBottom = my + mh;
+      const newSelection: { type: 'entity' | 'relation', id: string }[] = (e.shiftKey || e.ctrlKey || e.metaKey) ? [...selectedItems] : [];
+      
+      if (mw > 5 && mh > 5) {
+        const allEntityGroups = Array.from(containerRef.current?.querySelectorAll('g[data-entity-name]') ?? []) as SVGGElement[];
+        for (const group of allEntityGroups) {
+          const entityName = group.getAttribute('data-entity-name');
+          if (!entityName) continue;
+          const tfAll = group.getAttribute('transform') ?? '';
+          const mAll = tfAll.match(/translate\(([^,]+),([^)]+)\)/);
+          let ox = 0; let oy = 0;
+          if (mAll) {
+            ox = parseFloat(mAll[1]);
+            oy = parseFloat(mAll[2]);
+          } else {
+            const rect = group.querySelector('rect');
+            if (rect) {
+              ox = parseFloat(rect.getAttribute('x') || '0');
+              oy = parseFloat(rect.getAttribute('y') || '0');
+            }
+          }
+          const ow = parseFloat(group.getAttribute('data-entity-width') || group.querySelector('rect')?.getAttribute('width') || '0');
+          const oh = parseFloat(group.getAttribute('data-entity-height') || group.querySelector('rect')?.getAttribute('height') || '0');
+          
+          if (ox < mRight && ox + ow > mx && oy < mBottom && oy + oh > my) {
+            if (!newSelection.some(s => s.type === 'entity' && s.id === entityName)) {
+              newSelection.push({ type: 'entity', id: entityName });
+            }
+          }
+        }
+      }
+      onSelectionChange(newSelection);
+    }
 
     if (drag.mode === 'add-edge') {
       setDrawingEdge(null);
@@ -880,6 +1084,9 @@ export function DiagramView({
 
     if (drag.entityGroup) {
       drag.entityGroup.style.willChange = '';
+      if (drag.selectedOrigs) {
+        Object.values(drag.selectedOrigs).forEach(item => item.group.style.willChange = '');
+      }
       // Restore SVG filters that were stripped during package drag
       const stripped = drag.entityGroup.querySelectorAll('[data-drag-filter]');
       stripped.forEach(el => {
@@ -893,13 +1100,13 @@ export function DiagramView({
       canvasRef.current.releasePointerCapture(e.pointerId);
     }
     setIsInteracting(false);
-    dragRef.current = { mode: 'none', pointerId: -1, startClientX: 0, startClientY: 0 };
+    dragRef.current = { mode: 'none', hasMoved: false, pointerId: -1, startClientX: 0, startClientY: 0 };
   }, [diagram, zoom, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
 
   const isDiagramEmpty = diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }} onContextMenu={e => e.preventDefault()}>
       {/* Empty state (no code typed at all) */}
       {!diagram && (
         <div className="iso-canvas-empty" aria-hidden="true" style={{ pointerEvents: 'none' }}>
@@ -973,6 +1180,7 @@ export function DiagramView({
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onContextMenu={(e) => e.preventDefault()}
         onDragOver={e => e.preventDefault()}
         onDrop={e => {
           e.preventDefault();
@@ -1002,6 +1210,19 @@ export function DiagramView({
               <line x1={drawingEdge.x1} y1={drawingEdge.y1} x2={drawingEdge.x2} y2={drawingEdge.y2} stroke="var(--accent-color, #2563eb)" strokeWidth="3" strokeDasharray="5,5" />
             </g>
           </svg>
+        )}
+        {marqueeState && (
+          <div style={{
+            position: 'absolute',
+            border: '1px solid var(--accent-color, #2563eb)',
+            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+            left: marqueeState.x * (zoom / 100) + pan.x,
+            top: marqueeState.y * (zoom / 100) + pan.y,
+            width: marqueeState.w * (zoom / 100),
+            height: marqueeState.h * (zoom / 100),
+            pointerEvents: 'none',
+            zIndex: 100
+          }} />
         )}
       </div>
 

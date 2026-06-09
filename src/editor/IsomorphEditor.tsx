@@ -99,25 +99,32 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
           '.cm-lint-marker-error': { content: '""', color: 'var(--iso-error)' },
           '.cm-lint-marker-warning': { content: '""', color: 'var(--iso-warning)' },
           '.cm-tooltip-lint': { backgroundColor: 'var(--white)', border: '1px solid var(--iso-border-strong)', borderRadius: '6px', color: 'var(--ink)', boxShadow: 'var(--iso-shadow)' },
-          // Autocomplete styling
-          '.cm-tooltip-autocomplete': {
-            backgroundColor: 'var(--white)',
+          // Tooltip styling (applies to autocomplete and lint)
+          '.cm-tooltip': {
+            backgroundColor: 'var(--iso-bg-panel)',
             border: '1px solid var(--iso-border-strong)',
             borderRadius: '6px',
-            color: 'var(--ink)',
-            boxShadow: 'var(--iso-shadow)',
+            color: 'var(--iso-text)',
+            boxShadow: 'var(--iso-shadow-lg)',
+          },
+          '.cm-tooltip-autocomplete': {
+            // cm-tooltip already handles background and border
+          },
+          '.cm-tooltip-autocomplete > ul': {
+            fontFamily: 'var(--mono)',
           },
           '.cm-tooltip-autocomplete > ul > li': {
-            color: 'var(--ink)',
+            color: 'var(--iso-text)',
+            padding: '4px 8px',
           },
           '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-            backgroundColor: 'var(--iso-brand)',
-            color: 'var(--white)',
+            backgroundColor: 'var(--iso-bg-active)',
+            color: 'var(--iso-brand-dark)',
           },
-          '.cm-completionLabel': { color: 'var(--ink)' },
-          '.cm-completionMatchedText': { textDecoration: 'underline', color: 'var(--iso-brand-dark)' },
-          '.cm-completionDetail': { color: 'var(--ink-mid)', fontStyle: 'italic', marginLeft: '8px' },
-          '.cm-completionInfo': { padding: '4px 8px', fontStyle: 'italic', color: 'var(--ink-mid)' },
+          '.cm-completionLabel': { color: 'var(--iso-text)' },
+          '.cm-completionMatchedText': { textDecoration: 'none', color: 'var(--iso-info)', fontWeight: 'bold' },
+          '.cm-completionDetail': { color: 'var(--iso-text-muted)', fontStyle: 'normal', marginLeft: '12px', fontSize: '11px' },
+          '.cm-completionInfo': { padding: '4px 8px', fontStyle: 'italic', color: 'var(--iso-text-muted)' },
         }),
       ],
     });
@@ -292,13 +299,18 @@ const SNIPPET_COMPLETIONS: IsomorphCompletion[] = [
   { label: 'flow',       type: 'keyword', detail: 'diagram kind', contexts: ['global'] },
   { label: 'class',      type: 'keyword', detail: 'diagram kind', contexts: ['global'] },
   // ── Relation operators (typed as operator completions) ────
-  { label: '--|>',  type: 'operator', detail: 'inheritance',          boost: 4 },
-  { label: '..|>',  type: 'operator', detail: 'realization',          boost: 4 },
-  { label: '--*',   type: 'operator', detail: 'composition',          boost: 3 },
-  { label: '--o',   type: 'operator', detail: 'aggregation',          boost: 3 },
-  { label: '-->',   type: 'operator', detail: 'directed association', boost: 3 },
-  { label: '--',    type: 'operator', detail: 'association',          boost: 2 },
-  { label: '..>',   type: 'operator', detail: 'dependency',           boost: 2 },
+  { label: '--|>',  type: 'operator', detail: 'inheritance',          boost: 4, contexts: ['global', 'class', 'usecase', 'component', 'deployment'] },
+  { label: '..|>',  type: 'operator', detail: 'realization',          boost: 4, contexts: ['global', 'class', 'component'] },
+  { label: '--*',   type: 'operator', detail: 'composition',          boost: 3, contexts: ['global', 'class'] },
+  { label: '--o',   type: 'operator', detail: 'aggregation',          boost: 3, contexts: ['global', 'class'] },
+  { label: '-->',   type: 'operator', detail: 'directed association', boost: 3, contexts: ['global', 'class', 'usecase', 'component', 'deployment', 'flow', 'activity', 'state'] },
+  { label: '--',    type: 'operator', detail: 'association',          boost: 2, contexts: ['global', 'class', 'usecase', 'component', 'deployment'] },
+  { label: '..>',   type: 'operator', detail: 'dependency',           boost: 2, contexts: ['global', 'class', 'component', 'deployment'] },
+
+  // Sequence diagram relations
+  { label: '-->',   type: 'operator', detail: 'sync message',         boost: 4, contexts: ['sequence', 'collaboration'] },
+  { label: '..>',   type: 'operator', detail: 'response message',     boost: 3, contexts: ['sequence', 'collaboration'] },
+  { label: '--|>',  type: 'operator', detail: 'async message',        boost: 2, contexts: ['sequence', 'collaboration'] },
 ];
 
 function isomorphCompletions(context: CompletionContext) {
