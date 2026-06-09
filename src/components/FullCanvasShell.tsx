@@ -560,15 +560,10 @@ export function FullCanvasShell({
 
       for (const el of toDuplicate) {
         const newId = `canvas-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-        const bounds = {
-          ...el.bounds,
-          x: el.bounds.x + 20,
-          y: el.bounds.y + 20,
-        };
+        const shifted = translateCanvasElement(el, 20, 20);
         const newEl = {
-          ...el,
+          ...shifted,
           id: newId,
-          bounds,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         } as CanvasElement;

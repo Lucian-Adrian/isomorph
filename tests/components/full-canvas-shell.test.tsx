@@ -379,6 +379,49 @@ describe('full canvas shell', () => {
     vi.unstubAllGlobals();
   });
 
+  it('duplicates point-based freeform elements with their rendered points offset', () => {
+    const storageKey = 'isomorph-test-canvas-duplicate-line-state';
+    const storage = new Map<string, string>();
+    const lineElement: CanvasElement = {
+      id: 'line-1',
+      kind: 'line',
+      bounds: { x: 100, y: 100, width: 120, height: 60 },
+      rotation: 0,
+      locked: false,
+      layer: 0,
+      style: baseStyle,
+      points: [{ x: 100, y: 100 }, { x: 220, y: 160 }],
+      createdAt: '2026-05-23T00:00:00.000Z',
+      updatedAt: '2026-05-23T00:00:00.000Z',
+    };
+    storage.set(storageKey, storedCanvasState([lineElement], ['line-1']));
+    installStorage(storage);
+    const { host, cleanup } = render(
+      <FullCanvasShell
+        diagram={diagram()}
+        mode="move"
+        canvasStorageKey={storageKey}
+        onModeChange={vi.fn()}
+        onExportSVG={vi.fn()}
+        onExportPNG={vi.fn()}
+        onBack={vi.fn()}
+      />,
+    );
+
+    act(() => host.querySelector('[aria-label="Duplicate"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+
+    const saved = JSON.parse(storage.get(storageKey) || '{}');
+    const duplicate = saved.elements.find((element: CanvasElement) => element.id !== 'line-1');
+    expect(duplicate).toMatchObject({
+      kind: 'line',
+      bounds: { x: 120, y: 120, width: 120, height: 60 },
+      points: [{ x: 120, y: 120 }, { x: 240, y: 180 }],
+    });
+    expect(saved.selectedElementIds).toEqual([duplicate.id]);
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
   it('supports Excalidraw-style keyboard shortcuts without stealing form input', () => {
     const storageKey = 'isomorph-test-canvas-hotkeys-state';
     const storage = new Map<string, string>();
