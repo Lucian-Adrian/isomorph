@@ -10,7 +10,7 @@
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-18.3-61DAFB?logo=react&logoColor=black)](https://reactjs.org/)
   [![CodeMirror](https://img.shields.io/badge/CodeMirror-6.x-green)](https://codemirror.net/)
-  [![Tests](https://img.shields.io/badge/Tests-504%20passing-brightgreen)](#-testing--validation)
+  [![Tests](https://img.shields.io/badge/Tests-505%20passing-brightgreen)](#-testing--validation)
 
   [**Live Demo**](https://team02-faf241.github.io/isomorph/) • [**Language Spec**](grammar/Isomorph.g4) • [**Examples**](examples/) • [**Contributing**](CONTRIBUTING.md)
 </div>
@@ -148,7 +148,7 @@ Before any rendering occurs, the AST is validated against **core rules (SS-1 to 
 
 ## Testing & Validation
 
-The repository tracks a broad Vitest suite across lexer, parser, semantics, rendering, examples, source rewriting, code generation, canvas state, workspace shell, telemetry, and integration helpers. Latest local verification: 504 tests passing.
+The repository tracks a broad Vitest suite across lexer, parser, semantics, rendering, examples, source rewriting, code generation, canvas state, workspace shell, telemetry, and integration helpers. Latest local verification: 505 tests passing.
 
 ```bash
 # Run the test suite

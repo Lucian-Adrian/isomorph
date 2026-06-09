@@ -19,10 +19,10 @@ Last refreshed: 2026-06-09 from the local `feature/infinite-canvas-ultimate-ux` 
 - Build improvement remains in place: optional editor/codegen/metrics/right-rail/overlay/full-canvas paths are split out of static imports, though current bundle output should be watched because app code grew again with canvas features.
 
 ## Fresh Local Verification
-- [x] `npm test -- --run`: 31 files, 504 tests passed.
+- [x] `npm test -- --run`: 31 files, 505 tests passed.
 - [x] `npm run typecheck`: passed.
 - [x] `npm run build`: passed.
-  - Current production output: `index-BMlJFpO1.js` 389.50 kB, `vendor-editor-CKufDpsk.js` 357.24 kB, `vendor-supabase-Cp1pO4X2.js` 204.43 kB, `vendor-react-CIlLrotA.js` 138.64 kB.
+  - Current production output: `index-CKT7pfG6.js` 389.45 kB, `vendor-editor-CKufDpsk.js` 357.24 kB, `vendor-supabase-Cp1pO4X2.js` 204.43 kB, `vendor-react-CIlLrotA.js` 138.64 kB.
 - [x] `npm run qa:app`: passed inside `npm run verify` and wrote timestamped logs under `artifacts/qa/`.
 - [x] `npm run symphony:check`: passed with 13 tracked tasks and no dispatchable or blocked tasks.
 - [ ] `npm run qa:supabase:live`: not rerun in this refresh; previous docs mention a 2026-05-31 live proof, but current live status requires credentials.
@@ -33,7 +33,7 @@ Last refreshed: 2026-06-09 from the local `feature/infinite-canvas-ultimate-ux` 
 - [x] Keep release handoff verification output copied from fresh runs only.
 - [x] Keep browser QA strict enough to fail React maximum-update-depth warnings and pure-canvas/export regressions.
 - [x] Preserve `.isx` vs `canvas_state` ownership: semantic diagram edits rewrite `.isx`; freeform/draft canvas objects stay in `canvas_state`.
-- [x] Refresh README/release-handoff test counts and bundle-size notes from the current 504-test/389.50 kB snapshot.
+- [x] Refresh README/release-handoff test counts and bundle-size notes from the current 505-test/389.45 kB snapshot.
 
 ## P1 Product Correctness
 - [x] Fix SS-10 partition layout validation.
@@ -65,7 +65,7 @@ Last refreshed: 2026-06-09 from the local `feature/infinite-canvas-ultimate-ux` 
 - [x] Add focused regression tests for source rewrites, CLI, exporter, canvas shell, metrics, renderer semantics, and app scoping.
 - [ ] Continue extracting `App.tsx` orchestration into focused command/render modules.
 - [ ] Add build-size budget checks so regressions are caught in CI.
-- [ ] Run a bundle analyzer/source-map review before final deployment; current app chunk is 389.50 kB after the latest feature work.
+- [ ] Run a bundle analyzer/source-map review before final deployment; current app chunk is 389.45 kB after the latest feature work.
 - [ ] Consider deferring Supabase client code until account/cloud flows are opened.
 - [ ] Clean up the current dirty branch into reviewable commits without reverting unrelated worktree changes.
 
@@ -80,6 +80,6 @@ Last refreshed: 2026-06-09 from the local `feature/infinite-canvas-ultimate-ux` 
 - Live Supabase behavior was not re-proven during this refresh; rerun `npm run qa:supabase:live` with explicit QA credentials before making a current live claim.
 - Concurrent editing is still presence/adapter-first, not a real CRDT-backed source/canvas merge system.
 - The codebase still centralizes too much orchestration in `src/App.tsx`.
-- Bundle size improved structurally but needs a hard CI budget; the current main app chunk is 389.50 kB.
+- Bundle size improved structurally but needs a hard CI budget; the current main app chunk is 389.45 kB.
 - Response matching in sequence diagrams is intentionally stricter than loose sketching when `autoactivation` is enabled.
 - Collaboration comments, permissions, visible remote cursors, account version history, and final cloud import/export polish are still future work.
