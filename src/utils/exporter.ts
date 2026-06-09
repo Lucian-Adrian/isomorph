@@ -26,32 +26,37 @@ function getExportSVGString(svgEl: Element): string {
     // Ignore bounds calculation errors
   }
 
+  const computed = getComputedStyle(document.documentElement);
+
   // Ensure minimum styles usually provided by the viewer are captured
   if (!clone.getAttribute('style')?.includes('font-family')) {
     clone.style.fontFamily = 'Segoe UI, Arial, sans-serif';
   }
   if (!clone.getAttribute('style')?.includes('background')) {
-    clone.style.background = '#fafafa';
+    clone.style.background = computed.getPropertyValue('--iso-bg-canvas').trim() || '#fafafa';
   }
 
   // Remove any CSS overrides we inject for UI only
   clone.style.minWidth = '';
   clone.style.minHeight = '';
 
-  // Inject CSS variables to make the SVG self-contained (fixes missing arrows)
+  // Inject CSS variables dynamically to make the SVG self-contained
+  const vars = [
+    '--iso-text-muted', '--iso-bg-panel', '--iso-bg-blue', '--iso-bg-green',
+    '--iso-bg-purple', '--iso-bg-orange', '--iso-bg-yellow', '--iso-border', '--iso-text',
+    '--iso-note-bg', '--iso-note-fold', '--iso-note-border', '--iso-note-title', '--iso-note-text', '--iso-note-code',
+    '--iso-pkg-bg', '--iso-pkg-border', '--iso-pkg-text'
+  ];
+  let cssVars = '';
+  for (const v of vars) {
+    const val = computed.getPropertyValue(v).trim();
+    if (val) cssVars += `      ${v}: ${val};\n`;
+  }
+
   const styleEl = document.createElement('style');
   styleEl.textContent = `
     svg {
-      --iso-text-muted: #64748b;
-      --iso-bg-panel: #ffffff;
-      --iso-bg-blue: #f0f9ff;
-      --iso-bg-green: #f0fdf4;
-      --iso-bg-purple: #fdf4ff;
-      --iso-bg-orange: #fffbeb;
-      --iso-bg-yellow: #fefce8;
-      --iso-border: #e2e8f0;
-      --iso-text: #0f172a;
-    }
+${cssVars}    }
   `;
   clone.prepend(styleEl);
 

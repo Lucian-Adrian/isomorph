@@ -191,7 +191,7 @@ export function parseNoteMarkdown(text: string): string {
   html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
   html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
   html = html.replace(/__(.*?)__/g, '<u>$1</u>');
-  html = html.replace(/`(.*?)`/g, '<code style="background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 3px;">$1</code>');
+  html = html.replace(/`(.*?)`/g, '<code style="background: var(--iso-note-code); padding: 2px 4px; border-radius: 3px;">$1</code>');
   
   // Replace newlines with breaks (only outside of block tags to be safe, but simple is fine)
   html = html.replace(/\n/g, '<br/>');
@@ -209,16 +209,16 @@ export function renderNoteEntity(entity: import('../semantics/iom.js').IOMEntity
   s += `  <g transform="translate(${x},${y})" data-entity-name="${safeName}">\n`;
   
   // Main body
-  s += `    <polygon points="0,0 ${width - foldSize},0 ${width},${foldSize} ${width},${height} 0,${height}" fill="#fef08a" stroke="#eab308" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+  s += `    <polygon points="0,0 ${width - foldSize},0 ${width},${foldSize} ${width},${height} 0,${height}" fill="var(--iso-note-bg)" stroke="var(--iso-note-border)" stroke-width="1.5" filter="url(#shadow)"/>\n`;
   // Folded corner
-  s += `    <polygon points="${width - foldSize},0 ${width - foldSize},${foldSize} ${width},${foldSize}" fill="#fde047" stroke="#eab308" stroke-width="1.5" stroke-linejoin="round"/>\n`;
+  s += `    <polygon points="${width - foldSize},0 ${width - foldSize},${foldSize} ${width},${foldSize}" fill="var(--iso-note-fold)" stroke="var(--iso-note-border)" stroke-width="1.5" stroke-linejoin="round"/>\n`;
   
   // Name label at top
-  s += `    <text x="8" y="16" font-size="10" font-weight="600" fill="#a16207" font-family="DM Sans, system-ui, sans-serif">${safeName}</text>\n`;
+  s += `    <text x="8" y="16" font-size="10" font-weight="600" fill="var(--iso-note-title)" font-family="DM Sans, system-ui, sans-serif">${safeName}</text>\n`;
   
   // HTML content inside foreignObject
   s += `    <foreignObject x="8" y="24" width="${width - 16}" height="${height - 32}">\n`;
-  s += `      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: DM Sans, system-ui, sans-serif; font-size: 13px; color: #854d0e; width: 100%; height: 100%; overflow: hidden; box-sizing: border-box; line-height: 1.4;">\n`;
+  s += `      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: DM Sans, system-ui, sans-serif; font-size: 13px; color: var(--iso-note-text); width: 100%; height: 100%; overflow: hidden; box-sizing: border-box; line-height: 1.4;">\n`;
   s += `        ${htmlContent}\n`;
   s += `      </div>\n`;
   s += `    </foreignObject>\n`;
