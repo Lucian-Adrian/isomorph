@@ -90,6 +90,14 @@
   --iso-bg-green:  #dcfce7;
   --iso-bg-orange: #fef3c7;
 
+  /* Notes */
+  --iso-note-bg:      #fef08a;
+  --iso-note-fold:    #fde047;
+  --iso-note-border:  #eab308;
+  --iso-note-title:   #a16207;
+  --iso-note-text:    #854d0e;
+  --iso-note-code:    rgba(0,0,0,0.05);
+
   /* Motion */
   --iso-duration:      0.2s;
   --iso-ease:          cubic-bezier(0.16,1,0.3,1);
@@ -148,6 +156,14 @@
   --iso-bg-purple: #231b2d;
   --iso-bg-green:  #16261a;
   --iso-bg-orange: #272214;
+
+  /* Notes */
+  --iso-note-bg:      #2a2510;
+  --iso-note-fold:    #3f3815;
+  --iso-note-border:  #6b5a1e;
+  --iso-note-title:   #fde047;
+  --iso-note-text:    #eab308;
+  --iso-note-code:    rgba(255,255,255,0.1);
 
   /* Shadows */
   --iso-shadow:        var(--glass-shadow);

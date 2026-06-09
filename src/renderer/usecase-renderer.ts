@@ -3,7 +3,7 @@
 // ============================================================
 
 import type { IOMDiagram } from '../semantics/iom.js';
-import { escapeXml, wrapText, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect } from './utils.js';
+import { escapeXml, wrapText, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, renderNoteEntity } from './utils.js';
 
 function pickDefaultBoundaryName(diag: IOMDiagram): string {
   const used = new Set([...diag.entities.keys()]);
@@ -26,6 +26,7 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
   const actors   = entities.filter(e => e.kind === 'actor');
   const usecases = entities.filter(e => e.kind === 'usecase');
   const bounds   = entities.filter(e => e.kind === 'system' || e.kind === 'boundary');
+  const notes    = entities.filter(e => e.kind === 'note');
 
   const UC_RX = 80, UC_RY = 40;
 
@@ -164,6 +165,13 @@ export function renderUseCaseDiagram(diag: IOMDiagram): string {
     }
     svg += `  </g>`;
   }
+
+  // Draw notes
+  notes.forEach((n, i) => {
+    const x = n.position?.x ?? (canvasW - 170);
+    const y = n.position?.y ?? (20 + i * 120);
+    svg += renderNoteEntity(n, x, y, n.position?.w || 150, n.position?.h || 100);
+  });
 
   svg += `  </g>\n`;
   svg += caption.svg;

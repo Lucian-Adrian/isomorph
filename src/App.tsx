@@ -357,17 +357,20 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Interface', keyword: 'interface' },
         { label: 'Enum', keyword: 'enum' },
         { label: 'Package', keyword: 'package' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'usecase':
       return [
         { label: 'Actor', keyword: 'actor' },
         { label: 'Use Case', keyword: 'usecase' },
         { label: 'System', keyword: 'system' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'component':
       return [
         { label: 'Component', keyword: 'component' },
         { label: 'Interface', keyword: 'interface' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'deployment':
       return [
@@ -376,6 +379,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Device', keyword: 'node <<device>>' },
         { label: 'Artifact', keyword: 'artifact' },
         { label: 'Environment', keyword: 'environment' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'sequence':
       return [
@@ -387,6 +391,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Par Fragment', keyword: 'par' },
         { label: 'Break Fragment', keyword: 'break' },
         { label: 'Critical Fragment', keyword: 'critical' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'state':
       return [
@@ -399,6 +404,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'History', keyword: 'history' },
         { label: 'Concurrent', keyword: 'concurrent' },
         { label: 'Composite', keyword: 'composite' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'activity':
       return [
@@ -410,6 +416,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Fork', keyword: 'fork' },
         { label: 'Join', keyword: 'join' },
         { label: 'Partition', keyword: 'partition' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'collaboration':
       return [
@@ -418,6 +425,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'Multiobject', keyword: 'multiobject' },
         { label: 'Active Object', keyword: 'active_object' },
         { label: 'Composite Obj', keyword: 'composite_object' },
+        { label: 'Note', keyword: 'note' },
       ];
     case 'flow':
       return [
@@ -427,6 +435,7 @@ function getStencilsForKind(kind?: DiagramKind) {
         { label: 'End', keyword: 'stop' },
         { label: 'Fork', keyword: 'fork' },
         { label: 'Join', keyword: 'join' },
+        { label: 'Note', keyword: 'note' },
       ];
     default:
       return [];
@@ -534,7 +543,7 @@ function removeLayoutAnnotation(source: string, entityName: string): string {
   return source.replace(annoRx, '');
 }
 
-const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object|alt|loop|opt|break|critical|par)';
+const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object|alt|loop|opt|break|critical|par|note)';
 
 function findEntityBounds(source: string, entityName: string): { start: number, end: number, bodyStart: number, bodyEnd: number } | null {
   const sigRx = new RegExp(`^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+${escapeRegex(entityName)}\\b`, 'm');
@@ -624,7 +633,7 @@ function replaceEntityBody(source: string, entityName: string, newBody: string):
 
 function entitySupportsBody(kind?: string): boolean {
   if (!kind) return false;
-  return ['class', 'interface', 'enum', 'component', 'node', 'device', 'artifact', 'environment', 'state', 'composite', 'concurrent', 'usecase', 'package'].includes(kind);
+  return ['class', 'interface', 'enum', 'component', 'node', 'device', 'artifact', 'environment', 'state', 'composite', 'concurrent', 'usecase', 'package', 'note'].includes(kind);
 }
 
 function entitySupportsStereotype(kind?: string): boolean {
@@ -1346,8 +1355,8 @@ export default function App() {
           }, false);
         }
 
-        // Copy selected items
-        if (e.key === 'c' && selectedItems.length > 0 && activeDiagram) {
+        // Duplicate selected items (Ctrl+D) or Copy (Ctrl+C)
+        if ((e.key === 'c' || e.key === 'd') && selectedItems.length > 0 && activeDiagram) {
           e.preventDefault();
           const snippets: string[] = [];
           for (const item of selectedItems) {
@@ -1364,7 +1373,45 @@ export default function App() {
             }
           }
           if (snippets.length > 0) {
-            navigator.clipboard.writeText(snippets.join('\n')).catch(() => {});
+            const textToCopy = snippets.join('\n');
+            if (e.key === 'c') {
+              navigator.clipboard.writeText(textToCopy).catch(() => {});
+            } else if (e.key === 'd') {
+              // Re-use paste logic for duplicate
+              const doPaste = (text: string) => {
+                if (!text.trim()) return;
+                let pasteText = text;
+                const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
+                const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
+                
+                for (const name of namesToReplace) {
+                  const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
+                  const baseStr = baseMatch ? baseMatch[1] : name;
+                  let newName = baseStr + '1';
+                  let i = 2;
+                  const isNameTaken = (n: string) => {
+                    const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
+                    return rx.test(activeTab?.source || '') || rx.test(pasteText);
+                  };
+                  let emergencyBreak = 0;
+                  while (isNameTaken(newName) && emergencyBreak < 1000) {
+                    newName = baseStr + i;
+                    i++;
+                    emergencyBreak++;
+                  }
+                  pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
+                }
+                pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
+                  return `@${n} at (${Math.round(parseFloat(x) + 30)}, ${Math.round(parseFloat(y) + 30)}${sizeSuffix || ''})`;
+                });
+                updateActiveTab(tab => {
+                  let src = insertBeforeAnnotations(tab.source, pasteText.trim());
+                  src = formatDiagramSource(src);
+                  return { ...tab, source: src };
+                });
+              };
+              doPaste(textToCopy);
+            }
           }
         }
 
@@ -1542,7 +1589,7 @@ export default function App() {
       if (e.ctrlKey && !e.shiftKey && e.key === 'o') { e.preventDefault(); fileInputRef.current?.click(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'e') { e.preventDefault(); handleExportSVG(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); handleExportPNG(); }
-      if (e.ctrlKey && e.key === '/') { e.preventDefault(); setShortcutsOpen(o => !o); }
+      if (e.ctrlKey && e.key === 'q') { e.preventDefault(); setShortcutsOpen(o => !o); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
@@ -2408,8 +2455,134 @@ export default function App() {
             <h3>{t('edit.entity_title')}</h3>
             <div className="iso-modal-field">
               <label>{t('edit.name')}</label>
-              <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus={!isMobileLayout} />
+              <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus={!isMobileLayout && editingEntity.kind !== 'note'} />
             </div>
+            
+            {editingEntity.kind === 'note' ? (
+              <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
+                <label style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
+                  <span>{t('edit.body')} (Markdown)</span>
+                  <div style={{ display: 'flex', gap: '4px', userSelect: 'none' }}>
+                    <button type="button" className="iso-btn" title="Bold (Ctrl+B)" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', fontWeight: 'bold' }} onClick={(e) => {
+                      e.stopPropagation();
+                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                      if (!target) return;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      const prefix = '**'; const suffix = '**';
+                      let newVal = val, newStart = start, newEnd = end;
+                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                        newStart = start - prefix.length; newEnd = end - prefix.length;
+                      } else {
+                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                        newStart = start + prefix.length; newEnd = end + prefix.length;
+                      }
+                      setEditingEntity({ ...editingEntity, bodyText: newVal });
+                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                    }}>B</button>
+                    <button type="button" className="iso-btn" title="Italic (Ctrl+I)" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', fontStyle: 'italic' }} onClick={(e) => {
+                      e.stopPropagation();
+                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                      if (!target) return;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      const prefix = '*'; const suffix = '*';
+                      let newVal = val, newStart = start, newEnd = end;
+                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                        newStart = start - prefix.length; newEnd = end - prefix.length;
+                      } else {
+                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                        newStart = start + prefix.length; newEnd = end + prefix.length;
+                      }
+                      setEditingEntity({ ...editingEntity, bodyText: newVal });
+                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                    }}>I</button>
+                    <button type="button" className="iso-btn" title="Underline (Ctrl+U)" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', textDecoration: 'underline' }} onClick={(e) => {
+                      e.stopPropagation();
+                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                      if (!target) return;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      const prefix = '__'; const suffix = '__';
+                      let newVal = val, newStart = start, newEnd = end;
+                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                        newStart = start - prefix.length; newEnd = end - prefix.length;
+                      } else {
+                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                        newStart = start + prefix.length; newEnd = end + prefix.length;
+                      }
+                      setEditingEntity({ ...editingEntity, bodyText: newVal });
+                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                    }}>U</button>
+                    <button type="button" className="iso-btn" title="Strikethrough" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', textDecoration: 'line-through' }} onClick={(e) => {
+                      e.stopPropagation();
+                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                      if (!target) return;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      const prefix = '~~'; const suffix = '~~';
+                      let newVal = val, newStart = start, newEnd = end;
+                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                        newStart = start - prefix.length; newEnd = end - prefix.length;
+                      } else {
+                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                        newStart = start + prefix.length; newEnd = end + prefix.length;
+                      }
+                      setEditingEntity({ ...editingEntity, bodyText: newVal });
+                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                    }}>S</button>
+                  </div>
+                </label>
+                <textarea 
+                  id="note-body-textarea"
+                  value={editingEntity.bodyText ?? ''} 
+                  onChange={e => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
+                  onKeyDown={e => {
+                    if (e.ctrlKey && !e.shiftKey) {
+                      const target = e.target as HTMLTextAreaElement;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      
+                      const toggleFormat = (prefix: string, suffix: string) => {
+                        let newVal = val, newStart = start, newEnd = end;
+                        if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                          newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                          newStart = start - prefix.length; newEnd = end - prefix.length;
+                        } else {
+                          newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                          newStart = start + prefix.length; newEnd = end + prefix.length;
+                        }
+                        setEditingEntity({ ...editingEntity, bodyText: newVal });
+                        setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                      };
+
+                      if (e.key === 'b') {
+                        e.preventDefault();
+                        toggleFormat('**', '**');
+                      } else if (e.key === 'i') {
+                        e.preventDefault();
+                        toggleFormat('*', '*');
+                      } else if (e.key === 'u') {
+                        e.preventDefault();
+                        toggleFormat('__', '__');
+                      }
+                    }
+                  }}
+                  style={{ width: '100%', minHeight: '200px', fontFamily: 'monospace', padding: '0.5rem', resize: 'vertical' }}
+                  autoFocus={!isMobileLayout}
+                />
+              </div>
+            ) : (
+              <>
             <div className="iso-modal-field">
               <label>{t('edit.kind')}</label>
               <span style={{ padding: '0.4rem', border: '1px solid transparent' }}>{editingEntity.kind}</span>
@@ -2526,6 +2699,8 @@ export default function App() {
                   style={{ width: '100%', minHeight: '120px', fontFamily: 'monospace', padding: '0.5rem', resize: 'vertical' }}
                 />
               </div>
+            )}
+            </>
             )}
             <div className="iso-modal-actions">
               <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>{t('ui.cancel')}</button>

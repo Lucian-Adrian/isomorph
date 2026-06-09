@@ -10,7 +10,8 @@ const SHORTCUTS: { keys: string; descKey: string }[] = [
   { keys: 'Ctrl + E',           descKey: 'Export SVG' },
   { keys: 'Ctrl + Shift + E',   descKey: 'Export PNG' },
   { keys: 'Ctrl + Z / Y',       descKey: 'Undo / Redo' },
-  { keys: 'Ctrl + ?',           descKey: 'Toggle this panel' },
+  { keys: 'Ctrl + D',           descKey: 'Duplicate selected items' },
+  { keys: 'Ctrl + Q',           descKey: 'Toggle this panel' },
 ];
 
 export function ShortcutsOverlay({

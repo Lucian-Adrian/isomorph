@@ -27,45 +27,45 @@ function getExportSVGString(svgEl: Element): string {
     // Ignore bounds calculation errors
   }
 
-  // Gather CSS custom properties from stylesheets to embed them in the SVG.
-  // This prevents elements with CSS variable fills falling back to black.
-  let styleBlocks = '';
-  try {
-    for (const sheet of Array.from(document.styleSheets)) {
-      try {
-        for (const rule of Array.from(sheet.cssRules)) {
-          if (rule instanceof CSSStyleRule && rule.selectorText) {
-            if (rule.selectorText === ':root') {
-              styleBlocks = `svg { ${rule.style.cssText} }\n` + styleBlocks; // Base variables
-            } else if (isDark && rule.selectorText.includes('[data-theme="dark"]')) {
-               // Dark mode overrides
-               styleBlocks += `svg { ${rule.style.cssText} }\n`;
-            }
-          }
-        }
-      } catch (e) {
-        // Cross-origin stylesheet access error
-      }
-    }
-  } catch (e) {}
-
-  if (styleBlocks) {
-    const styleEl = document.createElementNS('http://www.w3.org/2000/svg', 'style');
-    styleEl.textContent = styleBlocks;
-    clone.prepend(styleEl);
-  }
+  const computed = getComputedStyle(document.documentElement);
 
   // Ensure minimum styles usually provided by the viewer are captured
   if (!clone.getAttribute('style')?.includes('font-family')) {
     clone.style.fontFamily = 'Segoe UI, Arial, sans-serif';
   }
   if (!clone.getAttribute('style')?.includes('background')) {
-    clone.style.background = isDark ? '#161615' : '#fafafa';
+    const container = svgEl.closest('.iso-canvas-wrap');
+    clone.style.background = container ? getComputedStyle(container).backgroundColor : '#fafafa';
   }
 
   // Remove any CSS overrides we inject for UI only
   clone.style.minWidth = '';
   clone.style.minHeight = '';
+
+  // Inject CSS variables dynamically to make the SVG self-contained
+  const vars = [
+    '--white', '--off', '--stone', '--ink-light', '--ink-mid', '--ink', '--ink-deep', '--accent',
+    '--glass-bg', '--glass-border', '--glass-shadow',
+    '--iso-brand', '--iso-brand-dark', '--iso-brand-glow',
+    '--iso-bg-app', '--iso-bg-header', '--iso-bg-sidebar', '--iso-bg-editor', '--iso-bg-canvas',
+    '--iso-bg-panel', '--iso-bg-hover', '--iso-bg-active',
+    '--iso-text-muted', '--iso-text-body', '--iso-text-faint', '--iso-text-canvas', '--iso-bg-blue', '--iso-bg-green',
+    '--iso-bg-purple', '--iso-bg-orange', '--iso-bg-yellow', '--iso-border', '--iso-text',
+    '--iso-note-bg', '--iso-note-fold', '--iso-note-border', '--iso-note-title', '--iso-note-text', '--iso-note-code',
+    '--iso-pkg-bg', '--iso-pkg-border', '--iso-pkg-text'
+  ];
+  let cssVars = '';
+  for (const v of vars) {
+    const val = computed.getPropertyValue(v).trim();
+    if (val) cssVars += `      ${v}: ${val};\n`;
+  }
+
+  const styleEl = document.createElement('style');
+  styleEl.textContent = `
+    svg {
+${cssVars}    }
+  `;
+  clone.prepend(styleEl);
 
   return new XMLSerializer().serializeToString(clone);
 }
@@ -133,9 +133,22 @@ export function exportPNG(
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    // Get actual canvas background color
+    const computed = getComputedStyle(document.documentElement);
+    let bg = computed.getPropertyValue('--iso-bg-canvas').trim();
+    // If it's a CSS variable reference like var(--white), we can't easily resolve it in canvas.
+    // However, the SVG itself has a solid background applied on the clone, but drawing an SVG with transparent parts needs a backfill.
+    // Instead of using var(), we'll let the SVG handle its own background and we'll just fill transparent if needed,
+    // OR we can read the computed background color of the actual container.
+    const container = document.querySelector(selector)?.closest('.iso-canvas-wrap');
+    if (container) {
+      bg = getComputedStyle(container).backgroundColor || '#fafafa';
+    } else {
+      bg = '#fafafa'; // fallback
+    }
+
     ctx.scale(scale, scale);
-    ctx.fillStyle = isDark ? '#161615' : '#fafafa'; // Match var(--iso-bg-app) and var(--off)
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, nativeW, nativeH);
     ctx.drawImage(img, 0, 0, nativeW, nativeH);
     URL.revokeObjectURL(url);

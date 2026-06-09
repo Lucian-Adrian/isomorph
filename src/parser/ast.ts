@@ -193,6 +193,7 @@ export interface RelationDecl {
 
 export interface NoteDecl {
   kind: 'NoteDecl';
+  name?: string;
   text: string;
   on?: string;
   span: Span;

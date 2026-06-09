@@ -5,7 +5,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter, renderNoteEntity } from './utils.js';
 
 const BOX_W        = 140;
 const BOX_H        = 50;
@@ -34,8 +34,10 @@ function entityBounds(p: Placed): Rect {
 }
 
 export function renderCollaborationDiagram(diag: IOMDiagram): string {
-  const entities = [...diag.entities.values()];
-  if (entities.length === 0)
+  const allEntities = [...diag.entities.values()];
+  const entities = allEntities.filter(e => e.kind !== 'note');
+  const notes = allEntities.filter(e => e.kind === 'note');
+  if (entities.length === 0 && notes.length === 0)
     return `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>`;
 
   const placed = placeEntities(entities);
@@ -172,6 +174,13 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
   for (const p of placed) {
     svg += renderEntity(p);
   }
+
+  // Notes
+  notes.forEach((n, i) => {
+    const x = n.position?.x ?? (maxX - 170);
+    const y = n.position?.y ?? (header.height + 20 + i * 120);
+    svg += renderNoteEntity(n, x, y, n.position?.w || 150, n.position?.h || 100);
+  });
 
   svg += `  </g>\n`;
   svg += caption.svg;

@@ -2,7 +2,7 @@
 // Sequence Diagram SVG Renderer (Enhanced)
 // ============================================================
 import type { IOMDiagram } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, renderNoteEntity } from './utils.js';
 
 function getSequenceRelationType(rel: { kind: string; from?: string; to?: string }): 'synchronous' | 'asynchronous' | 'response' | 'self-call' {
   if (rel.from && rel.to && rel.from === rel.to) return 'self-call';
@@ -12,8 +12,10 @@ function getSequenceRelationType(rel: { kind: string; from?: string; to?: string
 }
 
 export function renderSequenceDiagram(diag: IOMDiagram): string {
-  const entities = Array.from(diag.entities.values());
-  if (entities.length === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>`;
+  const allEntities = Array.from(diag.entities.values());
+  const entities = allEntities.filter(e => e.kind !== 'note');
+  const notes = allEntities.filter(e => e.kind === 'note');
+  if (entities.length === 0 && notes.length === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>`;
 
   const paddingX = 80;
   const colSpacing = 180;
@@ -373,7 +375,7 @@ let minX = Infinity;
     const inset = 15 + (depth * 8);
 
     let fragTop = minY !== Infinity ? minY - 35 + (depth * 6) : 50;
-    let fragBottom = maxY !== -Infinity ? maxY + 35 - (depth * 6) : 150;
+    let fragBottom = maxY !== -Infinity ? maxY + 44 - (depth * 6) : 150;
     
     let fragLeft;
     let fragRight;
@@ -431,7 +433,7 @@ const tabText = `${frag.kind.toUpperCase()}`.trim();
           
           let sepY = lastValidSepY;
           if (lastY !== -Infinity) {
-            sepY = lastY + 28 - fragTop;
+            sepY = lastY + 36 - fragTop;
             lastValidSepY = sepY + 30; // advance fallback
           } else {
             sepY = lastValidSepY;
@@ -447,6 +449,13 @@ const tabText = `${frag.kind.toUpperCase()}`.trim();
     
       svg += `    </g>\n`;
     }
+
+  // --- Notes ---
+  notes.forEach((n, i) => {
+    const x = n.position?.x ?? (width - 170);
+    const y = n.position?.y ?? (paddingY + i * 120);
+    svg += renderNoteEntity(n, x, y, n.position?.w || 150, n.position?.h || 100);
+  });
 
   svg += `  </g>\n`;
   svg += caption.svg;
