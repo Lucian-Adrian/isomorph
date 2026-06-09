@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity } from '../semantics/iom.js';
-import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter } from './utils.js';
+import { escapeXml, svgDefs, renderConfigHeaders, renderConfigLegend, renderConfigCaption, edgePointOnRect, rectCenter, renderNoteEntity } from './utils.js';
 
 const BOX_W        = 140;
 const BOX_H        = 50;
@@ -161,6 +161,7 @@ function getDimensions(entity: IOMEntity): { w: number, h: number } {
     case 'merge':   return { w: DIAMOND_S, h: DIAMOND_S };
     case 'fork':
     case 'join':    return { w: BAR_W, h: BAR_H };
+    case 'note':    return { w: 150, h: 100 };
     default:        return { w: BOX_W, h: BOX_H };
   }
 }
@@ -195,6 +196,10 @@ function placeEntities(entities: IOMEntity[]): Placed[] {
 
 function renderEntity(p: Placed): string {
   const { entity, x, y } = p;
+  if (entity.kind === 'note') {
+    return renderNoteEntity(entity, x, y, entity.position?.w || 150, entity.position?.h || 100);
+  }
+
   const label = entity.name;
   let s = `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(label)}">\n`;
 

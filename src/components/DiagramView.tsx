@@ -99,8 +99,8 @@ export function DiagramView({
         e.preventDefault();
       }
     };
-    window.addEventListener('contextmenu', handleContextMenu);
-    return () => window.removeEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('contextmenu', handleContextMenu, { capture: true });
+    return () => document.removeEventListener('contextmenu', handleContextMenu, { capture: true });
   }, []);
 
   const screenToCanvas = useCallback((clientX: number, clientY: number) => {

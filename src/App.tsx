@@ -1075,9 +1075,7 @@ export default function App() {
 
   const handleEntityEditRequest = useCallback((entity: IOMEntity) => {
     let body = '';
-    if (entity.kind === 'note') {
-      body = entity.note || '';
-    } else if (activeTab) {
+    if (activeTab) {
       body = extractEntityBody(activeTab.source, entity.name) ?? '';
     }
     // Strip leading uniform indentation and tabs from body for display
@@ -2455,9 +2453,87 @@ export default function App() {
               <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
                 <label style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
                   <span>{t('edit.body')} (Markdown)</span>
-                  <span style={{ fontSize: '10px', color: 'var(--iso-text-muted)' }}>Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+U (Underline)</span>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button type="button" className="iso-btn" style={{ padding: '2px 8px', fontWeight: 'bold' }} onClick={(e) => {
+                      e.stopPropagation();
+                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                      if (!target) return;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      const prefix = '**'; const suffix = '**';
+                      let newVal = val, newStart = start, newEnd = end;
+                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                        newStart = start - prefix.length; newEnd = end - prefix.length;
+                      } else {
+                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                        newStart = start + prefix.length; newEnd = end + prefix.length;
+                      }
+                      setEditingEntity({ ...editingEntity, bodyText: newVal });
+                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                    }}>B</button>
+                    <button type="button" className="iso-btn" style={{ padding: '2px 8px', fontStyle: 'italic' }} onClick={(e) => {
+                      e.stopPropagation();
+                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                      if (!target) return;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      const prefix = '*'; const suffix = '*';
+                      let newVal = val, newStart = start, newEnd = end;
+                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                        newStart = start - prefix.length; newEnd = end - prefix.length;
+                      } else {
+                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                        newStart = start + prefix.length; newEnd = end + prefix.length;
+                      }
+                      setEditingEntity({ ...editingEntity, bodyText: newVal });
+                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                    }}>I</button>
+                    <button type="button" className="iso-btn" style={{ padding: '2px 8px', textDecoration: 'underline' }} onClick={(e) => {
+                      e.stopPropagation();
+                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                      if (!target) return;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      const prefix = '__'; const suffix = '__';
+                      let newVal = val, newStart = start, newEnd = end;
+                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                        newStart = start - prefix.length; newEnd = end - prefix.length;
+                      } else {
+                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                        newStart = start + prefix.length; newEnd = end + prefix.length;
+                      }
+                      setEditingEntity({ ...editingEntity, bodyText: newVal });
+                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                    }}>U</button>
+                    <button type="button" className="iso-btn" style={{ padding: '2px 8px', textDecoration: 'line-through' }} onClick={(e) => {
+                      e.stopPropagation();
+                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                      if (!target) return;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      const prefix = '~~'; const suffix = '~~';
+                      let newVal = val, newStart = start, newEnd = end;
+                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                        newStart = start - prefix.length; newEnd = end - prefix.length;
+                      } else {
+                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                        newStart = start + prefix.length; newEnd = end + prefix.length;
+                      }
+                      setEditingEntity({ ...editingEntity, bodyText: newVal });
+                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                    }}>S</button>
+                  </div>
                 </label>
                 <textarea 
+                  id="note-body-textarea"
                   value={editingEntity.bodyText ?? ''} 
                   onChange={e => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
                   onKeyDown={e => {
@@ -2466,21 +2542,29 @@ export default function App() {
                       const start = target.selectionStart;
                       const end = target.selectionEnd;
                       const val = target.value;
+                      
+                      const toggleFormat = (prefix: string, suffix: string) => {
+                        let newVal = val, newStart = start, newEnd = end;
+                        if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
+                          newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
+                          newStart = start - prefix.length; newEnd = end - prefix.length;
+                        } else {
+                          newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                          newStart = start + prefix.length; newEnd = end + prefix.length;
+                        }
+                        setEditingEntity({ ...editingEntity, bodyText: newVal });
+                        setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                      };
+
                       if (e.key === 'b') {
                         e.preventDefault();
-                        const newVal = val.substring(0, start) + '**' + val.substring(start, end) + '**' + val.substring(end);
-                        setEditingEntity({ ...editingEntity, bodyText: newVal });
-                        setTimeout(() => { target.selectionStart = target.selectionEnd = start + 2 + (end - start); }, 0);
+                        toggleFormat('**', '**');
                       } else if (e.key === 'i') {
                         e.preventDefault();
-                        const newVal = val.substring(0, start) + '*' + val.substring(start, end) + '*' + val.substring(end);
-                        setEditingEntity({ ...editingEntity, bodyText: newVal });
-                        setTimeout(() => { target.selectionStart = target.selectionEnd = start + 1 + (end - start); }, 0);
+                        toggleFormat('*', '*');
                       } else if (e.key === 'u') {
                         e.preventDefault();
-                        const newVal = val.substring(0, start) + '__' + val.substring(start, end) + '__' + val.substring(end);
-                        setEditingEntity({ ...editingEntity, bodyText: newVal });
-                        setTimeout(() => { target.selectionStart = target.selectionEnd = start + 2 + (end - start); }, 0);
+                        toggleFormat('__', '__');
                       }
                     }
                   }}
