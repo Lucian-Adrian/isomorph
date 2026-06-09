@@ -12,7 +12,7 @@ Instead, send the confirmation email every time and if the account exists, send 
 Give `em the old classic "Something went wrong. Try again later" fault.
 7. Modals for fragments
 ~~8. Auto brackets like in vs code~~
-9. Add notes object for all the diagrams
+9. ~~Add notes object for all the diagrams~~
 10. convert plantuml/mermaid code into isomorph code
 11. ~~/* and */ comments for multiple lines~~
 12. simple settings page but in the future with account controls and all that (UI for future features)

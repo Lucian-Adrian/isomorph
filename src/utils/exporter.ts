@@ -33,7 +33,8 @@ function getExportSVGString(svgEl: Element): string {
     clone.style.fontFamily = 'Segoe UI, Arial, sans-serif';
   }
   if (!clone.getAttribute('style')?.includes('background')) {
-    clone.style.background = computed.getPropertyValue('--iso-bg-canvas').trim() || '#fafafa';
+    const container = svgEl.closest('.iso-canvas-wrap');
+    clone.style.background = container ? getComputedStyle(container).backgroundColor : '#fafafa';
   }
 
   // Remove any CSS overrides we inject for UI only
@@ -42,7 +43,12 @@ function getExportSVGString(svgEl: Element): string {
 
   // Inject CSS variables dynamically to make the SVG self-contained
   const vars = [
-    '--iso-text-muted', '--iso-bg-panel', '--iso-bg-blue', '--iso-bg-green',
+    '--white', '--off', '--stone', '--ink-light', '--ink-mid', '--ink', '--ink-deep', '--accent',
+    '--glass-bg', '--glass-border', '--glass-shadow',
+    '--iso-brand', '--iso-brand-dark', '--iso-brand-glow',
+    '--iso-bg-app', '--iso-bg-header', '--iso-bg-sidebar', '--iso-bg-editor', '--iso-bg-canvas',
+    '--iso-bg-panel', '--iso-bg-hover', '--iso-bg-active',
+    '--iso-text-muted', '--iso-text-body', '--iso-text-faint', '--iso-text-canvas', '--iso-bg-blue', '--iso-bg-green',
     '--iso-bg-purple', '--iso-bg-orange', '--iso-bg-yellow', '--iso-border', '--iso-text',
     '--iso-note-bg', '--iso-note-fold', '--iso-note-border', '--iso-note-title', '--iso-note-text', '--iso-note-code',
     '--iso-pkg-bg', '--iso-pkg-border', '--iso-pkg-text'
@@ -126,8 +132,22 @@ export function exportPNG(
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Get actual canvas background color
+    const computed = getComputedStyle(document.documentElement);
+    let bg = computed.getPropertyValue('--iso-bg-canvas').trim();
+    // If it's a CSS variable reference like var(--white), we can't easily resolve it in canvas.
+    // However, the SVG itself has a solid background applied on the clone, but drawing an SVG with transparent parts needs a backfill.
+    // Instead of using var(), we'll let the SVG handle its own background and we'll just fill transparent if needed,
+    // OR we can read the computed background color of the actual container.
+    const container = document.querySelector(selector)?.closest('.iso-canvas-wrap');
+    if (container) {
+      bg = getComputedStyle(container).backgroundColor || '#fafafa';
+    } else {
+      bg = '#fafafa'; // fallback
+    }
+
     ctx.scale(scale, scale);
-    ctx.fillStyle = '#fafafa';
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, nativeW, nativeH);
     ctx.drawImage(img, 0, 0, nativeW, nativeH);
     URL.revokeObjectURL(url);
