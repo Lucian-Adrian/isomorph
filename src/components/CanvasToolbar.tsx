@@ -67,7 +67,7 @@ const HOTKEY_HINTS: Record<string, string> = {
   pen: 'P',
   text: 'T',
   image: 'I',
-  eraser: '0',
+  eraser: 'E',
 };
 
 export function CanvasToolbar({ mode, disabled = false, language = 'en', onModeChange, onMoreTools }: CanvasToolbarProps) {

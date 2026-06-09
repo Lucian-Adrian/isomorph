@@ -115,6 +115,7 @@ describe('full canvas shell', () => {
     for (const label of ['Lock tool', 'Select', 'Hand', 'Rectangle', 'Ellipse', 'Arrow', 'Line', 'Pen', 'Text', 'Image', 'Eraser', 'More tools']) {
       expect(host.querySelector(`[aria-label="${label}"]`)).not.toBeNull();
     }
+    expect(host.querySelector('[aria-label="Eraser"]')?.getAttribute('title')).toBe('Eraser (E)');
     expect(host.querySelector('[aria-label="Create Participant"]')).toBeNull();
     expect(host.querySelector('[aria-label="Destroy Participant"]')).toBeNull();
 
