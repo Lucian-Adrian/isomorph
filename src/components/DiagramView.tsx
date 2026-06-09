@@ -571,6 +571,7 @@ export function DiagramView({
       if (!Number.isFinite(relationY)) return;
       dragRef.current = {
         mode: 'relation-vertical',
+        hasMoved: false,
         pointerId: e.pointerId,
         startClientX: e.clientX,
         startClientY: e.clientY,
@@ -598,6 +599,7 @@ export function DiagramView({
 
       dragRef.current = {
         mode: 'resize-entity',
+        hasMoved: false,
         pointerId: e.pointerId,
         startClientX: e.clientX,
         startClientY: e.clientY,
@@ -626,6 +628,7 @@ export function DiagramView({
       const y = (e.clientY - rect.top + (wrap.scrollTop || 0) - pan.y) / scale;
       dragRef.current = {
         mode: 'add-edge',
+        hasMoved: false,
         pointerId: e.pointerId,
         startClientX: e.clientX,
         startClientY: e.clientY,
@@ -763,9 +766,7 @@ export function DiagramView({
       return;
     }
 
-    if (drag.mode !== 'none') {
-      drag.hasMoved = true;
-    }
+    drag.hasMoved = true;
 
     if (drag.mode === 'marquee' && drag.entityOrigX != null && drag.entityOrigY != null) {
       const scale = zoom / 100;

@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/team02-faf241/isomorph/master/docs/assets/logo.png" alt="Isomorph Logo" width="120" style="border-radius: 20%;" onerror="this.style.display='none'"/>
+  <img src="isomorph.png" alt="Isomorph Logo" width="120" style="border-radius: 20%;" onerror="this.style.display='none'"/>
 
-  # ✦ Isomorph ✦
+  # Isomorph
 
   **A formally specified domain-specific language for software diagramming with bidirectional text–visual synchronization.**
   
@@ -12,7 +12,7 @@
   [![CodeMirror](https://img.shields.io/badge/CodeMirror-6.x-green)](https://codemirror.net/)
   [![Tests](https://img.shields.io/badge/Tests-84%20passing-brightgreen)](#-testing--validation)
 
-  [**Live Demo**](https://team02-faf241.github.io/isomorph/) • [**Language Spec**](grammar/Isomorph.g4) • [**Examples**](examples/) • [**Contributing**](CONTRIBUTING.md)
+  [**Live Demo**](https://aurelian-th.github.io/isomorph/) • [**Language Spec**](grammar/Isomorph.g4) • [**Examples**](examples/) • [**Contributing**](CONTRIBUTING.md)
 </div>
 
 <br/>
@@ -177,10 +177,10 @@ Contributions are heavily encouraged! To learn how the codebase is structured, c
 
 | Name                      | Core Role                                |
 |---------------------------|------------------------------------------|
-| **Lucian-Adrian Gavril**  | Team Lead / Technical Writer             |
-| **Aurelian-Mihai Tihon**  | Technical Lead / Language Engineer       |
-| **Iulian Pavlov**         | Documentation / Canvas Rendering         |
-| **Nichita Tcacenco**      | Deployment / Quality Assurance           |
+| **Aurelian-Mihai Tihon**  | Team Lead / Technical Lead / Language Engineer |
+| **Lucian-Adrian Gavril**  | Technical Writer / Lexer & Parser                        |
+| **Iulian Pavlov**         | Canvas Rendering & Testing               |
+| **Nichita Tcacenco**      | Deployment & Quality Assurance           |
 
 **Mentor**: Fiștic Cristofor  
 **Institution**: Technical University of Moldova  

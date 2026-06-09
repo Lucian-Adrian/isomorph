@@ -3,9 +3,9 @@ export type Language = 'en' | 'ro' | 'ru';
 export const LANGUAGE_STORAGE_KEY = 'isomorph-language';
 
 export const LANGUAGE_OPTIONS: Array<{ code: Language; label: string }> = [
-	{ code: 'en', label: 'EN' },
-	{ code: 'ro', label: 'RO' },
-	{ code: 'ru', label: 'RU' },
+  { code: 'en', label: 'EN' },
+  { code: 'ro', label: 'RO' },
+  { code: 'ru', label: 'RU' },
 ];
 
 const translations: Record<Language, Record<string, string>> = {
@@ -79,7 +79,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.export_svg_short': 'Export SVG (Ctrl+E)',
     'menu.export_png_shortcut': 'Export diagram as PNG (Ctrl+Shift+E)',
     'menu.export_png_short': 'Export PNG (Ctrl+Shift+E)',
-    'menu.shortcuts': 'Shortcuts (Ctrl+/)',
+    'menu.shortcuts': 'Shortcuts (Ctrl+Q)',
     'menu.save': 'Save',
     'ui.code': 'Code',
     'status.valid': 'Valid',
@@ -157,7 +157,7 @@ const translations: Record<Language, Record<string, string>> = {
     'diagram_type.collaboration': 'Collaboration Diagram',
     'diagram_type.flow': 'Flow Diagram'
   },
-	ro: {
+  ro: {
     'ui.language': 'Limba',
     'ui.toggle_theme': 'Comută tema',
     'ui.dark_mode': 'Mod întunecat',
@@ -227,7 +227,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.export_svg_short': 'Exportă SVG (Ctrl+E)',
     'menu.export_png_shortcut': 'Exportă diagramă ca PNG (Ctrl+Shift+E)',
     'menu.export_png_short': 'Exportă PNG (Ctrl+Shift+E)',
-    'menu.shortcuts': 'Scurtături (Ctrl+/)',
+    'menu.shortcuts': 'Scurtături (Ctrl+Q)',
     'menu.save': 'Salvează',
     'ui.code': 'Cod',
     'status.valid': 'Valid',
@@ -305,7 +305,7 @@ const translations: Record<Language, Record<string, string>> = {
     'diagram_type.collaboration': 'Diagramă de Colaborare',
     'diagram_type.flow': 'Diagramă de Flux',
   },
-	ru: {
+  ru: {
     'ui.language': 'Язык',
     'ui.toggle_theme': 'Переключить тему',
     'ui.dark_mode': 'Темная тема',
@@ -375,7 +375,7 @@ const translations: Record<Language, Record<string, string>> = {
     'menu.export_svg_short': 'Экспорт SVG (Ctrl+E)',
     'menu.export_png_shortcut': 'Экспортировать диаграмму в PNG (Ctrl+Shift+E)',
     'menu.export_png_short': 'Экспорт PNG (Ctrl+Shift+E)',
-    'menu.shortcuts': 'Горячие клавиши (Ctrl+/)',
+    'menu.shortcuts': 'Горячие клавиши (Ctrl+Q)',
     'menu.save': 'Сохранить',
     'ui.code': 'Код',
     'status.valid': 'Валидно',
@@ -456,33 +456,33 @@ const translations: Record<Language, Record<string, string>> = {
 };
 
 export function getStoredLanguage(): Language {
-	try {
-		const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language;
-		if (stored === 'en' || stored === 'ro' || stored === 'ru') {
-			return stored;
-		}
-	} catch (e) {
-		// Ignore
-	}
-	return 'en';
+  try {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY) as Language;
+    if (stored === 'en' || stored === 'ro' || stored === 'ru') {
+      return stored;
+    }
+  } catch (e) {
+    // Ignore
+  }
+  return 'en';
 }
 
 export function setStoredLanguage(lang: Language) {
-	try {
-		localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
-	} catch (e) {
-		// Ignore
-	}
+  try {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+  } catch (e) {
+    // Ignore
+  }
 }
 
 export function tText(language: Language, key: string, vars?: Record<string, string | number>): string {
-	let text = translations[language]?.[key] ?? translations['en']?.[key] ?? key;
-	
-	if (vars) {
-		Object.entries(vars).forEach(([k, v]) => {
-			text = text.replace(`{${k}}`, String(v));
-		});
-	}
-	
-	return text;
+  let text = translations[language]?.[key] ?? translations['en']?.[key] ?? key;
+
+  if (vars) {
+    Object.entries(vars).forEach(([k, v]) => {
+      text = text.replace(`{${k}}`, String(v));
+    });
+  }
+
+  return text;
 }
