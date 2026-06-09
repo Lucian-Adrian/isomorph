@@ -92,6 +92,17 @@ export function DiagramView({
     setPan({ x: 0, y: 0 });
   }, [diagram?.name]);
 
+  // Global contextmenu listener to suppress Firefox right-click menu over the canvas
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      if (canvasRef.current && canvasRef.current.contains(e.target as Node)) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('contextmenu', handleContextMenu);
+    return () => window.removeEventListener('contextmenu', handleContextMenu);
+  }, []);
+
   const screenToCanvas = useCallback((clientX: number, clientY: number) => {
     const svgEl = containerRef.current?.querySelector('svg') as SVGSVGElement | null;
     if (svgEl && typeof svgEl.createSVGPoint === 'function') {
@@ -205,6 +216,18 @@ export function DiagramView({
     };
     el.addEventListener('wheel', handleWheel, { passive: false });
     return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
+  // Prevent native context menu in Firefox and other browsers on right click
+  useEffect(() => {
+    const handleContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.iso-canvas-wrap')) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('contextmenu', handleContextMenu);
+    return () => window.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
   // Keyboard shortcut: Ctrl+E → export SVG

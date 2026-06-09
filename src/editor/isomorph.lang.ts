@@ -14,12 +14,12 @@ import { tags as t } from '@lezer/highlight';
  * Isomorph DSL stream language definition for CodeMirror 6.
  * Uses the StreamLanguage adapter from @codemirror/language.
  */
-export const isomorphLanguage = StreamLanguage.define<{ inComment: boolean }>({
+export const isomorphLanguage = StreamLanguage.define<{ inComment: boolean; sawNote: boolean; expectingNoteBrace: boolean; inNoteBody: boolean }>({
   name: 'isomorph',
   languageData: {
     commentTokens: { line: '//', block: { open: '/*', close: '*/' } }
   },
-  startState() { return { inComment: false }; },
+  startState() { return { inComment: false, sawNote: false, expectingNoteBrace: false, inNoteBody: false }; },
   token(stream, state) {
     if (state.inComment) {
       while (!stream.eol()) {
@@ -30,6 +30,18 @@ export const isomorphLanguage = StreamLanguage.define<{ inComment: boolean }>({
         stream.next();
       }
       return 'comment';
+    }
+
+    if (state.inNoteBody) {
+      while (!stream.eol()) {
+        if (stream.peek() === '}') {
+          state.inNoteBody = false;
+          // Return everything up to } as a string so it gets greyed out
+          return 'string';
+        }
+        stream.next();
+      }
+      return 'string';
     }
 
     // Whitespace
@@ -80,6 +92,18 @@ export const isomorphLanguage = StreamLanguage.define<{ inComment: boolean }>({
     const word = stream.match(/^[a-zA-Z_][a-zA-Z0-9_]*/);
     if (word) {
       const w = typeof word === 'object' ? word[0] : stream.current();
+      
+      if (w === 'note') {
+        state.sawNote = true;
+        state.expectingNoteBrace = false;
+      } else if (state.sawNote) {
+        state.sawNote = false;
+        state.expectingNoteBrace = true;
+      } else {
+        state.sawNote = false;
+        state.expectingNoteBrace = false;
+      }
+
       if (keywords.includes(w)) return 'keyword';
       if (typeKeywords.includes(w)) return 'typeName';
       if (/^[A-Z]/.test(w)) return 'typeName'; // UpperCamelCase → type
@@ -90,7 +114,19 @@ export const isomorphLanguage = StreamLanguage.define<{ inComment: boolean }>({
     if (stream.match(/^[+\-#~]/)) return 'meta';
 
     // Punctuation
-    if (stream.match(/^[@:,;.(){}\[\]<>=|]/)) return 'punctuation';
+    if (stream.match(/^[{]/)) {
+      if (state.expectingNoteBrace) {
+        state.expectingNoteBrace = false;
+        state.inNoteBody = true;
+      }
+      return 'punctuation';
+    }
+    
+    if (stream.match(/^[@:,;.()}\[\]<>=|]/)) {
+      state.sawNote = false;
+      state.expectingNoteBrace = false;
+      return 'punctuation';
+    }
 
     stream.next();
     return null;

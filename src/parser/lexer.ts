@@ -22,7 +22,8 @@ export type TokenKind =
   | 'composite_object' | 'activity' | 'object'
   | 'list'     | 'map'      | 'set'      | 'optional'
   | 'int'      | 'float'    | 'bool'     | 'string_t'
-  | 'true'      | 'false'
+  | 'true'     | 'false'
+  | 'NOTE_BODY'
   | 'alt' | 'else' | 'opt' | 'loop' | 'par' | 'break' | 'critical' | 'end'
   | 'ref' | 'activate' | 'deactivate' | 'create' | 'destroy'
   | 'region' | 'partition'
@@ -254,7 +255,29 @@ export function lex(source: string): LexResult {
 
     // ----- Single-character tokens -----
     switch (c) {
-      case '{': advance(); tokens.push(makeToken('LBRACE',   '{', start, startLine, startCol)); break;
+      case '{':
+        // Check for note block: note IDENT {
+        if (tokens.length >= 2) {
+          const last2 = tokens[tokens.length - 2];
+          const last1 = tokens[tokens.length - 1];
+          if (last2.kind === 'note' && last1.kind === 'IDENT') {
+            advance(); // consume '{'
+            const bodyStart = pos;
+            while (pos < source.length && source[pos] !== '}') {
+              if (source[pos] === '\n') {
+                line++;
+                lineStart = pos + 1;
+              }
+              advance();
+            }
+            const bodyValue = source.slice(bodyStart, pos).trim();
+            tokens.push(makeToken('LBRACE', '{', start, startLine, startCol));
+            tokens.push(makeToken('NOTE_BODY', bodyValue, bodyStart, startLine, startCol + 1));
+            // Don't consume '}' here, let the normal loop handle it to produce RBRACE
+            break;
+          }
+        }
+        advance(); tokens.push(makeToken('LBRACE', '{', start, startLine, startCol)); break;
       case '}': advance(); tokens.push(makeToken('RBRACE',   '}', start, startLine, startCol)); break;
       case '(': advance(); tokens.push(makeToken('LPAREN',   '(', start, startLine, startCol)); break;
       case ')': advance(); tokens.push(makeToken('RPAREN',   ')', start, startLine, startCol)); break;

@@ -28,7 +28,7 @@ export type IOMEntityKind =
   | 'participant'
   | 'partition' | 'decision' | 'merge' | 'fork' | 'join' | 'start' | 'stop' | 'action'
   | 'state' | 'composite' | 'concurrent' | 'choice' | 'history'
-  | 'device' | 'artifact' | 'environment'
+  | 'device' | 'artifact' | 'environment' | 'note'
   | 'boundary' | 'system' | 'multiobject' | 'active_object' | 'collaboration' | 'composite_object' | 'object';
 
 /** Resolved field descriptor */

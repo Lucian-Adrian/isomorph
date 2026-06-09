@@ -532,13 +532,16 @@ export class Parser {
 
   private parseNoteDecl(): NoteDecl {
     const kw = this.expect('note');
-    const text = this.expect('STRING').value;
-    let on: string | undefined;
-    if (this.at('on')) {
-      this.advance();
-      on = this.expect('IDENT').value;
+    const name = this.expect('IDENT').value;
+    this.expect('LBRACE');
+    let text = '';
+    // Optional because the lexer only emits NOTE_BODY if it detects note IDENT {
+    // and even if empty, it might emit NOTE_BODY '' or just hit RBRACE.
+    if (this.peek().kind === 'NOTE_BODY') {
+      text = this.advance().value;
     }
-    return { kind: 'NoteDecl', text, on, span: this.spanFrom(kw) };
+    this.expect('RBRACE');
+    return { kind: 'NoteDecl', name, text, span: this.spanFrom(kw) };
   }
 
   // ── Style ────────────────────────────────────────────────────

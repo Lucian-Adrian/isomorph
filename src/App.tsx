@@ -534,7 +534,7 @@ function removeLayoutAnnotation(source: string, entityName: string): string {
   return source.replace(annoRx, '');
 }
 
-const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object|alt|loop|opt|break|critical|par)';
+const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object|alt|loop|opt|break|critical|par|note)';
 
 function findEntityBounds(source: string, entityName: string): { start: number, end: number, bodyStart: number, bodyEnd: number } | null {
   const sigRx = new RegExp(`^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+${escapeRegex(entityName)}\\b`, 'm');
@@ -624,7 +624,7 @@ function replaceEntityBody(source: string, entityName: string, newBody: string):
 
 function entitySupportsBody(kind?: string): boolean {
   if (!kind) return false;
-  return ['class', 'interface', 'enum', 'component', 'node', 'device', 'artifact', 'environment', 'state', 'composite', 'concurrent', 'usecase', 'package'].includes(kind);
+  return ['class', 'interface', 'enum', 'component', 'node', 'device', 'artifact', 'environment', 'state', 'composite', 'concurrent', 'usecase', 'package', 'note'].includes(kind);
 }
 
 function entitySupportsStereotype(kind?: string): boolean {
@@ -1075,7 +1075,9 @@ export default function App() {
 
   const handleEntityEditRequest = useCallback((entity: IOMEntity) => {
     let body = '';
-    if (activeTab) {
+    if (entity.kind === 'note') {
+      body = entity.note || '';
+    } else if (activeTab) {
       body = extractEntityBody(activeTab.source, entity.name) ?? '';
     }
     // Strip leading uniform indentation and tabs from body for display
@@ -2446,8 +2448,48 @@ export default function App() {
             <h3>{t('edit.entity_title')}</h3>
             <div className="iso-modal-field">
               <label>{t('edit.name')}</label>
-              <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus={!isMobileLayout} />
+              <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus={!isMobileLayout && editingEntity.kind !== 'note'} />
             </div>
+            
+            {editingEntity.kind === 'note' ? (
+              <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
+                <label style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
+                  <span>{t('edit.body')} (Markdown)</span>
+                  <span style={{ fontSize: '10px', color: 'var(--iso-text-muted)' }}>Ctrl+B (Bold), Ctrl+I (Italic), Ctrl+U (Underline)</span>
+                </label>
+                <textarea 
+                  value={editingEntity.bodyText ?? ''} 
+                  onChange={e => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
+                  onKeyDown={e => {
+                    if (e.ctrlKey && !e.shiftKey) {
+                      const target = e.target as HTMLTextAreaElement;
+                      const start = target.selectionStart;
+                      const end = target.selectionEnd;
+                      const val = target.value;
+                      if (e.key === 'b') {
+                        e.preventDefault();
+                        const newVal = val.substring(0, start) + '**' + val.substring(start, end) + '**' + val.substring(end);
+                        setEditingEntity({ ...editingEntity, bodyText: newVal });
+                        setTimeout(() => { target.selectionStart = target.selectionEnd = start + 2 + (end - start); }, 0);
+                      } else if (e.key === 'i') {
+                        e.preventDefault();
+                        const newVal = val.substring(0, start) + '*' + val.substring(start, end) + '*' + val.substring(end);
+                        setEditingEntity({ ...editingEntity, bodyText: newVal });
+                        setTimeout(() => { target.selectionStart = target.selectionEnd = start + 1 + (end - start); }, 0);
+                      } else if (e.key === 'u') {
+                        e.preventDefault();
+                        const newVal = val.substring(0, start) + '__' + val.substring(start, end) + '__' + val.substring(end);
+                        setEditingEntity({ ...editingEntity, bodyText: newVal });
+                        setTimeout(() => { target.selectionStart = target.selectionEnd = start + 2 + (end - start); }, 0);
+                      }
+                    }
+                  }}
+                  style={{ width: '100%', minHeight: '200px', fontFamily: 'monospace', padding: '0.5rem', resize: 'vertical' }}
+                  autoFocus={!isMobileLayout}
+                />
+              </div>
+            ) : (
+              <>
             <div className="iso-modal-field">
               <label>{t('edit.kind')}</label>
               <span style={{ padding: '0.4rem', border: '1px solid transparent' }}>{editingEntity.kind}</span>
@@ -2564,6 +2606,8 @@ export default function App() {
                   style={{ width: '100%', minHeight: '120px', fontFamily: 'monospace', padding: '0.5rem', resize: 'vertical' }}
                 />
               </div>
+            )}
+            </>
             )}
             <div className="iso-modal-actions">
               <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>{t('ui.cancel')}</button>

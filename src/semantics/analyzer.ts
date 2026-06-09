@@ -78,6 +78,29 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         }
         // Support nested entities in collectItems but buildEntity handles the hierarchy
       } else if (item.kind === 'NoteDecl') {
+        if (item.name) {
+          if (entities.has(item.name)) {
+            errors.push({ message: `Duplicate entity name '${item.name}'`, entity: item.name, rule: 'SS-1', line: item.span.line, col: item.span.col });
+          } else {
+            entitySpans.set(item.name, { line: item.span.line, col: item.span.col });
+            entities.set(item.name, {
+              id: item.name,
+              name: item.name,
+              kind: 'note',
+              isAbstract: false,
+              package: pkgName,
+              fields: [],
+              methods: [],
+              enumValues: [],
+              extendsNames: [],
+              implementsNames: [],
+              children: [],
+              regions: [],
+              styles: {},
+              note: item.text,
+            });
+          }
+        }
         notes.push({ text: item.text, onEntity: item.on });
         if (item.on && entities.has(item.on)) {
           const e = entities.get(item.on);
@@ -370,14 +393,14 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
   }
 
   const ALLOWED_KINDS: Record<string, Set<string>> = {
-    class:      new Set(['class', 'interface', 'enum']),
-    usecase:    new Set(['actor', 'usecase', 'boundary', 'system']),
-    sequence:   new Set(['actor', 'participant']),
-    component:  new Set(['component', 'interface']),
-    deployment: new Set(['component', 'node', 'device', 'artifact', 'environment']),
-    activity:   new Set(['partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action', 'state']),
-    state:      new Set(['state', 'composite', 'concurrent', 'choice', 'history', 'start', 'stop', 'decision']),
-    collaboration: new Set(['multiobject', 'active_object', 'collaboration', 'composite_object', 'actor', 'object'])
+    class:      new Set(['class', 'interface', 'enum', 'note']),
+    usecase:    new Set(['actor', 'usecase', 'boundary', 'system', 'note']),
+    sequence:   new Set(['actor', 'participant', 'note']),
+    component:  new Set(['component', 'interface', 'note']),
+    deployment: new Set(['component', 'node', 'device', 'artifact', 'environment', 'note']),
+    activity:   new Set(['partition', 'decision', 'merge', 'fork', 'join', 'start', 'stop', 'action', 'state', 'note']),
+    state:      new Set(['state', 'composite', 'concurrent', 'choice', 'history', 'start', 'stop', 'decision', 'note']),
+    collaboration: new Set(['multiobject', 'active_object', 'collaboration', 'composite_object', 'actor', 'object', 'note'])
   };
   const allowed = ALLOWED_KINDS[diag.diagramKind];
   if (allowed) {

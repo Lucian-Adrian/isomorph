@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { IOMDiagram, IOMEntity, IOMRelation } from '../semantics/iom.js';
-import { escapeXml, visSymbolFor, svgDefs, renderConfigHeaders, renderConfigCaption, renderConfigLegend } from './utils.js';
+import { escapeXml, visSymbolFor, svgDefs, renderConfigHeaders, renderConfigCaption, renderConfigLegend, renderNoteEntity } from './utils.js';
 
 // ─── Render configuration ────────────────────────────────────
 
@@ -137,6 +137,10 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
   const { entity, pos, width, height } = p;
   const x = pos.x - parentX;
   const y = pos.y - parentY;
+  if (entity.kind === 'note') {
+    return renderNoteEntity(entity, x, y, width, height);
+  }
+
   const isAbstract = entity.isAbstract;
   const isInterface = entity.kind === 'interface';
   const isEnum = entity.kind === 'enum';
@@ -335,6 +339,11 @@ function assignPositions(entities: IOMEntity[], direction?: string): Positioned[
 }
 
 function computeWidth(entity: IOMEntity): number {
+  if (entity.kind === 'note') {
+    const lines = (entity.note || '').split('\n');
+    const maxLen = Math.max(entity.name.length, ...lines.map(l => l.length));
+    return Math.max(120, maxLen * 7 + 32);
+  }
   const texts = [
     entity.name,
     ...entity.fields.map(f => `${f.name}: ${f.type}`),
@@ -346,6 +355,10 @@ function computeWidth(entity: IOMEntity): number {
 }
 
 function computeHeight(entity: IOMEntity): number {
+  if (entity.kind === 'note') {
+    const lines = (entity.note || '').split('\n').length;
+    return Math.max(80, 32 + lines * 18 + 16);
+  }
   const memberCount = entity.fields.length + entity.methods.length + entity.enumValues.length;
   // One divider line before each non-empty section after the header
   const dividers =

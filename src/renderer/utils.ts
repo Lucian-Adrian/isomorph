@@ -172,3 +172,57 @@ export function computePortPositions(
 
   return ports;
 }
+
+/** Lightweight markdown parser for notes. */
+export function parseNoteMarkdown(text: string): string {
+  let html = escapeXml(text);
+  
+  // Headers (up to 3 levels)
+  html = html.replace(/^### (.*$)/gm, '<h3 style="margin: 4px 0;">$1</h3>');
+  html = html.replace(/^## (.*$)/gm, '<h2 style="margin: 4px 0;">$1</h2>');
+  html = html.replace(/^# (.*$)/gm, '<h1 style="margin: 4px 0;">$1</h1>');
+  
+  // Lists (- or *)
+  html = html.replace(/^[\-\*]\s+(.*$)/gm, '<li style="margin-left: 16px;">$1</li>');
+  html = html.replace(/(<li.*<\/li>(\s*<li.*<\/li>)*)/g, '<ul style="margin: 4px 0; padding: 0;">$1</ul>');
+
+  // Inline styling
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
+  html = html.replace(/__(.*?)__/g, '<u>$1</u>');
+  html = html.replace(/`(.*?)`/g, '<code style="background: rgba(0,0,0,0.05); padding: 2px 4px; border-radius: 3px;">$1</code>');
+  
+  // Replace newlines with breaks (only outside of block tags to be safe, but simple is fine)
+  html = html.replace(/\n/g, '<br/>');
+  
+  return html;
+}
+
+/** Render a Note entity as a yellow sticky note. */
+export function renderNoteEntity(entity: import('../semantics/iom.js').IOMEntity, x: number, y: number, width: number, height: number): string {
+  const foldSize = 16;
+  const safeName = escapeXml(entity.name);
+  const htmlContent = parseNoteMarkdown(entity.note || '');
+  
+  let s = '';
+  s += `  <g transform="translate(${x},${y})" data-entity-name="${safeName}">\n`;
+  
+  // Main body
+  s += `    <polygon points="0,0 ${width - foldSize},0 ${width},${foldSize} ${width},${height} 0,${height}" fill="#fef08a" stroke="#eab308" stroke-width="1.5" filter="url(#shadow)"/>\n`;
+  // Folded corner
+  s += `    <polygon points="${width - foldSize},0 ${width - foldSize},${foldSize} ${width},${foldSize}" fill="#fde047" stroke="#eab308" stroke-width="1.5" stroke-linejoin="round"/>\n`;
+  
+  // Name label at top
+  s += `    <text x="8" y="16" font-size="10" font-weight="600" fill="#a16207" font-family="DM Sans, system-ui, sans-serif">${safeName}</text>\n`;
+  
+  // HTML content inside foreignObject
+  s += `    <foreignObject x="8" y="24" width="${width - 16}" height="${height - 32}">\n`;
+  s += `      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: DM Sans, system-ui, sans-serif; font-size: 13px; color: #854d0e; width: 100%; height: 100%; overflow: hidden; box-sizing: border-box; line-height: 1.4;">\n`;
+  s += `        ${htmlContent}\n`;
+  s += `      </div>\n`;
+  s += `    </foreignObject>\n`;
+  
+  s += `  </g>\n`;
+  return s;
+}
