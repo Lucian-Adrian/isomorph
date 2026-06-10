@@ -16,7 +16,7 @@ import { DiagramView } from './components/DiagramView.js';
 import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
-import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconTheme, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconLibrary } from './components/Icons.js';
+import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconLibrary, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -1321,7 +1321,20 @@ export default function App() {
 
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
+    const clickHandler = () => setExportMenuOpen(false);
+    window.addEventListener('click', clickHandler);
+    return () => window.removeEventListener('click', clickHandler);
+  }, []);
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsSettingsOpen(false);
+        setIsLibraryOpen(false);
+        setExportMenuOpen(false);
+        setTabToClose(null);
+      }
+      
       // Skip if user is focused on CodeMirror editor or an input/textarea
       const ae = document.activeElement;
       const isInEditor = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.closest?.('.cm-content') || ae.closest?.('.cm-editor'));
@@ -2391,7 +2404,7 @@ export default function App() {
               <button
                 type="button"
                 className="iso-btn"
-                onClick={() => setExportMenuOpen(o => !o)}
+                onClick={(e) => { e.stopPropagation(); setExportMenuOpen(o => !o); }}
                 disabled={!activeDiagram}
                 aria-label={t('ui.export')}
                 data-tooltip={t('ui.export')}
@@ -2400,11 +2413,11 @@ export default function App() {
                 {t('ui.export')}
               </button>
               {exportMenuOpen && activeDiagram && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', zIndex: 100, display: 'flex', flexDirection: 'column', minWidth: '160px', boxShadow: '0 4px 12px var(--iso-glass-shadow)' }}>
-                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}>{t('ui.export_png')}</button>
-                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}>{t('ui.export_svg')}</button>
-                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}>{t('ui.export_gif')}</button>
-                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}>{t('ui.export_mp4')}</button>
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', zIndex: 100, display: 'flex', flexDirection: 'column', minWidth: '160px', boxShadow: '0 4px 12px var(--iso-glass-shadow)' }} onClick={e => e.stopPropagation()}>
+                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}><IconImage /> {t('ui.export_png')}</button>
+                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}><IconFileImage /> {t('ui.export_svg')}</button>
+                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}><IconGif /> {t('ui.export_gif')}</button>
+                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}><IconVideo /> {t('ui.export_mp4')}</button>
                 </div>
               )}
             </div>
@@ -2642,7 +2655,7 @@ export default function App() {
                 }}
                 aria-label={t('ui.toggle_theme')}
               >
-                <IconTheme />
+                {themeMode === 'light' ? <IconMoon /> : <IconSun />}
               </button>
               <label className="iso-mobile-toggle">
                 <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
@@ -3171,12 +3184,7 @@ export default function App() {
                       </select>
                     </div>
                     
-                    <div className="iso-modal-field">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
-                        <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
-                        {t('ui.strict_uml')}
-                      </label>
-                    </div>
+
 
                     <div className="iso-modal-field">
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
@@ -3234,7 +3242,7 @@ export default function App() {
                           localStorage.setItem('isomorph-theme', next);
                         }}
                       >
-                        <IconTheme /> {themeMode === 'light' ? t('ui.dark_mode') : t('ui.light_mode')}
+                        {themeMode === 'light' ? <IconMoon size={16}/> : <IconSun size={16}/>} {themeMode === 'light' ? t('ui.dark_mode') : t('ui.light_mode')}
                       </button>
                     </div>
 

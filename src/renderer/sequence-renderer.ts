@@ -285,6 +285,7 @@ export function renderSequenceDiagram(diag: IOMDiagram, options?: { isAnimating?
 
   // --- Messages (Relations) ---
   let msgIndex = 1;
+  let animMsgIndex = 0;
   for (const rel of diag.relations) {
     const startX = entityX.get(rel.from);
     const endX = entityX.get(rel.to);
@@ -334,7 +335,7 @@ export function renderSequenceDiagram(diag: IOMDiagram, options?: { isAnimating?
       const msgDuration = 800;
       const totalDuration = diag.relations.length * msgDuration + 1000; // 1s pause
       const t = (options.animationTimeMs ?? 0) % totalDuration;
-      const startTime = (msgIndex - 2) * msgDuration; // msgIndex was already incremented at line 297
+      const startTime = animMsgIndex * msgDuration;
       const endTime = startTime + msgDuration;
       
       if (t >= startTime && t <= endTime + 300) {
@@ -368,6 +369,7 @@ export function renderSequenceDiagram(diag: IOMDiagram, options?: { isAnimating?
     }
 
     svg += `    </g>\n`;
+    animMsgIndex++;
   }
 
   // --- Fragments ---

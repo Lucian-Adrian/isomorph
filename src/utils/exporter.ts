@@ -197,7 +197,7 @@ function getDiagramDuration(diagram: IOMDiagram): number {
   return 1700;
 }
 
-async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Promise<{ canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, frames: { data: Uint8ClampedArray, imageData: ImageData, delay: number }[] }> {
+async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Promise<{ canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, frames: { data: HTMLCanvasElement, delay: number }[] }> {
   const durationMs = getDiagramDuration(diagram);
   const delayMs = 1000 / fps;
   const numFrames = Math.ceil(durationMs / delayMs);
@@ -207,16 +207,14 @@ async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Pro
   const hMatch = testSvg.match(/height="([^"]+)"/);
   const width = wMatch ? parseFloat(wMatch[1]) : 800;
   const height = hMatch ? parseFloat(hMatch[1]) : 600;
-  
+
   const canvas = document.createElement('canvas');
   canvas.width = width * 2;
   canvas.height = height * 2;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('No canvas context');
-  ctx.scale(2, 2);
-
+  
   const frames = [];
-
   const computed = getComputedStyle(document.documentElement);
   const bg = computed.getPropertyValue('--iso-bg-canvas').trim() || '#fafafa';
 
@@ -224,7 +222,6 @@ async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Pro
     const t = i * delayMs * (options.animationSpeed ?? 1);
     const svgStr = renderDiagram(diagram, { ...options, isAnimating: true, animationTimeMs: t });
     
-    // Process SVG string with styles (reuse logic from getExportSVGString)
     const clone = document.createElement('div');
     clone.innerHTML = svgStr;
     const svgEl = clone.querySelector('svg');
@@ -254,19 +251,30 @@ async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Pro
     const svgBlob = new Blob([finalSvgStr], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
     
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = width * 2;
+    frameCanvas.height = height * 2;
+    const fctx = frameCanvas.getContext('2d');
+    
     await new Promise<void>((resolve) => {
       img.onload = () => {
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
+        if (fctx) {
+          fctx.scale(2, 2);
+          fctx.fillStyle = bg;
+          fctx.fillRect(0, 0, width, height);
+          fctx.drawImage(img, 0, 0, width, height);
+        }
         URL.revokeObjectURL(url);
         resolve();
       };
       img.src = url;
     });
 
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    frames.push({ data: imageData.data, imageData, delay: delayMs });
+    // Also draw to the main canvas for WebM/preview
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(frameCanvas, 0, 0);
+
+    frames.push({ data: frameCanvas, delay: delayMs });
   }
 
   return { canvas, ctx, frames };
@@ -325,7 +333,8 @@ export async function exportVideo(diagram: IOMDiagram, diagramName: string, opti
     if (!ctx) return;
     
     for (const frame of frames) {
-      ctx.putImageData(frame.imageData, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(frame.data, 0, 0);
       await new Promise(resolve => setTimeout(resolve, frame.delay));
     }
     
