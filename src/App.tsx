@@ -851,6 +851,7 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState<'profile'|'collab'|'storage'|'app'>('app');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportTime, setExportTime] = useState<number>(0);
   const [libraryTab, setLibraryTab] = useState<'my'|'shared'>('my');
 
   const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
@@ -1659,10 +1660,13 @@ export default function App() {
   const handleExportGIF = useCallback(async () => {
     if (!activeDiagram) return;
     setIsExporting(true);
+    setExportTime(0);
+    const timer = setInterval(() => setExportTime(t => t + 1), 1000);
     try {
       const m = await import('./utils/exporter');
       await m.exportGIF(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
     } finally {
+      clearInterval(timer);
       setIsExporting(false);
     }
   }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed]);
@@ -1670,10 +1674,13 @@ export default function App() {
   const handleExportMP4 = useCallback(async () => {
     if (!activeDiagram) return;
     setIsExporting(true);
+    setExportTime(0);
+    const timer = setInterval(() => setExportTime(t => t + 1), 1000);
     try {
       const m = await import('./utils/exporter');
       await m.exportVideo(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
     } finally {
+      clearInterval(timer);
       setIsExporting(false);
     }
   }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed]);
@@ -2419,7 +2426,7 @@ export default function App() {
                 data-tooltip={t('ui.export')}
               >
                 {isExporting ? <div className="iso-spinner" /> : <IconExport />}
-                {isExporting ? t('ui.exporting') || 'Exporting...' : t('ui.export')}
+                {isExporting ? `${t('ui.exporting') || 'Exporting...'} (${exportTime}s)` : t('ui.export')}
               </button>
               {exportMenuOpen && activeDiagram && (
                 <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', zIndex: 100, display: 'flex', flexDirection: 'column', minWidth: '160px', boxShadow: '0 4px 12px var(--iso-glass-shadow)' }} onClick={e => e.stopPropagation()}>
