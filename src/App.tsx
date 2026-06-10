@@ -2275,9 +2275,7 @@ export default function App() {
           </nav>
         )}
 
-        <div className="iso-header-spacer" />
-
-        <div className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', flex: '0 1 30%', minWidth: 0, overflow: 'hidden' }}>
+        <div className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', flex: '0 1 auto', minWidth: 0, overflow: 'hidden', marginLeft: '12px' }}>
           <button 
             type="button" 
             style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }} 
@@ -2288,14 +2286,34 @@ export default function App() {
             ◀
           </button>
           <nav className="iso-tabs" aria-label={t('tabs.open_files')} style={{ flex: '1 1 auto', overflowX: 'auto', display: 'flex', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            {tabs.map(tab => (
+            {tabs.map((tab, idx) => (
               <div
                 key={tab.id}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', idx.toString());
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                  if (isNaN(fromIdx) || fromIdx === idx) return;
+                  setTabs(prev => {
+                    const next = [...prev];
+                    const [moved] = next.splice(fromIdx, 1);
+                    next.splice(idx, 0, moved);
+                    return next;
+                  });
+                }}
                 className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
                 onClick={() => setActiveTabId(tab.id)}
                 onDoubleClick={() => setRenamingTabId(tab.id)}
                 aria-label={t('tabs.open_name', { name: tab.name })}
-                style={{ paddingRight: tabs.length > 1 ? '4px' : '10px' }}
+                style={{ paddingRight: tabs.length > 1 ? '4px' : '10px', cursor: 'grab' }}
               >
                 {renamingTabId === tab.id ? (
                   <span style={{ display: 'flex', alignItems: 'center' }}>
@@ -2348,6 +2366,8 @@ export default function App() {
             ▶
           </button>
         </div>
+
+        <div className="iso-header-spacer" />
 
         {activeDiagram && (
           <div className={isMobileLayout ? 'iso-kind-badge iso-kind-badge--mobile iso-mobile-hide' : 'iso-kind-badge'}>
@@ -2403,19 +2423,6 @@ export default function App() {
               {t('menu.save_isx_ext')}
             </button>
 
-            {isAnimationsEnabled && activeDiagram && (
-              <button
-                type="button"
-                className="iso-btn"
-                onClick={() => setIsAnimating(a => !a)}
-                aria-label={isAnimating ? t('ui.pause') : t('ui.play')}
-                data-tooltip={isAnimating ? t('ui.pause') : t('ui.play')}
-                style={{ color: isAnimating ? 'var(--iso-accent)' : 'inherit' }}
-              >
-                {isAnimating ? '⏸' : '▶'} {isAnimating ? t('ui.pause') : t('ui.play')}
-              </button>
-            )}
-
             <div style={{ position: 'relative' }}>
               <button
                 type="button"
@@ -2441,6 +2448,19 @@ export default function App() {
                 </div>
               )}
             </div>
+
+            {isAnimationsEnabled && activeDiagram && (
+              <button
+                type="button"
+                className="iso-btn"
+                onClick={() => setIsAnimating(a => !a)}
+                aria-label={isAnimating ? t('ui.pause') : t('ui.play')}
+                data-tooltip={isAnimating ? t('ui.pause') : t('ui.play')}
+                style={{ color: isAnimating ? 'var(--iso-accent)' : 'inherit' }}
+              >
+                {isAnimating ? '⏸' : '▶'} {isAnimating ? t('ui.pause') : t('ui.play')}
+              </button>
+            )}
 
             <div className="iso-header-sep" aria-hidden="true" />
 
