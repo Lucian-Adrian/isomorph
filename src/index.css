@@ -763,52 +763,54 @@ body {
 .iso-statusbar-right { margin-left: auto; display: flex; gap: 12px; }
 
 /* ── Large Modals ───────────────────────────────────────────── */
-.iso-modal-large {
-  width: 95vw;
-  height: 95vh;
-  max-width: none;
+.iso-modal.iso-modal-large {
+  width: 80vw;
+  height: 70vh;
+  max-width: 1000px;
+  max-height: 800px;
   display: flex;
   flex-direction: row;
   padding: 0;
   overflow: hidden;
+  text-align: left;
 }
-.iso-modal-sidebar {
+.iso-modal.iso-modal-large .iso-modal-sidebar {
   width: 240px;
   border-right: 1px solid var(--iso-border);
   background: var(--iso-bg-panel);
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-.iso-modal-sidebar-tab {
-  padding: 8px 12px;
+.iso-modal.iso-modal-large .iso-modal-sidebar-tab {
+  padding: 10px 14px;
   border-radius: var(--iso-radius);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--iso-text-muted);
   font-weight: 500;
   text-align: left;
   background: transparent;
   border: none;
 }
-.iso-modal-sidebar-tab:hover {
+.iso-modal.iso-modal-large .iso-modal-sidebar-tab:hover {
   background: var(--iso-bg-hover);
   color: var(--iso-text);
 }
-.iso-modal-sidebar-tab.active {
+.iso-modal.iso-modal-large .iso-modal-sidebar-tab.active {
   background: var(--iso-bg-active);
   color: var(--iso-brand);
 }
-.iso-modal-content {
+.iso-modal.iso-modal-large .iso-modal-content {
   flex: 1;
-  padding: 32px;
+  padding: 40px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 24px;
 }
-.iso-modal-close-btn {
+.iso-modal.iso-modal-large .iso-modal-close-btn {
   position: absolute;
   top: 16px;
   right: 16px;
@@ -824,7 +826,7 @@ body {
   align-items: center;
   justify-content: center;
 }
-.iso-modal-close-btn:hover {
+.iso-modal.iso-modal-large .iso-modal-close-btn:hover {
   background: var(--iso-bg-hover);
   color: var(--iso-text);
 }

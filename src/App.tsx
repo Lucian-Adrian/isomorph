@@ -2384,16 +2384,8 @@ export default function App() {
 
         <button
           type="button"
-          className="iso-btn iso-mobile-hide"
-          style={{ marginLeft: 'auto' }}
-          onClick={() => alert(t('ui.login_coming_soon'))}
-        >
-          {t('ui.login')}
-        </button>
-        
-        <button
-          type="button"
           className="iso-btn iso-btn--icon iso-mobile-hide"
+          style={{ marginLeft: 'auto' }}
           onClick={() => setIsLibraryOpen(true)}
           aria-label={t('ui.library')}
           data-tooltip={t('ui.library')}
@@ -3179,8 +3171,21 @@ export default function App() {
               <button className="iso-modal-close-btn" onClick={() => setIsLibraryOpen(false)}>×</button>
               
               {libraryTab === 'my' && (
-                <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.my_works')}</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.my_works')}</h3>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <select className="iso-select" style={{ width: '120px' }} aria-label="Filter visibility">
+                        <option value="all">All</option>
+                        <option value="public">Public</option>
+                        <option value="private">Private</option>
+                      </select>
+                      <select className="iso-select" style={{ width: '150px' }} aria-label="Sort projects">
+                        <option value="accessed">Last Accessed</option>
+                        <option value="name">Name</option>
+                      </select>
+                    </div>
+                  </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
                     <div style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)' }}>{t('ui.placeholder_project')} 1</div>
                     <div style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)' }}>{t('ui.placeholder_project')} 2</div>
@@ -3188,8 +3193,14 @@ export default function App() {
                 </div>
               )}
               {libraryTab === 'shared' && (
-                <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.shared_works')}</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.shared_works')}</h3>
+                    <select className="iso-select" style={{ width: '150px' }} aria-label="Sort projects">
+                      <option value="accessed">Last Accessed</option>
+                      <option value="name">Name</option>
+                    </select>
+                  </div>
                   <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.shared_future')}</p>
                 </div>
               )}
