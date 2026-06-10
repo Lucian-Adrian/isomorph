@@ -100,3 +100,60 @@ export function IconSave({ size = 14 }: IconProps) {
     </svg>
   );
 }
+
+export function IconShapes({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <rect x="2" y="2" width="6" height="6" rx="1"/>
+      <circle cx="10" cy="10" r="4"/>
+    </svg>
+  );
+}
+
+export function IconCanvas({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <rect x="2" y="2" width="12" height="12" rx="1"/>
+      <line x1="2" y1="5" x2="14" y2="5"/>
+      <line x1="5" y1="5" x2="5" y2="14"/>
+    </svg>
+  );
+}
+
+export function IconTransform({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <path d="M12 4H4v8"/>
+      <polyline points="15,7 12,4 9,7"/>
+      <path d="M4 12h8V4"/>
+      <polyline points="1,9 4,12 7,9"/>
+    </svg>
+  );
+}
+
+export function IconSettings({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <circle cx="8" cy="8" r="3"/>
+      <path d="M8 2v2M8 12v2M12 8h2M2 8h2M12.24 3.76l-1.41 1.41M5.17 10.83l-1.41 1.41M12.24 12.24l-1.41-1.41M5.17 5.17L3.76 3.76"/>
+    </svg>
+  );
+}
+
+export function IconAlertTriangle({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <path d="M8 1l7 13H1L8 1z"/>
+      <line x1="8" y1="6" x2="8" y2="10"/>
+      <circle cx="8" cy="12.5" r="0.5" fill="currentColor" stroke="none"/>
+    </svg>
+  );
+}
+
+export function IconLibrary({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+      <path d="M2 4v10a1 1 0 001 1h10a1 1 0 001-1V5a1 1 0 00-1-1H9L7 2H3a1 1 0 00-1 1v1z"/>
+    </svg>
+  );
+}

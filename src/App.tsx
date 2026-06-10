@@ -16,7 +16,7 @@ import { DiagramView } from './components/DiagramView.js';
 import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
-import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconTheme } from './components/Icons.js';
+import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconTheme, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconLibrary } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -832,6 +832,11 @@ export default function App() {
   const [pendingMobileDropKeyword, setPendingMobileDropKeyword] = useState<string | null>(null);
   const examplesRef                         = useRef<HTMLDivElement>(null);
   const fileInputRef                        = useRef<HTMLInputElement>(null);
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'profile'|'collab'|'storage'|'app'>('app');
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [libraryTab, setLibraryTab] = useState<'my'|'shared'>('my');
 
   const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
@@ -1708,7 +1713,7 @@ export default function App() {
   const shapesPane = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
     <div className="iso-sidebar">
       <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-        <IconDiagram size={11} /> {t('ui.shapes')}
+        <IconShapes size={11} /> {t('ui.shapes')}
       </div>
       <div className="iso-sidebar-body">
         {getStencilsForKind(activeDiagram.kind).map(stencil => (
@@ -1734,16 +1739,8 @@ export default function App() {
         <IconCode size={11} />
         {t('ui.source')}
         <span className="iso-panel-info" aria-live="polite">
-          {parseErrors.length > 0
-            ? parseErrors.length > 1
-              ? ` - ${t('status.parse_error_many', { count: parseErrors.length })}`
-              : ` - ${t('status.parse_error_one', { count: parseErrors.length })}`
-            : source.trim() ? ` - ${t('ui.ok')}` : ''}
         </span>
         <span className="iso-panel-spacer" />
-        <span style={{ fontSize: 10, color: 'var(--iso-text-faint)', fontFamily: 'monospace' }}>
-          {t('status.lines', { count: source.split('\n').length })}
-        </span>
       </div>
       <div className="iso-panel-body">
         <IsomorphEditor
@@ -1755,7 +1752,9 @@ export default function App() {
       {allErrors.length > 0 && (
         <div className="iso-error-panel" role="log" aria-label={t('ui.errors')}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-            <strong style={{ fontSize: '0.78rem', color: 'var(--iso-text-muted)' }}>{t('ui.errors')}</strong>
+            <strong style={{ fontSize: '0.78rem', color: 'var(--iso-text-muted)', display: 'flex', alignItems: 'center', paddingLeft: '4px' }}>
+              <IconAlertTriangle size={14} /> <span style={{ marginLeft: 4 }}>{t('ui.errors')}</span>
+            </strong>
             <button
               type="button"
               className="iso-btn"
@@ -1964,12 +1963,10 @@ export default function App() {
   const canvasPane = (
     <div className="iso-panel iso-panel--canvas" style={{ height: '100%' }}>
       <div className="iso-panel-header">
-        <IconDiagram size={11} />
+        <IconCanvas size={11} />
         {t('ui.canvas')}
         <span className="iso-panel-info" aria-live="polite">
-          {activeDiagram
-            ? ` - ${activeDiagram.name} · ${t('status.entities', { count: activeDiagram.entities.size })} · ${t('status.relations', { count: activeDiagram.relations.length })}`
-            : ''}
+          {activeDiagram ? ` - ${activeDiagram.name}` : ''}
         </span>
         <span className="iso-panel-spacer" />
         {diagrams.length > 0 && (
@@ -2320,7 +2317,7 @@ export default function App() {
                 aria-label={t('menu.transform_seq_collab')}
                 data-tooltip={t('menu.transform_collab')}
               >
-                <IconDiagram />
+                <IconTransform />
                 {t('menu.transform')}
               </button>
             )}
@@ -2385,32 +2382,33 @@ export default function App() {
 
         <input ref={fileInputRef} type="file" accept=".isx,.iso,.txt" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
 
-        <select
-          className="iso-select iso-mobile-hide"
-          aria-label={t('ui.language')}
-          value={language}
-          onChange={e => setLanguage(e.target.value as Language)}
-          style={{ width: 'auto', marginLeft: 'auto', marginRight: '8px' }}
+        <button
+          type="button"
+          className="iso-btn iso-mobile-hide"
+          style={{ marginLeft: 'auto' }}
+          onClick={() => alert(t('ui.login_coming_soon'))}
         >
-          {LANGUAGE_OPTIONS.map(option => (
-            <option key={option.code} value={option.code}>{option.label}</option>
-          ))}
-        </select>
+          {t('ui.login')}
+        </button>
+        
+        <button
+          type="button"
+          className="iso-btn iso-btn--icon iso-mobile-hide"
+          onClick={() => setIsLibraryOpen(true)}
+          aria-label={t('ui.library')}
+          data-tooltip={t('ui.library')}
+        >
+          <IconLibrary />
+        </button>
 
         <button
           type="button"
           className="iso-btn iso-btn--icon iso-mobile-hide"
-          onClick={() => {
-            const next = themeMode === 'light' ? 'dark' : 'light';
-            setThemeMode(next);
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('isomorph-theme', next);
-          }}
-          aria-label={t('ui.toggle_theme')}
-          data-tooltip={themeMode === 'light' ? t('ui.dark_mode') : t('ui.light_mode')}
-          style={{ marginRight: '8px' }}
+          onClick={() => setIsSettingsOpen(true)}
+          aria-label="Settings"
+          data-tooltip="Settings"
         >
-          <IconTheme />
+          <IconSettings />
         </button>
 
         {/* Status */}
@@ -2422,12 +2420,6 @@ export default function App() {
           <div className="iso-status-dot" aria-hidden="true" />
           {statusLabel}
         </output>
-
-        <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
-        <label className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '13px', color: 'var(--iso-text)' }}>
-          <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
-          {t('ui.strict_uml')}
-        </label>
       </header>
 
       {isMobileLayout && (
@@ -3045,8 +3037,6 @@ export default function App() {
             <span className="iso-statusbar-item">{activeDiagram.kind}</span>
           </>
         )}
-        <span className="iso-statusbar-sep" style={{ marginLeft: 'auto' }}>·</span>
-        <span className="iso-statusbar-item">FAF-241 · Team 02</span>
       </footer>
 
       {/* ──────────────── SHORTCUTS OVERLAY ───────────────── */}
@@ -3057,7 +3047,7 @@ export default function App() {
         <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
           <div className="iso-modal" onClick={e => e.stopPropagation()}>
             <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
-            <p className="iso-modal-desc">{t('Select the type of diagram you\'d like to create.')}</p>
+            <p className="iso-modal-desc">{t('welcome.select_type_desc')}</p>
             <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
               {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
                 <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
@@ -3086,6 +3076,123 @@ export default function App() {
                 });
                 setTabToClose(null);
               }}>{t('ui.close')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSettingsOpen && (
+        <div className="iso-modal-overlay" onClick={() => setIsSettingsOpen(false)}>
+          <div className="iso-modal iso-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="iso-modal-sidebar">
+              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('ui.settings')}</h2>
+              <button className={`iso-modal-sidebar-tab ${settingsTab === 'profile' ? 'active' : ''}`} onClick={() => setSettingsTab('profile')}>{t('ui.profile')}</button>
+              <button className={`iso-modal-sidebar-tab ${settingsTab === 'collab' ? 'active' : ''}`} onClick={() => setSettingsTab('collab')}>{t('ui.collab_settings')}</button>
+              <button className={`iso-modal-sidebar-tab ${settingsTab === 'storage' ? 'active' : ''}`} onClick={() => setSettingsTab('storage')}>{t('ui.storage')}</button>
+              <button className={`iso-modal-sidebar-tab ${settingsTab === 'app' ? 'active' : ''}`} onClick={() => setSettingsTab('app')}>{t('ui.app_settings')}</button>
+            </div>
+            <div className="iso-modal-content" style={{ position: 'relative' }}>
+              <button className="iso-modal-close-btn" onClick={() => setIsSettingsOpen(false)}>×</button>
+              
+              {settingsTab === 'profile' && (
+                <div>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.profile')}</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
+                    <div className="iso-modal-field"><label>{t('ui.name')}</label><input type="text" placeholder="John Doe" disabled /></div>
+                    <div className="iso-modal-field"><label>{t('ui.username')}</label><input type="text" placeholder="johndoe" disabled /></div>
+                    <div className="iso-modal-field"><label>{t('ui.email')}</label><input type="email" placeholder="john@example.com" disabled /></div>
+                    <div className="iso-modal-field"><label>{t('ui.password')}</label><input type="password" placeholder="********" disabled /></div>
+                    <button className="iso-btn" style={{ width: 'fit-content' }}>{t('ui.reset_password')}</button>
+                    <div className="iso-modal-field">
+                      <label>{t('ui.profile_photo')}</label>
+                      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{t('ui.photo')}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {settingsTab === 'collab' && (
+                <div>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.collab_settings')}</h3>
+                  <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.collab_future')}</p>
+                </div>
+              )}
+              {settingsTab === 'storage' && (
+                <div>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.storage')}</h3>
+                  <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.storage_future')}</p>
+                </div>
+              )}
+              {settingsTab === 'app' && (
+                <div>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.app_settings')}</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '400px' }}>
+                    <div className="iso-modal-field">
+                      <label>{t('ui.language')}</label>
+                      <select className="iso-select" value={language} onChange={e => setLanguage(e.target.value as Language)}>
+                        {LANGUAGE_OPTIONS.map(option => (
+                          <option key={option.code} value={option.code}>{option.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="iso-modal-field">
+                      <label>{t('ui.theme')}</label>
+                      <button
+                        type="button"
+                        className="iso-btn"
+                        style={{ width: 'fit-content' }}
+                        onClick={() => {
+                          const next = themeMode === 'light' ? 'dark' : 'light';
+                          setThemeMode(next);
+                          document.documentElement.setAttribute('data-theme', next);
+                          localStorage.setItem('isomorph-theme', next);
+                        }}
+                      >
+                        <IconTheme /> {themeMode === 'light' ? t('ui.dark_mode') : t('ui.light_mode')}
+                      </button>
+                    </div>
+
+                    <div className="iso-modal-field">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
+                        <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
+                        {t('ui.strict_uml')}
+                      </label>
+                      <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{t('ui.strict_uml_desc')}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isLibraryOpen && (
+        <div className="iso-modal-overlay" onClick={() => setIsLibraryOpen(false)}>
+          <div className="iso-modal iso-modal-large" onClick={e => e.stopPropagation()}>
+            <div className="iso-modal-sidebar">
+              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('ui.library')}</h2>
+              <button className={`iso-modal-sidebar-tab ${libraryTab === 'my' ? 'active' : ''}`} onClick={() => setLibraryTab('my')}>{t('ui.my_works')}</button>
+              <button className={`iso-modal-sidebar-tab ${libraryTab === 'shared' ? 'active' : ''}`} onClick={() => setLibraryTab('shared')}>{t('ui.shared_works')}</button>
+            </div>
+            <div className="iso-modal-content" style={{ position: 'relative' }}>
+              <button className="iso-modal-close-btn" onClick={() => setIsLibraryOpen(false)}>×</button>
+              
+              {libraryTab === 'my' && (
+                <div>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.my_works')}</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+                    <div style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)' }}>{t('ui.placeholder_project')} 1</div>
+                    <div style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)' }}>{t('ui.placeholder_project')} 2</div>
+                  </div>
+                </div>
+              )}
+              {libraryTab === 'shared' && (
+                <div>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.shared_works')}</h3>
+                  <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.shared_future')}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

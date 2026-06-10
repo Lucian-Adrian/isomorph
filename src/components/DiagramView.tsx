@@ -1358,9 +1358,20 @@ export function DiagramView({
         )}
       </div>
 
-      {/* Zoom controls */}
+      {/* Zoom controls and Feedback */}
       {diagram && (
-        <div className="iso-canvas-toolbar" role="toolbar" aria-label={t('tool.zoom_controls')}>
+        <>
+          <button
+            type="button"
+            className="iso-feedback-pill iso-mobile-hide"
+            onClick={() => alert(t('ui.feedback_coming_soon'))}
+            aria-label={t('ui.feedback')}
+          >
+            <div className="iso-feedback-icon">!</div>
+            <span className="iso-feedback-text">{t('ui.feedback')}</span>
+          </button>
+          
+          <div className="iso-canvas-toolbar" role="toolbar" aria-label={t('tool.zoom_controls')}>
             <button
             type="button"
             className="iso-canvas-btn"
@@ -1424,6 +1435,7 @@ export function DiagramView({
             </>
           )}
         </div>
+        </>
       )}
 
       {/* Context Menu */}
