@@ -1614,3 +1614,107 @@ body {
 }
 
 
+/* ── Context Menu (Right-Click) ────────────────────────────── */
+.iso-context-menu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 180px;
+  background: var(--white);
+  border: 1px solid var(--iso-border-strong);
+  border-radius: var(--iso-radius-lg);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.04);
+  padding: 4px;
+  animation: ctx-menu-in 100ms var(--iso-ease);
+}
+@keyframes ctx-menu-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.iso-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-radius: var(--iso-radius);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink-deep);
+  background: transparent;
+  border: none;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  transition: background 80ms;
+  white-space: nowrap;
+}
+.iso-context-menu-item:hover {
+  background: var(--iso-bg-hover);
+}
+.iso-context-menu-item:focus-visible {
+  outline: 2px solid var(--iso-brand);
+  outline-offset: -2px;
+}
+.iso-context-menu-item--danger {
+  color: var(--iso-error);
+}
+.iso-context-menu-item--danger:hover {
+  background: rgba(255, 95, 87, 0.08);
+}
+.iso-context-menu-shortcut {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-mid);
+  font-family: var(--mono);
+}
+.iso-context-menu-sep {
+  height: 1px;
+  background: var(--iso-divider);
+  margin: 4px 0;
+}
+
+/* ── Auto Layout Dropdown ──────────────────────────────────── */
+.iso-layout-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+.iso-layout-dropdown-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 260px;
+  background: var(--white);
+  border: 1px solid var(--iso-border-strong);
+  border-radius: var(--iso-radius-lg);
+  box-shadow: var(--iso-shadow-lg);
+  padding: 4px;
+  z-index: 200;
+  animation: fade-in 120ms var(--iso-ease);
+}
+.iso-layout-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: var(--iso-radius);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  font-family: inherit;
+  text-align: left;
+  transition: background 80ms;
+}
+.iso-layout-option:hover {
+  background: var(--iso-bg-hover);
+}
+.iso-layout-option-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-deep);
+}
+.iso-layout-option-desc {
+  font-size: 11px;
+  color: var(--ink-mid);
+  line-height: 1.4;
+}
+

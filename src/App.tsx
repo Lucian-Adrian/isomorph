@@ -25,6 +25,7 @@ import { EXAMPLES } from './data/examples.js';
 import type { IOMDiagram, IOMEntity } from './semantics/iom.js';
 import type { ParseError } from './parser/index.js';
 import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Language } from './i18n.js';
+import { computeLayout } from './utils/auto-layout.js';
 
 type DiagramKind = IOMDiagram['kind'];
 
@@ -36,6 +37,7 @@ interface WorkspaceTab {
   diagramKindFilter: 'all' | DiagramKind;
   undoStack?: string[];
   redoStack?: string[];
+  savedSource?: string; // Snapshot of source when tab was created/opened — used for beforeunload guard
 }
 
 const DIAGRAM_KINDS: Array<'all' | DiagramKind> = ['all', 'class', 'usecase', 'component', 'deployment', 'sequence', 'activity', 'state', 'collaboration', 'flow'];
@@ -852,6 +854,23 @@ export default function App() {
     }));
   }, [activeTab]);
 
+  // ── Paste cascade counter (Feature 15) ──────────────────
+  const pasteCounterRef = useRef(1);
+
+  // ── Unsaved-changes guard (Feature 16) ──────────────────
+  const hasUnsavedChanges = useMemo(() => tabs.some(t => t.savedSource !== undefined && t.source !== t.savedSource), [tabs]);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedChanges]);
+
   // ── Close dropdown on outside click ──────────────────────
   useEffect(() => {
     function handleOutsideInteraction(e: Event) {
@@ -1376,6 +1395,7 @@ export default function App() {
             const textToCopy = snippets.join('\n');
             if (e.key === 'c') {
               navigator.clipboard.writeText(textToCopy).catch(() => {});
+              pasteCounterRef.current = 1; // Reset cascade on copy
             } else if (e.key === 'd') {
               // Re-use paste logic for duplicate
               const doPaste = (text: string) => {
@@ -1402,8 +1422,10 @@ export default function App() {
                   pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
                 }
                 pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
-                  return `@${n} at (${Math.round(parseFloat(x) + 30)}, ${Math.round(parseFloat(y) + 30)}${sizeSuffix || ''})`;
+                  const offset = 40 * pasteCounterRef.current;
+                  return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
                 });
+                pasteCounterRef.current++;
                 updateActiveTab(tab => {
                   let src = insertBeforeAnnotations(tab.source, pasteText.trim());
                   src = formatDiagramSource(src);
@@ -1445,10 +1467,12 @@ export default function App() {
               }
               pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
             }
-            // Offset positions by 30px
+            // Offset positions by cascading amount
             pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
-              return `@${n} at (${Math.round(parseFloat(x) + 30)}, ${Math.round(parseFloat(y) + 30)}${sizeSuffix || ''})`;
+              const offset = 40 * pasteCounterRef.current;
+              return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
             });
+            pasteCounterRef.current++;
             updateActiveTab(tab => {
               let src = insertBeforeAnnotations(tab.source, pasteText.trim());
               src = formatDiagramSource(src);
@@ -1510,12 +1534,14 @@ export default function App() {
   // ── New file ──────────────────────────────────────────────
   const executeNewDiagram = useCallback((kind: DiagramKind) => {
     const id = `tab-${slugId()}`;
+    const src = templateFor(kind);
     setTabs(prev => [
       ...prev,
       {
         id,
         name: `untitled-${prev.length + 1}.isx`,
-        source: templateFor(kind),
+        source: src,
+        savedSource: src,
         activeDiagramIdx: 0,
         diagramKindFilter: 'all',
       },
@@ -1541,6 +1567,7 @@ export default function App() {
         id,
         name: nextName,
         source: transformedSource,
+        savedSource: transformedSource,
         activeDiagramIdx: 0,
         diagramKindFilter: 'collaboration',
       },
@@ -1563,6 +1590,7 @@ export default function App() {
             id,
             name: file.name,
             source: text,
+            savedSource: text,
             activeDiagramIdx: 0,
             diagramKindFilter: 'all',
           },
@@ -1758,6 +1786,181 @@ export default function App() {
     </div>
   );
 
+  // ── Auto Layout handler (Feature 17) ─────────────────────
+  const handleAutoLayout = useCallback((mode: 'left-right' | 'snowflake' | 'compact') => {
+    if (!activeDiagram || !activeTab) return;
+    const entities = [...activeDiagram.entities.values()];
+    if (entities.length === 0) return;
+
+    const layoutEntities = entities.map(e => ({ name: e.name }));
+    const layoutRelations = activeDiagram.relations.map(r => ({ from: r.from, to: r.to }));
+    const { positions } = computeLayout(mode, layoutEntities, layoutRelations);
+
+    // Apply positions to source by rewriting/adding @Entity at (...) annotations
+    updateActiveTab(tab => {
+      let src = tab.source;
+      // Remove all existing position annotations
+      src = src.replace(/^\s*@\w+\s+at\s*\([^)]+\)\s*$/gm, '');
+      // Clean up resulting blank lines in annotation area
+      src = src.replace(/\n{3,}/g, '\n\n');
+      // Build new annotations
+      const annotations = [...positions.entries()]
+        .map(([name, pos]) => `  @${name} at (${pos.x}, ${pos.y})`)
+        .join('\n');
+      // Insert before closing brace
+      const block = findDiagramBlock(src);
+      if (block) {
+        const before = src.slice(0, block.closeBrace);
+        const after = src.slice(block.closeBrace);
+        src = before.trimEnd() + '\n\n' + annotations + '\n' + after;
+      }
+      return { ...tab, source: src };
+    });
+  }, [activeDiagram, activeTab, updateActiveTab]);
+
+  // ── Context menu callbacks (Feature 19) ─────────────────
+  const handleContextEntityDelete = useCallback((entityName: string) => {
+    if (!activeTab) return;
+    updateActiveTab(tab => {
+      let src = tab.source;
+      // Remove entity declaration
+      const extracted = extractEntityDeclaration(src, entityName);
+      if (extracted) {
+        src = src.replace(extracted, '');
+      }
+      // Remove annotations for this entity
+      const annoRx = new RegExp(`^\\s*@${escapeRegex(entityName)}\\s+at\\s*\\([^)]+\\)\\s*$`, 'gm');
+      src = src.replace(annoRx, '');
+      // Remove relations involving this entity
+      const relRx = new RegExp(`^\\s*${escapeRegex(entityName)}\\s+(?:--|\\.\\.)[^\\n]*$|^\\s*\\S+\\s+(?:--|\\.\\.)[^\\n]*${escapeRegex(entityName)}[^\\n]*$`, 'gm');
+      src = src.replace(relRx, '');
+      src = src.replace(/\n{3,}/g, '\n\n');
+      return { ...tab, source: src };
+    });
+    setSelectedItems(prev => prev.filter(i => i.id !== entityName));
+  }, [activeTab, updateActiveTab]);
+
+  const handleContextEntityDuplicate = useCallback((entityName: string) => {
+    if (!activeTab || !activeDiagram) return;
+    const snippets: string[] = [];
+    const extracted = extractEntityDeclaration(activeTab.source, entityName);
+    if (extracted) snippets.push(extracted.trim());
+    const annoRx = new RegExp(`^\\s*@${escapeRegex(entityName)}\\s+at\\s*\\([^)]+\\)`, 'gm');
+    const annoMatches = activeTab.source.match(annoRx);
+    if (annoMatches) snippets.push(...annoMatches);
+    if (snippets.length === 0) return;
+
+    let pasteText = snippets.join('\n');
+    const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
+    const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
+    for (const name of namesToReplace) {
+      const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
+      const baseStr = baseMatch ? baseMatch[1] : name;
+      let newName = baseStr + '1';
+      let i = 2;
+      const isNameTaken = (n: string) => {
+        const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
+        return rx.test(activeTab.source) || rx.test(pasteText);
+      };
+      let emergencyBreak = 0;
+      while (isNameTaken(newName) && emergencyBreak < 1000) { newName = baseStr + i; i++; emergencyBreak++; }
+      pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
+    }
+    pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
+      const offset = 40 * pasteCounterRef.current;
+      return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
+    });
+    pasteCounterRef.current++;
+    updateActiveTab(tab => {
+      let src = insertBeforeAnnotations(tab.source, pasteText.trim());
+      src = formatDiagramSource(src);
+      return { ...tab, source: src };
+    });
+  }, [activeTab, activeDiagram, updateActiveTab]);
+
+  const handleContextEntityCopy = useCallback((entityName: string) => {
+    if (!activeTab) return;
+    const snippets: string[] = [];
+    const extracted = extractEntityDeclaration(activeTab.source, entityName);
+    if (extracted) snippets.push(extracted.trim());
+    const annoRx = new RegExp(`^\\s*@${escapeRegex(entityName)}\\s+at\\s*\\([^)]+\\)`, 'gm');
+    const annoMatches = activeTab.source.match(annoRx);
+    if (annoMatches) snippets.push(...annoMatches);
+    if (snippets.length > 0) {
+      navigator.clipboard.writeText(snippets.join('\n')).catch(() => {});
+      pasteCounterRef.current = 1;
+    }
+  }, [activeTab]);
+
+  const handleContextRelationDelete = useCallback((relationId: string) => {
+    if (!activeTab || !activeDiagram) return;
+    const rel = activeDiagram.relations.find(r => r.id === relationId);
+    if (!rel) return;
+    updateActiveTab(tab => {
+      let src = tab.source;
+      // Find and remove the relation line by matching from -> to with the token
+      const patterns = [
+        new RegExp(`^\\s*${escapeRegex(rel.from)}\\s+\\S+\\s+${escapeRegex(rel.to)}[^\\n]*$`, 'gm'),
+      ];
+      for (const rx of patterns) {
+        const match = src.match(rx);
+        if (match) { src = src.replace(match[0], ''); break; }
+      }
+      src = src.replace(/\n{3,}/g, '\n\n');
+      return { ...tab, source: src };
+    });
+    setSelectedItems(prev => prev.filter(i => i.id !== relationId));
+  }, [activeTab, activeDiagram, updateActiveTab]);
+
+  const handleContextPaste = useCallback(() => {
+    navigator.clipboard.readText().then(text => {
+      if (!text.trim() || !activeTab) return;
+      let pasteText = text;
+      const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
+      const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
+      for (const name of namesToReplace) {
+        const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
+        const baseStr = baseMatch ? baseMatch[1] : name;
+        let newName = baseStr + '1'; let i = 2;
+        const isNameTaken = (n: string) => {
+          const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
+          return rx.test(activeTab.source) || rx.test(pasteText);
+        };
+        let emergencyBreak = 0;
+        while (isNameTaken(newName) && emergencyBreak < 1000) { newName = baseStr + i; i++; emergencyBreak++; }
+        pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
+      }
+      pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
+        const offset = 40 * pasteCounterRef.current;
+        return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
+      });
+      pasteCounterRef.current++;
+      updateActiveTab(tab => {
+        let src = insertBeforeAnnotations(tab.source, pasteText.trim());
+        src = formatDiagramSource(src);
+        return { ...tab, source: src };
+      });
+    }).catch(() => {});
+  }, [activeTab, updateActiveTab]);
+
+  const handleAddNote = useCallback((_x: number, _y: number) => {
+    if (!activeTab) return;
+    updateActiveTab(tab => {
+      let src = tab.source;
+      // Generate a unique note name
+      let noteIdx = 1;
+      while (src.includes(`note Note${noteIdx}`)) noteIdx++;
+      const noteName = `Note${noteIdx}`;
+      const block = findDiagramBlock(src);
+      if (block) {
+        const before = src.slice(0, block.closeBrace);
+        const after = src.slice(block.closeBrace);
+        src = before.trimEnd() + `\n\n  note ${noteName} {\n    New note\n  }\n` + after;
+      }
+      return { ...tab, source: src };
+    });
+  }, [activeTab, updateActiveTab]);
+
   const canvasPane = (
     <div className="iso-panel iso-panel--canvas" style={{ height: '100%' }}>
       <div className="iso-panel-header">
@@ -1793,6 +1996,13 @@ export default function App() {
           availableTools={toolsetFor(activeDiagram?.kind)}
           selectedItems={selectedItems}
           onSelectionChange={setSelectedItems}
+          onAutoLayout={handleAutoLayout}
+          onEntityDelete={handleContextEntityDelete}
+          onEntityDuplicate={handleContextEntityDuplicate}
+          onEntityCopy={handleContextEntityCopy}
+          onRelationDelete={handleContextRelationDelete}
+          onPaste={handleContextPaste}
+          onAddNote={handleAddNote}
         />
       </div>
     </div>

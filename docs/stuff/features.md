@@ -18,3 +18,12 @@ Give `em the old classic "Something went wrong. Try again later" fault.
 12. simple settings page but in the future with account controls and all that (UI for future features)
 13. ~~ctrl s to save~~
 14. ~~ctrl d to duplicate~~
+15. ~~when ctrl d or ctrl v make them objects stack one over the other like a cascade not one over the other~~
+16. ~~you sure you want to reload - message? your changes will be lost when reloading the page - browser popup (this is if you have made changes in the current session)~~
+17. ~~better aoutolayout - 3 options for autolayout:~~
+    1. ~~Left-Right - Arrange tables from left to right based on their relationship direction. Ideal for diagrams with long relationship lineage like ETL pipelines.~~
+    2. ~~Snowflake - Arrange tables in a snowflake shape, with the most connected tables in the center. Ideal for densely connected diagrams like data warehouses.~~
+    3. ~~Compact - Arrange tables in a compact rectangle layout. Ideal for diagrams with few relationships and tables.~~
+18. DB diagrams
+19. ~~fix right click context menu to show only the isomorph options and not the browser options~~
+20. 
