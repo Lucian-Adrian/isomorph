@@ -1,4 +1,4 @@
-1. Generated with Isomorph watermark (toggleable in paid version but for now keep it only as a simple toggle)
+1. ~~Generated with Isomorph watermark (toggleable in paid version but for now keep it only as a simple toggle)~~
 2. ~~To add to isomorph - the ability to tap on an object and move it more precisely with the arrow keys~~
 3. Er diagram
 4. ~~Select multiple things at once either with ctrl or with mouse in mouse mode and be able to move their location all at once or delete them all at once or copy and paste them all at once and cut~~
@@ -15,7 +15,7 @@ Give `em the old classic "Something went wrong. Try again later" fault.
 9. ~~Add notes object for all the diagrams~~
 10. convert plantuml/mermaid code into isomorph code
 11. ~~/* and */ comments for multiple lines~~
-12. simple settings page but in the future with account controls and all that (UI for future features)
+12. ~~simple settings page but in the future with account controls and all that (UI for future features)~~
 13. ~~ctrl s to save~~
 14. ~~ctrl d to duplicate~~
 15. ~~when ctrl d or ctrl v make them objects stack one over the other like a cascade not one over the other~~

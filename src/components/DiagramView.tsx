@@ -23,6 +23,7 @@ interface ContextMenuState {
 
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
+  isWatermarkEnabled?: boolean;
   language?: Language;
   onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => void;
   onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number) => void;
@@ -49,6 +50,7 @@ interface DiagramViewProps {
 
 export function DiagramView({
   diagram,
+  isWatermarkEnabled,
   language = 'en',
   onEntityMove,
   onEntityResize,
@@ -342,7 +344,7 @@ export function DiagramView({
       return;
     }
 
-    const svg = renderDiagram(diagram);
+    const svg = renderDiagram(diagram, { isWatermarkEnabled });
     el.innerHTML = svg;
 
     const svgEl = el.querySelector('svg');
@@ -350,7 +352,7 @@ export function DiagramView({
 
     svgEl.style.userSelect = 'none';
     svgEl.style.webkitUserSelect = 'none';
-  }, [diagram]);
+  }, [diagram, isWatermarkEnabled]);
 
   // Apply selection outlines separately to preserve DOM during drag
   useEffect(() => {

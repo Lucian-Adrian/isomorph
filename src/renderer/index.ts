@@ -19,16 +19,24 @@ export { renderCollaborationDiagram } from './collaboration-renderer.js';
  * Render any IOMDiagram to an SVG string.
  * Dispatches to the appropriate renderer based on diagram kind.
  */
-export function renderDiagram(diag: IOMDiagram): string {
+export function renderDiagram(diag: IOMDiagram, options?: { isWatermarkEnabled?: boolean }): string {
+  let svgStr = '';
   switch (diag.kind) {
-    case 'class':      return renderClassDiagram(diag);
-    case 'usecase':    return renderUseCaseDiagram(diag);
+    case 'class':      svgStr = renderClassDiagram(diag); break;
+    case 'usecase':    svgStr = renderUseCaseDiagram(diag); break;
     case 'component':
-    case 'deployment': return renderComponentDiagram(diag);
-    case 'sequence':   return renderSequenceDiagram(diag);
+    case 'deployment': svgStr = renderComponentDiagram(diag); break;
+    case 'sequence':   svgStr = renderSequenceDiagram(diag); break;
     case 'activity':
-    case 'state':      return renderStateOrActivityDiagram(diag);
-    case 'collaboration': return renderCollaborationDiagram(diag);
-    case 'flow':       return renderFlowDiagram(diag);
+    case 'state':      svgStr = renderStateOrActivityDiagram(diag); break;
+    case 'collaboration': svgStr = renderCollaborationDiagram(diag); break;
+    case 'flow':       svgStr = renderFlowDiagram(diag); break;
   }
+
+  if (options?.isWatermarkEnabled) {
+    const watermarkStr = `\n  <text x="100%" y="100%" dx="-20" dy="-20" text-anchor="end" font-family="DM Sans, system-ui, sans-serif" font-size="12" fill="var(--iso-text-muted)" opacity="0.5" pointer-events="none">Generated with Isomorph</text>\n</svg>`;
+    return svgStr.replace(/<\/svg>\s*$/, watermarkStr);
+  }
+
+  return svgStr;
 }

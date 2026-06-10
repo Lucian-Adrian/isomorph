@@ -819,6 +819,10 @@ export default function App() {
   const [examplesOpen, setExamplesOpen]     = useState(false);
   const [shortcutsOpen, setShortcutsOpen]   = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
+  const [isWatermarkEnabled, setIsWatermarkEnabled] = useState(() => {
+    const stored = localStorage.getItem('isomorph-watermark');
+    return stored ? stored === 'true' : true;
+  });
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
   });
@@ -1978,6 +1982,7 @@ export default function App() {
       <div className="iso-panel-body">
         <DiagramView
           diagram={activeDiagram}
+          isWatermarkEnabled={isWatermarkEnabled}
           language={language}
           onEntityMove={handleEntityMove}
           onEntityResize={handleEntityResize}
@@ -3127,6 +3132,24 @@ export default function App() {
                       </select>
                     </div>
                     
+                    <div className="iso-modal-field">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
+                        <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
+                        {t('ui.strict_uml')}
+                      </label>
+                    </div>
+
+                    <div className="iso-modal-field">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
+                        <input type="checkbox" checked={isWatermarkEnabled} onChange={e => {
+                          const next = e.target.checked;
+                          setIsWatermarkEnabled(next);
+                          localStorage.setItem('isomorph-watermark', String(next));
+                        }} />
+                        {t('ui.watermark')}
+                      </label>
+                    </div>
+
                     <div className="iso-modal-field">
                       <label>{t('ui.theme')}</label>
                       <button
