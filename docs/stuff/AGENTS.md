@@ -29,6 +29,9 @@ When a bug is reported in chat:
 ## Implementation Safety Rules
 - Prefer minimal, targeted changes over broad refactors.
 - Preserve existing design language (UI style, spacing, controls, visual patterns).
+- **All buttons MUST have hover effects.**
+- **All tooltips and modals MUST close on `Escape` key press and on clicks outside of them.**
+- **All modals and editable fields should ideally save on `Enter` key press.**
 - Preserve dark/light theme compatibility from day 1 for all new/changed UI.
 - Preserve i18n compatibility from day 1 for EN/RO/RU (no hardcoded visible strings).
 - Keep behavior backward-compatible unless explicitly approved otherwise.

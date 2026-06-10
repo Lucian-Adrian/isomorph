@@ -850,6 +850,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile'|'collab'|'storage'|'app'>('app');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [libraryTab, setLibraryTab] = useState<'my'|'shared'>('my');
 
   const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
@@ -1655,18 +1656,26 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [handleNew, handleExportSVG, handleExportPNG, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose]);
 
-  const handleExportGIF = useCallback(() => {
+  const handleExportGIF = useCallback(async () => {
     if (!activeDiagram) return;
-    import('./utils/exporter').then(m => {
-      m.exportGIF(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
-    });
+    setIsExporting(true);
+    try {
+      const m = await import('./utils/exporter');
+      await m.exportGIF(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
+    } finally {
+      setIsExporting(false);
+    }
   }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed]);
 
-  const handleExportMP4 = useCallback(() => {
+  const handleExportMP4 = useCallback(async () => {
     if (!activeDiagram) return;
-    import('./utils/exporter').then(m => {
-      m.exportVideo(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
-    });
+    setIsExporting(true);
+    try {
+      const m = await import('./utils/exporter');
+      await m.exportVideo(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
+    } finally {
+      setIsExporting(false);
+    }
   }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed]);
 
   useEffect(() => {
@@ -2405,19 +2414,23 @@ export default function App() {
                 type="button"
                 className="iso-btn"
                 onClick={(e) => { e.stopPropagation(); setExportMenuOpen(o => !o); }}
-                disabled={!activeDiagram}
+                disabled={!activeDiagram || isExporting}
                 aria-label={t('ui.export')}
                 data-tooltip={t('ui.export')}
               >
-                <IconExport />
-                {t('ui.export')}
+                {isExporting ? <div className="iso-spinner" /> : <IconExport />}
+                {isExporting ? t('ui.exporting') || 'Exporting...' : t('ui.export')}
               </button>
               {exportMenuOpen && activeDiagram && (
                 <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', zIndex: 100, display: 'flex', flexDirection: 'column', minWidth: '160px', boxShadow: '0 4px 12px var(--iso-glass-shadow)' }} onClick={e => e.stopPropagation()}>
-                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}><IconImage /> {t('ui.export_png')}</button>
-                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}><IconFileImage /> {t('ui.export_svg')}</button>
-                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}><IconGif /> {t('ui.export_gif')}</button>
-                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}><IconVideo /> {t('ui.export_mp4')}</button>
+                  <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}><IconImage /> {t('ui.export_png')}</button>
+                  <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}><IconFileImage /> {t('ui.export_svg')}</button>
+                  {isAnimationsEnabled && (
+                    <>
+                      <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}><IconGif /> {t('ui.export_gif')}</button>
+                      <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}><IconVideo /> {t('ui.export_mp4')}</button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -2603,10 +2616,14 @@ export default function App() {
                 </button>
                 {exportMenuOpen && activeDiagram && (
                   <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '4px', background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', zIndex: 100, display: 'flex', flexDirection: 'column', minWidth: '160px', boxShadow: '0 -4px 12px var(--iso-glass-shadow)' }}>
-                    <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}>{t('ui.export_png')}</button>
-                    <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}>{t('ui.export_svg')}</button>
-                    <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}>{t('ui.export_gif')}</button>
-                    <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}>{t('ui.export_mp4')}</button>
+                    <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}><IconImage /> {t('ui.export_png')}</button>
+                    <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}><IconFileImage /> {t('ui.export_svg')}</button>
+                    {isAnimationsEnabled && (
+                      <>
+                        <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}><IconGif /> {t('ui.export_gif')}</button>
+                        <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}><IconVideo /> {t('ui.export_mp4')}</button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

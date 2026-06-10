@@ -197,7 +197,7 @@ function getDiagramDuration(diagram: IOMDiagram): number {
   return 1700;
 }
 
-async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Promise<{ canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, frames: { data: HTMLCanvasElement, delay: number }[] }> {
+async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Promise<{ canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, frames: { data: Uint8ClampedArray, imageData: ImageData, delay: number }[] }> {
   const durationMs = getDiagramDuration(diagram);
   const delayMs = 1000 / fps;
   const numFrames = Math.ceil(durationMs / delayMs);
@@ -274,7 +274,8 @@ async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Pro
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(frameCanvas, 0, 0);
 
-    frames.push({ data: frameCanvas, delay: delayMs });
+    const imageData = fctx ? fctx.getImageData(0, 0, width * 2, height * 2) : ctx.getImageData(0, 0, width * 2, height * 2);
+    frames.push({ data: imageData.data, imageData, delay: delayMs });
   }
 
   return { canvas, ctx, frames };
@@ -283,15 +284,27 @@ async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Pro
 export async function exportGIF(diagram: IOMDiagram, diagramName: string, options: any) {
   try {
     const { canvas, frames } = await renderFrames(diagram, options, 15); // 15 fps is good for GIF
+    const gifFrames = frames.map(f => ({
+      data: f.data,
+      delay: f.delay
+    }));
+
     const gifBlob = await encode({
       workerUrl,
       width: canvas.width,
       height: canvas.height,
-      frames: frames as any,
+      frames: gifFrames as any,
       format: 'blob'
     });
     
-    const url = URL.createObjectURL(gifBlob);
+    let finalBlob: Blob;
+    if (gifBlob instanceof Blob) {
+      finalBlob = gifBlob;
+    } else {
+      finalBlob = new Blob([gifBlob as any], { type: 'image/gif' });
+    }
+    
+    const url = URL.createObjectURL(finalBlob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `${diagramName}.gif`;
@@ -334,7 +347,7 @@ export async function exportVideo(diagram: IOMDiagram, diagramName: string, opti
     
     for (const frame of frames) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(frame.data, 0, 0);
+      ctx.putImageData(frame.imageData, 0, 0);
       await new Promise(resolve => setTimeout(resolve, frame.delay));
     }
     
