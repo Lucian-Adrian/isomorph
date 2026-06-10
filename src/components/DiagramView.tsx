@@ -821,14 +821,16 @@ export function DiagramView({
   useEffect(() => {
     if (!contextMenu) return;
     const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setContextMenu(null); };
-    const handleClick = (e: MouseEvent) => {
+    const handleClick = (e: PointerEvent | MouseEvent) => {
       const target = e.target as Element;
       if (!target.closest('.iso-context-menu')) setContextMenu(null);
     };
     window.addEventListener('keydown', handleKey);
+    window.addEventListener('pointerdown', handleClick, { capture: true });
     window.addEventListener('mousedown', handleClick, { capture: true });
     return () => {
       window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('pointerdown', handleClick, { capture: true });
       window.removeEventListener('mousedown', handleClick, { capture: true });
     };
   }, [contextMenu]);
@@ -836,12 +838,16 @@ export function DiagramView({
   // Close layout dropdown on outside click
   useEffect(() => {
     if (!layoutDropdownOpen) return;
-    const handleClick = (e: MouseEvent) => {
+    const handleClick = (e: PointerEvent | MouseEvent) => {
       const target = e.target as Element;
       if (!target.closest('.iso-layout-dropdown')) setLayoutDropdownOpen(false);
     };
+    window.addEventListener('pointerdown', handleClick);
     window.addEventListener('mousedown', handleClick);
-    return () => window.removeEventListener('mousedown', handleClick);
+    return () => {
+      window.removeEventListener('pointerdown', handleClick);
+      window.removeEventListener('mousedown', handleClick);
+    };
   }, [layoutDropdownOpen]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
