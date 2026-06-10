@@ -24,6 +24,8 @@ interface ContextMenuState {
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
   isWatermarkEnabled?: boolean;
+  isAnimating?: boolean;
+  animationSpeed?: number;
   language?: Language;
   onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => void;
   onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number) => void;
@@ -51,6 +53,8 @@ interface DiagramViewProps {
 export function DiagramView({
   diagram,
   isWatermarkEnabled,
+  isAnimating = false,
+  animationSpeed = 1.0,
   language = 'en',
   onEntityMove,
   onEntityResize,
@@ -334,7 +338,7 @@ export function DiagramView({
     return () => window.removeEventListener('keydown', handler);
   }, [selectedItems, onEntityMove]);
 
-  // Render SVG into container on diagram change
+  // Render SVG into container on diagram change or animation
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -344,15 +348,40 @@ export function DiagramView({
       return;
     }
 
-    const svg = renderDiagram(diagram, { isWatermarkEnabled });
-    el.innerHTML = svg;
+    let frameId: number;
+    let startTime = performance.now();
 
-    const svgEl = el.querySelector('svg');
-    if (!svgEl) return;
+    const loop = (now: number) => {
+      if (!isAnimating) return;
+      const t = (now - startTime) * animationSpeed;
+      const svg = renderDiagram(diagram, { isWatermarkEnabled, isAnimating: true, animationSpeed, animationTimeMs: t });
+      el.innerHTML = svg;
+      
+      const svgEl = el.querySelector('svg');
+      if (svgEl) {
+        svgEl.style.userSelect = 'none';
+        svgEl.style.webkitUserSelect = 'none';
+      }
+      
+      frameId = requestAnimationFrame(loop);
+    };
 
-    svgEl.style.userSelect = 'none';
-    svgEl.style.webkitUserSelect = 'none';
-  }, [diagram, isWatermarkEnabled]);
+    if (isAnimating) {
+      frameId = requestAnimationFrame(loop);
+    } else {
+      const svg = renderDiagram(diagram, { isWatermarkEnabled, isAnimating: false, animationSpeed });
+      el.innerHTML = svg;
+      const svgEl = el.querySelector('svg');
+      if (svgEl) {
+        svgEl.style.userSelect = 'none';
+        svgEl.style.webkitUserSelect = 'none';
+      }
+    }
+
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+    };
+  }, [diagram, isWatermarkEnabled, isAnimating, animationSpeed]);
 
   // Apply selection outlines separately to preserve DOM during drag
   useEffect(() => {

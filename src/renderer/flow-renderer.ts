@@ -24,7 +24,7 @@ interface Placed {
   y: number;
 }
 
-export function renderFlowDiagram(diag: IOMDiagram): string {
+export function renderFlowDiagram(diag: IOMDiagram, options?: { isAnimating?: boolean, animationSpeed?: number, animationTimeMs?: number }): string {
   const entities = [...diag.entities.values()];
   if (entities.length === 0)
     return `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>`;
@@ -77,6 +77,21 @@ export function renderFlowDiagram(diag: IOMDiagram): string {
       svg += `<rect x="${mx - labelWidth / 2}" y="${my - 13}" width="${labelWidth}" height="18" rx="3" fill="var(--iso-bg-panel)" opacity="0.95"/>`;
       svg += `<text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text)">${safeLabel}</text>`;
     }
+
+    if (options?.isAnimating) {
+      const duration = 1200;
+      const t = (options.animationTimeMs ?? 0) % (duration + 500);
+      if (t <= duration) {
+        const progress = t / duration;
+        const pX = x1 + (x2 - x1) * progress;
+        const pY = y1 + (y2 - y1) * progress;
+        const fadeOut = progress > 0.8 ? (1 - progress) / 0.2 : (progress < 0.2 ? progress / 0.2 : 1);
+        
+        svg += `<circle cx="${pX}" cy="${pY}" r="4" fill="var(--iso-accent, #6366f1)" opacity="${fadeOut}" style="pointer-events:none" />`;
+        svg += `<circle cx="${pX}" cy="${pY}" r="12" fill="var(--iso-accent, #6366f1)" opacity="${fadeOut * 0.3}" style="pointer-events:none" />`;
+      }
+    }
+
     svg += `</g>\n`;
   }
 

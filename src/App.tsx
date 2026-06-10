@@ -823,6 +823,16 @@ export default function App() {
     const stored = localStorage.getItem('isomorph-watermark');
     return stored ? stored === 'true' : true;
   });
+  const [isAnimationsEnabled, setIsAnimationsEnabled] = useState(() => {
+    const stored = localStorage.getItem('isomorph-animations');
+    return stored ? stored === 'true' : true;
+  });
+  const [animationSpeed, setAnimationSpeed] = useState<number>(() => {
+    const stored = localStorage.getItem('isomorph-anim-speed');
+    return stored ? parseFloat(stored) : 1.0;
+  });
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
   });
@@ -1632,6 +1642,20 @@ export default function App() {
     return () => window.removeEventListener('keydown', handler);
   }, [handleNew, handleExportSVG, handleExportPNG, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose]);
 
+  const handleExportGIF = useCallback(() => {
+    if (!activeDiagram) return;
+    import('./utils/exporter').then(m => {
+      m.exportGIF(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
+    });
+  }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed]);
+
+  const handleExportMP4 = useCallback(() => {
+    if (!activeDiagram) return;
+    import('./utils/exporter').then(m => {
+      m.exportVideo(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
+    });
+  }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed]);
+
   useEffect(() => {
     const handleModalEnter = (e: KeyboardEvent) => {
       if (e.key !== 'Enter') return;
@@ -1983,6 +2007,8 @@ export default function App() {
         <DiagramView
           diagram={activeDiagram}
           isWatermarkEnabled={isWatermarkEnabled}
+          isAnimating={isAnimating}
+          animationSpeed={animationSpeed}
           language={language}
           onEntityMove={handleEntityMove}
           onEntityResize={handleEntityResize}
@@ -2348,28 +2374,40 @@ export default function App() {
               {t('menu.save_isx_ext')}
             </button>
 
-            <button
-              type="button"
-              className="iso-btn"
-              onClick={handleExportSVG}
-              disabled={!activeDiagram}
-              aria-label={t('menu.export_svg_shortcut')}
-              data-tooltip={t('menu.export_svg_short')}
-            >
-              <IconExport />
-              SVG
-            </button>
-            <button
-              type="button"
-              className="iso-btn"
-              onClick={handleExportPNG}
-              disabled={!activeDiagram}
-              aria-label={t('menu.export_png_shortcut')}
-              data-tooltip={t('menu.export_png_short')}
-            >
-              <IconExport />
-              PNG
-            </button>
+            {isAnimationsEnabled && activeDiagram && (
+              <button
+                type="button"
+                className="iso-btn"
+                onClick={() => setIsAnimating(a => !a)}
+                aria-label={isAnimating ? t('ui.pause') : t('ui.play')}
+                data-tooltip={isAnimating ? t('ui.pause') : t('ui.play')}
+                style={{ color: isAnimating ? 'var(--iso-accent)' : 'inherit' }}
+              >
+                {isAnimating ? '⏸' : '▶'} {isAnimating ? t('ui.pause') : t('ui.play')}
+              </button>
+            )}
+
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="iso-btn"
+                onClick={() => setExportMenuOpen(o => !o)}
+                disabled={!activeDiagram}
+                aria-label={t('ui.export')}
+                data-tooltip={t('ui.export')}
+              >
+                <IconExport />
+                {t('ui.export')}
+              </button>
+              {exportMenuOpen && activeDiagram && (
+                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', zIndex: 100, display: 'flex', flexDirection: 'column', minWidth: '160px', boxShadow: '0 4px 12px var(--iso-glass-shadow)' }}>
+                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}>{t('ui.export_png')}</button>
+                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}>{t('ui.export_svg')}</button>
+                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}>{t('ui.export_gif')}</button>
+                  <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}>{t('ui.export_mp4')}</button>
+                </div>
+              )}
+            </div>
 
             <div className="iso-header-sep" aria-hidden="true" />
 
@@ -2530,6 +2568,35 @@ export default function App() {
                   {t('menu.transform')}
                 </button>
               )}
+              {isAnimationsEnabled && activeDiagram && (
+                <button
+                  type="button"
+                  className="iso-btn"
+                  onClick={() => setIsAnimating(a => !a)}
+                  style={{ color: isAnimating ? 'var(--iso-accent)' : 'inherit' }}
+                >
+                  {isAnimating ? '⏸' : '▶'} {isAnimating ? t('ui.pause') : t('ui.play')}
+                </button>
+              )}
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  className="iso-btn"
+                  onClick={() => setExportMenuOpen(o => !o)}
+                  disabled={!activeDiagram}
+                >
+                  <IconExport />
+                  {t('ui.export')}
+                </button>
+                {exportMenuOpen && activeDiagram && (
+                  <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '4px', background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', zIndex: 100, display: 'flex', flexDirection: 'column', minWidth: '160px', boxShadow: '0 -4px 12px var(--iso-glass-shadow)' }}>
+                    <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}>{t('ui.export_png')}</button>
+                    <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}>{t('ui.export_svg')}</button>
+                    <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}>{t('ui.export_gif')}</button>
+                    <button className="iso-dropdown-item" style={{ background: 'transparent', border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}>{t('ui.export_mp4')}</button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="iso-mobile-actions-group iso-mobile-actions-group--secondary">
               <button
@@ -2549,34 +2616,6 @@ export default function App() {
               >
                 <IconSave />
                 {t('menu.save')}
-              </button>
-              <button
-                type="button"
-                className="iso-btn"
-                onClick={handleExportSVG}
-                onPointerDown={e => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleExportSVG();
-                }}
-                disabled={!activeDiagram}
-              >
-                <IconExport />
-                SVG
-              </button>
-              <button
-                type="button"
-                className="iso-btn"
-                onClick={handleExportPNG}
-                onPointerDown={e => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleExportPNG();
-                }}
-                disabled={!activeDiagram}
-              >
-                <IconExport />
-                PNG
               </button>
               <button type="button" className="iso-btn iso-btn--icon" onClick={() => setShortcutsOpen(o => !o)} aria-label={t('ui.shortcuts')}>
                 <IconKeyboard />
@@ -3149,6 +3188,38 @@ export default function App() {
                         {t('ui.watermark')}
                       </label>
                     </div>
+
+                    <div className="iso-modal-field">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
+                        <input type="checkbox" checked={isAnimationsEnabled} onChange={e => {
+                          const next = e.target.checked;
+                          setIsAnimationsEnabled(next);
+                          if (!next) setIsAnimating(false);
+                          localStorage.setItem('isomorph-animations', String(next));
+                        }} />
+                        {t('ui.enable_animations')}
+                      </label>
+                    </div>
+
+                    {isAnimationsEnabled && (
+                      <div className="iso-modal-field">
+                        <label>{t('ui.export_speed')}</label>
+                        <select
+                          className="iso-select"
+                          value={animationSpeed}
+                          onChange={e => {
+                            const speed = parseFloat(e.target.value);
+                            setAnimationSpeed(speed);
+                            localStorage.setItem('isomorph-anim-speed', String(speed));
+                          }}
+                        >
+                          <option value={0.5}>0.5x</option>
+                          <option value={1.0}>1.0x</option>
+                          <option value={1.5}>1.5x</option>
+                          <option value={2.0}>2.0x</option>
+                        </select>
+                      </div>
+                    )}
 
                     <div className="iso-modal-field">
                       <label>{t('ui.theme')}</label>

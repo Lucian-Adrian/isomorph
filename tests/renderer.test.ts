@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../src/parser/index.js';
 import { analyze } from '../src/semantics/analyzer.js';
 import { renderClassDiagram } from '../src/renderer/class-renderer.js';
-import { renderUseCaseDiagram } from '../src/renderer/usecase-renderer.js';
+import { renderUsecaseDiagram } from '../src/renderer/usecase-renderer.js';
 import { renderComponentDiagram } from '../src/renderer/component-renderer.js';
 import { renderSequenceDiagram } from '../src/renderer/sequence-renderer.js';
-import { renderStateOrActivityDiagram } from '../src/renderer/state-renderer.js';
+import { renderStateDiagram } from '../src/renderer/state-renderer.js';
 import { escapeXml, visSymbolFor, edgePointOnRect, computePortPositions } from '../src/renderer/utils.js';
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -177,26 +177,26 @@ describe('Class Diagram Renderer', () => {
 describe('UseCase Diagram Renderer', () => {
   it('produces valid SVG string', () => {
     const diag = buildDiagram('diagram D : usecase { actor User }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('<svg');
     expect(svg).toContain('</svg>');
   });
 
   it('renders actor names', () => {
     const diag = buildDiagram('diagram D : usecase { actor Student }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('Student');
   });
 
   it('renders usecase names', () => {
     const diag = buildDiagram('diagram D : usecase { usecase Login }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('Login');
   });
 
   it('renders relations in usecase diagram', () => {
     const diag = buildDiagram('diagram D : usecase { actor User usecase Login User --> Login }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('<line');
   });
 });
@@ -311,40 +311,40 @@ describe('Class Diagram Renderer — advanced', () => {
 describe('UseCase Diagram Renderer — advanced', () => {
   it('renders system boundary rectangle', () => {
     const diag = buildDiagram('diagram D : usecase { actor User usecase Login }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     // System boundary is rendered as a rect
     expect(svg).toContain('<rect');
   });
 
   it('renders relation labels in usecase diagram', () => {
     const diag = buildDiagram('diagram D : usecase { actor User usecase Login User --> Login [label="authenticates"] }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('authenticates');
   });
 
   it('renders multiple actors', () => {
     const diag = buildDiagram('diagram D : usecase { actor Admin actor User }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('Admin');
     expect(svg).toContain('User');
   });
 
   it('renders multiple usecases', () => {
     const diag = buildDiagram('diagram D : usecase { usecase Login usecase Register }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('Login');
     expect(svg).toContain('Register');
   });
 
   it('includes data-entity-name for actors', () => {
     const diag = buildDiagram('diagram D : usecase { actor Student }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('data-entity-name="Student"');
   });
 
   it('renders default boundary as editable pseudo-system entity', () => {
     const diag = buildDiagram('diagram D : usecase { actor User usecase Login }');
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('data-default-usecase-boundary="true"');
     expect(svg).toContain('data-entity-name="System"');
   });
@@ -356,7 +356,7 @@ describe('UseCase Diagram Renderer — advanced', () => {
       system MainSystem
       @MainSystem at (210, 30, 640, 420)
     }`);
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('data-entity-width="640"');
     expect(svg).toContain('data-entity-height="420"');
   });
@@ -368,7 +368,7 @@ describe('UseCase Diagram Renderer — advanced', () => {
       system MainSystem
       @MainSystem at (210, 30, 640, 420)
     }`);
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('data-boundary-entity="true"');
     expect(svg).toContain('data-resize-handle="e"');
     expect(svg).toContain('data-resize-handle="s"');
@@ -383,7 +383,7 @@ describe('UseCase Diagram Renderer — advanced', () => {
       System --> Login
       User --> Login
     }`);
-    const svg = renderUseCaseDiagram(diag);
+    const svg = renderUsecaseDiagram(diag);
     expect(svg).toContain('data-default-usecase-boundary="true"');
     expect(svg).toContain('data-entity-name="SystemBoundary"');
   });
@@ -505,7 +505,7 @@ describe('Activity Diagram Renderer — swimlanes', () => {
       @Validate at (360, 200)
       @End at (360, 320)
     }`);
-    const svg = renderStateOrActivityDiagram(diag);
+    const svg = renderStateDiagram(diag);
     expect(svg).toContain('data-entity-name="UserLane"');
     expect(svg).toContain('data-entity-name="SystemLane"');
     expect(svg).toContain('stroke="var(--iso-border, #cbd5e1)"');
@@ -516,7 +516,7 @@ describe('Activity Diagram Renderer — swimlanes', () => {
       partition TeamA
       @TeamA at (30, 20, 420, 360)
     }`);
-    const svg = renderStateOrActivityDiagram(diag);
+    const svg = renderStateDiagram(diag);
     expect(svg).toContain('data-entity-width="420"');
     expect(svg).toContain('data-entity-height="360"');
   });

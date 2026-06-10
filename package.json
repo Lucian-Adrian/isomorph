@@ -37,6 +37,7 @@
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
     "codemirror": "^6.0.1",
+    "modern-gif": "^2.1.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "replace-in-file": "^8.4.0"

@@ -21,7 +21,7 @@ const GRID_COLS     = 4;
 
 // ─── Main entry ──────────────────────────────────────────────
 
-export function renderClassDiagram(diag: IOMDiagram): string {
+export function renderClassDiagram(diag: IOMDiagram, options?: { isAnimating?: boolean, animationSpeed?: number, animationTimeMs?: number }): string {
   const entities = [...diag.entities.values()];
   if (entities.length === 0 && diag.packages.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>';
 
@@ -108,7 +108,7 @@ export function renderClassDiagram(diag: IOMDiagram): string {
     const from = positioned.find(p => p.entity.name === rel.from);
     const to   = positioned.find(p => p.entity.name === rel.to);
     if (!from || !to) continue;
-    svg += renderRelation(from, to, rel);
+    svg += renderRelation(from, to, rel, options);
   }
 
   // Draw entity boxes
@@ -218,7 +218,7 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
 
 // ─── Relation line ───────────────────────────────────────────
 
-function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): string {
+function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation, options?: any): string {
   const [x1, y1] = boxCenter(from);
   const [x2, y2] = boxCenter(to);
 
@@ -242,6 +242,20 @@ function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): str
   if (rel.label) {
     s += `    <rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="var(--iso-bg-panel)" opacity="0.9"/>\n`;
     s += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text)" font-style="italic">${escapeXml(rel.label)}</text>\n`;
+  }
+  
+  if (options?.isAnimating) {
+    const duration = 1200;
+    const t = (options?.animationTimeMs ?? 0) % (duration + 500);
+    if (t <= duration) {
+      const progress = t / duration;
+      const pX = sx + (ex - sx) * progress;
+      const pY = sy + (ey - sy) * progress;
+      const fadeOut = progress > 0.8 ? (1 - progress) / 0.2 : (progress < 0.2 ? progress / 0.2 : 1);
+      
+      s += `    <circle cx="${pX}" cy="${pY}" r="4" fill="var(--iso-accent, #6366f1)" opacity="${fadeOut}" style="pointer-events:none" />\n`;
+      s += `    <circle cx="${pX}" cy="${pY}" r="12" fill="var(--iso-accent, #6366f1)" opacity="${fadeOut * 0.3}" style="pointer-events:none" />\n`;
+    }
   }
 
   // Multiplicities
