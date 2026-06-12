@@ -83,8 +83,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
           <button className="iso-modal-close" onClick={onClose} aria-label={t('ui.close')}>×</button>
         </div>
         <div className="iso-modal-body">
-          <form onSubmit={handleSubmit} className="iso-auth-form">
-            <div className="iso-form-group">
+          <form onSubmit={handleSubmit} className="iso-form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="iso-modal-field">
               <label htmlFor="auth-email">{t('auth.email')}</label>
               <input
                 id="auth-email"
@@ -97,7 +97,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
             </div>
             
             {mode !== 'reset' && (
-              <div className="iso-form-group">
+              <div className="iso-modal-field">
                 <label htmlFor="auth-password">{t('auth.password')}</label>
                 <input
                   id="auth-password"
@@ -114,29 +114,29 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
             {error && <div className="iso-error-message">{error}</div>}
             {success && <div className="iso-success-message">{success}</div>}
 
-            <button type="submit" className="iso-button iso-button--primary iso-auth-submit" disabled={loading}>
+            <button type="submit" className="iso-btn iso-btn--primary" style={{ width: '100%', padding: '12px', fontSize: '16px' }} disabled={loading}>
               {loading ? '...' : submitLabels[mode]}
             </button>
           </form>
 
-          <div className="iso-auth-links">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '24px', alignItems: 'center' }}>
             {mode === 'login' && (
               <>
-                <button type="button" className="iso-auth-link" onClick={() => setMode('register')}>
+                <button type="button" className="iso-btn" style={{ background: 'transparent', border: 'none', color: 'var(--iso-text-muted)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setMode('register')}>
                   {t('auth.switch_to_register')}
                 </button>
-                <button type="button" className="iso-auth-link" onClick={() => setMode('reset')}>
+                <button type="button" className="iso-btn" style={{ background: 'transparent', border: 'none', color: 'var(--iso-text-muted)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setMode('reset')}>
                   {t('auth.switch_to_reset')}
                 </button>
               </>
             )}
             {mode === 'register' && (
-              <button type="button" className="iso-auth-link" onClick={() => setMode('login')}>
+              <button type="button" className="iso-btn" style={{ background: 'transparent', border: 'none', color: 'var(--iso-text-muted)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setMode('login')}>
                 {t('auth.switch_to_login')}
               </button>
             )}
             {mode === 'reset' && (
-              <button type="button" className="iso-auth-link" onClick={() => setMode('login')}>
+              <button type="button" className="iso-btn" style={{ background: 'transparent', border: 'none', color: 'var(--iso-text-muted)', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setMode('login')}>
                 {t('auth.back_to_login')}
               </button>
             )}

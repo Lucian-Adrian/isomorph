@@ -67,7 +67,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="iso-form">
-              <div className="iso-form-group">
+              <div className="iso-modal-field">
                 <label>{t('feedback.type')}</label>
                 <select className="iso-select" value={type} onChange={e => setType(e.target.value as any)} style={{ width: '100%' }}>
                   <option value="general">{t('feedback.type_general')}</option>
@@ -75,7 +75,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                   <option value="feature">{t('feedback.type_feature')}</option>
                 </select>
               </div>
-              <div className="iso-form-group">
+              <div className="iso-modal-field">
                 <label>{t('feedback.content')}</label>
                 <textarea
                   className="iso-input"

@@ -870,7 +870,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const { session, user, signOut } = useAuth();
   
-  const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null, cursor_colour?: string | null, display_name?: string | null } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -3251,17 +3251,33 @@ export default function App() {
                 <div>
                   <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.profile')}</h3>
                   {session ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
-                      <div className="iso-modal-field"><label>{t('ui.email')}</label><input type="email" value={user?.email || ''} disabled className="iso-input" /></div>
-                      <div className="iso-modal-field"><label>{t('ui.name')}</label><input type="text" placeholder="John Doe" value={profile?.full_name || ''} disabled className="iso-input" /></div>
-                      <div className="iso-modal-field"><label>{t('ui.username')}</label><input type="text" placeholder="johndoe" value={profile?.username || ''} disabled className="iso-input" /></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '400px' }}>
                       <div className="iso-modal-field">
-                        <label>{t('ui.profile_photo')}</label>
-                        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                          {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : t('ui.photo')}
+                        <label>Email Address</label>
+                        <input type="email" value={user?.email || ''} disabled className="iso-input" style={{ opacity: 0.7 }} />
+                      </div>
+                      <div className="iso-modal-field">
+                        <label>Display Name</label>
+                        <input type="text" placeholder="Alice" value={profile?.display_name || ''} onChange={e => setProfile(p => p ? { ...p, display_name: e.target.value } : null)} className="iso-input" />
+                      </div>
+                      <div className="iso-modal-field">
+                        <label>Username</label>
+                        <input type="text" placeholder="alice_wonder" value={profile?.username || ''} onChange={e => setProfile(p => p ? { ...p, username: e.target.value } : null)} className="iso-input" />
+                      </div>
+                      <div className="iso-modal-field">
+                        <label>Profile Photo</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                            {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '24px' }}>👤</span>}
+                          </div>
+                          <button className="iso-btn" style={{ fontSize: '13px' }}>Upload Photo</button>
                         </div>
                       </div>
-                      <button className="iso-btn" style={{ width: 'fit-content' }} onClick={() => signOut()}>Sign Out</button>
+                      
+                      <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                        <button className="iso-btn iso-btn--primary" style={{ flex: 1 }}>Save Changes</button>
+                        <button className="iso-btn" style={{ color: 'var(--iso-error)' }} onClick={() => signOut()}>Sign Out</button>
+                      </div>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
@@ -3277,11 +3293,66 @@ export default function App() {
               {settingsTab === 'collab' && (
                 <div>
                   <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.collab_settings')}</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '400px' }}>
+                    
                     <div className="iso-modal-field">
-                      <label>Cursor Color (Preview)</label>
-                      <input type="color" defaultValue="#ff0000" />
+                      <label>Cursor Live Preview</label>
+                      <div style={{ height: '120px', background: 'var(--iso-bg-canvas)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
+                            <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.84c.45 0 .67-.54.35-.85L5.5 3.21z" fill={profile?.cursor_colour || '#3B82F6'} stroke="white" strokeWidth="1.5" />
+                          </svg>
+                          <div style={{ 
+                            background: profile?.cursor_colour || '#3B82F6', 
+                            color: 'white', 
+                            padding: '4px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '12px', 
+                            fontWeight: 600, 
+                            marginTop: '4px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          }}>
+                            {profile?.display_name || profile?.username || 'You'}
+                          </div>
+                        </div>
+
+                      </div>
                     </div>
+
+                    <div className="iso-modal-field">
+                      <label>Cursor Color</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                        {['#EF4444', '#22C55E', '#3B82F6', '#EAB308', '#F8FAFC', '#1E293B', '#EC4899', '#F97316'].map(color => (
+                          <button
+                            key={color}
+                            onClick={() => {
+                              // We will save to profile in Phase B, for now just update local state
+                              setProfile(p => p ? { ...p, cursor_colour: color } : null);
+                            }}
+                            style={{
+                              width: '32px', height: '32px', borderRadius: '50%', background: color, 
+                              border: profile?.cursor_colour === color ? '2px solid white' : '1px solid var(--iso-border)',
+                              outline: profile?.cursor_colour === color ? `2px solid ${color}` : 'none',
+                              cursor: 'pointer'
+                            }}
+                            aria-label={`Select color ${color}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="iso-modal-field">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal' }}>
+                        <input type="checkbox" defaultChecked />
+                        Show my name label to others
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal', marginTop: '12px' }}>
+                        <input type="checkbox" defaultChecked />
+                        Show cursor particle trails
+                      </label>
+                    </div>
+
                     <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.collab_future')}</p>
                   </div>
                 </div>
@@ -3469,10 +3540,20 @@ export default function App() {
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.shared_works')}</h3>
-                    <select className="iso-select" style={{ width: '150px' }} aria-label="Sort projects">
-                      <option value="accessed">Last Accessed</option>
-                      <option value="name">Name</option>
-                    </select>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <input 
+                        type="text" 
+                        placeholder={t('ui.search') || 'Search...'} 
+                        value={librarySearchQuery} 
+                        onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                        className="iso-input"
+                        style={{ width: '200px' }}
+                      />
+                      <select className="iso-select" style={{ width: '150px' }} aria-label="Sort projects">
+                        <option value="accessed">Last Accessed</option>
+                        <option value="name">Name</option>
+                      </select>
+                    </div>
                   </div>
                   <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.shared_future')}</p>
                 </div>
