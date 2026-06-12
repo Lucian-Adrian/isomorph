@@ -895,6 +895,7 @@ export default function App() {
   const [renameType, setRenameType] = useState<'project' | 'category' | null>(null);
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [isSavingFlow, setIsSavingFlow] = useState(false);
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -1849,7 +1850,7 @@ export default function App() {
         if (editingEntity) { setEditingEntity(null); return; }
         if (editingRelation) { setEditingRelation(null); return; }
         if (editingText) { setEditingText(null); return; }
-        if (isNewModalOpen) { setIsNewModalOpen(false); return; }
+        if (isNewModalOpen) { setIsNewModalOpen(false); setIsSavingFlow(false); return; }
         if (tabToClose) { setTabToClose(null); return; }
         if (shortcutsOpen) { setShortcutsOpen(false); return; }
       }
@@ -1862,7 +1863,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user]);
+  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user, isSavingFlow]);
 
 
   const handleExportGIF = useCallback(async () => {
@@ -3335,9 +3336,9 @@ export default function App() {
 
       {/* ──────────────── MODALS ───────────────── */}
       {isNewModalOpen && (
-        <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
+        <div className="iso-modal-overlay" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>
           <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
-            <button className="iso-modal-close-btn" onClick={() => setIsNewModalOpen(false)}>×</button>
+            <button className="iso-modal-close-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>×</button>
             <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '16px' }}>{t('welcome.create_new') || 'Create New'}</h3>
             
             <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--iso-bg-header)', padding: '4px', borderRadius: '8px' }}>
@@ -3375,7 +3376,7 @@ export default function App() {
                   </select>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button className="iso-btn" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+                  <button className="iso-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>{t('ui.cancel')}</button>
                   <button className="iso-btn iso-btn--primary" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
                 </div>
               </>
@@ -3400,6 +3401,17 @@ export default function App() {
                             if (p) {
                               setProjects(prev => [p, ...prev]);
                               addToast('Project created successfully', 'success');
+                              
+                              if (isSavingFlow) {
+                                const { createDiagram } = await import('./lib/projects.js');
+                                const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+                                if (d) {
+                                  updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
+                                  addToast('Saved to cloud');
+                                }
+                                setIsSavingFlow(false);
+                              }
+
                               setIsNewModalOpen(false);
                               setNewProjectName('');
                               setNewProjectError('');
@@ -3412,7 +3424,7 @@ export default function App() {
                   {newProjectError && <div style={{ color: 'var(--iso-danger)', fontSize: '12px', marginTop: '6px' }}>{newProjectError}</div>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button className="iso-btn" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+                  <button className="iso-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>{t('ui.cancel')}</button>
                   <button className="iso-btn iso-btn--primary" disabled={!newProjectName.trim()} onClick={async () => {
                     if (user && newProjectName.trim()) {
                       const { createProject } = await import('./lib/projects.js');
@@ -3421,6 +3433,17 @@ export default function App() {
                         if (p) {
                           setProjects(prev => [p, ...prev]);
                           addToast('Project created successfully', 'success');
+                          
+                          if (isSavingFlow) {
+                            const { createDiagram } = await import('./lib/projects.js');
+                            const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+                            if (d) {
+                              updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
+                              addToast('Saved to cloud');
+                            }
+                            setIsSavingFlow(false);
+                          }
+
                           setIsNewModalOpen(false);
                           setNewProjectName('');
                           setNewProjectError('');
@@ -4004,18 +4027,18 @@ export default function App() {
       {contextMenu && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 99998 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}></div>
-          <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 99999, background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
+          <div className="iso-context-menu" style={{ left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}>
             {contextMenu.type === 'category' && (
               <>
-                <button className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
+                <button className="iso-context-menu-item" onClick={() => {
                   setRenameType('category');
                   setRenameTargetId(contextMenu.id);
                   setRenameValue(contextMenu.id);
                   setRenameModalOpen(true);
                   setContextMenu(null);
                 }}>Rename</button>
-                <div style={{ height: '1px', background: 'var(--iso-border)', margin: '4px 0' }} />
-                <button className="iso-btn" style={{ justifyContent: 'flex-start', color: 'var(--iso-danger)', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
+                <div className="iso-context-menu-sep" />
+                <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
                   const next = customCategories.filter(c => c !== contextMenu.id);
                   setCustomCategories(next);
                   saveCustomCategoriesToDB(next);
@@ -4045,14 +4068,14 @@ export default function App() {
 
               return (
                 <>
-                  <button className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
+                  <button className="iso-context-menu-item" onClick={() => {
                     setRenameType('project');
                     setRenameTargetId(contextMenu.id);
                     setRenameValue(project?.name || '');
                     setRenameModalOpen(true);
                     setContextMenu(null);
                   }}>Rename</button>
-                  <button className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
+                  <button className="iso-context-menu-item" onClick={() => {
                     if (project) {
                       const currentSettings = project.settings || {};
                       const nextFav = !currentSettings.is_favorite;
@@ -4071,10 +4094,10 @@ export default function App() {
                     setContextMenu(null);
                   }}>{isFav ? 'Remove from Favorites' : 'Add to Favorites'}</button>
                   <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
-                    <button className="iso-btn" style={{ justifyContent: 'space-between', background: 'transparent', width: '100%', border: 'none', display: 'flex' }}>
+                    <button className="iso-context-menu-item" style={{ justifyContent: 'space-between', display: 'flex' }}>
                       Add to Folder <span>▶</span>
                     </button>
-                    <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '8px', display: 'none', flexDirection: 'column', minWidth: '120px' }}>
+                    <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--white)', border: '1px solid var(--iso-border-strong)', borderRadius: 'var(--iso-radius-lg)', padding: '4px', display: 'none', flexDirection: 'column', minWidth: '120px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
                       {customCategories
                         .filter(cat => cat.toLowerCase() !== 'favorites' && cat.toLowerCase() !== 'favourites')
                         .map(cat => {
@@ -4082,8 +4105,8 @@ export default function App() {
                           return (
                             <button 
                               key={cat} 
-                              className="iso-btn" 
-                              style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none', fontWeight: isCurrent ? 'bold' : 'normal' }} 
+                              className="iso-context-menu-item" 
+                              style={{ fontWeight: isCurrent ? 'bold' : 'normal' }} 
                               onClick={() => {
                                 if (project) {
                                   const currentSettings = project.settings || {};
@@ -4108,8 +4131,8 @@ export default function App() {
                         })}
                     </div>
                   </div>
-                  <div style={{ height: '1px', background: 'var(--iso-border)', margin: '4px 0' }} />
-                  <button className="iso-btn" style={{ justifyContent: 'flex-start', color: 'var(--iso-danger)', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
+                  <div className="iso-context-menu-sep" />
+                  <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
                     setProjectToDelete(contextMenu.id);
                     setContextMenu(null);
                   }}>Delete Project</button>
@@ -4193,6 +4216,7 @@ export default function App() {
                   setNewModalTab('project');
                   setIsNewModalOpen(true);
                   setSaveToCloudModalOpen(false);
+                  setIsSavingFlow(true);
                 }}>New Project</button>
               </div>
             </div>
