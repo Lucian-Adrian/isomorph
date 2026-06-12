@@ -876,6 +876,10 @@ export default function App() {
   const [selectedProjectId, setSelectedProjectId] = useState('');
 
   const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectError, setNewProjectError] = useState('');
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  const [libraryVisibilityFilter, setLibraryVisibilityFilter] = useState('all');
+  const [librarySort, setLibrarySort] = useState('accessed');
   const [autoSaveInterval, setAutoSaveInterval] = useState<number>(() => {
     const val = localStorage.getItem('isomorph-autosave');
     return val ? parseFloat(val) : 0;
@@ -913,18 +917,55 @@ export default function App() {
   const saveCustomCategoriesToDB = async (cats: string[]) => {
     if (user && profile) {
       const { supabase } = await import('./lib/supabase.js');
+      // Fix double saving by not spreading the corrupted top-level "tabs"
+      const currentSettings = profile.settings || {};
+      const { tabs, ...cleanSettings } = currentSettings as any;
       const { error } = await supabase.from('profiles').update({
         settings: {
-          ...(profile.settings || {}),
+          ...cleanSettings,
           projects: {
-            ...(profile.settings?.projects || {}),
             tabs: cats
           }
         }
       }).eq('id', user.id);
       if (!error) {
-        setProfile(p => p ? { ...p, settings: { ...p.settings, projects: { ...p.settings?.projects, tabs: cats } } } : null);
+        setProfile(p => p ? { ...p, settings: { ...cleanSettings, projects: { tabs: cats } } } : null);
       }
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!user || !profile) {
+      addToast('Must be logged in to save settings', 'info');
+      return;
+    }
+    const { supabase } = await import('./lib/supabase.js');
+    const currentSettings = profile.settings || {};
+    const { tabs, ...cleanSettings } = currentSettings as any;
+    const newSettings = {
+      ...cleanSettings,
+      projects: { tabs: customCategories },
+      language: language,
+      auto_save: autoSaveInterval,
+      telemetry: telemetry,
+      show_trail: collabShowTrail,
+      cursor_colour: profile.settings?.cursor_colour || '#EAB308'
+    };
+    
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id,
+      full_name: profile.full_name,
+      username: profile.username,
+      avatar_url: profile.avatar_url,
+      settings: newSettings,
+      updated_at: new Date().toISOString()
+    });
+    
+    if (error) {
+      alert('Error saving settings');
+    } else {
+      addToast('Settings saved successfully');
+      setProfile({ ...profile, settings: newSettings });
     }
   };
 
@@ -2283,7 +2324,11 @@ export default function App() {
               }}
             />
           ) : (
-            <span className="iso-breadcrumb-name" style={{ cursor: 'pointer' }} title="Double click to rename project">
+            <span 
+              className="iso-breadcrumb-name" 
+              style={{ cursor: activeTab?.project_id ? 'pointer' : 'default' }} 
+              data-tooltip={activeTab?.project_id ? "Double click to rename project" : undefined}
+            >
               {projects.find(p => p.id === activeTab?.project_id)?.name || 'Local Project'}
             </span>
           )}
@@ -2626,7 +2671,12 @@ export default function App() {
                       </span>
                     ) : (
                       <>
-                        <span>{tab.name}</span>
+                        <span
+                          style={{ cursor: activeTab?.project_id ? 'pointer' : 'default' }}
+                          data-tooltip={activeTab?.project_id ? "Double click to rename project" : undefined}
+                        >
+                          {tab.name}
+                        </span>
                         {tabs.length > 1 && (
                           <button
                             type="button"
@@ -3231,96 +3281,80 @@ export default function App() {
       {/* ──────────────── MODALS ───────────────── */}
       {isNewModalOpen && (
         <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ minHeight: '400px' }}>
-            <div className="iso-modal-sidebar" style={{ width: '200px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('welcome.create_new') || 'Create New'}</h2>
-              <button 
-                className={`iso-modal-sidebar-tab ${newModalTab === 'tab' ? 'active' : ''}`} 
-                onClick={() => setNewModalTab('tab')}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <IconDiagram size={16} /> New Diagram
-                </div>
-              </button>
-              <button 
-                className={`iso-modal-sidebar-tab ${newModalTab === 'project' ? 'active' : ''}`} 
-                onClick={() => setNewModalTab('project')}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <IconLibrary size={16} /> New Project
-                </div>
-              </button>
-            </div>
+          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+            <button className="iso-modal-close-btn" onClick={() => setIsNewModalOpen(false)}>×</button>
+            <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '16px' }}>{t('welcome.create_new') || 'Create New'}</h3>
             
-            <div className="iso-modal-content" style={{ position: 'relative' }}>
-              <button className="iso-modal-close-btn" onClick={() => setIsNewModalOpen(false)}>×</button>
-              
-              {newModalTab === 'tab' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '8px' }}>{t('welcome.create_new')}</h3>
-                  <p className="iso-modal-desc" style={{ marginBottom: '24px' }}>{t('welcome.select_type_desc')}</p>
-                  
-                  <div style={{ flex: 1 }}>
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Diagram Type</label>
-                      <select 
-                        className="iso-select" 
-                        value={newDiagramKind} 
-                        onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}
-                        style={{ width: '100%', maxWidth: '300px', padding: '10px 14px', borderRadius: '8px', background: 'var(--iso-bg-header)' }}
-                      >
-                        {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                          <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--iso-border)' }}>
-                    <button className="iso-btn" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
-                    <button className="iso-btn iso-btn--primary" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '8px' }}>Create New Project</h3>
-                  <p className="iso-modal-desc" style={{ marginBottom: '24px' }}>Enter a name to set up a new project space.</p>
-                  
-                  <div style={{ flex: 1 }}>
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Project Name</label>
-                      <input 
-                        type="text" 
-                        className="iso-input" 
-                        value={newProjectName} 
-                        onChange={e => setNewProjectName(e.target.value)} 
-                        placeholder="E.g., Q3 System Architecture..." 
-                        autoFocus
-                        style={{ width: '100%', maxWidth: '400px', padding: '10px 14px', borderRadius: '8px', background: 'var(--iso-bg-header)' }}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--iso-border)' }}>
-                    <button className="iso-btn" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
-                    <button className="iso-btn iso-btn--primary" disabled={!newProjectName.trim()} onClick={async () => {
-                      if (user && newProjectName.trim()) {
-                        const { createProject } = await import('./lib/projects.js');
-                        try {
-                          const p = await createProject(user.id, newProjectName.trim());
-                          if (p) {
-                            setProjects(prev => [p, ...prev]);
-                            addToast('Project created successfully');
-                            setIsNewModalOpen(false);
-                            setNewProjectName('');
-                          }
-                        } catch(e: any) { alert(e.message); }
-                      } else { alert("You must be logged in to create a project."); }
-                    }}>{t('ui.create')}</button>
-                  </div>
-                </div>
-              )}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--iso-bg-header)', padding: '4px', borderRadius: '8px' }}>
+              <button 
+                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'tab' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'tab' ? '#fff' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
+                onClick={() => { setNewModalTab('tab'); setNewProjectError(''); }}
+              >
+                Diagram
+              </button>
+              <button 
+                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'project' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'project' ? '#fff' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
+                onClick={() => { setNewModalTab('project'); setNewProjectError(''); }}
+              >
+                Project
+              </button>
             </div>
+
+            {newModalTab === 'tab' ? (
+              <>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Diagram Type</label>
+                  <select 
+                    className="iso-select" 
+                    value={newDiagramKind} 
+                    onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px' }}
+                  >
+                    {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+                      <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button className="iso-btn" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+                  <button className="iso-btn iso-btn--primary" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Project Name</label>
+                  <input 
+                    type="text" 
+                    className="iso-input" 
+                    value={newProjectName} 
+                    onChange={e => { setNewProjectName(e.target.value); setNewProjectError(''); }} 
+                    placeholder="E.g., Q3 System Architecture..." 
+                    autoFocus
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', borderColor: newProjectError ? 'var(--iso-danger)' : undefined }}
+                  />
+                  {newProjectError && <div style={{ color: 'var(--iso-danger)', fontSize: '12px', marginTop: '6px' }}>{newProjectError}</div>}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button className="iso-btn" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+                  <button className="iso-btn iso-btn--primary" disabled={!newProjectName.trim()} onClick={async () => {
+                    if (user && newProjectName.trim()) {
+                      const { createProject } = await import('./lib/projects.js');
+                      try {
+                        const p = await createProject(user.id, newProjectName.trim());
+                        if (p) {
+                          setProjects(prev => [p, ...prev]);
+                          addToast('Project created successfully', 'success');
+                          setIsNewModalOpen(false);
+                          setNewProjectName('');
+                          setNewProjectError('');
+                        }
+                      } catch(e: any) { setNewProjectError(e.message); }
+                    } else { setNewProjectError("You must be logged in to create a project."); }
+                  }}>{t('ui.create')}</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -3414,35 +3448,7 @@ export default function App() {
                       </div>
                       
                       <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                        <button className="iso-btn iso-btn--primary" style={{ flex: 1 }} onClick={async () => {
-                          if (user && profile) {
-                            const newSettings = {
-                              ...(profile.settings || {}),
-                              cursor_colour: profile.settings?.cursor_colour,
-                              show_trail: collabShowTrail,
-                              telemetry: telemetry,
-                              auto_save: autoSaveInterval,
-                              language: language,
-                              tabs: customCategories
-                            };
-                            const { supabase } = await import('./lib/supabase.js');
-                            const { error } = await supabase.from('profiles').upsert({
-                              id: user.id,
-                              full_name: profile.full_name,
-                              username: profile.username,
-                              avatar_url: profile.avatar_url,
-                              settings: newSettings,
-                              updated_at: new Date().toISOString()
-                            });
-                            if (error) {
-                              alert('Error saving profile');
-                              console.error(error);
-                            } else {
-                              addToast('Profile saved successfully');
-                              setProfile({ ...profile, settings: newSettings });
-                            }
-                          }
-                        }}>Save Changes</button>
+                        <button className="iso-btn iso-btn--primary" style={{ flex: 1 }} onClick={handleSaveSettings}>Save Changes</button>
                         <button className="iso-btn" style={{ color: 'var(--iso-error)' }} onClick={() => signOut()}>Sign Out</button>
                       </div>
                     </div>
@@ -3530,6 +3536,7 @@ export default function App() {
                     </div>
 
                     <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.collab_future')}</p>
+                    <button className="iso-btn iso-btn--primary" style={{ alignSelf: 'flex-start' }} onClick={handleSaveSettings}>Save Changes</button>
                   </div>
                 </div>
               )}
@@ -3574,6 +3581,7 @@ export default function App() {
                       </p>
                       <button className="iso-btn iso-btn--primary" style={{ marginTop: '8px', alignSelf: 'flex-start' }} onClick={() => window.open('https://isomorph.ro/pricing', '_blank')}>View Plans</button>
                     </div>
+                    <button className="iso-btn iso-btn--primary" style={{ alignSelf: 'flex-start', marginTop: '16px' }} onClick={handleSaveSettings}>Save Changes</button>
                   </div>
                 </div>
               )}
@@ -3688,6 +3696,7 @@ export default function App() {
                         Send Anonymous Telemetry
                       </label>
                     </div>
+                    <button className="iso-btn iso-btn--primary" style={{ alignSelf: 'flex-start' }} onClick={handleSaveSettings}>Save Changes</button>
                   </div>
                 </div>
               )}
@@ -3726,12 +3735,12 @@ export default function App() {
                           style={{ width: '200px', padding: '6px 12px 6px 32px', borderRadius: '20px', background: 'var(--iso-bg-app)', border: '1px solid transparent', outline: 'none', color: 'inherit', fontSize: '13px' }}
                         />
                       </div>
-                      <select className="iso-select" style={{ width: '120px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Filter visibility">
+                      <select className="iso-select" value={libraryVisibilityFilter} onChange={e => setLibraryVisibilityFilter(e.target.value)} style={{ width: '120px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Filter visibility">
                         <option value="all">All</option>
                         <option value="public">Public</option>
                         <option value="private">Private</option>
                       </select>
-                      <select className="iso-select" style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
+                      <select className="iso-select" value={librarySort} onChange={e => setLibrarySort(e.target.value)} style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
                         <option value="accessed">Last Accessed</option>
                         <option value="name">Name</option>
                       </select>
@@ -3762,13 +3771,35 @@ export default function App() {
                       <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
                         You must be logged in to view your projects.
                       </div>
-                    ) : projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase())).length === 0 ? (
-                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
-                        No projects found.
-                      </div>
-                    ) : (
-                      projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase())).map(p => (
-                        <div key={p.id} onClick={async () => {
+                    ) : (() => {
+                        let filtered = projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase()));
+                        
+                        if (libraryVisibilityFilter === 'public') filtered = filtered.filter(() => false); // no public projects yet
+                        if (libraryVisibilityFilter === 'private') filtered = filtered.filter(() => true); // all private for now
+                        
+                        if (libraryCategory === 'Favourites') {
+                          // For now, no Favourites schema, so just filter empty or fake
+                          filtered = filtered.filter(() => false); 
+                        } else if (libraryCategory !== 'All Projects') {
+                           // If custom category, we don't have schema mapping yet, so filter empty
+                          filtered = filtered.filter(() => false);
+                        }
+
+                        filtered = filtered.sort((a, b) => {
+                          if (librarySort === 'name') return a.name.localeCompare(b.name);
+                          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
+                              No projects found matching these filters.
+                            </div>
+                          );
+                        }
+
+                        return filtered.map(p => (
+                          <div key={p.id} onClick={async () => {
                           const { getDiagrams } = await import('./lib/projects.js');
                           const diagrams = await getDiagrams(p.id);
                           if (diagrams.length > 0) {
@@ -3799,8 +3830,9 @@ export default function App() {
                           <strong style={{ marginBottom: '8px' }}>{p.name}</strong>
                           <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{new Date(p.updated_at).toLocaleDateString()}</span>
                         </div>
-                      ))
-                    )}
+                        ))
+                      })()
+                    }
                   </div>
                 </div>
               )}
@@ -3822,33 +3854,12 @@ export default function App() {
                           style={{ width: '200px', padding: '6px 12px 6px 32px', borderRadius: '20px', background: 'var(--iso-bg-app)', border: '1px solid transparent', outline: 'none', color: 'inherit', fontSize: '13px' }}
                         />
                       </div>
-                      <select className="iso-select" style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
+                      <select className="iso-select" value={librarySort} onChange={e => setLibrarySort(e.target.value)} style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
                         <option value="accessed">Last Accessed</option>
                         <option value="name">Name</option>
                       </select>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
-                    {['All Projects', ...customCategories].map(cat => (
-                      <button 
-                        key={`shared-${cat}`}
-                        className={libraryCategory === cat ? "iso-btn iso-btn--primary" : "iso-btn"} 
-                        style={{ borderRadius: '20px', padding: '4px 12px', background: libraryCategory === cat ? undefined : 'var(--iso-bg-header)' }}
-                        onClick={() => setLibraryCategory(cat)}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          if (cat !== 'All Projects' && cat !== 'Favourites') {
-                            setContextMenu({ type: 'category', id: cat, x: e.clientX, y: e.clientY });
-                          }
-                        }}
-                      >{cat}</button>
-                    ))}
-                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }} onClick={() => {
-                      setNewCategoryName('');
-                      setNewCategoryPrompt(true);
-                    }}>+</button>
-                  </div>
-                  <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.shared_future')}</p>
                 </div>
               )}
               {libraryTab === 'examples' && (
@@ -3926,7 +3937,7 @@ export default function App() {
             )}
             {contextMenu.type === 'project' && (
               <>
-                <button className="iso-btn" style={{ textAlign: 'left', background: 'transparent' }} onClick={() => {
+                <button className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
                   const name = prompt('New name:', projects.find(p => p.id === contextMenu.id)?.name);
                   if (name && name.trim()) {
                     import('./lib/projects.js').then(({ updateProject }) => {
@@ -3941,18 +3952,17 @@ export default function App() {
                   }
                   setContextMenu(null);
                 }}>Rename</button>
-                <button className="iso-btn" style={{ textAlign: 'left', background: 'transparent' }} onClick={() => {
-                  // Add logic for Add to Favorites
+                <button className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
                   setContextMenu(null);
                   addToast('Added to Favourites');
                 }}>Add to Favorites</button>
                 <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
-                  <button className="iso-btn" style={{ textAlign: 'left', background: 'transparent', width: '100%', display: 'flex', justifyContent: 'space-between' }}>
+                  <button className="iso-btn" style={{ justifyContent: 'space-between', background: 'transparent', width: '100%', border: 'none', display: 'flex' }}>
                     Add to Folder <span>▶</span>
                   </button>
                   <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '8px', display: 'none', flexDirection: 'column', minWidth: '120px' }}>
                     {customCategories.map(cat => (
-                      <button key={cat} className="iso-btn" style={{ textAlign: 'left', background: 'transparent' }} onClick={() => {
+                      <button key={cat} className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
                         addToast(`Added to ${cat}`);
                         setContextMenu(null);
                       }}>{cat}</button>
@@ -3960,20 +3970,35 @@ export default function App() {
                   </div>
                 </div>
                 <div style={{ height: '1px', background: 'var(--iso-border)', margin: '4px 0' }} />
-                <button className="iso-btn" style={{ textAlign: 'left', color: 'var(--iso-danger)', background: 'transparent' }} onClick={() => {
-                  if (confirm('Are you sure you want to delete this project?')) {
-                    import('./lib/supabase.js').then(({ supabase }) => {
-                      supabase.from('projects').delete().eq('id', contextMenu.id).then(() => {
-                        setProjects(prev => prev.filter(p => p.id !== contextMenu.id));
-                      });
-                    });
-                  }
+                <button className="iso-btn" style={{ justifyContent: 'flex-start', color: 'var(--iso-danger)', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
+                  setProjectToDelete(contextMenu.id);
                   setContextMenu(null);
                 }}>Delete Project</button>
               </>
             )}
           </div>
         </>
+      )}
+
+      {projectToDelete && (
+        <div className="iso-modal-overlay" onClick={() => setProjectToDelete(null)}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete Project</h3>
+            <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>Are you sure you want to delete this project? This action cannot be undone.</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button className="iso-btn" onClick={() => setProjectToDelete(null)}>{t('ui.cancel')}</button>
+              <button className="iso-btn" style={{ background: 'var(--iso-danger)', color: '#fff', border: 'none' }} onClick={() => {
+                import('./lib/supabase.js').then(({ supabase }) => {
+                  supabase.from('projects').delete().eq('id', projectToDelete).then(() => {
+                    setProjects(prev => prev.filter(p => p.id !== projectToDelete));
+                    setProjectToDelete(null);
+                    addToast('Project deleted successfully');
+                  });
+                });
+              }}>Delete</button>
+            </div>
+          </div>
+        </div>
       )}
 
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} initialMode={authMode} />
