@@ -2273,8 +2273,34 @@ export default function App() {
         <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
 
         {/* File breadcrumb */}
-        <div className="iso-breadcrumb iso-mobile-hide">
-          <span className="iso-breadcrumb-name">{fileName}</span>
+        <div className="iso-breadcrumb iso-mobile-hide" onDoubleClick={() => {
+          if (activeTab?.project_id) setRenamingTabId('project-' + activeTab.project_id);
+        }}>
+          {renamingTabId === 'project-' + activeTab?.project_id ? (
+            <input
+              autoFocus
+              defaultValue={projects.find(p => p.id === activeTab?.project_id)?.name || 'Local Project'}
+              className="iso-tab-rename-input"
+              style={{ background: "transparent", border: "none", color: "inherit", fontFamily: "inherit", fontSize: "inherit", outline: "none", width: "100%", borderBottom: "1px solid currentColor" }}
+              onBlur={() => setRenamingTabId(null)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const newName = e.currentTarget.value;
+                  if (activeTab?.project_id && user && newName) {
+                    setProjects(prev => prev.map(p => p.id === activeTab.project_id ? { ...p, name: newName } : p));
+                    import('./lib/projects.js').then(m => m.updateProject(user.id, activeTab.project_id!, { name: newName }));
+                    addToast('Project renamed');
+                  }
+                  setRenamingTabId(null);
+                }
+                if (e.key === "Escape") setRenamingTabId(null);
+              }}
+            />
+          ) : (
+            <span className="iso-breadcrumb-name" style={{ cursor: 'pointer' }} title="Double click to rename project">
+              {projects.find(p => p.id === activeTab?.project_id)?.name || 'Local Project'}
+            </span>
+          )}
         </div>
 
         {isMobileLayout && (
@@ -2539,7 +2565,7 @@ export default function App() {
               aria-label={t('ui.shortcuts')}
               data-tooltip={t('menu.shortcuts')}
             >
-              <IconKeyboard />
+              <IconKeyboard size={20} />
             </button>
           </div>
         )}
@@ -2554,7 +2580,7 @@ export default function App() {
           aria-label={t('ui.library')}
           data-tooltip={t('ui.library')}
         >
-          <IconLibrary />
+          <IconLibrary size={20} />
         </button>
 
         <button
@@ -2564,18 +2590,8 @@ export default function App() {
           aria-label="Settings"
           data-tooltip="Settings"
         >
-          <IconSettings />
+          <IconSettings size={20} />
         </button>
-
-        {/* Status */}
-        <output
-          className={`${statusClass}${isMobileLayout ? ' iso-mobile-hide' : ''}`}
-          aria-live="polite"
-          aria-label={statusAriaLabel}
-        >
-          <div className="iso-status-dot" aria-hidden="true" />
-          {statusLabel}
-        </output>
       </header>
 
       {isMobileLayout && (
@@ -2586,14 +2602,6 @@ export default function App() {
                 {activeDiagram.kind}
               </div>
             )}
-            <output
-              className={`${statusClass} iso-mobile-status`}
-              aria-live="polite"
-              aria-label={statusAriaLabel}
-            >
-              <div className="iso-status-dot" aria-hidden="true" />
-              {statusLabel}
-            </output>
           </div>
 
           {tabs.length > 1 && (
@@ -3267,8 +3275,22 @@ export default function App() {
                             {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '24px' }}>👤</span>}
                           </div>
                           <button className="iso-btn" style={{ fontSize: '13px' }} onClick={() => {
-                            const url = prompt('Enter profile image URL:');
-                            if (url && profile) setProfile({ ...profile, avatar_url: url });
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.onchange = async (e: any) => {
+                              const file = e.target.files?.[0];
+                              if (file && user) {
+                                addToast('Uploading photo...', 'info');
+                                const { uploadAvatar } = await import('./lib/profile.js');
+                                const url = await uploadAvatar(user.id, file);
+                                if (url && profile) {
+                                  setProfile({ ...profile, avatar_url: url });
+                                  addToast('Photo uploaded successfully');
+                                }
+                              }
+                            };
+                            input.click();
                           }}>Upload Photo</button>
                         </div>
                       </div>
@@ -3291,12 +3313,16 @@ export default function App() {
                             const { error } = await supabase.from('profiles').update({
                               display_name: profile.display_name,
                               username: profile.username,
-                              avatar_url: profile.avatar_url
+                              avatar_url: profile.avatar_url,
+                              settings: {
+                                cursor_colour: profile.cursor_colour,
+                                show_trail: collabShowTrail
+                              }
                             }).eq('id', user.id);
                             if (error) {
-                              alert('Error updating profile: ' + error.message);
+                              alert('Error saving profile');
                             } else {
-                              addToast('Profile updated successfully');
+                              addToast('Profile saved successfully');
                             }
                           }
                         }}>Save Changes</button>
@@ -3343,9 +3369,9 @@ export default function App() {
 
                         {collabShowTrail && (
                           <>
-                            <div style={{ position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.5, transform: 'translate(-12px, 12px)', zIndex: 1 }}></div>
-                            <div style={{ position: 'absolute', width: 6, height: 6, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.3, transform: 'translate(-20px, 20px)', zIndex: 1 }}></div>
-                            <div style={{ position: 'absolute', width: 4, height: 4, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.15, transform: 'translate(-26px, 26px)', zIndex: 1 }}></div>
+                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.5, transform: 'translate(-12px, 12px)', zIndex: 1, animationDelay: '0s' }}></div>
+                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 6, height: 6, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.3, transform: 'translate(-20px, 20px)', zIndex: 1, animationDelay: '0.2s' }}></div>
+                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 4, height: 4, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.15, transform: 'translate(-26px, 26px)', zIndex: 1, animationDelay: '0.4s' }}></div>
                           </>
                         )}
 
@@ -3417,7 +3443,7 @@ export default function App() {
                         Power: 25 projects ($5/mo)<br/>
                         Enterprise: 100+ projects (Contact us)
                       </p>
-                      <button className="iso-btn iso-btn--primary" style={{ marginTop: '8px', alignSelf: 'flex-start' }}>View Plans</button>
+                      <button className="iso-btn iso-btn--primary" style={{ marginTop: '8px', alignSelf: 'flex-start' }} onClick={() => window.open('https://isomorph.ro/pricing', '_blank')}>View Plans</button>
                     </div>
                   </div>
                 </div>
@@ -3549,8 +3575,7 @@ export default function App() {
                           placeholder={t('ui.search') || 'Search projects...'} 
                           value={librarySearchQuery} 
                           onChange={(e) => setLibrarySearchQuery(e.target.value)}
-                          className="iso-input"
-                          style={{ width: '200px', paddingLeft: '32px', borderRadius: '20px', background: 'var(--iso-bg-app)' }}
+                          style={{ width: '200px', padding: '6px 12px 6px 32px', borderRadius: '20px', background: 'var(--iso-bg-app)', border: '1px solid transparent', outline: 'none', color: 'inherit', fontSize: '13px' }}
                         />
                       </div>
                       <select className="iso-select" style={{ width: '120px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Filter visibility">
@@ -3605,8 +3630,7 @@ export default function App() {
                           placeholder={t('ui.search') || 'Search projects...'} 
                           value={librarySearchQuery} 
                           onChange={(e) => setLibrarySearchQuery(e.target.value)}
-                          className="iso-input"
-                          style={{ width: '200px', paddingLeft: '32px', borderRadius: '20px', background: 'var(--iso-bg-app)' }}
+                          style={{ width: '200px', padding: '6px 12px 6px 32px', borderRadius: '20px', background: 'var(--iso-bg-app)', border: '1px solid transparent', outline: 'none', color: 'inherit', fontSize: '13px' }}
                         />
                       </div>
                       <select className="iso-select" style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
@@ -3634,12 +3658,28 @@ export default function App() {
             <h2 className="iso-modal-title">Save to Cloud</h2>
             <p className="iso-modal-desc">Select a project to save this diagram into.</p>
             <div className="iso-modal-field">
-              <select className="iso-select" style={{ width: '100%' }} value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)}>
-                <option value="">-- Select Project --</option>
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <select className="iso-select" style={{ flex: 1 }} value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)}>
+                  <option value="">-- Select Project --</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <button className="iso-btn" onClick={async () => {
+                  const name = prompt('Enter new project name:');
+                  if (name && user) {
+                    const { createProject } = await import('./lib/projects.js');
+                    try {
+                      const p = await createProject(user.id, name);
+                      if (p) {
+                        setProjects(prev => [p, ...prev]);
+                        setSelectedProjectId(p.id);
+                        addToast('Project created');
+                      }
+                    } catch (e: any) { alert(e.message); }
+                  }
+                }}>New Project</button>
+              </div>
             </div>
             <div className="iso-modal-actions">
               <button className="iso-modal-btn cancel" onClick={() => setSaveToCloudModalOpen(false)}>{t('ui.cancel')}</button>

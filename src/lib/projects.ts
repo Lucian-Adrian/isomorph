@@ -72,6 +72,20 @@ export async function createProject(userId: string, name: string): Promise<Proje
   return data;
 }
 
+export async function updateProject(userId: string, projectId: string, updates: Partial<Project>): Promise<boolean> {
+  const { error } = await supabase
+    .from('projects')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', projectId)
+    .eq('owner_id', userId);
+
+  if (error) {
+    console.error('Error updating project:', error);
+    return false;
+  }
+  return true;
+}
+
 export async function createDiagram(userId: string, projectId: string, name: string, kind: string, content: any): Promise<Diagram | null> {
   const canCreate = await checkDiagramLimit(userId, projectId);
   if (!canCreate) {

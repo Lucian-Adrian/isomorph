@@ -7,6 +7,7 @@ export interface Profile {
   avatar_url: string | null;
   updated_at: string | null;
   tier: 'basic' | 'power' | 'enterprise';
+  settings?: any;
 }
 
 export async function getProfile(userId: string): Promise<Profile | null> {
