@@ -26,6 +26,10 @@ import type { IOMDiagram, IOMEntity } from './semantics/iom.js';
 import type { ParseError } from './parser/index.js';
 import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Language } from './i18n.js';
 import { computeLayout } from './utils/auto-layout.js';
+import { useAuth } from './lib/auth-context.js';
+import { AuthModal } from './components/AuthModal.js';
+import { getProjects, type Project } from './lib/projects.js';
+import { isTelemetryEnabled, setTelemetryEnabled } from './lib/telemetry.js';
 
 type DiagramKind = IOMDiagram['kind'];
 
@@ -38,6 +42,8 @@ interface WorkspaceTab {
   undoStack?: string[];
   redoStack?: string[];
   savedSource?: string; // Snapshot of source when tab was created/opened — used for beforeunload guard
+  diagram_id?: string;
+  project_id?: string;
 }
 
 const DIAGRAM_KINDS: Array<'all' | DiagramKind> = ['all', 'class', 'usecase', 'component', 'deployment', 'sequence', 'activity', 'state', 'collaboration', 'flow'];
@@ -827,6 +833,7 @@ export default function App() {
     const stored = localStorage.getItem('isomorph-animations');
     return stored ? stored === 'true' : true;
   });
+  const [telemetry, setTelemetry] = useState(() => isTelemetryEnabled());
   const [animationSpeed, setAnimationSpeed] = useState<number>(() => {
     const stored = localStorage.getItem('isomorph-anim-speed');
     return stored ? parseFloat(stored) : 1.0;
@@ -853,6 +860,37 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportTime, setExportTime] = useState<number>(0);
   const [libraryTab, setLibraryTab] = useState<'my'|'shared'>('my');
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [librarySearchQuery, setLibrarySearchQuery] = useState('');
+  const [isSavingToCloud, setIsSavingToCloud] = useState(false);
+  const [saveToCloudModalOpen, setSaveToCloudModalOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const { session, user, signOut } = useAuth();
+  
+  const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null } | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      import('./lib/profile.js').then(({ getProfile }) => {
+        getProfile(user.id).then(data => {
+          if (data) {
+            setProfile(data);
+          }
+        });
+      });
+    } else {
+      setProfile(null);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user && isLibraryOpen) {
+      getProjects(user.id).then(data => setProjects(data));
+    }
+  }, [user, isLibraryOpen]);
 
   const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
@@ -1636,6 +1674,26 @@ export default function App() {
     e.target.value = '';
   }, []);
 
+  const handleSaveToCloud = useCallback(async () => {
+    if (!user) {
+      setAuthMode('login');
+      setIsAuthOpen(true);
+      return;
+    }
+    if (activeTab.diagram_id) {
+      setIsSavingToCloud(true);
+      const { updateDiagramContent } = await import('./lib/projects.js');
+      await updateDiagramContent(activeTab.diagram_id, { source: activeTab.source });
+      setIsSavingToCloud(false);
+      updateActiveTab(tab => ({ ...tab, savedSource: tab.source }), false);
+    } else {
+      setSaveToCloudModalOpen(true);
+      const { getProjects } = await import('./lib/projects.js');
+      const data = await getProjects(user.id);
+      setProjects(data);
+    }
+  }, [user, activeTab, updateActiveTab]);
+
   // ── Global keyboard shortcuts ─────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -1649,13 +1707,15 @@ export default function App() {
       }
       if (e.ctrlKey && !e.shiftKey && e.key === 'n') { e.preventDefault(); handleNew(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'o') { e.preventDefault(); fileInputRef.current?.click(); }
+      if (e.ctrlKey && !e.shiftKey && e.key === 's') { e.preventDefault(); handleSaveToCloud(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'e') { e.preventDefault(); handleExportSVG(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); handleExportPNG(); }
       if (e.ctrlKey && e.key === 'q') { e.preventDefault(); setShortcutsOpen(o => !o); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleNew, handleExportSVG, handleExportPNG, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose]);
+  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user]);
+
 
   const handleExportGIF = useCallback(async () => {
     if (!activeDiagram) return;
@@ -3190,29 +3250,63 @@ export default function App() {
               {settingsTab === 'profile' && (
                 <div>
                   <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.profile')}</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
-                    <div className="iso-modal-field"><label>{t('ui.name')}</label><input type="text" placeholder="John Doe" disabled /></div>
-                    <div className="iso-modal-field"><label>{t('ui.username')}</label><input type="text" placeholder="johndoe" disabled /></div>
-                    <div className="iso-modal-field"><label>{t('ui.email')}</label><input type="email" placeholder="john@example.com" disabled /></div>
-                    <div className="iso-modal-field"><label>{t('ui.password')}</label><input type="password" placeholder="********" disabled /></div>
-                    <button className="iso-btn" style={{ width: 'fit-content' }}>{t('ui.reset_password')}</button>
-                    <div className="iso-modal-field">
-                      <label>{t('ui.profile_photo')}</label>
-                      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{t('ui.photo')}</div>
+                  {session ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
+                      <div className="iso-modal-field"><label>{t('ui.email')}</label><input type="email" value={user?.email || ''} disabled className="iso-input" /></div>
+                      <div className="iso-modal-field"><label>{t('ui.name')}</label><input type="text" placeholder="John Doe" value={profile?.full_name || ''} disabled className="iso-input" /></div>
+                      <div className="iso-modal-field"><label>{t('ui.username')}</label><input type="text" placeholder="johndoe" value={profile?.username || ''} disabled className="iso-input" /></div>
+                      <div className="iso-modal-field">
+                        <label>{t('ui.profile_photo')}</label>
+                        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                          {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : t('ui.photo')}
+                        </div>
+                      </div>
+                      <button className="iso-btn" style={{ width: 'fit-content' }} onClick={() => signOut()}>Sign Out</button>
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
+                      <p style={{ color: 'var(--iso-text-muted)' }}>You are not logged in.</p>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="iso-btn iso-btn--primary" onClick={() => { setAuthMode('login'); setIsAuthOpen(true); setIsSettingsOpen(false); }}>{t('ui.login')}</button>
+                        <button className="iso-btn" onClick={() => { setAuthMode('register'); setIsAuthOpen(true); setIsSettingsOpen(false); }}>{t('auth.title_register')}</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               {settingsTab === 'collab' && (
                 <div>
                   <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.collab_settings')}</h3>
-                  <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.collab_future')}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
+                    <div className="iso-modal-field">
+                      <label>Cursor Color (Preview)</label>
+                      <input type="color" defaultValue="#ff0000" />
+                    </div>
+                    <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.collab_future')}</p>
+                  </div>
                 </div>
               )}
               {settingsTab === 'storage' && (
                 <div>
                   <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.storage')}</h3>
-                  <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.storage_future')}</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
+                    <div className="iso-modal-field">
+                      <label>Current Tier</label>
+                      <div style={{ padding: '8px 12px', background: 'var(--iso-bg-header)', borderRadius: '4px', border: '1px solid var(--iso-border)' }}>
+                        {profile?.tier || 'Basic'}
+                      </div>
+                    </div>
+                    <div className="iso-modal-field">
+                      <label>Projects Used</label>
+                      <div style={{ width: '100%', background: 'var(--iso-divider)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                        <div style={{ width: `${(projects.length / (profile?.tier === 'enterprise' ? 100 : profile?.tier === 'power' ? 25 : 5)) * 100}%`, background: 'var(--iso-primary)', height: '100%' }}></div>
+                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)', marginTop: '4px' }}>
+                        {projects.length} / {profile?.tier === 'enterprise' ? '100' : profile?.tier === 'power' ? '25' : '5'} projects
+                      </span>
+                    </div>
+                    <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.storage_future')}</p>
+                  </div>
                 </div>
               )}
               {settingsTab === 'app' && (
@@ -3297,6 +3391,17 @@ export default function App() {
                       </label>
                       <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{t('ui.strict_uml_desc')}</span>
                     </div>
+
+                    <div className="iso-modal-field">
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
+                        <input type="checkbox" checked={telemetry} onChange={e => {
+                          const next = e.target.checked;
+                          setTelemetry(next);
+                          setTelemetryEnabled(next);
+                        }} />
+                        Send Anonymous Telemetry
+                      </label>
+                    </div>
                   </div>
                 </div>
               )}
@@ -3320,7 +3425,15 @@ export default function App() {
                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.my_works')}</h3>
-                    <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <input 
+                        type="text" 
+                        placeholder={t('ui.search') || 'Search...'} 
+                        value={librarySearchQuery} 
+                        onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                        className="iso-input"
+                        style={{ width: '200px' }}
+                      />
                       <select className="iso-select" style={{ width: '120px' }} aria-label="Filter visibility">
                         <option value="all">All</option>
                         <option value="public">Public</option>
@@ -3332,9 +3445,23 @@ export default function App() {
                       </select>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
-                    <div style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)' }}>{t('ui.placeholder_project')} 1</div>
-                    <div style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)' }}>{t('ui.placeholder_project')} 2</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
+                    {!user ? (
+                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
+                        You must be logged in to view your projects.
+                      </div>
+                    ) : projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase())).length === 0 ? (
+                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
+                        No projects found.
+                      </div>
+                    ) : (
+                      projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase())).map(p => (
+                        <div key={p.id} style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text)', cursor: 'pointer', padding: '16px', textAlign: 'center' }}>
+                          <strong style={{ marginBottom: '8px' }}>{p.name}</strong>
+                          <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{new Date(p.updated_at).toLocaleDateString()}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -3350,6 +3477,44 @@ export default function App() {
                   <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.shared_future')}</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} initialMode={authMode} />
+      
+      {saveToCloudModalOpen && (
+        <div className="iso-modal-overlay" onClick={() => setSaveToCloudModalOpen(false)}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()}>
+            <h2 className="iso-modal-title">Save to Cloud</h2>
+            <p className="iso-modal-desc">Select a project to save this diagram into.</p>
+            <div className="iso-modal-field">
+              <select className="iso-select" style={{ width: '100%' }} value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)}>
+                <option value="">-- Select Project --</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="iso-modal-actions">
+              <button className="iso-modal-btn cancel" onClick={() => setSaveToCloudModalOpen(false)}>{t('ui.cancel')}</button>
+              <button className="iso-modal-btn confirm" disabled={!selectedProjectId || isSavingToCloud} onClick={async () => {
+                if (!selectedProjectId || !user) return;
+                setIsSavingToCloud(true);
+                try {
+                  const { createDiagram } = await import('./lib/projects.js');
+                  const diagram = await createDiagram(user.id, selectedProjectId, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+                  if (diagram) {
+                    updateActiveTab(tab => ({ ...tab, diagram_id: diagram.id, project_id: selectedProjectId, savedSource: tab.source }), false);
+                    setSaveToCloudModalOpen(false);
+                  }
+                } catch (e: any) {
+                  alert(e.message || 'Error saving to cloud');
+                } finally {
+                  setIsSavingToCloud(false);
+                }
+              }}>{isSavingToCloud ? 'Saving...' : 'Save'}</button>
             </div>
           </div>
         </div>

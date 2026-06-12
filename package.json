@@ -36,6 +36,7 @@
     "@codemirror/view": "^6.35.3",
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
+    "@supabase/supabase-js": "^2.108.1",
     "codemirror": "^6.0.1",
     "modern-gif": "^2.1.0",
     "react": "^18.3.1",

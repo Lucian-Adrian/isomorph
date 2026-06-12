@@ -8,6 +8,7 @@ import { renderDiagram } from '../renderer/index.js';
 import { IconPointer, IconHand, IconEdge } from './Icons';
 import type { IOMEntity } from '../semantics/iom.js';
 import { tText, type Language } from '../i18n.js';
+import { FeedbackModal } from './FeedbackModal.js';
 
 export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge';
 
@@ -89,6 +90,7 @@ export function DiagramView({
   const [isInteracting, setIsInteracting] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [layoutDropdownOpen, setLayoutDropdownOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   const dragRef = useRef<{
     mode: 'none' | 'entity' | 'pan' | 'add-edge' | 'resize-entity' | 'relation-vertical' | 'marquee';
@@ -1401,12 +1403,14 @@ export function DiagramView({
           <button
             type="button"
             className="iso-feedback-pill iso-mobile-hide"
-            onClick={() => alert(t('ui.feedback_coming_soon'))}
+            onClick={() => setIsFeedbackOpen(true)}
             aria-label={t('ui.feedback')}
           >
             <div className="iso-feedback-icon">!</div>
             <span className="iso-feedback-text">{t('ui.feedback')}</span>
           </button>
+          
+          <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
           
           <div className="iso-canvas-toolbar" role="toolbar" aria-label={t('tool.zoom_controls')}>
             <button

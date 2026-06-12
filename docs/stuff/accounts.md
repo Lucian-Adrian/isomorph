@@ -1,7 +1,7 @@
 # Isomorph — Accounts, Collaboration & Backend Design
 
 > **Status**: Design Phase — No code yet  
-> **Last updated**: 2026-06-10  
+> **Last updated**: 2026-06-12  
 > **Author(s)**: Team
 
 ---
@@ -21,7 +21,9 @@
 11. [Settings Page — Collaboration Tab](#11-settings-page--collaboration-tab)
 12. [Security Considerations](#12-security-considerations)
 13. [Technology Decision Record](#13-technology-decision-record)
-14. [Open Questions](#14-open-questions)
+14. [Deployment & Secrets](#14-deployment--secrets)
+15. [Open Questions](#15-open-questions)
+
 
 ---
 
@@ -233,7 +235,7 @@ Table profiles {
   '''
 }
 
-// ──────────────────── PROJECTS ──────────────────────────────
+// ──────────────────── PROJECTS (folder-like containers) ─────
 
 Table projects {
   id            uuid [pk, default: `gen_random_uuid()`]
@@ -241,29 +243,54 @@ Table projects {
   name          varchar(255) [not null]
   description   text
   visibility    project_visibility [default: 'private']
-  source_code   text [note: 'The .isx source text (single source of truth)']
-  yjs_state     bytea [note: 'Binary Yjs document snapshot for CRDT resume']
-  thumbnail_svg text [note: 'Auto-generated SVG preview (no external images stored)']
-  version       integer [default: 1, note: 'Incremented on each save']
+  thumbnail_svg text [note: 'Auto-generated SVG preview from first diagram']
   created_at    timestamptz [default: `now()`]
   updated_at    timestamptz [default: `now()`]
   last_accessed_at timestamptz [default: `now()`]
 
   Note: '''
-    Each project = one .isx file (may contain multiple diagrams).
-    The source_code is the canonical text.
-    yjs_state is the binary snapshot of the Yjs Y.Doc for
-    resuming CRDT sessions — this is NOT a JSONB of diagram data,
-    it is the opaque Yjs binary that encodes the full edit history
-    needed for merging.
-    thumbnail_svg is a small SVG string for the project card preview.
+    A project is a folder-like container that holds multiple diagrams.
+    Think of it like a workspace/folder — users organize related
+    diagrams into a single project.
+    
+    Diagram limits per tier:
+    - basic:      4 diagrams per project,   5 projects total
+    - power:     20 diagrams per project,  25 projects total
+    - enterprise: 100 diagrams per project, 100 projects total
     
     RLS:
     - Owner: full CRUD
-    - Editor: read + write source_code/yjs_state
+    - Editor: read + update
     - Commenter: read
     - Viewer: read
-    - Public projects: anyone can read
+    - Public/unlisted projects: anyone can read
+  '''
+}
+
+// ──────────────────── DIAGRAMS (inside projects) ────────────
+
+Table diagrams {
+  id            uuid [pk, default: `gen_random_uuid()`]
+  project_id    uuid [not null, ref: > projects.id]
+  name          varchar(255) [not null]
+  kind          varchar(50) [not null, note: 'class, sequence, usecase, component, state, activity, deployment, collaboration, flow']
+  source_code   text [not null, note: 'The .isx source text for this diagram']
+  yjs_state     bytea [note: 'Binary Yjs document snapshot for CRDT resume']
+  sort_order    integer [default: 0, note: 'Order within the project']
+  created_at    timestamptz [default: `now()`]
+  updated_at    timestamptz [default: `now()`]
+
+  indexes {
+    (project_id, name) [unique, note: 'Unique diagram name within a project']
+  }
+
+  Note: '''
+    Each diagram is one .isx source file within a project.
+    The source_code is the canonical text.
+    yjs_state is the binary Yjs Y.Doc snapshot for resuming
+    CRDT sessions per-diagram.
+    
+    RLS: inherits from parent project via project_id.
   '''
 }
 
@@ -419,11 +446,11 @@ Table telemetry_events {
   '''
 }
 
-// ──────────────────── PROJECT VERSION HISTORY ───────────────
+// ──────────────────── DIAGRAM VERSION HISTORY (Ctrl+S saves) ─
 
-Table project_versions {
+Table diagram_versions {
   id            uuid [pk, default: `gen_random_uuid()`]
-  project_id    uuid [not null, ref: > projects.id]
+  diagram_id    uuid [not null, ref: > diagrams.id]
   version       integer [not null]
   source_code   text [not null]
   saved_by      uuid [ref: > profiles.id]
@@ -431,18 +458,20 @@ Table project_versions {
   created_at    timestamptz [default: `now()`]
 
   indexes {
-    (project_id, version) [unique]
+    (diagram_id, version) [unique]
   }
 
   Note: '''
-    Version history for cloud-saved projects.
-    Created on each explicit save or auto-save checkpoint.
-    Allows rollback and diff viewing.
+    Explicit save checkpoints (Ctrl+S) — NOT undo/redo.
+    Undo/redo (Ctrl+Z / Ctrl+Y) is unlimited and purely client-side.
+    These are persistent "commit" snapshots for version history.
     
     Limits by tier:
-    - basic: last 10 versions
-    - power: last 50 versions  
-    - enterprise: unlimited
+    - basic:      10 saves (versions) per diagram
+    - power:      50 saves per diagram
+    - enterprise: unlimited saves
+    
+    When limit is reached, oldest version is pruned on next save.
   '''
 }
 
@@ -475,24 +504,22 @@ Table notifications {
 
 ```
 profiles ─────────────< project_access >──────────── projects
-    │                                                   │ │
-    │                                                   │ │
-    ├───────────< feedback                              │ │
-    │                                                   │ │
-    ├───────────< telemetry_events                      │ │
-    │                                                   │ │
-    ├───────────< notifications                         │ │
-    │                                                   │ │
-    ├───────────< share_links >─────────────────────────┘ │
-    │                   │                                  │
-    │                   └────────< anonymous_sessions      │
-    │                                     │                │
-    │                                     │                │
-    └───────────< comments <──────────────┘────────────────┘
+    │                                                   │
+    │                                                   │
+    ├───────────< feedback                              ├──< diagrams
+    │                                                   │       │
+    ├───────────< telemetry_events                      │       ├──< diagram_versions
+    │                                                   │       │
+    ├───────────< notifications                         │       └── (source_code, yjs_state)
+    │                                                   │
+    ├───────────< share_links >─────────────────────────┘
+    │                   │                                
+    │                   └────────< anonymous_sessions     
+    │                                     │               
+    │                                     │               
+    └───────────< comments <──────────────┘───────────────
                     │
                     └── comments (self-ref: parent_id for threads)
-
-projects ──────< project_versions
 ```
 
 ---
@@ -834,10 +861,13 @@ Transform: Supabase Image Transformations → 128x128 for display, 256x256 store
 
 | Feature | Basic (Free) | Power (Paid) | Enterprise |
 |---------|-------------|--------------|------------|
-| Local diagrams | Unlimited | Unlimited | Unlimited |
-| Cloud-saved projects | 5 | 50 | Unlimited |
-| Max collaborators per project | 3 | 8 | 8 |
-| Version history depth | 10 | 50 | Unlimited |
+| Local diagrams (no account) | Unlimited | Unlimited | Unlimited |
+| Cloud projects | **5** | **25** | **100** |
+| Diagrams per project | **4** | **20** | **100** |
+| Concurrent **editors** per project | **2** | **4** | **8** |
+| Concurrent **viewers** | **Unlimited** | **Unlimited** | **Unlimited** |
+| Save checkpoints per diagram (Ctrl+S) | **10** | **50** | **Unlimited** |
+| Undo/Redo (Ctrl+Z / Ctrl+Y) | Unlimited (client-side) | Unlimited | Unlimited |
 | Export formats | PNG, SVG | PNG, SVG, GIF, WebM | All + PDF |
 | Share links | Viewer only | Viewer + Commenter | All roles |
 | Custom cursor colour | ✅ | ✅ | ✅ |
@@ -848,11 +878,15 @@ Transform: Supabase Image Transformations → 128x128 for display, 256x256 store
 | Google Drive / OneDrive | ❌ | ❌ | ✅ (future) |
 | SSO / SAML | ❌ | ❌ | ✅ (future) |
 
+> **Important distinction**: Collaborator limits apply to **editors** only (people who can modify the code/canvas). **Viewers are always free and uncounted** — you can share a view-only link with as many people as you want regardless of tier.
+
+> **Undo/Redo vs. Saves**: Ctrl+Z/Ctrl+Y is unlimited for everyone because it's purely client-side (CodeMirror history). "Saves" (Ctrl+S) are persistent server-side checkpoints (like git commits) — these are tiered.
+
 ### 10.2 Open Source Strategy
 
 From ROADMAP.md Monetization Features:
 
-- **Free Open Source Local Compiler**: The core Isomorph DSL parser, renderer, and editor remain open source and fully functional offline. No account needed for local use.
+- **Free Open Source Local Compiler**: The core Isomorph DSL parser, renderer, and editor remain open source and fully functional offline. No account needed for local use. The community can self-host, fork, and contribute.
 - **Paid Web Version**: Cloud features (save, share, collaborate) require an account and are subject to tier limits.
 - **Enterprise**: Custom deployment, SLA, SSO, advanced sharing.
 
@@ -989,45 +1023,112 @@ Yjs provides all of the above via CRDTs, plus has a mature CodeMirror 6 binding.
 
 ---
 
-## 14. Open Questions
+## 14. Deployment & Secrets
 
-> These need team discussion before implementation begins.
+### 14.1 Architecture — GitHub Pages + Remote Services
 
-### High Priority
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  GitHub Pages (static hosting)               │
+│                                                              │
+│  Vite build output (HTML/CSS/JS)                            │
+│  Built by GitHub Actions with env vars:                     │
+│    VITE_SUPABASE_URL=https://xxxxx.supabase.co              │
+│    VITE_SUPABASE_ANON_KEY=eyJhbGciOi...                     │
+│    VITE_WS_URL=wss://collab.isomorph.app                    │
+│                                                              │
+└──────────────┬──────────────────────┬───────────────────────┘
+               │ HTTPS                │ WSS
+               ▼                      ▼
+┌──────────────────────┐  ┌──────────────────────────────────┐
+│   Supabase Cloud     │  │   PC-Server / VPS                │
+│   (free tier)        │  │                                  │
+│                      │  │   ┌────────────────────────────┐ │
+│   - Auth (GoTrue)    │  │   │  y-websocket               │ │
+│   - PostgreSQL + RLS │  │   │  (Node.js, port 1234)      │ │
+│   - Storage buckets  │  │   │  + TLS via Caddy/nginx     │ │
+│                      │  │   └────────────┬───────────────┘ │
+│                      │  │                │ persists to     │
+│                      │◄─┤────────────────┘ Supabase DB     │
+└──────────────────────┘  └──────────────────────────────────┘
+```
 
-1. **Self-hosted vs. Supabase Cloud?**  
-   For the university project, Supabase Cloud free tier is probably fine. For production, do we want to self-host Supabase (Docker) to control data sovereignty?
+### 14.2 Secret Safety
 
-2. **CRDT Server hosting**  
-   Where do we run the `y-websocket` server? Options: Railway, Fly.io, Render, university server, or same VPS as the app.
+| Variable | Where | Exposure | Risk |
+|----------|-------|----------|------|
+| `VITE_SUPABASE_URL` | Client bundle | ✅ Public by design | None — RLS protects data |
+| `VITE_SUPABASE_ANON_KEY` | Client bundle | ✅ Public by design | None — this is the **public** key, RLS is the security layer |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only (y-websocket) | ❌ NEVER in client | Bypasses all RLS — server-side only |
+| `VITE_WS_URL` | Client bundle | ✅ Public | Just a WebSocket endpoint |
 
-3. **Canvas state in Yjs — how deep?**  
-   Should entity positions (x, y, w, h) be part of the shared Yjs document, or only the source code text? If only text, then each client re-renders from text independently (simpler but positions may diverge). If positions are shared, we need a separate Y.Map for canvas state.
+> The Supabase `anon` key is explicitly designed to be in client-side code. It can only do what your RLS policies allow. The `service_role` key bypasses RLS and must **never** leave your server.
 
-4. **Comment anchoring strategy**  
-   When the code changes, comments anchored to entities may become orphaned if entities are renamed/deleted. How do we handle this? Options:
+### 14.3 GitHub Actions Build
+
+```yaml
+# .github/workflows/deploy.yml (relevant env section)
+env:
+  VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+  VITE_WS_URL: ${{ secrets.WS_URL }}
+```
+
+These are set as GitHub repository secrets and injected at **build time** via Vite's `import.meta.env.VITE_*`. The values end up in the JS bundle (which is fine — they're public keys).
+
+### 14.4 Self-Hosted PC Server Setup
+
+For MVP, a single PC/VPS running:
+
+1. **y-websocket** (Node.js process) — handles CRDT sync + awareness
+2. **Caddy** (reverse proxy) — provides TLS/HTTPS for the WebSocket (`wss://`)
+3. Optionally: **Supabase Docker** stack (if you want to self-host the DB too)
+
+Minimum requirements:
+- y-websocket alone: 512MB RAM, any CPU
+- y-websocket + Supabase Docker: 4GB RAM, 2 cores
+
+**Recommendation**: Use Supabase Cloud (free tier, zero ops) + y-websocket on your PC/VPS for MVP.
+
+---
+
+## 15. Open Questions
+
+> Items marked ✅ RESOLVED were decided during design review (2026-06-12).
+
+### Resolved
+
+1. ✅ **Self-hosted vs. Supabase Cloud?**  
+   → **Supabase Cloud free tier for MVP**. Self-host later if needed. PC-server with both Supabase Docker + y-websocket is viable for production.
+
+2. ✅ **CRDT Server hosting**  
+   → **y-websocket on a PC-server/VPS for MVP**. Migrate to HocusPocus later for production-grade features (auth hooks, persistence hooks, webhooks).
+
+3. ✅ **Collaborator counting**  
+   → **Only editors count against the tier limit**. Viewers are always free and unlimited.
+
+4. ✅ **Undo/Redo vs. Saves**  
+   → **Undo/Redo is unlimited for everyone** (client-side CodeMirror history). "Saves" (Ctrl+S) are tiered server-side checkpoints.
+
+5. ✅ **Project structure**  
+   → **Projects are folder-like containers** holding multiple diagrams. Each diagram has its own source_code and Yjs state.
+
+### Still Open
+
+6. **Canvas state in Yjs — how deep?**  
+   Should entity positions (x, y, w, h) be part of the shared Yjs document, or only the source code text? If only text, each client re-renders independently (simpler but positions may diverge). If shared, we need a Y.Map per diagram.
+
+7. **Comment anchoring strategy**  
+   When code changes, comments anchored to entities may become orphaned on rename/delete. Options:
    - Anchor by entity name (simple, breaks on rename)
    - Anchor by Yjs relative position (survives edits)
    - Mark orphaned comments for review
 
-### Medium Priority
-
-5. **Offline-first or online-required?**  
-   Yjs supports offline editing with sync-on-reconnect. Do we want to invest in offline support for MVP, or require connectivity for cloud features?
-
-6. **Auto-save frequency**  
+8. **Auto-save frequency**  
    How often should the CRDT server snapshot to Supabase? Options: on disconnect, every 30 seconds, every N edits, on explicit save only.
 
-7. **Project deletion semantics**  
-   Soft delete (mark as deleted, recoverable for 30 days) vs. hard delete? Soft delete is safer but needs cleanup.
-
-8. **Rate limiting for anonymous users**  
-   Anonymous commenters could spam. Should we rate-limit comments per session? Suggested: 10 comments per 5 minutes per anonymous session.
-
-### Low Priority
-
-9. **Import from Mermaid/PlantUML**  
-   From features.md #10 — this is a separate feature but the project/save structure needs to support it.
+9. **Rate limiting for anonymous users**  
+   Anonymous commenters could spam. Suggested: 10 comments per 5 minutes per anonymous session.
 
 10. **Google Drive / OneDrive integration**  
     From ROADMAP.md Phase 3 — the project model should be extensible to support external storage backends eventually.
@@ -1076,5 +1177,18 @@ Yjs provides all of the above via CRDTs, plus has a mature CodeMirror 6 binding.
 | Toolbar → Feedback button ("coming soon") | → Feedback modal → `feedback` table |
 | Toolbar → Login button ("coming soon") | → Auth modal (login/register/verify) |
 | Library modal → My Works (placeholder cards) | → `projects` query (owner_id = me) |
+| Library modal → My Works → **Search** | → Full-text search on project name + diagram names |
 | Library modal → Shared Works ("coming soon") | → `project_access` join query |
+| Library modal → Shared Works → **Search** | → Same search, filtered by shared projects |
 | Status bar | → connection status indicator, collaborator count |
+
+## Appendix D: Library Search
+
+The Library modal needs a **search bar** at the top of both "My Works" and "Shared Works" tabs.
+
+### Search Implementation
+
+- **Client-side filter for MVP**: Since project limits are low (max 100), fetching all projects and filtering client-side with `Array.filter()` is sufficient.
+- **Server-side search for scale**: If needed later, use PostgreSQL `tsvector` full-text search or `ILIKE` on `projects.name` + `diagrams.name`.
+- **Search scope**: project name, project description, diagram names within project.
+- **UI**: Search input with debounce (300ms), clear button, "No results" empty state.
