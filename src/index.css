@@ -482,6 +482,9 @@ body {
   background: var(--iso-divider);
   margin: 6px 0;
 }
+.iso-menu-dropdown-wrapper:hover .iso-menu-dropdown-submenu {
+  display: flex !important;
+}
 
 /* ── Main Content ───────────────────────────────────────────── */
 .iso-main {

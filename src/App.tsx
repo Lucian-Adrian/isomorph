@@ -16,7 +16,7 @@ import { DiagramView } from './components/DiagramView.js';
 import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
-import { IconCode, IconDiagram, IconChevron, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconLibrary, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
+import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconLibrary, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -866,15 +866,15 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile'|'collab'|'storage'|'app'>('app');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [libraryTab, setLibraryTab] = useState<'my'|'shared'|'examples'>('my');
   const [isExporting, setIsExporting] = useState(false);
   const [exportTime, setExportTime] = useState<number>(0);
-  const [libraryTab, setLibraryTab] = useState<'my'|'shared'>('my');
   const [projects, setProjects] = useState<Project[]>([]);
   const [librarySearchQuery, setLibrarySearchQuery] = useState('');
   const [isSavingToCloud, setIsSavingToCloud] = useState(false);
   const [saveToCloudModalOpen, setSaveToCloudModalOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [newProjectModalOpen, setNewProjectModalOpen] = useState(false);
+
   const [newProjectName, setNewProjectName] = useState('');
   const [autoSaveInterval, setAutoSaveInterval] = useState<number>(() => {
     const val = localStorage.getItem('isomorph-autosave');
@@ -883,12 +883,15 @@ export default function App() {
   const [newModalTab, setNewModalTab] = useState<'tab'|'project'>('tab');
   const [libraryCategory, setLibraryCategory] = useState<string>('All Projects');
   const [customCategories, setCustomCategories] = useState<string[]>(['Favorites', 'Work', 'Personal']);
+  const [newCategoryPrompt, setNewCategoryPrompt] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [contextMenu, setContextMenu] = useState<{ type: 'category' | 'project', id: string, x: number, y: number } | null>(null);
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const { session, user, signOut } = useAuth();
   
-  const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null, cursor_colour?: string | null, display_name?: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null, settings?: any } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -896,6 +899,9 @@ export default function App() {
         getProfile(user.id).then(data => {
           if (data) {
             setProfile(data);
+            if (data.settings?.projects?.tabs) {
+              setCustomCategories(data.settings.projects.tabs);
+            }
           }
         });
       });
@@ -903,6 +909,24 @@ export default function App() {
       setProfile(null);
     }
   }, [user]);
+
+  const saveCustomCategoriesToDB = async (cats: string[]) => {
+    if (user && profile) {
+      const { supabase } = await import('./lib/supabase.js');
+      const { error } = await supabase.from('profiles').update({
+        settings: {
+          ...(profile.settings || {}),
+          projects: {
+            ...(profile.settings?.projects || {}),
+            tabs: cats
+          }
+        }
+      }).eq('id', user.id);
+      if (!error) {
+        setProfile(p => p ? { ...p, settings: { ...p.settings, projects: { ...p.settings?.projects, tabs: cats } } } : null);
+      }
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -1691,7 +1715,7 @@ export default function App() {
     e.target.value = '';
   }, []);
 
-  const handleSaveToCloud = useCallback(async () => {
+  const handleSaveToCloud = useCallback(async (projectName?: string) => {
     if (!user) {
       setAuthMode('login');
       setIsAuthOpen(true);
@@ -1704,10 +1728,21 @@ export default function App() {
       setIsSavingToCloud(false);
       updateActiveTab(tab => ({ ...tab, savedSource: tab.source }), false);
     } else {
-      setSaveToCloudModalOpen(true);
-      const { getProjects } = await import('./lib/projects.js');
-      const data = await getProjects(user.id);
-      setProjects(data);
+      if (projectName) {
+        setIsSavingToCloud(true);
+        const { createProject, createDiagram } = await import('./lib/projects.js');
+        const p = await createProject(user.id, projectName);
+        if (p) {
+          const d = await createDiagram(user.id, p.id, activeTab.name, activeTab.diagramKindFilter, { source: activeTab.source });
+          if (d) {
+            updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
+            addToast('Saved to cloud');
+          }
+        }
+        setIsSavingToCloud(false);
+      } else {
+        setSaveToCloudModalOpen(true);
+      }
     }
   }, [user, activeTab, updateActiveTab]);
 
@@ -1826,23 +1861,16 @@ export default function App() {
     activeTabId,
   ]);
 
-  const statusClass = allErrors.length > 0
-    ? 'iso-status iso-status--err'
-    : diagrams.length > 0
-      ? 'iso-status iso-status--ok'
-      : 'iso-status iso-status--idle';
-  const statusLabel = allErrors.length > 0
-    ? allErrors.length > 1
-      ? t('status.error_many', { count: allErrors.length })
-      : t('status.error_one', { count: allErrors.length })
-    : diagrams.length > 0
-      ? t('status.valid')
-      : t('status.ready');
-  const statusAriaLabel = allErrors.length > 0
-    ? allErrors.length > 1
-      ? t('status.error_many', { count: allErrors.length })
-      : t('status.error_one', { count: allErrors.length })
-    : t('status.diagram_valid');
+  const applyExample = useCallback((ex: (typeof EXAMPLES)[number]) => {
+    updateActiveTab(tab => ({
+      ...tab,
+      source: ex.source,
+      activeDiagramIdx: 0,
+      diagramKindFilter: ex.kind as DiagramKind,
+    }));
+    setExamplesOpen(false);
+  }, [updateActiveTab]);
+
 
   const shapesPane = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
     <div className="iso-sidebar">
@@ -2164,58 +2192,7 @@ export default function App() {
     </div>
   );
 
-  const applyExample = useCallback((ex: (typeof EXAMPLES)[number]) => {
-    updateActiveTab(tab => ({
-      ...tab,
-      source: ex.source,
-      activeDiagramIdx: 0,
-      diagramKindFilter: ex.kind as DiagramKind,
-    }));
-    setExamplesOpen(false);
-  }, [updateActiveTab]);
 
-  const examplesDropdown = (
-    <div className="iso-dropdown" ref={examplesRef}>
-      <button
-        type="button"
-        className="iso-btn"
-        onPointerDown={e => {
-          e.preventDefault();
-          e.stopPropagation();
-          setExamplesOpen(o => !o);
-        }}
-        aria-haspopup="menu"
-        aria-expanded={examplesOpen}
-        aria-label={t('ui.load_example')}
-      >
-        {t('ui.examples')}
-        <IconChevron dir={examplesOpen ? 'up' : 'down'} />
-      </button>
-      {examplesOpen && (
-        <div className="iso-dropdown-menu" role="menu" aria-label={t('ui.example_diagrams')}>
-          {EXAMPLES.map(ex => (
-            <button
-              key={ex.label}
-              type="button"
-              className="iso-dropdown-item"
-              role="menuitem"
-              onPointerDown={e => {
-                e.preventDefault();
-                e.stopPropagation();
-                applyExample(ex);
-              }}
-            >
-              <span className="iso-dropdown-item-icon" aria-hidden="true">
-                ⭕
-              </span>
-              {ex.label}
-              <span className="iso-dropdown-item-meta">{ex.kind}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 
   if (tabs.length === 0) {
     return (
@@ -2246,7 +2223,7 @@ export default function App() {
               </button>
             </div>
           </div>
-          <input ref={fileInputRef} type="file" accept=".isx,.iso,.txt" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
+          <input ref={fileInputRef} type="file" accept=".isx" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
         </div>
 
         {/* ──────────────── MODALS (Empty State) ───────────────── */}
@@ -2490,7 +2467,7 @@ export default function App() {
               {t('menu.open')}
             </button>
 
-            {examplesDropdown}
+
 
             {activeDiagram?.kind === 'sequence' && (
               <button
@@ -2579,7 +2556,7 @@ export default function App() {
           </div>
         )}
 
-        <input ref={fileInputRef} type="file" accept=".isx,.iso,.txt" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
+        <input ref={fileInputRef} type="file" accept=".isx" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
 
         <button
           type="button"
@@ -2699,7 +2676,7 @@ export default function App() {
                 <IconOpen />
                 {t('menu.open')}
               </button>
-              {examplesDropdown}
+
               {activeDiagram?.kind === 'sequence' && (
                 <button type="button" className="iso-btn" onClick={handleTransformToCollaboration}>
                   <IconDiagram />
@@ -3194,7 +3171,38 @@ export default function App() {
         </div>
       )}
 
-      {editingText && ( <div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div> )} {/* ──────────────── STATUS BAR ──────────────────────── */}
+      {editingText && ( <div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div> )}
+      {saveToCloudModalOpen && (
+        <div className="iso-modal-overlay" onClick={() => setSaveToCloudModalOpen(false)}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+            <button className="iso-modal-close-btn" onClick={() => setSaveToCloudModalOpen(false)}>×</button>
+            <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>Save Project to Cloud</h3>
+            <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px', fontSize: '14px' }}>
+              Enter a name for this project to save it to your Isomorph Cloud library.
+            </p>
+            <input 
+              type="text" 
+              className="iso-input" 
+              placeholder="Project Name" 
+              value={newProjectName} 
+              onChange={e => setNewProjectName(e.target.value)} 
+              autoFocus
+            />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '24px', justifyContent: 'flex-end' }}>
+              <button className="iso-btn" onClick={() => setSaveToCloudModalOpen(false)}>Cancel</button>
+              <button className="iso-btn iso-btn--primary" onClick={() => {
+                if (!newProjectName.trim()) {
+                  addToast('Project name cannot be empty', 'info');
+                  return;
+                }
+                setSaveToCloudModalOpen(false);
+                handleSaveToCloud(newProjectName.trim());
+              }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ──────────────── STATUS BAR ──────────────────────── */}
       <footer className="iso-statusbar">
         <span className="iso-statusbar-item">{t('ui.isomorph_dsl')}</span>
         <span className="iso-statusbar-sep">·</span>
@@ -3223,63 +3231,96 @@ export default function App() {
       {/* ──────────────── MODALS ───────────────── */}
       {isNewModalOpen && (
         <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', borderBottom: '1px solid var(--iso-border)', paddingBottom: '12px' }}>
-              <div 
-                style={{ cursor: 'pointer', fontWeight: newModalTab === 'tab' ? 600 : 400, color: newModalTab === 'tab' ? 'var(--iso-text)' : 'var(--iso-text-muted)' }}
+          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ minHeight: '400px' }}>
+            <div className="iso-modal-sidebar" style={{ width: '200px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('welcome.create_new') || 'Create New'}</h2>
+              <button 
+                className={`iso-modal-sidebar-tab ${newModalTab === 'tab' ? 'active' : ''}`} 
                 onClick={() => setNewModalTab('tab')}
-              >New Tab</div>
-              <div 
-                style={{ cursor: 'pointer', fontWeight: newModalTab === 'project' ? 600 : 400, color: newModalTab === 'project' ? 'var(--iso-text)' : 'var(--iso-text-muted)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <IconDiagram size={16} /> New Diagram
+                </div>
+              </button>
+              <button 
+                className={`iso-modal-sidebar-tab ${newModalTab === 'project' ? 'active' : ''}`} 
                 onClick={() => setNewModalTab('project')}
-              >New Project</div>
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <IconLibrary size={16} /> New Project
+                </div>
+              </button>
             </div>
-
-            {newModalTab === 'tab' ? (
-              <>
-                <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
-                <p className="iso-modal-desc">{t('welcome.select_type_desc')}</p>
-                <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
-                  {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                    <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
-                  ))}
-                </select>
-                <div className="iso-modal-actions">
-                  <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
-                  <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
+            
+            <div className="iso-modal-content" style={{ position: 'relative' }}>
+              <button className="iso-modal-close-btn" onClick={() => setIsNewModalOpen(false)}>×</button>
+              
+              {newModalTab === 'tab' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '8px' }}>{t('welcome.create_new')}</h3>
+                  <p className="iso-modal-desc" style={{ marginBottom: '24px' }}>{t('welcome.select_type_desc')}</p>
+                  
+                  <div style={{ flex: 1 }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Diagram Type</label>
+                      <select 
+                        className="iso-select" 
+                        value={newDiagramKind} 
+                        onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}
+                        style={{ width: '100%', maxWidth: '300px', padding: '10px 14px', borderRadius: '8px', background: 'var(--iso-bg-header)' }}
+                      >
+                        {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+                          <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--iso-border)' }}>
+                    <button className="iso-btn" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+                    <button className="iso-btn iso-btn--primary" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <>
-                <h2 className="iso-modal-title">Create New Project</h2>
-                <p className="iso-modal-desc">Enter a name for your new project.</p>
-                <input 
-                  type="text" 
-                  className="iso-modal-input" 
-                  value={newProjectName} 
-                  onChange={e => setNewProjectName(e.target.value)} 
-                  placeholder="Project name..." 
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--iso-bg-canvas)', border: '1px solid var(--iso-border)', color: 'inherit', marginBottom: '16px' }}
-                />
-                <div className="iso-modal-actions">
-                  <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
-                  <button className="iso-modal-btn confirm" disabled={!newProjectName.trim()} onClick={async () => {
-                    if (user && newProjectName.trim()) {
-                      const { createProject } = await import('./lib/projects.js');
-                      try {
-                        const p = await createProject(user.id, newProjectName.trim());
-                        if (p) {
-                          setProjects(prev => [p, ...prev]);
-                          addToast('Project created successfully');
-                          setIsNewModalOpen(false);
-                          setNewProjectName('');
-                        }
-                      } catch(e: any) { alert(e.message); }
-                    } else { alert("You must be logged in to create a project."); }
-                  }}>{t('ui.create')}</button>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '8px' }}>Create New Project</h3>
+                  <p className="iso-modal-desc" style={{ marginBottom: '24px' }}>Enter a name to set up a new project space.</p>
+                  
+                  <div style={{ flex: 1 }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Project Name</label>
+                      <input 
+                        type="text" 
+                        className="iso-input" 
+                        value={newProjectName} 
+                        onChange={e => setNewProjectName(e.target.value)} 
+                        placeholder="E.g., Q3 System Architecture..." 
+                        autoFocus
+                        style={{ width: '100%', maxWidth: '400px', padding: '10px 14px', borderRadius: '8px', background: 'var(--iso-bg-header)' }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--iso-border)' }}>
+                    <button className="iso-btn" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+                    <button className="iso-btn iso-btn--primary" disabled={!newProjectName.trim()} onClick={async () => {
+                      if (user && newProjectName.trim()) {
+                        const { createProject } = await import('./lib/projects.js');
+                        try {
+                          const p = await createProject(user.id, newProjectName.trim());
+                          if (p) {
+                            setProjects(prev => [p, ...prev]);
+                            addToast('Project created successfully');
+                            setIsNewModalOpen(false);
+                            setNewProjectName('');
+                          }
+                        } catch(e: any) { alert(e.message); }
+                      } else { alert("You must be logged in to create a project."); }
+                    }}>{t('ui.create')}</button>
+                  </div>
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -3348,8 +3389,12 @@ export default function App() {
                               input.click();
                             }}>Upload Photo</button>
                             {profile?.avatar_url && (
-                              <button className="iso-btn" style={{ fontSize: '13px', color: 'var(--iso-danger)' }} onClick={() => {
-                                if (profile) setProfile({ ...profile, avatar_url: null });
+                              <button className="iso-btn" style={{ fontSize: '13px', color: 'var(--iso-danger)' }} onClick={async () => {
+                                if (profile && user) {
+                                  const { updateProfile } = await import('./lib/profile.js');
+                                  await updateProfile(user.id, { avatar_url: null });
+                                  setProfile({ ...profile, avatar_url: null });
+                                }
                               }}>Remove</button>
                             )}
                           </div>
@@ -3357,7 +3402,7 @@ export default function App() {
                       </div>
                       <div className="iso-modal-field">
                         <label>Display Name</label>
-                        <input type="text" placeholder="Alice" value={profile?.display_name || ''} onChange={e => setProfile(p => p ? { ...p, display_name: e.target.value } : null)} className="iso-input" />
+                        <input type="text" placeholder="Alice" value={profile?.full_name || ''} onChange={e => setProfile(p => p ? { ...p, full_name: e.target.value } : null)} className="iso-input" />
                       </div>
                       <div className="iso-modal-field">
                         <label>Username</label>
@@ -3371,19 +3416,30 @@ export default function App() {
                       <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
                         <button className="iso-btn iso-btn--primary" style={{ flex: 1 }} onClick={async () => {
                           if (user && profile) {
-                            const { error } = await supabase.from('profiles').update({
-                              display_name: profile.display_name,
+                            const newSettings = {
+                              ...(profile.settings || {}),
+                              cursor_colour: profile.settings?.cursor_colour,
+                              show_trail: collabShowTrail,
+                              telemetry: telemetry,
+                              auto_save: autoSaveInterval,
+                              language: language,
+                              tabs: customCategories
+                            };
+                            const { supabase } = await import('./lib/supabase.js');
+                            const { error } = await supabase.from('profiles').upsert({
+                              id: user.id,
+                              full_name: profile.full_name,
                               username: profile.username,
                               avatar_url: profile.avatar_url,
-                              settings: {
-                                cursor_colour: profile.cursor_colour,
-                                show_trail: collabShowTrail
-                              }
-                            }).eq('id', user.id);
+                              settings: newSettings,
+                              updated_at: new Date().toISOString()
+                            });
                             if (error) {
                               alert('Error saving profile');
+                              console.error(error);
                             } else {
                               addToast('Profile saved successfully');
+                              setProfile({ ...profile, settings: newSettings });
                             }
                           }
                         }}>Save Changes</button>
@@ -3412,11 +3468,11 @@ export default function App() {
                         
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
-                            <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.84c.45 0 .67-.54.35-.85L5.5 3.21z" fill={profile?.cursor_colour || '#3B82F6'} stroke={profile?.cursor_colour === '#F8FAFC' ? '#CBD5E1' : 'white'} strokeWidth="1.5" />
+                            <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.84c.45 0 .67-.54.35-.85L5.5 3.21z" fill={profile?.settings?.cursor_colour || '#3B82F6'} stroke={profile?.settings?.cursor_colour === '#F8FAFC' ? '#CBD5E1' : 'white'} strokeWidth="1.5" />
                           </svg>
                           <div style={{ 
-                            background: profile?.cursor_colour || '#3B82F6', 
-                            color: profile?.cursor_colour === '#F8FAFC' ? '#1E293B' : 'white', 
+                            background: profile?.settings?.cursor_colour || '#3B82F6', 
+                            color: profile?.settings?.cursor_colour === '#F8FAFC' ? '#1E293B' : 'white', 
                             padding: '4px 8px', 
                             borderRadius: '4px', 
                             fontSize: '12px', 
@@ -3424,15 +3480,15 @@ export default function App() {
                             marginTop: '4px',
                             boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                           }}>
-                            {profile?.display_name || profile?.username || 'You'}
+                            {profile?.full_name || profile?.username || 'You'}
                           </div>
                         </div>
 
                         {collabShowTrail && (
                           <>
-                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.5, transform: 'translate(-12px, 12px)', zIndex: 1, animationDelay: '0s' }}></div>
-                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 6, height: 6, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.3, transform: 'translate(-20px, 20px)', zIndex: 1, animationDelay: '0.2s' }}></div>
-                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 4, height: 4, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.15, transform: 'translate(-26px, 26px)', zIndex: 1, animationDelay: '0.4s' }}></div>
+                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: profile?.settings?.cursor_colour || '#3B82F6', opacity: 0.5, transform: 'translate(-12px, 12px)', zIndex: 1, animationDelay: '0s' }}></div>
+                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 6, height: 6, borderRadius: '50%', background: profile?.settings?.cursor_colour || '#3B82F6', opacity: 0.3, transform: 'translate(-20px, 20px)', zIndex: 1, animationDelay: '0.2s' }}></div>
+                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 4, height: 4, borderRadius: '50%', background: profile?.settings?.cursor_colour || '#3B82F6', opacity: 0.15, transform: 'translate(-26px, 26px)', zIndex: 1, animationDelay: '0.4s' }}></div>
                           </>
                         )}
 
@@ -3446,12 +3502,12 @@ export default function App() {
                           <button
                             key={color}
                             onClick={() => {
-                              setProfile(p => p ? { ...p, cursor_colour: color } : null);
+                              setProfile(p => p ? { ...p, settings: { ...(p.settings || {}), cursor_colour: color } } : null);
                             }}
                             style={{
                               width: '32px', height: '32px', borderRadius: '50%', background: color, 
-                              border: profile?.cursor_colour === color ? '2px solid var(--iso-bg-app)' : '2px solid transparent',
-                              boxShadow: profile?.cursor_colour === color ? `0 0 0 2px ${color}` : (color === '#F8FAFC' ? '0 0 0 1px #E2E8F0' : '0 0 0 1px var(--iso-border)'),
+                              border: profile?.settings?.cursor_colour === color ? '2px solid var(--iso-bg-app)' : '2px solid transparent',
+                              boxShadow: profile?.settings?.cursor_colour === color ? `0 0 0 2px ${color}` : (color === '#F8FAFC' ? '0 0 0 1px #E2E8F0' : '0 0 0 1px var(--iso-border)'),
                               outline: 'none',
                               cursor: 'pointer',
                               transition: 'all 0.2s'
@@ -3489,9 +3545,21 @@ export default function App() {
                     </div>
                     <div className="iso-modal-field">
                       <label>Projects Used</label>
-                      <div style={{ width: '100%', background: 'var(--iso-divider)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.min(100, Math.max(0, (projects.length / (profile?.tier === 'enterprise' ? 100 : profile?.tier === 'power' ? 25 : 5)) * 100))}%`, background: 'var(--iso-primary)', height: '100%', borderRadius: '4px', transition: 'width 0.3s ease' }}></div>
-                      </div>
+                      {(() => {
+                        const maxLimit = profile?.tier === 'enterprise' ? 100 : profile?.tier === 'power' ? 25 : 5;
+                        const count = projects.length;
+                        const ratio = count / maxLimit;
+                        let color = 'var(--iso-text)';
+                        if (ratio >= 0.9) color = 'var(--iso-error)';
+                        else if (ratio >= 0.75) color = 'var(--iso-warning)';
+                        return (
+                          <div style={{ display: 'flex', gap: '2px', width: '100%', height: '8px' }}>
+                            {Array.from({ length: maxLimit }).map((_, i) => (
+                              <div key={i} style={{ flex: 1, background: i < count ? color : 'var(--iso-divider)', borderRadius: '2px', transition: 'background 0.3s ease' }} />
+                            ))}
+                          </div>
+                        );
+                      })()}
                       <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)', marginTop: '4px' }}>
                         {projects.length} / {profile?.tier === 'enterprise' ? '100' : profile?.tier === 'power' ? '25' : '5'} projects
                       </span>
@@ -3635,6 +3703,7 @@ export default function App() {
               <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('ui.library')}</h2>
               <button className={`iso-modal-sidebar-tab ${libraryTab === 'my' ? 'active' : ''}`} onClick={() => setLibraryTab('my')}>{t('ui.my_works')}</button>
               <button className={`iso-modal-sidebar-tab ${libraryTab === 'shared' ? 'active' : ''}`} onClick={() => setLibraryTab('shared')}>{t('ui.shared_works')}</button>
+              <button className={`iso-modal-sidebar-tab ${libraryTab === 'examples' ? 'active' : ''}`} onClick={() => setLibraryTab('examples')}>{t('ui.examples')}</button>
             </div>
             <div className="iso-modal-content" style={{ position: 'relative' }}>
               <button className="iso-modal-close-btn" onClick={() => setIsLibraryOpen(false)}>×</button>
@@ -3677,19 +3746,15 @@ export default function App() {
                         onClick={() => setLibraryCategory(cat)}
                         onContextMenu={(e) => {
                           e.preventDefault();
-                          if (cat !== 'All Projects' && confirm(`Remove category ${cat}?`)) {
-                            setCustomCategories(prev => prev.filter(c => c !== cat));
-                            if (libraryCategory === cat) setLibraryCategory('All Projects');
+                          if (cat !== 'All Projects' && cat !== 'Favourites') {
+                            setContextMenu({ type: 'category', id: cat, x: e.clientX, y: e.clientY });
                           }
                         }}
                       >{cat}</button>
                     ))}
                     <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }} onClick={() => {
-                      const name = prompt('New category name:');
-                      if (name && !customCategories.includes(name)) {
-                        setCustomCategories(prev => [...prev, name]);
-                        setLibraryCategory(name);
-                      }
+                      setNewCategoryName('');
+                      setNewCategoryPrompt(true);
                     }}>+</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
@@ -3707,22 +3772,29 @@ export default function App() {
                           const { getDiagrams } = await import('./lib/projects.js');
                           const diagrams = await getDiagrams(p.id);
                           if (diagrams.length > 0) {
-                            const newTabs = diagrams.map(d => ({
-                              id: d.id,
-                              name: d.name,
-                              source: d.content || '',
-                              kind: d.kind as any,
-                              scale: 1, pan: { x: 0, y: 0 },
-                              history: [{ source: d.content || '', timestamp: Date.now() }],
-                              historyIndex: 0,
-                              projectId: p.id
-                            }));
+                            const newTabs: WorkspaceTab[] = diagrams.map(d => {
+                              const content = d.content as any;
+                              const sourceText = typeof content === 'string' ? content : (content?.source || '');
+                              return {
+                                id: d.id,
+                                name: d.name,
+                                source: sourceText,
+                                activeDiagramIdx: 0,
+                                diagramKindFilter: d.kind as 'all' | DiagramKind,
+                                diagram_id: d.id,
+                                project_id: p.id,
+                                savedSource: sourceText
+                              };
+                            });
                             setTabs(newTabs);
                             setActiveTabId(newTabs[0].id);
                           } else {
                             addToast('Project is empty');
                           }
                           setIsLibraryOpen(false);
+                        }} onContextMenu={(e) => {
+                          e.preventDefault();
+                          setContextMenu({ type: 'project', id: p.id, x: e.clientX, y: e.clientY });
                         }} style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text)', cursor: 'pointer', padding: '16px', textAlign: 'center' }}>
                           <strong style={{ marginBottom: '8px' }}>{p.name}</strong>
                           <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{new Date(p.updated_at).toLocaleDateString()}</span>
@@ -3756,15 +3828,152 @@ export default function App() {
                       </select>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                    <button className="iso-btn iso-btn--primary" style={{ borderRadius: '20px', padding: '4px 12px' }}>All Projects</button>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
+                    {['All Projects', ...customCategories].map(cat => (
+                      <button 
+                        key={`shared-${cat}`}
+                        className={libraryCategory === cat ? "iso-btn iso-btn--primary" : "iso-btn"} 
+                        style={{ borderRadius: '20px', padding: '4px 12px', background: libraryCategory === cat ? undefined : 'var(--iso-bg-header)' }}
+                        onClick={() => setLibraryCategory(cat)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          if (cat !== 'All Projects' && cat !== 'Favourites') {
+                            setContextMenu({ type: 'category', id: cat, x: e.clientX, y: e.clientY });
+                          }
+                        }}
+                      >{cat}</button>
+                    ))}
+                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }} onClick={() => {
+                      setNewCategoryName('');
+                      setNewCategoryPrompt(true);
+                    }}>+</button>
                   </div>
                   <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.shared_future')}</p>
+                </div>
+              )}
+              {libraryTab === 'examples' && (
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.examples')}</h3>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
+                    {EXAMPLES.map(ex => (
+                      <div key={ex.label} onClick={() => {
+                        applyExample(ex);
+                        setIsLibraryOpen(false);
+                      }} style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text)', cursor: 'pointer', padding: '16px', textAlign: 'center' }}>
+                        <strong style={{ marginBottom: '8px' }}>{ex.label}</strong>
+                        <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{ex.kind}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
+      )}
+
+
+
+      {newCategoryPrompt && (
+        <div className="iso-modal-overlay" onClick={() => setNewCategoryPrompt(false)}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()}>
+            <h2 className="iso-modal-title">New Category Name</h2>
+            <div className="iso-modal-field">
+              <input type="text" className="iso-input" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} autoFocus onKeyDown={(e) => {
+                if (e.key === 'Enter' && newCategoryName.trim()) {
+                  const name = newCategoryName.trim();
+                  if (!customCategories.includes(name)) {
+                    const next = [...customCategories, name];
+                    setCustomCategories(next);
+                    setLibraryCategory(name);
+                    saveCustomCategoriesToDB(next);
+                  }
+                  setNewCategoryPrompt(false);
+                }
+              }} />
+            </div>
+            <div className="iso-modal-actions">
+              <button className="iso-modal-btn cancel" onClick={() => setNewCategoryPrompt(false)}>{t('ui.cancel')}</button>
+              <button className="iso-modal-btn" onClick={() => {
+                const name = newCategoryName.trim();
+                if (name && !customCategories.includes(name)) {
+                  const next = [...customCategories, name];
+                  setCustomCategories(next);
+                  setLibraryCategory(name);
+                  saveCustomCategoriesToDB(next);
+                }
+                setNewCategoryPrompt(false);
+              }}>Add Category</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {contextMenu && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 99998 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}></div>
+          <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 99999, background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
+            {contextMenu.type === 'category' && (
+              <button className="iso-btn" style={{ textAlign: 'left', color: 'var(--iso-danger)', background: 'transparent' }} onClick={() => {
+                const next = customCategories.filter(c => c !== contextMenu.id);
+                setCustomCategories(next);
+                saveCustomCategoriesToDB(next);
+                if (libraryCategory === contextMenu.id) setLibraryCategory('All Projects');
+                setContextMenu(null);
+              }}>Delete Category</button>
+            )}
+            {contextMenu.type === 'project' && (
+              <>
+                <button className="iso-btn" style={{ textAlign: 'left', background: 'transparent' }} onClick={() => {
+                  const name = prompt('New name:', projects.find(p => p.id === contextMenu.id)?.name);
+                  if (name && name.trim()) {
+                    import('./lib/projects.js').then(({ updateProject }) => {
+                      if (user) {
+                        updateProject(user.id, contextMenu.id, { name: name.trim() }).then(success => {
+                          if (success) {
+                            setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, name: name.trim() } : p));
+                          }
+                        });
+                      }
+                    });
+                  }
+                  setContextMenu(null);
+                }}>Rename</button>
+                <button className="iso-btn" style={{ textAlign: 'left', background: 'transparent' }} onClick={() => {
+                  // Add logic for Add to Favorites
+                  setContextMenu(null);
+                  addToast('Added to Favourites');
+                }}>Add to Favorites</button>
+                <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
+                  <button className="iso-btn" style={{ textAlign: 'left', background: 'transparent', width: '100%', display: 'flex', justifyContent: 'space-between' }}>
+                    Add to Folder <span>▶</span>
+                  </button>
+                  <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '8px', display: 'none', flexDirection: 'column', minWidth: '120px' }}>
+                    {customCategories.map(cat => (
+                      <button key={cat} className="iso-btn" style={{ textAlign: 'left', background: 'transparent' }} onClick={() => {
+                        addToast(`Added to ${cat}`);
+                        setContextMenu(null);
+                      }}>{cat}</button>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ height: '1px', background: 'var(--iso-border)', margin: '4px 0' }} />
+                <button className="iso-btn" style={{ textAlign: 'left', color: 'var(--iso-danger)', background: 'transparent' }} onClick={() => {
+                  if (confirm('Are you sure you want to delete this project?')) {
+                    import('./lib/supabase.js').then(({ supabase }) => {
+                      supabase.from('projects').delete().eq('id', contextMenu.id).then(() => {
+                        setProjects(prev => prev.filter(p => p.id !== contextMenu.id));
+                      });
+                    });
+                  }
+                  setContextMenu(null);
+                }}>Delete Project</button>
+              </>
+            )}
+          </div>
+        </>
       )}
 
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} initialMode={authMode} />

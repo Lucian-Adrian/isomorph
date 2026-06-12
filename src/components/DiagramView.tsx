@@ -1305,7 +1305,8 @@ export function DiagramView({
           display: diagram ? undefined : 'none',
           backgroundPosition: `${pan.x}px ${pan.y}px`,
           backgroundSize: `${24 * (zoom / 100)}px ${24 * (zoom / 100)}px`,
-          touchAction: 'none' /* prevent native zooming on trackpads */
+          touchAction: 'none', /* prevent native zooming on trackpads */
+          cursor: activeTool === 'hand' ? (isInteracting ? 'grabbing' : 'grab') : undefined
         }}
         onWheel={(e) => {
           if (e.ctrlKey) {
