@@ -874,6 +874,15 @@ export default function App() {
   const [isSavingToCloud, setIsSavingToCloud] = useState(false);
   const [saveToCloudModalOpen, setSaveToCloudModalOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [newProjectModalOpen, setNewProjectModalOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [autoSaveInterval, setAutoSaveInterval] = useState<number>(() => {
+    const val = localStorage.getItem('isomorph-autosave');
+    return val ? parseFloat(val) : 0;
+  });
+  const [newModalTab, setNewModalTab] = useState<'tab'|'project'>('tab');
+  const [libraryCategory, setLibraryCategory] = useState<string>('All Projects');
+  const [customCategories, setCustomCategories] = useState<string[]>(['Favorites', 'Work', 'Personal']);
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -896,10 +905,10 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
-    if (user && isLibraryOpen) {
+    if (user) {
       getProjects(user.id).then(data => setProjects(data));
     }
-  }, [user, isLibraryOpen]);
+  }, [user]);
 
   const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
@@ -3215,17 +3224,62 @@ export default function App() {
       {isNewModalOpen && (
         <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
           <div className="iso-modal" onClick={e => e.stopPropagation()}>
-            <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
-            <p className="iso-modal-desc">{t('welcome.select_type_desc')}</p>
-            <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
-              {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
-              ))}
-            </select>
-            <div className="iso-modal-actions">
-              <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
-              <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px', borderBottom: '1px solid var(--iso-border)', paddingBottom: '12px' }}>
+              <div 
+                style={{ cursor: 'pointer', fontWeight: newModalTab === 'tab' ? 600 : 400, color: newModalTab === 'tab' ? 'var(--iso-text)' : 'var(--iso-text-muted)' }}
+                onClick={() => setNewModalTab('tab')}
+              >New Tab</div>
+              <div 
+                style={{ cursor: 'pointer', fontWeight: newModalTab === 'project' ? 600 : 400, color: newModalTab === 'project' ? 'var(--iso-text)' : 'var(--iso-text-muted)' }}
+                onClick={() => setNewModalTab('project')}
+              >New Project</div>
             </div>
+
+            {newModalTab === 'tab' ? (
+              <>
+                <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
+                <p className="iso-modal-desc">{t('welcome.select_type_desc')}</p>
+                <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
+                  {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+                    <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
+                  ))}
+                </select>
+                <div className="iso-modal-actions">
+                  <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+                  <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="iso-modal-title">Create New Project</h2>
+                <p className="iso-modal-desc">Enter a name for your new project.</p>
+                <input 
+                  type="text" 
+                  className="iso-modal-input" 
+                  value={newProjectName} 
+                  onChange={e => setNewProjectName(e.target.value)} 
+                  placeholder="Project name..." 
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'var(--iso-bg-canvas)', border: '1px solid var(--iso-border)', color: 'inherit', marginBottom: '16px' }}
+                />
+                <div className="iso-modal-actions">
+                  <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
+                  <button className="iso-modal-btn confirm" disabled={!newProjectName.trim()} onClick={async () => {
+                    if (user && newProjectName.trim()) {
+                      const { createProject } = await import('./lib/projects.js');
+                      try {
+                        const p = await createProject(user.id, newProjectName.trim());
+                        if (p) {
+                          setProjects(prev => [p, ...prev]);
+                          addToast('Project created successfully');
+                          setIsNewModalOpen(false);
+                          setNewProjectName('');
+                        }
+                      } catch(e: any) { alert(e.message); }
+                    } else { alert("You must be logged in to create a project."); }
+                  }}>{t('ui.create')}</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -3274,24 +3328,31 @@ export default function App() {
                           <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                             {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '24px' }}>👤</span>}
                           </div>
-                          <button className="iso-btn" style={{ fontSize: '13px' }} onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.onchange = async (e: any) => {
-                              const file = e.target.files?.[0];
-                              if (file && user) {
-                                addToast('Uploading photo...', 'info');
-                                const { uploadAvatar } = await import('./lib/profile.js');
-                                const url = await uploadAvatar(user.id, file);
-                                if (url && profile) {
-                                  setProfile({ ...profile, avatar_url: url });
-                                  addToast('Photo uploaded successfully');
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="iso-btn" style={{ fontSize: '13px' }} onClick={() => {
+                              const input = document.createElement('input');
+                              input.type = 'file';
+                              input.accept = 'image/*';
+                              input.onchange = async (e: any) => {
+                                const file = e.target.files?.[0];
+                                if (file && user) {
+                                  addToast('Uploading photo...', 'info');
+                                  const { uploadAvatar } = await import('./lib/profile.js');
+                                  const url = await uploadAvatar(user.id, file);
+                                  if (url && profile) {
+                                    setProfile({ ...profile, avatar_url: url });
+                                    addToast('Photo uploaded successfully');
+                                  }
                                 }
-                              }
-                            };
-                            input.click();
-                          }}>Upload Photo</button>
+                              };
+                              input.click();
+                            }}>Upload Photo</button>
+                            {profile?.avatar_url && (
+                              <button className="iso-btn" style={{ fontSize: '13px', color: 'var(--iso-danger)' }} onClick={() => {
+                                if (profile) setProfile({ ...profile, avatar_url: null });
+                              }}>Remove</button>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="iso-modal-field">
@@ -3351,11 +3412,11 @@ export default function App() {
                         
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
-                            <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.84c.45 0 .67-.54.35-.85L5.5 3.21z" fill={profile?.cursor_colour || '#3B82F6'} stroke="white" strokeWidth="1.5" />
+                            <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.84c.45 0 .67-.54.35-.85L5.5 3.21z" fill={profile?.cursor_colour || '#3B82F6'} stroke={profile?.cursor_colour === '#F8FAFC' ? '#CBD5E1' : 'white'} strokeWidth="1.5" />
                           </svg>
                           <div style={{ 
                             background: profile?.cursor_colour || '#3B82F6', 
-                            color: 'white', 
+                            color: profile?.cursor_colour === '#F8FAFC' ? '#1E293B' : 'white', 
                             padding: '4px 8px', 
                             borderRadius: '4px', 
                             fontSize: '12px', 
@@ -3381,7 +3442,7 @@ export default function App() {
                     <div className="iso-modal-field">
                       <label>Cursor Color</label>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                        {['#EF4444', '#22C55E', '#3B82F6', '#EAB308', '#F8FAFC', '#1E293B', '#EC4899', '#F97316'].map(color => (
+                        {['#EF4444', '#22C55E', '#3B82F6', '#EAB308', '#EC4899', '#F97316', '#F8FAFC', '#1E293B'].map(color => (
                           <button
                             key={color}
                             onClick={() => {
@@ -3390,7 +3451,7 @@ export default function App() {
                             style={{
                               width: '32px', height: '32px', borderRadius: '50%', background: color, 
                               border: profile?.cursor_colour === color ? '2px solid var(--iso-bg-app)' : '2px solid transparent',
-                              boxShadow: profile?.cursor_colour === color ? `0 0 0 2px ${color}` : '0 0 0 1px var(--iso-border)',
+                              boxShadow: profile?.cursor_colour === color ? `0 0 0 2px ${color}` : (color === '#F8FAFC' ? '0 0 0 1px #E2E8F0' : '0 0 0 1px var(--iso-border)'),
                               outline: 'none',
                               cursor: 'pointer',
                               transition: 'all 0.2s'
@@ -3429,7 +3490,7 @@ export default function App() {
                     <div className="iso-modal-field">
                       <label>Projects Used</label>
                       <div style={{ width: '100%', background: 'var(--iso-divider)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${(projects.length / (profile?.tier === 'enterprise' ? 100 : profile?.tier === 'power' ? 25 : 5)) * 100}%`, background: 'var(--iso-primary)', height: '100%' }}></div>
+                        <div style={{ width: `${Math.min(100, Math.max(0, (projects.length / (profile?.tier === 'enterprise' ? 100 : profile?.tier === 'power' ? 25 : 5)) * 100))}%`, background: 'var(--iso-primary)', height: '100%', borderRadius: '4px', transition: 'width 0.3s ease' }}></div>
                       </div>
                       <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)', marginTop: '4px' }}>
                         {projects.length} / {profile?.tier === 'enterprise' ? '100' : profile?.tier === 'power' ? '25' : '5'} projects
@@ -3462,6 +3523,24 @@ export default function App() {
                     </div>
                     
 
+
+                    <div className="iso-modal-field">
+                      <label>Auto Save (Minutes) — {autoSaveInterval === 0 ? 'Never' : (autoSaveInterval === 0.5 ? '30 seconds' : `${autoSaveInterval} min`)}</label>
+                      <input 
+                        type="range" 
+                        min="0" max="5" step="0.5" 
+                        value={autoSaveInterval} 
+                        onChange={e => {
+                          const val = parseFloat(e.target.value);
+                          setAutoSaveInterval(val);
+                          localStorage.setItem('isomorph-autosave', String(val));
+                        }}
+                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--iso-text-muted)' }}>
+                        <span>Never</span>
+                        <span>5 min</span>
+                      </div>
+                    </div>
 
                     <div className="iso-modal-field">
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
@@ -3589,11 +3668,29 @@ export default function App() {
                       </select>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                    <button className="iso-btn iso-btn--primary" style={{ borderRadius: '20px', padding: '4px 12px' }}>All Projects</button>
-                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }}>Favorites</button>
-                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }}>Work</button>
-                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }}>Personal</button>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
+                    {['All Projects', ...customCategories].map(cat => (
+                      <button 
+                        key={cat}
+                        className={libraryCategory === cat ? "iso-btn iso-btn--primary" : "iso-btn"} 
+                        style={{ borderRadius: '20px', padding: '4px 12px', background: libraryCategory === cat ? undefined : 'var(--iso-bg-header)' }}
+                        onClick={() => setLibraryCategory(cat)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          if (cat !== 'All Projects' && confirm(`Remove category ${cat}?`)) {
+                            setCustomCategories(prev => prev.filter(c => c !== cat));
+                            if (libraryCategory === cat) setLibraryCategory('All Projects');
+                          }
+                        }}
+                      >{cat}</button>
+                    ))}
+                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }} onClick={() => {
+                      const name = prompt('New category name:');
+                      if (name && !customCategories.includes(name)) {
+                        setCustomCategories(prev => [...prev, name]);
+                        setLibraryCategory(name);
+                      }
+                    }}>+</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
                     {!user ? (
@@ -3606,7 +3703,27 @@ export default function App() {
                       </div>
                     ) : (
                       projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase())).map(p => (
-                        <div key={p.id} style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text)', cursor: 'pointer', padding: '16px', textAlign: 'center' }}>
+                        <div key={p.id} onClick={async () => {
+                          const { getDiagrams } = await import('./lib/projects.js');
+                          const diagrams = await getDiagrams(p.id);
+                          if (diagrams.length > 0) {
+                            const newTabs = diagrams.map(d => ({
+                              id: d.id,
+                              name: d.name,
+                              source: d.content || '',
+                              kind: d.kind as any,
+                              scale: 1, pan: { x: 0, y: 0 },
+                              history: [{ source: d.content || '', timestamp: Date.now() }],
+                              historyIndex: 0,
+                              projectId: p.id
+                            }));
+                            setTabs(newTabs);
+                            setActiveTabId(newTabs[0].id);
+                          } else {
+                            addToast('Project is empty');
+                          }
+                          setIsLibraryOpen(false);
+                        }} style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text)', cursor: 'pointer', padding: '16px', textAlign: 'center' }}>
                           <strong style={{ marginBottom: '8px' }}>{p.name}</strong>
                           <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{new Date(p.updated_at).toLocaleDateString()}</span>
                         </div>
@@ -3665,19 +3782,10 @@ export default function App() {
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
-                <button className="iso-btn" onClick={async () => {
-                  const name = prompt('Enter new project name:');
-                  if (name && user) {
-                    const { createProject } = await import('./lib/projects.js');
-                    try {
-                      const p = await createProject(user.id, name);
-                      if (p) {
-                        setProjects(prev => [p, ...prev]);
-                        setSelectedProjectId(p.id);
-                        addToast('Project created');
-                      }
-                    } catch (e: any) { alert(e.message); }
-                  }
+                <button className="iso-btn" onClick={() => {
+                  setNewModalTab('project');
+                  setIsNewModalOpen(true);
+                  setSaveToCloudModalOpen(false);
                 }}>New Project</button>
               </div>
             </div>
