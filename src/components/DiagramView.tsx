@@ -62,7 +62,6 @@ export function DiagramView({
   onEntityEditRequest,
   onRelationEditRequest,
   onRelationVerticalMove,
-  onExportSVG,
   onDropEntity,
   onRelationAddRequest,
   onTextRenameRequest,
@@ -263,16 +262,6 @@ export function DiagramView({
     window.addEventListener('contextmenu', handleContextMenu);
     return () => window.removeEventListener('contextmenu', handleContextMenu);
   }, []);
-
-  // Keyboard shortcut: Ctrl+E → export SVG
-  useEffect(() => {
-    if (!onExportSVG) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'e') { e.preventDefault(); onExportSVG(); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onExportSVG]);
 
   // Keyboard shortcut: Arrow keys for moving selected entities
   useEffect(() => {

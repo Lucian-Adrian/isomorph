@@ -16,7 +16,7 @@ import { DiagramView } from './components/DiagramView.js';
 import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
-import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconLibrary, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
+import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -323,7 +323,7 @@ export function formatDiagramSource(source: string): string {
         block += '\n    ' + innerLine;
         i++;
       }
-      
+
       const isFragment = /^\s*(?:alt|loop|opt|par|break|critical)\b/.test(trimmed);
       if (isFragment) {
         relationLines.push(block);
@@ -557,16 +557,16 @@ function findEntityBounds(source: string, entityName: string): { start: number, 
   const sigRx = new RegExp(`^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+${escapeRegex(entityName)}\\b`, 'm');
   const match = sigRx.exec(source);
   if (!match) return null;
-  
+
   let lineEndIndex = source.indexOf('\n', match.index);
   if (lineEndIndex === -1) lineEndIndex = source.length;
 
   const sigLine = source.slice(match.index, lineEndIndex);
   const inlineBraceIdx = sigLine.indexOf('{');
-  
+
   let searchStart = lineEndIndex;
   let bodyStart = -1;
-  
+
   if (inlineBraceIdx === -1) {
     const after = source.slice(lineEndIndex);
     const braceMatch = after.match(/^\s*\{/);
@@ -807,7 +807,7 @@ function insertSequenceLifecycleAfterRelation(
   if (!match || match.index == null) return source;
 
   const [full, indent, from, op, to, attrs] = match;
-  
+
   const replacement = `${indent}${from} ${op} ${action} ${to}${attrs || ''}`;
   const insertPos = match.index;
   return source.slice(0, insertPos) + replacement + source.slice(insertPos + full.length);
@@ -822,8 +822,8 @@ export default function App() {
   const [newDiagramKind, setNewDiagramKind] = useState<DiagramKind>('class');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [tabToClose, setTabToClose] = useState<string | null>(null);
-  const [examplesOpen, setExamplesOpen]     = useState(false);
-  const [shortcutsOpen, setShortcutsOpen]   = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(true);
   const [isWatermarkEnabled, setIsWatermarkEnabled] = useState(() => {
     const stored = localStorage.getItem('isomorph-watermark');
@@ -845,7 +845,7 @@ export default function App() {
   });
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [mobilePane, setMobilePane] = useState<'code' | 'diagram'>('code');
-  const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string; elseBlocks?: { label?: string }[] }) | null>(null);
+  const [editingEntity, setEditingEntity] = useState<(IOMEntity & { bodyText?: string; origName?: string; elseBlocks?: { label?: string }[] }) | null>(null);
   const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string, seqMessageType?: SequenceMessageType } | null>(null);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'info' }[]>([]);
@@ -858,15 +858,15 @@ export default function App() {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
   }, []);
-  const [renamingTabId, setRenamingTabId]   = useState<string | null>(null);
+  const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [pendingMobileDropKeyword, setPendingMobileDropKeyword] = useState<string | null>(null);
-  const examplesRef                         = useRef<HTMLDivElement>(null);
-  const fileInputRef                        = useRef<HTMLInputElement>(null);
+  const examplesRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<'profile'|'collab'|'storage'|'app'>('app');
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'collab' | 'storage' | 'app'>('profile');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [libraryTab, setLibraryTab] = useState<'my'|'shared'|'examples'>('my');
+  const [libraryTab, setLibraryTab] = useState<'my' | 'shared' | 'open_folder' | 'examples'>('my');
   const [isExporting, setIsExporting] = useState(false);
   const [exportTime, setExportTime] = useState<number>(0);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -884,15 +884,28 @@ export default function App() {
     const val = localStorage.getItem('isomorph-autosave');
     return val ? parseFloat(val) : 0;
   });
-  const [newModalTab, setNewModalTab] = useState<'tab'|'project'>('tab');
+  const [newModalTab, setNewModalTab] = useState<'tab' | 'project'>('tab');
   const [libraryCategory, setLibraryCategory] = useState<string>('All Projects');
   const [customCategories, setCustomCategories] = useState<string[]>(['Favorites', 'Work', 'Personal']);
   const [newCategoryPrompt, setNewCategoryPrompt] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [contextMenu, setContextMenu] = useState<{ type: 'category' | 'project', id: string, x: number, y: number } | null>(null);
+
+  // Staged files and folder drag-and-drop
+  const [localStagedFiles, setLocalStagedFiles] = useState<Array<{ name: string; source: string; id: string }>>([]);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const localFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Project details modal states
+  const [projectDetailModalOpen, setProjectDetailModalOpen] = useState(false);
+  const [projectDetailProject, setProjectDetailProject] = useState<Project | null>(null);
+  const [projectDetailDiagrams, setProjectDetailDiagrams] = useState<any[]>([]);
+  const [isLoadingProjectDetail, setIsLoadingProjectDetail] = useState(false);
+  const [diagramToDelete, setDiagramToDelete] = useState<any | null>(null);
+
+  const [contextMenu, setContextMenu] = useState<{ type: 'category' | 'project' | 'diagram', id: string, x: number, y: number, extra?: any } | null>(null);
 
   const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [renameType, setRenameType] = useState<'project' | 'category' | null>(null);
+  const [renameType, setRenameType] = useState<'project' | 'category' | 'diagram' | null>(null);
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [isSavingFlow, setIsSavingFlow] = useState(false);
@@ -900,7 +913,7 @@ export default function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const { session, user, signOut } = useAuth();
-  
+
   const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null, settings?: any } | null>(null);
 
   useEffect(() => {
@@ -964,7 +977,7 @@ export default function App() {
       const next = customCategories.map(c => c === oldName ? trimmed : c);
       setCustomCategories(next);
       saveCustomCategoriesToDB(next);
-      
+
       setProjects(prev => prev.map(p => {
         if (p.settings?.category === oldName) {
           const newSettings = { ...p.settings, category: trimmed };
@@ -982,12 +995,193 @@ export default function App() {
         setLibraryCategory(trimmed);
       }
       addToast('Category renamed');
+    } else if (renameType === 'diagram') {
+      import('./lib/projects.js').then(({ updateDiagram }) => {
+        updateDiagram(renameTargetId, { name: trimmed }).then(success => {
+          if (success) {
+            setProjectDetailDiagrams(prev => prev.map(d => d.id === renameTargetId ? { ...d, name: trimmed } : d));
+            setTabs(prev => prev.map(t => t.diagram_id === renameTargetId ? { ...t, name: trimmed } : t));
+            addToast('Diagram renamed');
+          }
+        });
+      });
     }
 
     setRenameModalOpen(false);
     setRenameType(null);
     setRenameTargetId(null);
     setRenameValue('');
+  };
+
+  const handleOpenProjectDetails = async (project: Project) => {
+    setIsLoadingProjectDetail(true);
+    setProjectDetailProject(project);
+    setProjectDetailModalOpen(true);
+    try {
+      const { getDiagrams } = await import('./lib/projects.js');
+      const diagrams = await getDiagrams(project.id);
+      setProjectDetailDiagrams(diagrams);
+    } catch (error) {
+      console.error('Failed to load project files:', error);
+      addToast('Failed to load project files', 'info');
+    } finally {
+      setIsLoadingProjectDetail(false);
+    }
+  };
+
+  const openProjectFile = (diagram: any, projectId: string) => {
+    const existingTab = tabs.find(t => t.diagram_id === diagram.id);
+    if (existingTab) {
+      setActiveTabId(existingTab.id);
+    } else {
+      const content = diagram.content as any;
+      const sourceText = typeof content === 'string' ? content : (content?.source || '');
+      const newTab: WorkspaceTab = {
+        id: diagram.id,
+        name: diagram.name,
+        source: sourceText,
+        activeDiagramIdx: 0,
+        diagramKindFilter: diagram.kind as 'all' | DiagramKind,
+        diagram_id: diagram.id,
+        project_id: projectId,
+        savedSource: sourceText
+      };
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    }
+    setProjectDetailModalOpen(false);
+    setIsLibraryOpen(false);
+  };
+
+  const openWholeProject = (diagrams: any[], projectId: string) => {
+    if (diagrams.length === 0) {
+      addToast('Project is empty');
+      return;
+    }
+    const newTabsToAppend: WorkspaceTab[] = [];
+    let firstTabIdToSelect: string | null = null;
+
+    diagrams.forEach(d => {
+      const existingTab = tabs.find(t => t.diagram_id === d.id);
+      if (existingTab) {
+        if (!firstTabIdToSelect) {
+          firstTabIdToSelect = existingTab.id;
+        }
+      } else {
+        const content = d.content as any;
+        const sourceText = typeof content === 'string' ? content : (content?.source || '');
+        const newTab: WorkspaceTab = {
+          id: d.id,
+          name: d.name,
+          source: sourceText,
+          activeDiagramIdx: 0,
+          diagramKindFilter: d.kind as 'all' | DiagramKind,
+          diagram_id: d.id,
+          project_id: projectId,
+          savedSource: sourceText
+        };
+        newTabsToAppend.push(newTab);
+        if (!firstTabIdToSelect) {
+          firstTabIdToSelect = newTab.id;
+        }
+      }
+    });
+
+    if (newTabsToAppend.length > 0) {
+      setTabs(prev => [...prev, ...newTabsToAppend]);
+    }
+    if (firstTabIdToSelect) {
+      setActiveTabId(firstTabIdToSelect);
+    }
+    setProjectDetailModalOpen(false);
+    setIsLibraryOpen(false);
+  };
+
+  const handleLoadedFiles = (files: File[]) => {
+    const isxFiles = files.filter(f => f.name.endsWith('.isx') || f.name.endsWith('.iso'));
+    if (isxFiles.length === 0) {
+      addToast('No valid .isx or .iso files found', 'info');
+      return;
+    }
+
+    let loadedCount = 0;
+    const newStagedFiles: Array<{ name: string; source: string; id: string }> = [];
+
+    isxFiles.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          newStagedFiles.push({
+            id: `staged-${slugId()}`,
+            name: file.name,
+            source: reader.result
+          });
+        }
+        loadedCount++;
+        if (loadedCount === isxFiles.length) {
+          setLocalStagedFiles(prev => [...prev, ...newStagedFiles]);
+          addToast(`Loaded ${newStagedFiles.length} file(s) for preview`);
+        }
+      };
+      reader.readAsText(file);
+    });
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+
+    const files = e.dataTransfer.files ? Array.from(e.dataTransfer.files) : [];
+    if (files.length > 0) {
+      handleLoadedFiles(files);
+    }
+  };
+
+  const handleConfirmDeleteDiagram = () => {
+    if (!diagramToDelete) return;
+    import('./lib/projects.js').then(({ deleteDiagram }) => {
+      deleteDiagram(diagramToDelete.id).then(success => {
+        if (success) {
+          // Remove from details modal list
+          setProjectDetailDiagrams(prev => prev.filter(d => d.id !== diagramToDelete.id));
+          // Close workspace tab if open
+          setTabs(prev => {
+            const next = prev.filter(t => t.diagram_id !== diagramToDelete.id);
+            if (activeTabId === diagramToDelete.id) {
+              setActiveTabId(next[Math.max(0, next.length - 1)]?.id ?? '');
+            }
+            return next;
+          });
+          addToast('Diagram deleted');
+        } else {
+          addToast('Failed to delete diagram', 'info');
+        }
+        setDiagramToDelete(null);
+      });
+    });
+  };
+
+  const downloadDiagramFile = (diagram: any) => {
+    if (!diagram) return;
+    const content = diagram.content as any;
+    const sourceText = typeof content === 'string' ? content : (content?.source || '');
+    const blob = new Blob([sourceText], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = diagram.name.endsWith('.isx') ? diagram.name : `${diagram.name}.isx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    addToast('Diagram downloaded');
   };
 
   const handleSaveSettings = async () => {
@@ -1007,7 +1201,7 @@ export default function App() {
       show_trail: collabShowTrail,
       cursor_colour: profile.settings?.cursor_colour || '#EAB308'
     };
-    
+
     const { error } = await supabase.from('profiles').upsert({
       id: user.id,
       full_name: profile.full_name,
@@ -1016,7 +1210,7 @@ export default function App() {
       settings: newSettings,
       updated_at: new Date().toISOString()
     });
-    
+
     if (error) {
       alert('Error saving settings');
     } else {
@@ -1118,6 +1312,33 @@ export default function App() {
   const activeDiagramIdx = activeTab?.activeDiagramIdx ?? 0;
   const safeDiagramIdx = Math.max(0, Math.min(activeDiagramIdx, Math.max(filteredDiagrams.length - 1, 0)));
   const activeDiagram = filteredDiagrams[safeDiagramIdx] ?? null;
+
+  const handleCreateProjectSubmit = useCallback(async () => {
+    if (!user || !newProjectName.trim()) return;
+    const { createProject, createDiagram } = await import('./lib/projects.js');
+    try {
+      const p = await createProject(user.id, newProjectName.trim());
+      if (p) {
+        setProjects(prev => [p, ...prev]);
+        addToast('Project created successfully', 'success');
+        
+        if (isSavingFlow) {
+          const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+          if (d) {
+            updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
+            addToast('Saved to cloud');
+          }
+          setIsSavingFlow(false);
+        }
+
+        setIsNewModalOpen(false);
+        setNewProjectName('');
+        setNewProjectError('');
+      }
+    } catch (err: any) {
+      setNewProjectError(err.message);
+    }
+  }, [user, newProjectName, isSavingFlow, activeTab, activeDiagram, updateActiveTab]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 900px)');
@@ -1403,13 +1624,13 @@ export default function App() {
             });
             newText += `}`;
             source = sourceIn.slice(0, foundFrag.span.start) + newText + sourceIn.slice(foundFrag.span.end);
-            
+
             if (nextName !== entityName) {
               const identPattern = new RegExp(`\\b${escapeRegex(entityName)}\\b`, 'g');
               source = source.replace(identPattern, nextName);
             }
           } else {
-             source = updateEntityDeclaration(sourceIn, entityName, updates);
+            source = updateEntityDeclaration(sourceIn, entityName, updates);
           }
         } catch (e) {
           source = updateEntityDeclaration(sourceIn, entityName, updates);
@@ -1452,7 +1673,7 @@ export default function App() {
       }
 
       const baseName = keyword.split(' ')[0]; // for "node <<device>>", baseName is "node"
-      
+
       let index = 1;
       const prefixName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
       let name = `${prefixName}${index}`;
@@ -1512,7 +1733,7 @@ export default function App() {
         setExportMenuOpen(false);
         setTabToClose(null);
       }
-      
+
       // Skip if user is focused on CodeMirror editor or an input/textarea
       const ae = document.activeElement;
       const isInEditor = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.closest?.('.cm-content') || ae.closest?.('.cm-editor'));
@@ -1520,7 +1741,7 @@ export default function App() {
       // Deletion of selected items
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (isInEditor) return;
-        
+
         if (selectedItems.length > 0) {
           updateActiveTab(tab => {
             let nextSource = tab.source;
@@ -1594,7 +1815,7 @@ export default function App() {
               // Reconstruct the entity declaration from the source using exact boundaries
               const extracted = extractEntityDeclaration(activeTab!.source, item.id);
               if (extracted) snippets.push(extracted.trim());
-              
+
               // Also copy annotations
               const annoRx = new RegExp(`^\\s*@${escapeRegex(item.id)}\\s+at\\s*\\([^)]+\\)`, 'gm');
               const annoMatches = activeTab?.source.match(annoRx);
@@ -1604,7 +1825,7 @@ export default function App() {
           if (snippets.length > 0) {
             const textToCopy = snippets.join('\n');
             if (e.key === 'c') {
-              navigator.clipboard.writeText(textToCopy).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => {});
+              navigator.clipboard.writeText(textToCopy).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => { });
               pasteCounterRef.current = 1; // Reset cascade on copy
             } else if (e.key === 'd') {
               // Re-use paste logic for duplicate
@@ -1613,7 +1834,7 @@ export default function App() {
                 let pasteText = text;
                 const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
                 const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
-                
+
                 for (const name of namesToReplace) {
                   const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
                   const baseStr = baseMatch ? baseMatch[1] : name;
@@ -1656,14 +1877,14 @@ export default function App() {
             let pasteText = text;
             const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
             const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
-            
+
             for (const name of namesToReplace) {
               const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
               const baseStr = baseMatch ? baseMatch[1] : name;
-              
+
               let newName = baseStr + '1';
               let i = 2;
-              
+
               const isNameTaken = (n: string) => {
                 const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
                 return rx.test(activeTab?.source || '') || rx.test(pasteText);
@@ -1688,46 +1909,46 @@ export default function App() {
               src = formatDiagramSource(src);
               return { ...tab, source: src };
             });
-          }).catch(() => {});
+          }).catch(() => { });
         }
-        
+
         // Cut selected items
         if (e.key === 'x' && selectedItems.length > 0 && activeDiagram) {
           e.preventDefault();
           const snippets: string[] = [];
-          
+
           updateActiveTab(tab => {
             let nextSource = tab.source;
             for (const item of selectedItems) {
               if (item.type === 'entity') {
                 if (!activeDiagram.entities.has(item.id) && !activeDiagram.packages.find(p => p.name === item.id)) continue;
-                
+
                 const extracted = extractEntityDeclaration(nextSource, item.id);
                 if (extracted) snippets.push(extracted.trim());
 
                 // Wipe entity block properly considering nested braces
                 nextSource = removeEntityDeclaration(nextSource, item.id);
-                
+
                 // Also copy & wipe annotations
                 const annoRx = new RegExp(`^[ \\t]*@${escapeRegex(item.id)}[ \\t]+at[ \\t]*\\([^)]+\\)[ \\t]*\\n?`, 'gm');
                 const annoMatches = nextSource.match(annoRx);
                 if (annoMatches) snippets.push(...annoMatches.map(s => s.trim()));
                 nextSource = nextSource.replace(annoRx, '');
-                
+
                 // Wipe relations connected to this
                 const rxRel = new RegExp(`^[ \\t]*(?:${escapeRegex(item.id)}[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+${escapeRegex(item.id)})(?:[ \\t]*\\[[^\\]]*\\])?[ \\t]*\\n?`, 'gm');
                 nextSource = nextSource.replace(rxRel, '');
               }
             }
             if (snippets.length > 0) {
-              navigator.clipboard.writeText(snippets.join('\n')).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => {});
+              navigator.clipboard.writeText(snippets.join('\n')).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => { });
             }
             return { ...tab, source: nextSource };
           });
         }
       }
     };
-    
+
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [selectedItems, updateActiveTab, activeDiagram, activeTab]);
@@ -1855,7 +2076,7 @@ export default function App() {
         if (shortcutsOpen) { setShortcutsOpen(false); return; }
       }
       if (e.ctrlKey && !e.shiftKey && e.key === 'n') { e.preventDefault(); handleNew(); }
-      if (e.ctrlKey && !e.shiftKey && e.key === 'o') { e.preventDefault(); fileInputRef.current?.click(); }
+      if (e.ctrlKey && !e.shiftKey && e.key === 'o') { e.preventDefault(); setIsLibraryOpen(true); }
       if (e.ctrlKey && !e.shiftKey && e.key === 's') { e.preventDefault(); handleSaveToCloud(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'e') { e.preventDefault(); handleExportSVG(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); handleExportPNG(); }
@@ -1929,7 +2150,11 @@ export default function App() {
 
       if (isNewModalOpen) {
         e.preventDefault();
-        executeNewDiagram(newDiagramKind);
+        if (newModalTab === 'tab') {
+          executeNewDiagram(newDiagramKind);
+        } else {
+          handleCreateProjectSubmit();
+        }
         return;
       }
 
@@ -1956,6 +2181,8 @@ export default function App() {
     handleRelationEdit,
     executeNewDiagram,
     activeTabId,
+    newModalTab,
+    handleCreateProjectSubmit,
   ]);
 
   const applyExample = useCallback((ex: (typeof EXAMPLES)[number]) => {
@@ -2145,7 +2372,7 @@ export default function App() {
     const annoMatches = activeTab.source.match(annoRx);
     if (annoMatches) snippets.push(...annoMatches);
     if (snippets.length > 0) {
-      navigator.clipboard.writeText(snippets.join('\n')).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => {});
+      navigator.clipboard.writeText(snippets.join('\n')).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => { });
       pasteCounterRef.current = 1;
     }
   }, [activeTab]);
@@ -2198,7 +2425,7 @@ export default function App() {
         src = formatDiagramSource(src);
         return { ...tab, source: src };
       });
-    }).catch(() => {});
+    }).catch(() => { });
   }, [activeTab, updateActiveTab]);
 
   const handleAddNote = useCallback((_x: number, _y: number) => {
@@ -2291,6 +2518,1081 @@ export default function App() {
 
 
 
+  const renderCommonModals = () => {
+    return (
+      <>
+        {isSettingsOpen && (
+          <div className="iso-modal-overlay" onClick={() => setIsSettingsOpen(false)}>
+            <div className="iso-modal iso-modal-large" onClick={e => e.stopPropagation()}>
+              <div className="iso-modal-sidebar">
+                <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('ui.settings')}</h2>
+                <button className={`iso-modal-sidebar-tab ${settingsTab === 'profile' ? 'active' : ''}`} onClick={() => setSettingsTab('profile')}>{t('ui.profile')}</button>
+                <button className={`iso-modal-sidebar-tab ${settingsTab === 'collab' ? 'active' : ''}`} onClick={() => setSettingsTab('collab')}>{t('ui.collab_settings')}</button>
+                <button className={`iso-modal-sidebar-tab ${settingsTab === 'storage' ? 'active' : ''}`} onClick={() => setSettingsTab('storage')}>{t('ui.storage')}</button>
+                <button className={`iso-modal-sidebar-tab ${settingsTab === 'app' ? 'active' : ''}`} onClick={() => setSettingsTab('app')}>{t('ui.app_settings')}</button>
+              </div>
+              <div className="iso-modal-content" style={{ position: 'relative' }}>
+                <button className="iso-modal-close-btn" onClick={() => setIsSettingsOpen(false)}>×</button>
+
+                {settingsTab === 'profile' && (
+                  <div>
+                    <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.profile')}</h3>
+                    {session ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '400px' }}>
+                        <div className="iso-modal-field">
+                          <label>Profile photo</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                              {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '24px' }}>👤</span>}
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                              <button className="iso-btn" style={{ fontSize: '13px' }} onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'file';
+                                input.accept = 'image/*';
+                                input.onchange = async (e: any) => {
+                                  const file = e.target.files?.[0];
+                                  if (file && user) {
+                                    addToast('Uploading photo...', 'info');
+                                    const { uploadAvatar } = await import('./lib/profile.js');
+                                    const url = await uploadAvatar(user.id, file);
+                                    if (url && profile) {
+                                      setProfile({ ...profile, avatar_url: url });
+                                      addToast('Photo uploaded successfully');
+                                    }
+                                  }
+                                };
+                                input.click();
+                              }}>Upload photo</button>
+                              {profile?.avatar_url && (
+                                <button className="iso-btn" style={{ fontSize: '13px', color: 'var(--iso-danger)' }} onClick={async () => {
+                                  if (profile && user) {
+                                    const { updateProfile } = await import('./lib/profile.js');
+                                    await updateProfile(user.id, { avatar_url: null });
+                                    setProfile({ ...profile, avatar_url: null });
+                                  }
+                                }}>Remove</button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="iso-modal-field">
+                          <label>Display name</label>
+                          <input type="text" placeholder="Alice" value={profile?.full_name || ''} onChange={e => setProfile(p => p ? { ...p, full_name: e.target.value } : null)} className="iso-input" />
+                        </div>
+                        <div className="iso-modal-field">
+                          <label>Username</label>
+                          <input type="text" placeholder="alice_wonder" value={profile?.username || ''} onChange={e => setProfile(p => p ? { ...p, username: e.target.value } : null)} className="iso-input" />
+                        </div>
+                        <div className="iso-modal-field">
+                          <label>Email address</label>
+                          <input type="email" value={user?.email || ''} disabled className="iso-input" style={{ opacity: 0.7 }} />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                          <button className="iso-btn iso-btn--primary" style={{ flex: 1 }} onClick={handleSaveSettings}>Save Changes</button>
+                          <button className="iso-btn" style={{ color: 'var(--iso-error)' }} onClick={() => signOut()}>Sign Out</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
+                        <p style={{ color: 'var(--iso-text-muted)' }}>You are not logged in.</p>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="iso-btn iso-btn--primary" onClick={() => { setAuthMode('login'); setIsAuthOpen(true); setIsSettingsOpen(false); }}>{t('ui.login')}</button>
+                          <button className="iso-btn" onClick={() => { setAuthMode('register'); setIsAuthOpen(true); setIsSettingsOpen(false); }}>{t('auth.title_register')}</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {settingsTab === 'collab' && (
+                  <div>
+                    <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.collab_settings')}</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '400px' }}>
+
+                      <div className="iso-modal-field">
+                        <label>Cursor live preview</label>
+                        <div style={{ height: '120px', background: 'var(--iso-bg-canvas)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
+                              <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.84c.45 0 .67-.54.35-.85L5.5 3.21z" fill={profile?.settings?.cursor_colour || '#3B82F6'} stroke={profile?.settings?.cursor_colour === '#F8FAFC' ? '#CBD5E1' : 'white'} strokeWidth="1.5" />
+                            </svg>
+                            <div style={{
+                              background: profile?.settings?.cursor_colour || '#3B82F6',
+                              color: profile?.settings?.cursor_colour === '#F8FAFC' ? '#1E293B' : 'white',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              marginTop: '4px',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }}>
+                              {profile?.full_name || profile?.username || 'You'}
+                            </div>
+                          </div>
+
+                          {collabShowTrail && (
+                            <>
+                              <div className="iso-particle-trail" style={{ position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: profile?.settings?.cursor_colour || '#3B82F6', opacity: 0.5, transform: 'translate(-12px, 12px)', zIndex: 1, animationDelay: '0s' }}></div>
+                              <div className="iso-particle-trail" style={{ position: 'absolute', width: 6, height: 6, borderRadius: '50%', background: profile?.settings?.cursor_colour || '#3B82F6', opacity: 0.3, transform: 'translate(-20px, 20px)', zIndex: 1, animationDelay: '0.2s' }}></div>
+                              <div className="iso-particle-trail" style={{ position: 'absolute', width: 4, height: 4, borderRadius: '50%', background: profile?.settings?.cursor_colour || '#3B82F6', opacity: 0.15, transform: 'translate(-26px, 26px)', zIndex: 1, animationDelay: '0.4s' }}></div>
+                            </>
+                          )}
+
+                        </div>
+                      </div>
+
+                      <div className="iso-modal-field">
+                        <label>Cursor color</label>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                          {['#EF4444', '#22C55E', '#3B82F6', '#EAB308', '#EC4899', '#F97316', '#F8FAFC', '#1E293B'].map(color => (
+                            <button
+                              key={color}
+                              onClick={() => {
+                                setProfile(p => p ? { ...p, settings: { ...(p.settings || {}), cursor_colour: color } } : null);
+                              }}
+                              style={{
+                                width: '32px', height: '32px', borderRadius: '50%', background: color,
+                                border: profile?.settings?.cursor_colour === color ? '2px solid var(--iso-bg-app)' : '2px solid transparent',
+                                boxShadow: profile?.settings?.cursor_colour === color ? `0 0 0 2px ${color}` : (color === '#F8FAFC' ? '0 0 0 1px #E2E8F0' : '0 0 0 1px var(--iso-border)'),
+                                outline: 'none',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                              }}
+                              aria-label={`Select color ${color}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="iso-modal-field">
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal' }}>
+                          <input type="checkbox" defaultChecked />
+                          Show my name label to others
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal', marginTop: '12px' }}>
+                          <input type="checkbox" checked={collabShowTrail} onChange={e => setCollabShowTrail(e.target.checked)} />
+                          Show cursor particle trails
+                        </label>
+                      </div>
+
+                      <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.collab_future')}</p>
+                      <button className="iso-btn iso-btn--primary" style={{ alignSelf: 'flex-start' }} onClick={handleSaveSettings}>Save Changes</button>
+                    </div>
+                  </div>
+                )}
+                {settingsTab === 'storage' && (
+                  <div>
+                    <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.storage')}</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
+                      <div className="iso-modal-field">
+                        <label>Current tier</label>
+                        <div style={{ padding: '8px 12px', background: 'var(--iso-bg-header)', borderRadius: '4px', border: '1px solid var(--iso-border)' }}>
+                          {profile?.tier || 'Basic'}
+                        </div>
+                      </div>
+                      <div className="iso-modal-field">
+                        <label>Projects used</label>
+                        {(() => {
+                          const maxLimit = profile?.tier === 'enterprise' ? 100 : profile?.tier === 'power' ? 25 : 5;
+                          const count = projects.length;
+                          const ratio = count / maxLimit;
+                          let color = 'var(--iso-text)';
+                          if (ratio >= 0.9) color = 'var(--iso-error)';
+                          else if (ratio >= 0.75) color = 'var(--iso-warning)';
+                          return (
+                            <div style={{ display: 'flex', gap: '2px', width: '100%', height: '8px' }}>
+                              {Array.from({ length: maxLimit }).map((_, i) => (
+                                <div key={i} style={{ flex: 1, background: i < count ? color : 'var(--iso-divider)', borderRadius: '2px', transition: 'background 0.3s ease' }} />
+                              ))}
+                            </div>
+                          );
+                        })()}
+                        <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)', marginTop: '4px' }}>
+                          {projects.length} / {profile?.tier === 'enterprise' ? '100' : profile?.tier === 'power' ? '25' : '5'} projects
+                        </span>
+                      </div>
+                      <p style={{ color: 'var(--iso-text-muted)', marginBottom: '8px' }}>{t('ui.storage_future')}</p>
+                      <div style={{ padding: '16px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <strong style={{ fontSize: '14px' }}>Upgrade plan</strong>
+                        <p style={{ fontSize: '12px', color: 'var(--iso-text-muted)', margin: 0 }}>
+                          Basic: 5 projects (Free)<br />
+                          Power: 25 projects ($5/mo)<br />
+                          Enterprise: 100+ projects (Contact us)
+                        </p>
+                        <button className="iso-btn iso-btn--primary" style={{ marginTop: '8px', alignSelf: 'flex-start' }} onClick={() => window.open('https://isomorph.ro/pricing', '_blank')}>View Plans</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {settingsTab === 'app' && (
+                  <div>
+                    <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.app_settings')}</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '400px' }}>
+                      <div className="iso-modal-field">
+                        <label>{t('ui.language')}</label>
+                        <select className="iso-select" value={language} onChange={e => setLanguage(e.target.value as Language)}>
+                          {LANGUAGE_OPTIONS.map(option => (
+                            <option key={option.code} value={option.code}>{option.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+
+                      <div className="iso-modal-field">
+                        <label>Auto save — {autoSaveInterval === 0 ? 'Never' : (autoSaveInterval === 0.5 ? '30 seconds' : `${autoSaveInterval} min`)}</label>
+                        <input
+                          type="range"
+                          min="0" max="5" step="0.5"
+                          value={autoSaveInterval}
+                          onChange={e => {
+                            const val = parseFloat(e.target.value);
+                            setAutoSaveInterval(val);
+                            localStorage.setItem('isomorph-autosave', String(val));
+                          }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--iso-text-muted)' }}>
+                          <span>Never</span>
+                          <span>5 min</span>
+                        </div>
+                      </div>
+
+                      <div className="iso-modal-field">
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
+                          <input type="checkbox" checked={isWatermarkEnabled} onChange={e => {
+                            const next = e.target.checked;
+                            setIsWatermarkEnabled(next);
+                            localStorage.setItem('isomorph-watermark', String(next));
+                          }} />
+                          {t('ui.watermark')}
+                        </label>
+                      </div>
+
+                      <div className="iso-modal-field">
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
+                          <input type="checkbox" checked={isAnimationsEnabled} onChange={e => {
+                            const next = e.target.checked;
+                            setIsAnimationsEnabled(next);
+                            if (!next) setIsAnimating(false);
+                            localStorage.setItem('isomorph-animations', String(next));
+                          }} />
+                          {t('ui.enable_animations')}
+                        </label>
+                      </div>
+
+                      {isAnimationsEnabled && (
+                        <div className="iso-modal-field">
+                          <label>{t('ui.export_speed')}</label>
+                          <select
+                            className="iso-select"
+                            value={animationSpeed}
+                            onChange={e => {
+                              const speed = parseFloat(e.target.value);
+                              setAnimationSpeed(speed);
+                              localStorage.setItem('isomorph-anim-speed', String(speed));
+                            }}
+                          >
+                            <option value={0.5}>0.5x</option>
+                            <option value={1.0}>1.0x</option>
+                            <option value={1.5}>1.5x</option>
+                            <option value={2.0}>2.0x</option>
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="iso-modal-field">
+                        <label>{t('ui.theme')}</label>
+                        <button
+                          type="button"
+                          className="iso-btn"
+                          style={{ width: 'fit-content' }}
+                          onClick={() => {
+                            const next = themeMode === 'light' ? 'dark' : 'light';
+                            setThemeMode(next);
+                            document.documentElement.setAttribute('data-theme', next);
+                            localStorage.setItem('isomorph-theme', next);
+                          }}
+                        >
+                          {themeMode === 'light' ? <IconMoon size={16} /> : <IconSun size={16} />} {themeMode === 'light' ? t('ui.dark_mode') : t('ui.light_mode')}
+                        </button>
+                      </div>
+
+                      <div className="iso-modal-field">
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
+                          <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
+                          {t('ui.strict_uml')}
+                        </label>
+                        <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{t('ui.strict_uml_desc')}</span>
+                      </div>
+
+                      <div className="iso-modal-field">
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
+                          <input type="checkbox" checked={telemetry} onChange={e => {
+                            const next = e.target.checked;
+                            setTelemetry(next);
+                            setTelemetryEnabled(next);
+                          }} />
+                          Send anonymous telemetry
+                        </label>
+                      </div>
+                      <button className="iso-btn iso-btn--primary" style={{ alignSelf: 'flex-start' }} onClick={handleSaveSettings}>Save Changes</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isLibraryOpen && (
+          <div className="iso-modal-overlay" onClick={() => setIsLibraryOpen(false)}>
+            <div className="iso-modal iso-modal-large" onClick={e => e.stopPropagation()}>
+              <div className="iso-modal-sidebar">
+                <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('ui.library')}</h2>
+                <button className={`iso-modal-sidebar-tab ${libraryTab === 'my' ? 'active' : ''}`} onClick={() => setLibraryTab('my')}>{t('ui.my_works')}</button>
+                <button className={`iso-modal-sidebar-tab ${libraryTab === 'shared' ? 'active' : ''}`} onClick={() => setLibraryTab('shared')}>{t('ui.shared_works')}</button>
+                <button className={`iso-modal-sidebar-tab ${libraryTab === 'open_folder' ? 'active' : ''}`} onClick={() => setLibraryTab('open_folder')}>{t('ui.open_folder')}</button>
+                <button className={`iso-modal-sidebar-tab ${libraryTab === 'examples' ? 'active' : ''}`} onClick={() => setLibraryTab('examples')}>{t('ui.examples')}</button>
+              </div>
+              <div className="iso-modal-content" style={{ position: 'relative' }}>
+                <button className="iso-modal-close-btn" onClick={() => setIsLibraryOpen(false)}>×</button>
+
+                {libraryTab === 'my' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                      <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.my_works')}</h3>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'absolute', left: '10px', color: 'var(--iso-text-muted)', pointerEvents: 'none' }}>
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                          </svg>
+                          <input
+                            type="text"
+                            placeholder={t('ui.search') || 'Search projects...'}
+                            value={librarySearchQuery}
+                            onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                            style={{ width: '200px', padding: '6px 12px 6px 32px', borderRadius: '20px', background: 'var(--iso-bg-app)', border: '1px solid transparent', outline: 'none', color: 'inherit', fontSize: '13px' }}
+                          />
+                        </div>
+                        <select className="iso-select" value={libraryVisibilityFilter} onChange={e => setLibraryVisibilityFilter(e.target.value)} style={{ width: '120px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Filter visibility">
+                          <option value="all">All</option>
+                          <option value="public">Public</option>
+                          <option value="private">Private</option>
+                        </select>
+                        <select className="iso-select" value={librarySort} onChange={e => setLibrarySort(e.target.value)} style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
+                          <option value="accessed">Last Accessed</option>
+                          <option value="name">Name</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
+                      {['All Projects', ...customCategories].map(cat => (
+                        <button
+                          key={cat}
+                          className={libraryCategory === cat ? "iso-btn iso-btn--primary" : "iso-btn"}
+                          style={{ borderRadius: '20px', padding: '4px 12px', background: libraryCategory === cat ? undefined : 'var(--iso-bg-header)' }}
+                          onClick={() => setLibraryCategory(cat)}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            const isProtected = cat.toLowerCase() === 'all projects' || cat.toLowerCase() === 'favorites' || cat.toLowerCase() === 'favourites';
+                            if (!isProtected) {
+                              setContextMenu({ type: 'category', id: cat, x: e.clientX, y: e.clientY });
+                            }
+                          }}
+                        >{cat}</button>
+                      ))}
+                      <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }} onClick={() => {
+                        setNewCategoryName('');
+                        setNewCategoryPrompt(true);
+                      }}>+</button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
+                      {!user ? (
+                        <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
+                          You must be logged in to view your projects.
+                        </div>
+                      ) : (() => {
+                        let filtered = projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase()));
+
+                        if (libraryVisibilityFilter === 'public') filtered = filtered.filter(() => false); // no public projects yet
+                        if (libraryVisibilityFilter === 'private') filtered = filtered.filter(() => true); // all private for now
+
+                        const isFavTab = libraryCategory.toLowerCase() === 'favorites' || libraryCategory.toLowerCase() === 'favourites';
+                        if (isFavTab) {
+                          filtered = filtered.filter(p => p.settings?.is_favorite);
+                        } else if (libraryCategory !== 'All Projects') {
+                          filtered = filtered.filter(p => p.settings?.category === libraryCategory);
+                        }
+
+                        filtered = filtered.sort((a, b) => {
+                          if (librarySort === 'name') return a.name.localeCompare(b.name);
+                          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
+                              No projects found matching these filters.
+                            </div>
+                          );
+                        }
+
+                        return filtered.map(p => (
+                          <div key={p.id} onClick={() => handleOpenProjectDetails(p)} onContextMenu={(e) => {
+                            e.preventDefault();
+                            setContextMenu({ type: 'project', id: p.id, x: e.clientX, y: e.clientY });
+                          }} style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text)', cursor: 'pointer', padding: '16px', textAlign: 'center' }}>
+                            <strong style={{ marginBottom: '8px' }}>{p.name}</strong>
+                            <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{new Date(p.updated_at).toLocaleDateString()}</span>
+                          </div>
+                        ))
+                      })()
+                      }
+                    </div>
+                  </div>
+                )}
+                {libraryTab === 'shared' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                      <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.shared_works')}</h3>
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'absolute', left: '10px', color: 'var(--iso-text-muted)', pointerEvents: 'none' }}>
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                          </svg>
+                          <input
+                            type="text"
+                            placeholder={t('ui.search') || 'Search projects...'}
+                            value={librarySearchQuery}
+                            onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                            style={{ width: '200px', padding: '6px 12px 6px 32px', borderRadius: '20px', background: 'var(--iso-bg-app)', border: '1px solid transparent', outline: 'none', color: 'inherit', fontSize: '13px' }}
+                          />
+                        </div>
+                        <select className="iso-select" value={librarySort} onChange={e => setLibrarySort(e.target.value)} style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
+                          <option value="accessed">Last Accessed</option>
+                          <option value="name">Name</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)', minHeight: '200px' }}>
+                      No shared works
+                    </div>
+                  </div>
+                )}
+                {libraryTab === 'open_folder' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '16px' }}>
+                    <input
+                      ref={localFileInputRef}
+                      type="file"
+                      accept=".isx,.iso"
+                      multiple
+                      onChange={(e) => {
+                        const files = e.target.files ? Array.from(e.target.files) : [];
+                        if (files.length > 0) {
+                          handleLoadedFiles(files);
+                        }
+                        if (localFileInputRef.current) localFileInputRef.current.value = '';
+                      }}
+                      style={{ display: 'none' }}
+                    />
+
+                    {localStagedFiles.length === 0 ? (
+                      <div
+                        onClick={() => localFileInputRef.current?.click()}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        style={{
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '48px 32px',
+                          borderRadius: '16px',
+                          border: isDraggingOver ? '2px dashed var(--iso-accent)' : '2px dashed var(--iso-border)',
+                          background: isDraggingOver ? 'var(--iso-bg-canvas)' : 'var(--iso-bg-header)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease-in-out',
+                          textAlign: 'center'
+                        }}
+                      >
+                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📂</div>
+                        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Drag and drop files here</h3>
+                        <p style={{ margin: '8px 0 16px', fontSize: '13px', color: 'var(--iso-text-muted)', maxWidth: '280px', lineHeight: '1.5' }}>
+                          Drop your <strong>.isx</strong> or <strong>.iso</strong> files here, or click to browse.
+                        </p>
+                        <button
+                          className="iso-btn iso-btn--primary"
+                          style={{ padding: '8px 24px', borderRadius: '20px' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            localFileInputRef.current?.click();
+                          }}
+                        >
+                          Browse Files
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Selected Files ({localStagedFiles.length})</h3>
+                          <button className="iso-btn" style={{ fontSize: '12px', padding: '4px 12px' }} onClick={() => localFileInputRef.current?.click()}>
+                            + Add More
+                          </button>
+                        </div>
+
+                        <div
+                          style={{ flex: 1, overflowY: 'auto', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                        >
+                          {localStagedFiles.map(f => (
+                            <div
+                              key={f.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+
+                                justifyContent: 'space-between',
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                background: 'var(--iso-bg-header)',
+                                border: '1px solid var(--iso-border)'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                                <span style={{ fontSize: '18px' }}>📄</span>
+                                <span style={{ fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--iso-text)' }} title={f.name}>
+                                  {f.name}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  className="iso-btn"
+                                  style={{ fontSize: '12px', padding: '4px 10px', background: 'var(--iso-bg-hover)' }}
+                                  onClick={() => {
+                                    const id = `tab-${slugId()}`;
+                                    setTabs(prev => [
+                                      ...prev,
+                                      {
+                                        id,
+                                        name: f.name,
+                                        source: f.source,
+                                        savedSource: f.source,
+                                        activeDiagramIdx: 0,
+                                        diagramKindFilter: 'all'
+                                      }
+                                    ]);
+                                    setActiveTabId(id);
+                                    setLocalStagedFiles(prev => prev.filter(item => item.id !== f.id));
+                                    if (localStagedFiles.length === 1) {
+                                      setIsLibraryOpen(false);
+                                    }
+                                  }}
+                                >
+                                  Open
+                                </button>
+                                <button
+                                  className="iso-btn"
+                                  style={{ fontSize: '12px', padding: '4px 10px', color: 'var(--iso-error)', background: 'var(--iso-bg-hover)' }}
+                                  onClick={() => setLocalStagedFiles(prev => prev.filter(item => item.id !== f.id))}
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid var(--iso-border)', paddingTop: '16px' }}>
+                          <button
+                            className="iso-btn"
+                            style={{ flex: 1, justifyContent: 'center' }}
+                            onClick={() => setLocalStagedFiles([])}
+                          >
+                            Clear All
+                          </button>
+                          <button
+                            className="iso-btn iso-btn--primary"
+                            style={{ flex: 2, justifyContent: 'center' }}
+                            onClick={() => {
+                              const newTabs: WorkspaceTab[] = localStagedFiles.map(f => {
+                                const tabId = `tab-${slugId()}`;
+                                return {
+                                  id: tabId,
+                                  name: f.name,
+                                  source: f.source,
+                                  savedSource: f.source,
+                                  activeDiagramIdx: 0,
+                                  diagramKindFilter: 'all'
+                                };
+                              });
+                              setTabs(prev => [...prev, ...newTabs]);
+                              if (newTabs.length > 0) {
+                                setActiveTabId(newTabs[0].id);
+                              }
+                              setLocalStagedFiles([]);
+                              setIsLibraryOpen(false);
+                            }}
+                          >
+                            Open All Files
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {libraryTab === 'examples' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                      <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.examples')}</h3>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
+                      {EXAMPLES.map(ex => (
+                        <div key={ex.label} onClick={() => {
+                          applyExample(ex);
+                          setIsLibraryOpen(false);
+                        }} style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text)', cursor: 'pointer', padding: '16px', textAlign: 'center' }}>
+                          <strong style={{ marginBottom: '8px' }}>{ex.label}</strong>
+                          <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{ex.kind}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {projectDetailModalOpen && projectDetailProject && (
+          <div className="iso-modal-overlay" style={{ zIndex: 2100 }} onClick={() => setProjectDetailModalOpen(false)}>
+            <div className="iso-modal" style={{ width: '480px', maxWidth: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px' }} onClick={e => e.stopPropagation()}>
+              <div className="iso-modal-header" style={{ marginBottom: '16px' }}>
+                <h3 className="iso-modal-title" style={{ fontSize: '18px', fontWeight: 600 }}>{projectDetailProject.name}</h3>
+                <button className="iso-modal-close" onClick={() => setProjectDetailModalOpen(false)}>×</button>
+              </div>
+
+              <p className="iso-modal-desc" style={{ marginBottom: '16px' }}>
+                Select a file to open, or open the entire project.
+              </p>
+
+              <div style={{ flex: 1, overflowY: 'auto', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '120px', maxHeight: '300px', paddingRight: '4px' }}>
+                {isLoadingProjectDetail ? (
+                  <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)' }}>
+                    <div className="iso-spinner" style={{ marginRight: '8px' }} /> Loading files...
+                  </div>
+                ) : projectDetailDiagrams.length === 0 ? (
+                  <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)', padding: '24px', textAlign: 'center', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px dashed var(--iso-border)' }}>
+                    <span style={{ fontSize: '24px', marginBottom: '8px' }}>📂</span>
+                    <span>This project has no files.</span>
+                  </div>
+                ) : (
+                  projectDetailDiagrams.map(d => (
+                    <div
+                      key={d.id}
+                      onClick={() => openProjectFile(d, projectDetailProject.id)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setContextMenu({
+                          type: 'diagram',
+                          id: d.id,
+                          x: e.clientX,
+                          y: e.clientY,
+                          extra: {
+                            projectId: projectDetailProject.id,
+                            diagramName: d.name,
+                            diagram: d
+                          }
+                        });
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        background: 'var(--iso-bg-header)',
+                        border: '1px solid var(--iso-border)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease-in-out',
+                      }}
+                      onMouseOver={e => {
+                        e.currentTarget.style.borderColor = 'var(--iso-accent)';
+                        e.currentTarget.style.background = 'var(--iso-bg-hover)';
+                      }}
+                      onMouseOut={e => {
+                        e.currentTarget.style.borderColor = 'var(--iso-border)';
+                        e.currentTarget.style.background = 'var(--iso-bg-header)';
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{d.name}</strong>
+                        <span style={{ fontSize: '11px', color: 'var(--iso-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{d.kind}</span>
+                      </div>
+                      <span style={{ fontSize: '18px', color: 'var(--iso-text-muted)' }}>→</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button className="iso-btn" style={{ flex: 1 }} onClick={() => setProjectDetailModalOpen(false)}>
+                  {t('ui.cancel')}
+                </button>
+                <button
+                  className="iso-btn iso-btn--primary"
+                  style={{ flex: 1 }}
+                  disabled={isLoadingProjectDetail || projectDetailDiagrams.length === 0}
+                  onClick={() => openWholeProject(projectDetailDiagrams, projectDetailProject.id)}
+                >
+                  Open Whole Project
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {diagramToDelete && (
+          <div className="iso-modal-overlay" style={{ zIndex: 2200 }} onClick={() => setDiagramToDelete(null)}>
+            <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete Diagram</h3>
+              <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>
+                Are you sure you want to delete "{diagramToDelete.name}"? This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button className="iso-btn" onClick={() => setDiagramToDelete(null)}>{t('ui.cancel')}</button>
+                <button className="iso-btn" style={{ background: 'var(--iso-danger)', color: '#fff', border: 'none' }} onClick={handleConfirmDeleteDiagram}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {newCategoryPrompt && (
+          <div className="iso-modal-overlay" onClick={() => setNewCategoryPrompt(false)}>
+            <div className="iso-modal" onClick={e => e.stopPropagation()}>
+              <button className="iso-modal-close-btn" onClick={() => setNewCategoryPrompt(false)}>×</button>
+              <h2 className="iso-modal-title">New Category Name</h2>
+              <div className="iso-modal-field">
+                <input type="text" className="iso-input" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} autoFocus onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newCategoryName.trim()) {
+                    const name = newCategoryName.trim();
+                    if (!customCategories.includes(name)) {
+                      const next = [...customCategories, name];
+                      setCustomCategories(next);
+                      setLibraryCategory(name);
+                      saveCustomCategoriesToDB(next);
+                    }
+                    setNewCategoryPrompt(false);
+                  }
+                }} />
+              </div>
+              <div className="iso-modal-actions">
+                <button className="iso-modal-btn cancel" onClick={() => setNewCategoryPrompt(false)}>{t('ui.cancel')}</button>
+                <button className="iso-modal-btn" onClick={() => {
+                  const name = newCategoryName.trim();
+                  if (name && !customCategories.includes(name)) {
+                    const next = [...customCategories, name];
+                    setCustomCategories(next);
+                    setLibraryCategory(name);
+                    saveCustomCategoriesToDB(next);
+                  }
+                  setNewCategoryPrompt(false);
+                }}>Add Category</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {contextMenu && (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 99998 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}></div>
+            <div className="iso-context-menu" style={{ left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}>
+              {contextMenu.type === 'category' && (
+                <>
+                  <button className="iso-context-menu-item" onClick={() => {
+                    setRenameType('category');
+                    setRenameTargetId(contextMenu.id);
+                    setRenameValue(contextMenu.id);
+                    setRenameModalOpen(true);
+                    setContextMenu(null);
+                  }}>Rename</button>
+                  <div className="iso-context-menu-sep" />
+                  <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
+                    const next = customCategories.filter(c => c !== contextMenu.id);
+                    setCustomCategories(next);
+                    saveCustomCategoriesToDB(next);
+                    if (libraryCategory === contextMenu.id) setLibraryCategory('All Projects');
+
+                    setProjects(prev => prev.map(p => {
+                      if (p.settings?.category === contextMenu.id) {
+                        const newSettings = { ...p.settings, category: null };
+                        if (user) {
+                          import('./lib/projects.js').then(({ updateProject }) => {
+                            updateProject(user.id, p.id, { settings: newSettings });
+                          });
+                        }
+                        return { ...p, settings: newSettings };
+                      }
+                      return p;
+                    }));
+
+                    setContextMenu(null);
+                  }}>Delete Category</button>
+                </>
+              )}
+              {contextMenu.type === 'project' && (() => {
+                const project = projects.find(p => p.id === contextMenu.id);
+                const isFav = project?.settings?.is_favorite;
+                const currentFolder = project?.settings?.category;
+
+                return (
+                  <>
+                    <button className="iso-context-menu-item" onClick={() => {
+                      setRenameType('project');
+                      setRenameTargetId(contextMenu.id);
+                      setRenameValue(project?.name || '');
+                      setRenameModalOpen(true);
+                      setContextMenu(null);
+                    }}>Rename</button>
+                    <button className="iso-context-menu-item" onClick={() => {
+                      if (project) {
+                        const currentSettings = project.settings || {};
+                        const nextFav = !currentSettings.is_favorite;
+                        const newSettings = { ...currentSettings, is_favorite: nextFav };
+                        import('./lib/projects.js').then(({ updateProject }) => {
+                          if (user) {
+                            updateProject(user.id, contextMenu.id, { settings: newSettings }).then(success => {
+                              if (success) {
+                                setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, settings: newSettings } : p));
+                                addToast(nextFav ? 'Added to Favorites' : 'Removed from Favorites');
+                              }
+                            });
+                          }
+                        });
+                      }
+                      setContextMenu(null);
+                    }}>{isFav ? 'Remove from Favorites' : 'Add to Favorites'}</button>
+                    <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
+                      <button className="iso-context-menu-item" style={{ justifyContent: 'space-between', display: 'flex' }}>
+                        Add to Folder <span>▶</span>
+                      </button>
+                      <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--white)', border: '1px solid var(--iso-border-strong)', borderRadius: 'var(--iso-radius-lg)', padding: '4px', display: 'none', flexDirection: 'column', minWidth: '120px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+                        {customCategories
+                          .filter(cat => cat.toLowerCase() !== 'favorites' && cat.toLowerCase() !== 'favourites')
+                          .map(cat => {
+                            const isCurrent = currentFolder === cat;
+                            return (
+                              <button
+                                key={cat}
+                                className="iso-context-menu-item"
+                                style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}
+                                onClick={() => {
+                                  if (project) {
+                                    const currentSettings = project.settings || {};
+                                    const newSettings = { ...currentSettings, category: isCurrent ? null : cat };
+                                    import('./lib/projects.js').then(({ updateProject }) => {
+                                      if (user) {
+                                        updateProject(user.id, contextMenu.id, { settings: newSettings }).then(success => {
+                                          if (success) {
+                                            setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, settings: newSettings } : p));
+                                            addToast(isCurrent ? `Removed from ${cat}` : `Added to ${cat}`);
+                                          }
+                                        });
+                                      }
+                                    });
+                                  }
+                                  setContextMenu(null);
+                                }}
+                              >
+                                {cat} {isCurrent && '✓'}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                    <div className="iso-context-menu-sep" />
+                    <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
+                      setProjectToDelete(contextMenu.id);
+                      setContextMenu(null);
+                    }}>Delete Project</button>
+                  </>
+                );
+              })()}
+              {contextMenu.type === 'diagram' && (
+                <>
+                  <button className="iso-context-menu-item" onClick={() => {
+                    setRenameType('diagram');
+                    setRenameTargetId(contextMenu.id);
+                    setRenameValue(contextMenu.extra?.diagramName || '');
+                    setRenameModalOpen(true);
+                    setContextMenu(null);
+                  }}>Rename</button>
+
+                  <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
+                    <button className="iso-context-menu-item" style={{ justifyContent: 'space-between', display: 'flex' }}>
+                      Move to Project <span>▶</span>
+                    </button>
+                    <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', display: 'none', flexDirection: 'column', minWidth: '160px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+                      {projects
+                        .filter(proj => proj.id !== contextMenu.extra?.projectId)
+                        .map(proj => (
+                          <button
+                            key={proj.id}
+                            className="iso-context-menu-item"
+                            onClick={() => {
+                              import('./lib/projects.js').then(({ updateDiagram }) => {
+                                updateDiagram(contextMenu.id, { project_id: proj.id }).then(success => {
+                                  if (success) {
+                                    setProjectDetailDiagrams(prev => prev.filter(d => d.id !== contextMenu.id));
+                                    setTabs(prev => prev.map(t => t.diagram_id === contextMenu.id ? { ...t, project_id: proj.id } : t));
+                                    addToast(`Moved to project ${proj.name}`);
+                                  } else {
+                                    addToast('Failed to move diagram', 'info');
+                                  }
+                                });
+                              });
+                              setContextMenu(null);
+                            }}
+                          >
+                            {proj.name}
+                          </button>
+                        ))}
+                      {projects.filter(proj => proj.id !== contextMenu.extra?.projectId).length === 0 && (
+                        <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--iso-text-muted)', fontStyle: 'italic' }}>
+                          No other projects
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <button className="iso-context-menu-item" onClick={() => {
+                    downloadDiagramFile(contextMenu.extra?.diagram);
+                    setContextMenu(null);
+                  }}>Download</button>
+
+                  <div className="iso-context-menu-sep" />
+
+                  <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
+                    setDiagramToDelete(contextMenu.extra?.diagram);
+                    setContextMenu(null);
+                  }}>Delete</button>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {projectToDelete && (
+          <div className="iso-modal-overlay" onClick={() => setProjectToDelete(null)}>
+            <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete Project</h3>
+              <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>Are you sure you want to delete this project? This action cannot be undone.</p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button className="iso-btn" onClick={() => setProjectToDelete(null)}>{t('ui.cancel')}</button>
+                <button className="iso-btn" style={{ background: 'var(--iso-danger)', color: '#fff', border: 'none' }} onClick={() => {
+                  import('./lib/supabase.js').then(({ supabase }) => {
+                    supabase.from('projects').delete().eq('id', projectToDelete).then(() => {
+                      setProjects(prev => prev.filter(p => p.id !== projectToDelete));
+                      setProjectToDelete(null);
+                      addToast('Project deleted successfully');
+                    });
+                  });
+                }}>Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {renameModalOpen && (
+          <div className="iso-modal-overlay" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>
+            <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+              <button className="iso-modal-close-btn" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>×</button>
+              <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>
+                Rename {renameType === 'project' ? 'Project' : (renameType === 'category' ? 'Category' : 'Diagram')}
+              </h3>
+              <div className="iso-modal-field">
+                <label>New Name</label>
+                <input
+                  type="text"
+                  className="iso-input"
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  placeholder={renameType === 'project' ? 'Project name...' : (renameType === 'category' ? 'Category name...' : 'Diagram name...')}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && renameValue.trim()) {
+                      handleRenameSubmit();
+                    }
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+                <button className="iso-btn" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>{t('ui.cancel')}</button>
+                <button className="iso-btn iso-btn--primary" disabled={!renameValue.trim()} onClick={handleRenameSubmit}>
+                  Rename
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} initialMode={authMode} />
+
+        {saveToCloudModalOpen && (
+          <div className="iso-modal-overlay" onClick={() => setSaveToCloudModalOpen(false)}>
+            <div className="iso-modal" onClick={e => e.stopPropagation()}>
+              <h2 className="iso-modal-title">Save to Cloud</h2>
+              <p className="iso-modal-desc">Select a project to save this diagram into.</p>
+              <div className="iso-modal-field">
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <select className="iso-select" style={{ flex: 1 }} value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)}>
+                    <option value="">-- Select Project --</option>
+                    {projects.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <button className="iso-btn" onClick={() => {
+                    setNewModalTab('project');
+                    setIsNewModalOpen(true);
+                    setSaveToCloudModalOpen(false);
+                    setIsSavingFlow(true);
+                  }}>New Project</button>
+                </div>
+              </div>
+              <div className="iso-modal-actions">
+                <button className="iso-modal-btn cancel" onClick={() => setSaveToCloudModalOpen(false)}>{t('ui.cancel')}</button>
+                <button className="iso-modal-btn confirm" disabled={!selectedProjectId || isSavingToCloud} onClick={async () => {
+                  if (!selectedProjectId || !user) return;
+                  setIsSavingToCloud(true);
+                  try {
+                    const { createDiagram } = await import('./lib/projects.js');
+                    const diagram = await createDiagram(user.id, selectedProjectId, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+                    if (diagram) {
+                      updateActiveTab(tab => ({ ...tab, diagram_id: diagram.id, project_id: selectedProjectId, savedSource: tab.source }), false);
+                      setSaveToCloudModalOpen(false);
+                      addToast('Saved to cloud');
+                    }
+                  } catch (e: any) {
+                    alert(e.message || 'Error saving to cloud');
+                  } finally {
+                    setIsSavingToCloud(false);
+                  }
+                }}>{isSavingToCloud ? 'Saving...' : 'Save'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  };
   if (tabs.length === 0) {
     return (
       <div className="iso-shell">
@@ -2304,18 +3606,18 @@ export default function App() {
           <p className="iso-empty-copy">{t('welcome.description')}</p>
           <div className="iso-empty-actions">
             <div className="iso-empty-group">
-                <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
-                  {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                    <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
-                  ))}
-                </select>
-                <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={() => executeNewDiagram(newDiagramKind)}>
-                  {t('welcome.create_new')}
-                </button>
-              </div>
+              <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
+                {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+                  <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
+                ))}
+              </select>
+              <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={() => executeNewDiagram(newDiagramKind)}>
+                {t('welcome.create_new')}
+              </button>
+            </div>
             <div className="iso-empty-divider" aria-hidden="true"></div>
             <div className="iso-empty-group iso-empty-group--secondary">
-              <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
+              <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => { setLibraryTab('open_folder'); setIsLibraryOpen(true); }}>
                 {t('welcome.open_existing')}
               </button>
             </div>
@@ -2341,6 +3643,7 @@ export default function App() {
             </div>
           </div>
         )}
+        {renderCommonModals()}
       </div>
     );
   }
@@ -2380,9 +3683,9 @@ export default function App() {
               }}
             />
           ) : (
-            <span 
-              className="iso-breadcrumb-name" 
-              style={{ cursor: activeTab?.project_id ? 'pointer' : 'default' }} 
+            <span
+              className="iso-breadcrumb-name"
+              style={{ cursor: activeTab?.project_id ? 'pointer' : 'default' }}
               data-tooltip={activeTab?.project_id ? "Double click to rename project" : undefined}
             >
               {projects.find(p => p.id === activeTab?.project_id)?.name || 'Local Project'}
@@ -2391,49 +3694,49 @@ export default function App() {
         </div>
 
         {isMobileLayout && (
-            <div
-              className="iso-mobile-title"
-              title={fileName}
-              onPointerDown={e => {
-                e.preventDefault();
-                e.stopPropagation();
-                setRenamingTabId(activeTab?.id ?? null);
-              }}
-              onDoubleClick={() => setRenamingTabId(activeTab?.id ?? null)}
-              onClick={() => setRenamingTabId(activeTab?.id ?? null)}
-            >
-              {renamingTabId === activeTab?.id ? (
-                <span style={{ display: "flex", alignItems: "center" }}>
-                  <input
-                    autoFocus
-                    defaultValue={fileName.includes(".") ? fileName.substring(0, fileName.lastIndexOf(".")) : fileName}
-                    className="iso-tab-rename-input"
-                    style={{ background: "transparent", border: "none", color: "inherit", fontFamily: "inherit", fontSize: "inherit", outline: "none", width: "100%", borderBottom: "1px solid currentColor" }}
-                    onBlur={(e) => {
-                      if (isMobileLayout) return;
+          <div
+            className="iso-mobile-title"
+            title={fileName}
+            onPointerDown={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              setRenamingTabId(activeTab?.id ?? null);
+            }}
+            onDoubleClick={() => setRenamingTabId(activeTab?.id ?? null)}
+            onClick={() => setRenamingTabId(activeTab?.id ?? null)}
+          >
+            {renamingTabId === activeTab?.id ? (
+              <span style={{ display: "flex", alignItems: "center" }}>
+                <input
+                  autoFocus
+                  defaultValue={fileName.includes(".") ? fileName.substring(0, fileName.lastIndexOf(".")) : fileName}
+                  className="iso-tab-rename-input"
+                  style={{ background: "transparent", border: "none", color: "inherit", fontFamily: "inherit", fontSize: "inherit", outline: "none", width: "100%", borderBottom: "1px solid currentColor" }}
+                  onBlur={(e) => {
+                    if (isMobileLayout) return;
+                    const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : "";
+                    const newName = e.target.value ? e.target.value + ext : fileName;
+                    if (activeTab) setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: newName } : t));
+                    setRenamingTabId(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
                       const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : "";
-                      const newName = e.target.value ? e.target.value + ext : fileName;
+                      const newName = e.currentTarget.value ? e.currentTarget.value + ext : fileName;
                       if (activeTab) setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: newName } : t));
                       setRenamingTabId(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : "";
-                        const newName = e.currentTarget.value ? e.currentTarget.value + ext : fileName;
-                        if (activeTab) setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: newName } : t));
-                        setRenamingTabId(null);
-                      }
-                      if (e.key === "Escape") setRenamingTabId(null);
-                    }}
-                    onClick={e => e.stopPropagation()}
-                  />
-                  <span>{fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : ""}</span>
-                </span>
-              ) : (
-                fileName
-              )}
-            </div>
-          )}
+                    }
+                    if (e.key === "Escape") setRenamingTabId(null);
+                  }}
+                  onClick={e => e.stopPropagation()}
+                />
+                <span>{fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : ""}</span>
+              </span>
+            ) : (
+              fileName
+            )}
+          </div>
+        )}
 
         <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
 
@@ -2457,9 +3760,9 @@ export default function App() {
         )}
 
         <div className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', flex: '0 1 auto', minWidth: 0, overflow: 'hidden', marginLeft: '12px' }}>
-          <button 
-            type="button" 
-            style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }} 
+          <button
+            type="button"
+            style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }}
             onClick={e => e.currentTarget.nextElementSibling?.scrollBy({ left: -150, behavior: 'smooth' })}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
@@ -2537,9 +3840,9 @@ export default function App() {
               </div>
             ))}
           </nav>
-          <button 
-            type="button" 
-            style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }} 
+          <button
+            type="button"
+            style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }}
             onClick={e => e.currentTarget.previousElementSibling?.scrollBy({ left: 150, behavior: 'smooth' })}
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
@@ -2563,7 +3866,7 @@ export default function App() {
               {t('menu.new')}
             </button>
 
-            <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()} aria-label={t('menu.open_isx')} data-tooltip={t('menu.open_shortcut')}>
+            <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)} aria-label={t('menu.open_isx')} data-tooltip={t('menu.open_shortcut')}>
               <IconOpen />
               {t('menu.open')}
             </button>
@@ -2663,17 +3966,7 @@ export default function App() {
           type="button"
           className="iso-btn iso-btn--icon iso-mobile-hide"
           style={{ marginLeft: 'auto' }}
-          onClick={() => setIsLibraryOpen(true)}
-          aria-label={t('ui.library')}
-          data-tooltip={t('ui.library')}
-        >
-          <IconLibrary size={20} />
-        </button>
-
-        <button
-          type="button"
-          className="iso-btn iso-btn--icon iso-mobile-hide"
-          onClick={() => setIsSettingsOpen(true)}
+          onClick={() => { setSettingsTab('profile'); setIsSettingsOpen(true); }}
           aria-label="Settings"
           data-tooltip="Settings"
         >
@@ -2778,7 +4071,7 @@ export default function App() {
                 <IconNew />
                 {t('menu.new')}
               </button>
-              <button type="button" className="iso-btn" onClick={() => fileInputRef.current?.click()}>
+              <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)}>
                 <IconOpen />
                 {t('menu.open')}
               </button>
@@ -2920,7 +4213,7 @@ export default function App() {
               <label>{t('edit.name')}</label>
               <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus={!isMobileLayout && editingEntity.kind !== 'note'} />
             </div>
-            
+
             {editingEntity.kind === 'note' ? (
               <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
                 <label style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
@@ -3004,9 +4297,9 @@ export default function App() {
                     }}>S</button>
                   </div>
                 </label>
-                <textarea 
+                <textarea
                   id="note-body-textarea"
-                  value={editingEntity.bodyText ?? ''} 
+                  value={editingEntity.bodyText ?? ''}
                   onChange={e => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
                   onKeyDown={e => {
                     if (e.ctrlKey && !e.shiftKey) {
@@ -3014,7 +4307,7 @@ export default function App() {
                       const start = target.selectionStart;
                       const end = target.selectionEnd;
                       const val = target.value;
-                      
+
                       const toggleFormat = (prefix: string, suffix: string) => {
                         let newVal = val, newStart = start, newEnd = end;
                         if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
@@ -3046,124 +4339,124 @@ export default function App() {
               </div>
             ) : (
               <>
-            <div className="iso-modal-field">
-              <label>{t('edit.kind')}</label>
-              <span style={{ padding: '0.4rem', border: '1px solid transparent' }}>{editingEntity.kind}</span>
-            </div>
-            {entitySupportsStereotype(editingEntity.kind) && (
-              <div className="iso-modal-field">
-                <label>{['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind) ? 'Caption' : t('edit.stereotype')}</label>
-                <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind) ? 'e.g. cond' : t('edit.eg_device')} />
-              </div>
-            )}
-            {['alt', 'par'].includes(editingEntity.kind) && (
-              <div className="iso-modal-field" style={{ flexDirection: 'column', alignItems: 'flex-start', paddingTop: '0.5rem' }}>
-                <label style={{ marginBottom: '0.5rem' }}>Substates (Else Branches)</label>
-                {(editingEntity.elseBlocks || []).map((b, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '0.5rem', width: '100%', marginBottom: '0.5rem' }}>
-                    <input 
-                      type="text" 
-                      value={b.label || ''} 
-                      onChange={e => {
-                        const newBlocks = [...(editingEntity.elseBlocks || [])];
-                        newBlocks[i] = { ...newBlocks[i], label: e.target.value };
-                        setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
-                      }} 
-                      placeholder="Caption" 
-                      style={{ flex: 1 }} 
-                    />
-                    <button 
-                      type="button" 
-                      className="iso-btn" 
-                      title="Remove Substate"
+                <div className="iso-modal-field">
+                  <label>{t('edit.kind')}</label>
+                  <span style={{ padding: '0.4rem', border: '1px solid transparent' }}>{editingEntity.kind}</span>
+                </div>
+                {entitySupportsStereotype(editingEntity.kind) && (
+                  <div className="iso-modal-field">
+                    <label>{['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind) ? 'Caption' : t('edit.stereotype')}</label>
+                    <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind) ? 'e.g. cond' : t('edit.eg_device')} />
+                  </div>
+                )}
+                {['alt', 'par'].includes(editingEntity.kind) && (
+                  <div className="iso-modal-field" style={{ flexDirection: 'column', alignItems: 'flex-start', paddingTop: '0.5rem' }}>
+                    <label style={{ marginBottom: '0.5rem' }}>Substates (Else Branches)</label>
+                    {(editingEntity.elseBlocks || []).map((b, i) => (
+                      <div key={i} style={{ display: 'flex', gap: '0.5rem', width: '100%', marginBottom: '0.5rem' }}>
+                        <input
+                          type="text"
+                          value={b.label || ''}
+                          onChange={e => {
+                            const newBlocks = [...(editingEntity.elseBlocks || [])];
+                            newBlocks[i] = { ...newBlocks[i], label: e.target.value };
+                            setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
+                          }}
+                          placeholder="Caption"
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          type="button"
+                          className="iso-btn"
+                          title="Remove Substate"
+                          onClick={() => {
+                            const newBlocks = (editingEntity.elseBlocks || []).filter((_, idx) => idx !== i);
+                            setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
+                          }}
+                        >-</button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="iso-btn"
                       onClick={() => {
-                        const newBlocks = (editingEntity.elseBlocks || []).filter((_, idx) => idx !== i);
+                        const newBlocks = [...(editingEntity.elseBlocks || []), { label: '' }];
                         setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
                       }}
-                    >-</button>
+                      style={{ width: '100%', marginTop: '0.2rem' }}
+                    >
+                      + Add Substate
+                    </button>
                   </div>
-                ))}
-                <button 
-                  type="button" 
-                  className="iso-btn" 
-                  onClick={() => {
-                    const newBlocks = [...(editingEntity.elseBlocks || []), { label: '' }];
-                    setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
-                  }}
-                  style={{ width: '100%', marginTop: '0.2rem' }}
-                >
-                  + Add Substate
-                </button>
-              </div>
-            )}
-            {['class', 'interface'].includes(editingEntity.kind) && (
-              <div className="iso-modal-field">
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
-                  <input type="checkbox" checked={editingEntity.isAbstract} onChange={e => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })} style={{ margin: 0 }} />
-                  {t('edit.abstract')}
-                </label>
-              </div>
-            )}
-            {editingEntity.kind === 'interface' && ['component', 'deployment'].includes(activeDiagram?.kind || '') && (
-              <div className="iso-modal-field">
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
-                  <input type="checkbox" checked={editingEntity.stereotype === 'lollipop'} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.checked ? 'lollipop' : '' })} style={{ margin: 0 }} />
-                  {t('edit.lollipop')}
-                </label>
-              </div>
-            )}
-            {[
-              'class', 'interface', 'enum', 'struct', 'component', 'node', 'device', 
-              'environment', 'state', 'activity', 'usecase', 'actor', 'multiobject', 
-              'active_object', 'collaboration', 'composite', 'concurrent', 'artifact'
-            ].includes(editingEntity.kind) && (
-              <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
-                  <label>{t('edit.body')}</label>
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    {['enum'].includes(editingEntity.kind) && (
-                        <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'NEW_VALUE' } : null); }}>{t('edit.enum_value')}</button>
-                    )}
-                    {['usecase'].includes(editingEntity.kind) && (
-                        <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'extensionPoint' } : null); }}>{t('edit.ext_pt')}</button>
-                    )}
-                    {['class', 'interface'].includes(editingEntity.kind) && (
-                       <>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newField : string' } : null); }}>{t('edit.pub_field')}</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '- newField : string' } : null); }}>{t('edit.priv_field')}</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newMethod() : void' } : null); }}>{t('edit.pub_method')}</button>
-                       </>
-                    )}
-                    {['node', 'device', 'environment', 'component'].includes(editingEntity.kind) && (
-                       <>
-                         {activeDiagram?.kind !== 'component' && (
-                           <>
-                             <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'node NewNode' } : null); }}>{t('edit.node')}</button>
-                             <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'artifact NewArtifact' } : null); }}>{t('edit.artifact')}</button>
-                           </>
-                         )}
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port1 : provided' } : null); }}>{t('edit.port_prov')}</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port2 : required' } : null); }}>{t('edit.port_req')}</button>
-                       </>
-                    )}
-                    {['state', 'composite', 'concurrent'].includes(editingEntity.kind) && (
-                       <>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'entry() : void' } : null); }}>{t('edit.entry')}</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'exit() : void' } : null); }}>{t('edit.exit')}</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'do() : void' } : null); }}>{t('edit.do')}</button>
-                         <button type="button" className="iso-btn" style={{fontSize: 10, padding: '2px 6px'}} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'state SubState' } : null); }}>{t('edit.substate')}</button>
-                       </>
-                    )}
+                )}
+                {['class', 'interface'].includes(editingEntity.kind) && (
+                  <div className="iso-modal-field">
+                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
+                      <input type="checkbox" checked={editingEntity.isAbstract} onChange={e => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })} style={{ margin: 0 }} />
+                      {t('edit.abstract')}
+                    </label>
                   </div>
-                </div>
-                <textarea 
-                  value={editingEntity.bodyText ?? ''} 
-                  onChange={e => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
-                  style={{ width: '100%', minHeight: '120px', fontFamily: 'monospace', padding: '0.5rem', resize: 'vertical' }}
-                />
-              </div>
-            )}
-            </>
+                )}
+                {editingEntity.kind === 'interface' && ['component', 'deployment'].includes(activeDiagram?.kind || '') && (
+                  <div className="iso-modal-field">
+                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
+                      <input type="checkbox" checked={editingEntity.stereotype === 'lollipop'} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.checked ? 'lollipop' : '' })} style={{ margin: 0 }} />
+                      {t('edit.lollipop')}
+                    </label>
+                  </div>
+                )}
+                {[
+                  'class', 'interface', 'enum', 'struct', 'component', 'node', 'device',
+                  'environment', 'state', 'activity', 'usecase', 'actor', 'multiobject',
+                  'active_object', 'collaboration', 'composite', 'concurrent', 'artifact'
+                ].includes(editingEntity.kind) && (
+                    <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
+                        <label>{t('edit.body')}</label>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {['enum'].includes(editingEntity.kind) && (
+                            <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'NEW_VALUE' } : null); }}>{t('edit.enum_value')}</button>
+                          )}
+                          {['usecase'].includes(editingEntity.kind) && (
+                            <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'extensionPoint' } : null); }}>{t('edit.ext_pt')}</button>
+                          )}
+                          {['class', 'interface'].includes(editingEntity.kind) && (
+                            <>
+                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newField : string' } : null); }}>{t('edit.pub_field')}</button>
+                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '- newField : string' } : null); }}>{t('edit.priv_field')}</button>
+                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newMethod() : void' } : null); }}>{t('edit.pub_method')}</button>
+                            </>
+                          )}
+                          {['node', 'device', 'environment', 'component'].includes(editingEntity.kind) && (
+                            <>
+                              {activeDiagram?.kind !== 'component' && (
+                                <>
+                                  <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'node NewNode' } : null); }}>{t('edit.node')}</button>
+                                  <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'artifact NewArtifact' } : null); }}>{t('edit.artifact')}</button>
+                                </>
+                              )}
+                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port1 : provided' } : null); }}>{t('edit.port_prov')}</button>
+                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port2 : required' } : null); }}>{t('edit.port_req')}</button>
+                            </>
+                          )}
+                          {['state', 'composite', 'concurrent'].includes(editingEntity.kind) && (
+                            <>
+                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'entry() : void' } : null); }}>{t('edit.entry')}</button>
+                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'exit() : void' } : null); }}>{t('edit.exit')}</button>
+                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'do() : void' } : null); }}>{t('edit.do')}</button>
+                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'state SubState' } : null); }}>{t('edit.substate')}</button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <textarea
+                        value={editingEntity.bodyText ?? ''}
+                        onChange={e => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
+                        style={{ width: '100%', minHeight: '120px', fontFamily: 'monospace', padding: '0.5rem', resize: 'vertical' }}
+                      />
+                    </div>
+                  )}
+              </>
             )}
             <div className="iso-modal-actions">
               <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>{t('ui.cancel')}</button>
@@ -3277,37 +4570,8 @@ export default function App() {
         </div>
       )}
 
-      {editingText && ( <div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div> )}
-      {saveToCloudModalOpen && (
-        <div className="iso-modal-overlay" onClick={() => setSaveToCloudModalOpen(false)}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
-            <button className="iso-modal-close-btn" onClick={() => setSaveToCloudModalOpen(false)}>×</button>
-            <h3 style={{ marginBottom: '16px', fontSize: '18px' }}>Save Project to Cloud</h3>
-            <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px', fontSize: '14px' }}>
-              Enter a name for this project to save it to your Isomorph Cloud library.
-            </p>
-            <input 
-              type="text" 
-              className="iso-input" 
-              placeholder="Project Name" 
-              value={newProjectName} 
-              onChange={e => setNewProjectName(e.target.value)} 
-              autoFocus
-            />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '24px', justifyContent: 'flex-end' }}>
-              <button className="iso-btn" onClick={() => setSaveToCloudModalOpen(false)}>Cancel</button>
-              <button className="iso-btn iso-btn--primary" onClick={() => {
-                if (!newProjectName.trim()) {
-                  addToast('Project name cannot be empty', 'info');
-                  return;
-                }
-                setSaveToCloudModalOpen(false);
-                handleSaveToCloud(newProjectName.trim());
-              }}>Save</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {editingText && (<div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div>)}
+
       {/* ──────────────── STATUS BAR ──────────────────────── */}
       <footer className="iso-statusbar">
         <span className="iso-statusbar-item">{t('ui.isomorph_dsl')}</span>
@@ -3340,15 +4604,15 @@ export default function App() {
           <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
             <button className="iso-modal-close-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>×</button>
             <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '16px' }}>{t('welcome.create_new') || 'Create New'}</h3>
-            
+
             <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--iso-bg-header)', padding: '4px', borderRadius: '8px' }}>
-              <button 
+              <button
                 style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'tab' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'tab' ? 'var(--white)' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
                 onClick={() => { setNewModalTab('tab'); setNewProjectError(''); }}
               >
                 Diagram
               </button>
-              <button 
+              <button
                 style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'project' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'project' ? 'var(--white)' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
                 onClick={() => { setNewModalTab('project'); setNewProjectError(''); }}
               >
@@ -3360,9 +4624,9 @@ export default function App() {
               <>
                 <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
                   <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Diagram Type</label>
-                  <select 
-                    className="iso-select" 
-                    value={newDiagramKind} 
+                  <select
+                    className="iso-select"
+                    value={newDiagramKind}
                     onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -3384,40 +4648,19 @@ export default function App() {
               <>
                 <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
                   <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Project Name</label>
-                  <input 
-                    type="text" 
-                    className="iso-input" 
-                    value={newProjectName} 
-                    onChange={e => { setNewProjectName(e.target.value); setNewProjectError(''); }} 
-                    placeholder="E.g., Q3 System Architecture..." 
+                  <input
+                    type="text"
+                    className="iso-input"
+                    value={newProjectName}
+                    onChange={e => { setNewProjectName(e.target.value); setNewProjectError(''); }}
+                    placeholder="E.g., Q3 System Architecture..."
                     autoFocus
                     style={{ borderColor: newProjectError ? 'var(--iso-danger)' : undefined }}
-                    onKeyDown={async (e) => {
-                      if (e.key === 'Enter' && newProjectName.trim()) {
-                        if (user && newProjectName.trim()) {
-                          const { createProject } = await import('./lib/projects.js');
-                          try {
-                            const p = await createProject(user.id, newProjectName.trim());
-                            if (p) {
-                              setProjects(prev => [p, ...prev]);
-                              addToast('Project created successfully', 'success');
-                              
-                              if (isSavingFlow) {
-                                const { createDiagram } = await import('./lib/projects.js');
-                                const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
-                                if (d) {
-                                  updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
-                                  addToast('Saved to cloud');
-                                }
-                                setIsSavingFlow(false);
-                              }
-
-                              setIsNewModalOpen(false);
-                              setNewProjectName('');
-                              setNewProjectError('');
-                            }
-                          } catch(err: any) { setNewProjectError(err.message); }
-                        } else { setNewProjectError("You must be logged in to create a project."); }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCreateProjectSubmit();
                       }
                     }}
                   />
@@ -3425,32 +4668,7 @@ export default function App() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   <button className="iso-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>{t('ui.cancel')}</button>
-                  <button className="iso-btn iso-btn--primary" disabled={!newProjectName.trim()} onClick={async () => {
-                    if (user && newProjectName.trim()) {
-                      const { createProject } = await import('./lib/projects.js');
-                      try {
-                        const p = await createProject(user.id, newProjectName.trim());
-                        if (p) {
-                          setProjects(prev => [p, ...prev]);
-                          addToast('Project created successfully', 'success');
-                          
-                          if (isSavingFlow) {
-                            const { createDiagram } = await import('./lib/projects.js');
-                            const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
-                            if (d) {
-                              updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
-                              addToast('Saved to cloud');
-                            }
-                            setIsSavingFlow(false);
-                          }
-
-                          setIsNewModalOpen(false);
-                          setNewProjectName('');
-                          setNewProjectError('');
-                        }
-                      } catch(e: any) { setNewProjectError(e.message); }
-                    } else { setNewProjectError("You must be logged in to create a project."); }
-                  }}>{t('ui.create')}</button>
+                  <button className="iso-btn iso-btn--primary" disabled={!newProjectName.trim()} onClick={handleCreateProjectSubmit}>{t('ui.create')}</button>
                 </div>
               </>
             )}
@@ -3478,771 +4696,8 @@ export default function App() {
         </div>
       )}
 
-      {isSettingsOpen && (
-        <div className="iso-modal-overlay" onClick={() => setIsSettingsOpen(false)}>
-          <div className="iso-modal iso-modal-large" onClick={e => e.stopPropagation()}>
-            <div className="iso-modal-sidebar">
-              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('ui.settings')}</h2>
-              <button className={`iso-modal-sidebar-tab ${settingsTab === 'profile' ? 'active' : ''}`} onClick={() => setSettingsTab('profile')}>{t('ui.profile')}</button>
-              <button className={`iso-modal-sidebar-tab ${settingsTab === 'collab' ? 'active' : ''}`} onClick={() => setSettingsTab('collab')}>{t('ui.collab_settings')}</button>
-              <button className={`iso-modal-sidebar-tab ${settingsTab === 'storage' ? 'active' : ''}`} onClick={() => setSettingsTab('storage')}>{t('ui.storage')}</button>
-              <button className={`iso-modal-sidebar-tab ${settingsTab === 'app' ? 'active' : ''}`} onClick={() => setSettingsTab('app')}>{t('ui.app_settings')}</button>
-            </div>
-            <div className="iso-modal-content" style={{ position: 'relative' }}>
-              <button className="iso-modal-close-btn" onClick={() => setIsSettingsOpen(false)}>×</button>
-              
-              {settingsTab === 'profile' && (
-                <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.profile')}</h3>
-                  {session ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '400px' }}>
-                      <div className="iso-modal-field">
-                        <label>Profile Photo</label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                            {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '24px' }}>👤</span>}
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="iso-btn" style={{ fontSize: '13px' }} onClick={() => {
-                              const input = document.createElement('input');
-                              input.type = 'file';
-                              input.accept = 'image/*';
-                              input.onchange = async (e: any) => {
-                                const file = e.target.files?.[0];
-                                if (file && user) {
-                                  addToast('Uploading photo...', 'info');
-                                  const { uploadAvatar } = await import('./lib/profile.js');
-                                  const url = await uploadAvatar(user.id, file);
-                                  if (url && profile) {
-                                    setProfile({ ...profile, avatar_url: url });
-                                    addToast('Photo uploaded successfully');
-                                  }
-                                }
-                              };
-                              input.click();
-                            }}>Upload Photo</button>
-                            {profile?.avatar_url && (
-                              <button className="iso-btn" style={{ fontSize: '13px', color: 'var(--iso-danger)' }} onClick={async () => {
-                                if (profile && user) {
-                                  const { updateProfile } = await import('./lib/profile.js');
-                                  await updateProfile(user.id, { avatar_url: null });
-                                  setProfile({ ...profile, avatar_url: null });
-                                }
-                              }}>Remove</button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="iso-modal-field">
-                        <label>Display Name</label>
-                        <input type="text" placeholder="Alice" value={profile?.full_name || ''} onChange={e => setProfile(p => p ? { ...p, full_name: e.target.value } : null)} className="iso-input" />
-                      </div>
-                      <div className="iso-modal-field">
-                        <label>Username</label>
-                        <input type="text" placeholder="alice_wonder" value={profile?.username || ''} onChange={e => setProfile(p => p ? { ...p, username: e.target.value } : null)} className="iso-input" />
-                      </div>
-                      <div className="iso-modal-field">
-                        <label>Email Address</label>
-                        <input type="email" value={user?.email || ''} disabled className="iso-input" style={{ opacity: 0.7 }} />
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                        <button className="iso-btn iso-btn--primary" style={{ flex: 1 }} onClick={handleSaveSettings}>Save Changes</button>
-                        <button className="iso-btn" style={{ color: 'var(--iso-error)' }} onClick={() => signOut()}>Sign Out</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
-                      <p style={{ color: 'var(--iso-text-muted)' }}>You are not logged in.</p>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="iso-btn iso-btn--primary" onClick={() => { setAuthMode('login'); setIsAuthOpen(true); setIsSettingsOpen(false); }}>{t('ui.login')}</button>
-                        <button className="iso-btn" onClick={() => { setAuthMode('register'); setIsAuthOpen(true); setIsSettingsOpen(false); }}>{t('auth.title_register')}</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              {settingsTab === 'collab' && (
-                <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.collab_settings')}</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '400px' }}>
-                    
-                    <div className="iso-modal-field">
-                      <label>Cursor Live Preview</label>
-                      <div style={{ height: '120px', background: 'var(--iso-bg-canvas)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-                        
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
-                            <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.84c.45 0 .67-.54.35-.85L5.5 3.21z" fill={profile?.settings?.cursor_colour || '#3B82F6'} stroke={profile?.settings?.cursor_colour === '#F8FAFC' ? '#CBD5E1' : 'white'} strokeWidth="1.5" />
-                          </svg>
-                          <div style={{ 
-                            background: profile?.settings?.cursor_colour || '#3B82F6', 
-                            color: profile?.settings?.cursor_colour === '#F8FAFC' ? '#1E293B' : 'white', 
-                            padding: '4px 8px', 
-                            borderRadius: '4px', 
-                            fontSize: '12px', 
-                            fontWeight: 600, 
-                            marginTop: '4px',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                          }}>
-                            {profile?.full_name || profile?.username || 'You'}
-                          </div>
-                        </div>
+      {renderCommonModals()}
 
-                        {collabShowTrail && (
-                          <>
-                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: profile?.settings?.cursor_colour || '#3B82F6', opacity: 0.5, transform: 'translate(-12px, 12px)', zIndex: 1, animationDelay: '0s' }}></div>
-                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 6, height: 6, borderRadius: '50%', background: profile?.settings?.cursor_colour || '#3B82F6', opacity: 0.3, transform: 'translate(-20px, 20px)', zIndex: 1, animationDelay: '0.2s' }}></div>
-                            <div className="iso-particle-trail" style={{ position: 'absolute', width: 4, height: 4, borderRadius: '50%', background: profile?.settings?.cursor_colour || '#3B82F6', opacity: 0.15, transform: 'translate(-26px, 26px)', zIndex: 1, animationDelay: '0.4s' }}></div>
-                          </>
-                        )}
-
-                      </div>
-                    </div>
-
-                    <div className="iso-modal-field">
-                      <label>Cursor Color</label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-                        {['#EF4444', '#22C55E', '#3B82F6', '#EAB308', '#EC4899', '#F97316', '#F8FAFC', '#1E293B'].map(color => (
-                          <button
-                            key={color}
-                            onClick={() => {
-                              setProfile(p => p ? { ...p, settings: { ...(p.settings || {}), cursor_colour: color } } : null);
-                            }}
-                            style={{
-                              width: '32px', height: '32px', borderRadius: '50%', background: color, 
-                              border: profile?.settings?.cursor_colour === color ? '2px solid var(--iso-bg-app)' : '2px solid transparent',
-                              boxShadow: profile?.settings?.cursor_colour === color ? `0 0 0 2px ${color}` : (color === '#F8FAFC' ? '0 0 0 1px #E2E8F0' : '0 0 0 1px var(--iso-border)'),
-                              outline: 'none',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s'
-                            }}
-                            aria-label={`Select color ${color}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="iso-modal-field">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal' }}>
-                        <input type="checkbox" defaultChecked />
-                        Show my name label to others
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal', marginTop: '12px' }}>
-                        <input type="checkbox" checked={collabShowTrail} onChange={e => setCollabShowTrail(e.target.checked)} />
-                        Show cursor particle trails
-                      </label>
-                    </div>
-
-                    <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.collab_future')}</p>
-                    <button className="iso-btn iso-btn--primary" style={{ alignSelf: 'flex-start' }} onClick={handleSaveSettings}>Save Changes</button>
-                  </div>
-                </div>
-              )}
-              {settingsTab === 'storage' && (
-                <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.storage')}</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '400px' }}>
-                    <div className="iso-modal-field">
-                      <label>Current Tier</label>
-                      <div style={{ padding: '8px 12px', background: 'var(--iso-bg-header)', borderRadius: '4px', border: '1px solid var(--iso-border)' }}>
-                        {profile?.tier || 'Basic'}
-                      </div>
-                    </div>
-                    <div className="iso-modal-field">
-                      <label>Projects Used</label>
-                      {(() => {
-                        const maxLimit = profile?.tier === 'enterprise' ? 100 : profile?.tier === 'power' ? 25 : 5;
-                        const count = projects.length;
-                        const ratio = count / maxLimit;
-                        let color = 'var(--iso-text)';
-                        if (ratio >= 0.9) color = 'var(--iso-error)';
-                        else if (ratio >= 0.75) color = 'var(--iso-warning)';
-                        return (
-                          <div style={{ display: 'flex', gap: '2px', width: '100%', height: '8px' }}>
-                            {Array.from({ length: maxLimit }).map((_, i) => (
-                              <div key={i} style={{ flex: 1, background: i < count ? color : 'var(--iso-divider)', borderRadius: '2px', transition: 'background 0.3s ease' }} />
-                            ))}
-                          </div>
-                        );
-                      })()}
-                      <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)', marginTop: '4px' }}>
-                        {projects.length} / {profile?.tier === 'enterprise' ? '100' : profile?.tier === 'power' ? '25' : '5'} projects
-                      </span>
-                    </div>
-                    <p style={{ color: 'var(--iso-text-muted)', marginBottom: '8px' }}>{t('ui.storage_future')}</p>
-                    <div style={{ padding: '16px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <strong style={{ fontSize: '14px' }}>Upgrade Plan</strong>
-                      <p style={{ fontSize: '12px', color: 'var(--iso-text-muted)', margin: 0 }}>
-                        Basic: 5 projects (Free)<br/>
-                        Power: 25 projects ($5/mo)<br/>
-                        Enterprise: 100+ projects (Contact us)
-                      </p>
-                      <button className="iso-btn iso-btn--primary" style={{ marginTop: '8px', alignSelf: 'flex-start' }} onClick={() => window.open('https://isomorph.ro/pricing', '_blank')}>View Plans</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {settingsTab === 'app' && (
-                <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.app_settings')}</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '400px' }}>
-                    <div className="iso-modal-field">
-                      <label>{t('ui.language')}</label>
-                      <select className="iso-select" value={language} onChange={e => setLanguage(e.target.value as Language)}>
-                        {LANGUAGE_OPTIONS.map(option => (
-                          <option key={option.code} value={option.code}>{option.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    
-
-
-                    <div className="iso-modal-field">
-                      <label>Auto Save (Minutes) — {autoSaveInterval === 0 ? 'Never' : (autoSaveInterval === 0.5 ? '30 seconds' : `${autoSaveInterval} min`)}</label>
-                      <input 
-                        type="range" 
-                        min="0" max="5" step="0.5" 
-                        value={autoSaveInterval} 
-                        onChange={e => {
-                          const val = parseFloat(e.target.value);
-                          setAutoSaveInterval(val);
-                          localStorage.setItem('isomorph-autosave', String(val));
-                        }}
-                      />
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--iso-text-muted)' }}>
-                        <span>Never</span>
-                        <span>5 min</span>
-                      </div>
-                    </div>
-
-                    <div className="iso-modal-field">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
-                        <input type="checkbox" checked={isWatermarkEnabled} onChange={e => {
-                          const next = e.target.checked;
-                          setIsWatermarkEnabled(next);
-                          localStorage.setItem('isomorph-watermark', String(next));
-                        }} />
-                        {t('ui.watermark')}
-                      </label>
-                    </div>
-
-                    <div className="iso-modal-field">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
-                        <input type="checkbox" checked={isAnimationsEnabled} onChange={e => {
-                          const next = e.target.checked;
-                          setIsAnimationsEnabled(next);
-                          if (!next) setIsAnimating(false);
-                          localStorage.setItem('isomorph-animations', String(next));
-                        }} />
-                        {t('ui.enable_animations')}
-                      </label>
-                    </div>
-
-                    {isAnimationsEnabled && (
-                      <div className="iso-modal-field">
-                        <label>{t('ui.export_speed')}</label>
-                        <select
-                          className="iso-select"
-                          value={animationSpeed}
-                          onChange={e => {
-                            const speed = parseFloat(e.target.value);
-                            setAnimationSpeed(speed);
-                            localStorage.setItem('isomorph-anim-speed', String(speed));
-                          }}
-                        >
-                          <option value={0.5}>0.5x</option>
-                          <option value={1.0}>1.0x</option>
-                          <option value={1.5}>1.5x</option>
-                          <option value={2.0}>2.0x</option>
-                        </select>
-                      </div>
-                    )}
-
-                    <div className="iso-modal-field">
-                      <label>{t('ui.theme')}</label>
-                      <button
-                        type="button"
-                        className="iso-btn"
-                        style={{ width: 'fit-content' }}
-                        onClick={() => {
-                          const next = themeMode === 'light' ? 'dark' : 'light';
-                          setThemeMode(next);
-                          document.documentElement.setAttribute('data-theme', next);
-                          localStorage.setItem('isomorph-theme', next);
-                        }}
-                      >
-                        {themeMode === 'light' ? <IconMoon size={16}/> : <IconSun size={16}/>} {themeMode === 'light' ? t('ui.dark_mode') : t('ui.light_mode')}
-                      </button>
-                    </div>
-
-                    <div className="iso-modal-field">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
-                        <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
-                        {t('ui.strict_uml')}
-                      </label>
-                      <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{t('ui.strict_uml_desc')}</span>
-                    </div>
-
-                    <div className="iso-modal-field">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '14px', color: 'var(--iso-text)' }}>
-                        <input type="checkbox" checked={telemetry} onChange={e => {
-                          const next = e.target.checked;
-                          setTelemetry(next);
-                          setTelemetryEnabled(next);
-                        }} />
-                        Send Anonymous Telemetry
-                      </label>
-                    </div>
-                    <button className="iso-btn iso-btn--primary" style={{ alignSelf: 'flex-start' }} onClick={handleSaveSettings}>Save Changes</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isLibraryOpen && (
-        <div className="iso-modal-overlay" onClick={() => setIsLibraryOpen(false)}>
-          <div className="iso-modal iso-modal-large" onClick={e => e.stopPropagation()}>
-            <div className="iso-modal-sidebar">
-              <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('ui.library')}</h2>
-              <button className={`iso-modal-sidebar-tab ${libraryTab === 'my' ? 'active' : ''}`} onClick={() => setLibraryTab('my')}>{t('ui.my_works')}</button>
-              <button className={`iso-modal-sidebar-tab ${libraryTab === 'shared' ? 'active' : ''}`} onClick={() => setLibraryTab('shared')}>{t('ui.shared_works')}</button>
-              <button className={`iso-modal-sidebar-tab ${libraryTab === 'examples' ? 'active' : ''}`} onClick={() => setLibraryTab('examples')}>{t('ui.examples')}</button>
-            </div>
-            <div className="iso-modal-content" style={{ position: 'relative' }}>
-              <button className="iso-modal-close-btn" onClick={() => setIsLibraryOpen(false)}>×</button>
-              
-              {libraryTab === 'my' && (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.my_works')}</h3>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'absolute', left: '10px', color: 'var(--iso-text-muted)', pointerEvents: 'none' }}>
-                          <circle cx="11" cy="11" r="8"></circle>
-                          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input 
-                          type="text" 
-                          placeholder={t('ui.search') || 'Search projects...'} 
-                          value={librarySearchQuery} 
-                          onChange={(e) => setLibrarySearchQuery(e.target.value)}
-                          style={{ width: '200px', padding: '6px 12px 6px 32px', borderRadius: '20px', background: 'var(--iso-bg-app)', border: '1px solid transparent', outline: 'none', color: 'inherit', fontSize: '13px' }}
-                        />
-                      </div>
-                      <select className="iso-select" value={libraryVisibilityFilter} onChange={e => setLibraryVisibilityFilter(e.target.value)} style={{ width: '120px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Filter visibility">
-                        <option value="all">All</option>
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
-                      </select>
-                      <select className="iso-select" value={librarySort} onChange={e => setLibrarySort(e.target.value)} style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
-                        <option value="accessed">Last Accessed</option>
-                        <option value="name">Name</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', paddingBottom: '4px' }}>
-                    {['All Projects', ...customCategories].map(cat => (
-                      <button 
-                        key={cat}
-                        className={libraryCategory === cat ? "iso-btn iso-btn--primary" : "iso-btn"} 
-                        style={{ borderRadius: '20px', padding: '4px 12px', background: libraryCategory === cat ? undefined : 'var(--iso-bg-header)' }}
-                        onClick={() => setLibraryCategory(cat)}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          const isProtected = cat.toLowerCase() === 'all projects' || cat.toLowerCase() === 'favorites' || cat.toLowerCase() === 'favourites';
-                          if (!isProtected) {
-                            setContextMenu({ type: 'category', id: cat, x: e.clientX, y: e.clientY });
-                          }
-                        }}
-                      >{cat}</button>
-                    ))}
-                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }} onClick={() => {
-                      setNewCategoryName('');
-                      setNewCategoryPrompt(true);
-                    }}>+</button>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
-                    {!user ? (
-                      <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
-                        You must be logged in to view your projects.
-                      </div>
-                    ) : (() => {
-                        let filtered = projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase()));
-                        
-                        if (libraryVisibilityFilter === 'public') filtered = filtered.filter(() => false); // no public projects yet
-                        if (libraryVisibilityFilter === 'private') filtered = filtered.filter(() => true); // all private for now
-                        
-                        const isFavTab = libraryCategory.toLowerCase() === 'favorites' || libraryCategory.toLowerCase() === 'favourites';
-                        if (isFavTab) {
-                          filtered = filtered.filter(p => p.settings?.is_favorite); 
-                        } else if (libraryCategory !== 'All Projects') {
-                          filtered = filtered.filter(p => p.settings?.category === libraryCategory);
-                        }
-
-                        filtered = filtered.sort((a, b) => {
-                          if (librarySort === 'name') return a.name.localeCompare(b.name);
-                          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-                        });
-
-                        if (filtered.length === 0) {
-                          return (
-                            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
-                              No projects found matching these filters.
-                            </div>
-                          );
-                        }
-
-                        return filtered.map(p => (
-                          <div key={p.id} onClick={async () => {
-                          const { getDiagrams } = await import('./lib/projects.js');
-                          const diagrams = await getDiagrams(p.id);
-                          if (diagrams.length > 0) {
-                            const newTabs: WorkspaceTab[] = diagrams.map(d => {
-                              const content = d.content as any;
-                              const sourceText = typeof content === 'string' ? content : (content?.source || '');
-                              return {
-                                id: d.id,
-                                name: d.name,
-                                source: sourceText,
-                                activeDiagramIdx: 0,
-                                diagramKindFilter: d.kind as 'all' | DiagramKind,
-                                diagram_id: d.id,
-                                project_id: p.id,
-                                savedSource: sourceText
-                              };
-                            });
-                            setTabs(newTabs);
-                            setActiveTabId(newTabs[0].id);
-                          } else {
-                            addToast('Project is empty');
-                          }
-                          setIsLibraryOpen(false);
-                        }} onContextMenu={(e) => {
-                          e.preventDefault();
-                          setContextMenu({ type: 'project', id: p.id, x: e.clientX, y: e.clientY });
-                        }} style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text)', cursor: 'pointer', padding: '16px', textAlign: 'center' }}>
-                          <strong style={{ marginBottom: '8px' }}>{p.name}</strong>
-                          <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{new Date(p.updated_at).toLocaleDateString()}</span>
-                        </div>
-                        ))
-                      })()
-                    }
-                  </div>
-                </div>
-              )}
-              {libraryTab === 'shared' && (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.shared_works')}</h3>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'absolute', left: '10px', color: 'var(--iso-text-muted)', pointerEvents: 'none' }}>
-                          <circle cx="11" cy="11" r="8"></circle>
-                          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input 
-                          type="text" 
-                          placeholder={t('ui.search') || 'Search projects...'} 
-                          value={librarySearchQuery} 
-                          onChange={(e) => setLibrarySearchQuery(e.target.value)}
-                          style={{ width: '200px', padding: '6px 12px 6px 32px', borderRadius: '20px', background: 'var(--iso-bg-app)', border: '1px solid transparent', outline: 'none', color: 'inherit', fontSize: '13px' }}
-                        />
-                      </div>
-                      <select className="iso-select" value={librarySort} onChange={e => setLibrarySort(e.target.value)} style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
-                        <option value="accessed">Last Accessed</option>
-                        <option value="name">Name</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)', minHeight: '200px' }}>
-                    No shared works
-                  </div>
-                </div>
-              )}
-              {libraryTab === 'examples' && (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.examples')}</h3>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
-                    {EXAMPLES.map(ex => (
-                      <div key={ex.label} onClick={() => {
-                        applyExample(ex);
-                        setIsLibraryOpen(false);
-                      }} style={{ height: '140px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text)', cursor: 'pointer', padding: '16px', textAlign: 'center' }}>
-                        <strong style={{ marginBottom: '8px' }}>{ex.label}</strong>
-                        <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{ex.kind}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-
-
-      {newCategoryPrompt && (
-        <div className="iso-modal-overlay" onClick={() => setNewCategoryPrompt(false)}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()}>
-            <button className="iso-modal-close-btn" onClick={() => setNewCategoryPrompt(false)}>×</button>
-            <h2 className="iso-modal-title">New Category Name</h2>
-            <div className="iso-modal-field">
-              <input type="text" className="iso-input" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} autoFocus onKeyDown={(e) => {
-                if (e.key === 'Enter' && newCategoryName.trim()) {
-                  const name = newCategoryName.trim();
-                  if (!customCategories.includes(name)) {
-                    const next = [...customCategories, name];
-                    setCustomCategories(next);
-                    setLibraryCategory(name);
-                    saveCustomCategoriesToDB(next);
-                  }
-                  setNewCategoryPrompt(false);
-                }
-              }} />
-            </div>
-            <div className="iso-modal-actions">
-              <button className="iso-modal-btn cancel" onClick={() => setNewCategoryPrompt(false)}>{t('ui.cancel')}</button>
-              <button className="iso-modal-btn" onClick={() => {
-                const name = newCategoryName.trim();
-                if (name && !customCategories.includes(name)) {
-                  const next = [...customCategories, name];
-                  setCustomCategories(next);
-                  setLibraryCategory(name);
-                  saveCustomCategoriesToDB(next);
-                }
-                setNewCategoryPrompt(false);
-              }}>Add Category</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {contextMenu && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 99998 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}></div>
-          <div className="iso-context-menu" style={{ left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}>
-            {contextMenu.type === 'category' && (
-              <>
-                <button className="iso-context-menu-item" onClick={() => {
-                  setRenameType('category');
-                  setRenameTargetId(contextMenu.id);
-                  setRenameValue(contextMenu.id);
-                  setRenameModalOpen(true);
-                  setContextMenu(null);
-                }}>Rename</button>
-                <div className="iso-context-menu-sep" />
-                <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
-                  const next = customCategories.filter(c => c !== contextMenu.id);
-                  setCustomCategories(next);
-                  saveCustomCategoriesToDB(next);
-                  if (libraryCategory === contextMenu.id) setLibraryCategory('All Projects');
-                  
-                  setProjects(prev => prev.map(p => {
-                    if (p.settings?.category === contextMenu.id) {
-                      const newSettings = { ...p.settings, category: null };
-                      if (user) {
-                        import('./lib/projects.js').then(({ updateProject }) => {
-                          updateProject(user.id, p.id, { settings: newSettings });
-                        });
-                      }
-                      return { ...p, settings: newSettings };
-                    }
-                    return p;
-                  }));
-                  
-                  setContextMenu(null);
-                }}>Delete Category</button>
-              </>
-            )}
-            {contextMenu.type === 'project' && (() => {
-              const project = projects.find(p => p.id === contextMenu.id);
-              const isFav = project?.settings?.is_favorite;
-              const currentFolder = project?.settings?.category;
-
-              return (
-                <>
-                  <button className="iso-context-menu-item" onClick={() => {
-                    setRenameType('project');
-                    setRenameTargetId(contextMenu.id);
-                    setRenameValue(project?.name || '');
-                    setRenameModalOpen(true);
-                    setContextMenu(null);
-                  }}>Rename</button>
-                  <button className="iso-context-menu-item" onClick={() => {
-                    if (project) {
-                      const currentSettings = project.settings || {};
-                      const nextFav = !currentSettings.is_favorite;
-                      const newSettings = { ...currentSettings, is_favorite: nextFav };
-                      import('./lib/projects.js').then(({ updateProject }) => {
-                        if (user) {
-                          updateProject(user.id, contextMenu.id, { settings: newSettings }).then(success => {
-                            if (success) {
-                              setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, settings: newSettings } : p));
-                              addToast(nextFav ? 'Added to Favorites' : 'Removed from Favorites');
-                            }
-                          });
-                        }
-                      });
-                    }
-                    setContextMenu(null);
-                  }}>{isFav ? 'Remove from Favorites' : 'Add to Favorites'}</button>
-                  <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
-                    <button className="iso-context-menu-item" style={{ justifyContent: 'space-between', display: 'flex' }}>
-                      Add to Folder <span>▶</span>
-                    </button>
-                    <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--white)', border: '1px solid var(--iso-border-strong)', borderRadius: 'var(--iso-radius-lg)', padding: '4px', display: 'none', flexDirection: 'column', minWidth: '120px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
-                      {customCategories
-                        .filter(cat => cat.toLowerCase() !== 'favorites' && cat.toLowerCase() !== 'favourites')
-                        .map(cat => {
-                          const isCurrent = currentFolder === cat;
-                          return (
-                            <button 
-                              key={cat} 
-                              className="iso-context-menu-item" 
-                              style={{ fontWeight: isCurrent ? 'bold' : 'normal' }} 
-                              onClick={() => {
-                                if (project) {
-                                  const currentSettings = project.settings || {};
-                                  const newSettings = { ...currentSettings, category: isCurrent ? null : cat };
-                                  import('./lib/projects.js').then(({ updateProject }) => {
-                                    if (user) {
-                                      updateProject(user.id, contextMenu.id, { settings: newSettings }).then(success => {
-                                        if (success) {
-                                          setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, settings: newSettings } : p));
-                                          addToast(isCurrent ? `Removed from ${cat}` : `Added to ${cat}`);
-                                        }
-                                      });
-                                    }
-                                  });
-                                }
-                                setContextMenu(null);
-                              }}
-                            >
-                              {cat} {isCurrent && '✓'}
-                            </button>
-                          );
-                        })}
-                    </div>
-                  </div>
-                  <div className="iso-context-menu-sep" />
-                  <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
-                    setProjectToDelete(contextMenu.id);
-                    setContextMenu(null);
-                  }}>Delete Project</button>
-                </>
-              );
-            })()}
-          </div>
-        </>
-      )}
-
-      {projectToDelete && (
-        <div className="iso-modal-overlay" onClick={() => setProjectToDelete(null)}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete Project</h3>
-            <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>Are you sure you want to delete this project? This action cannot be undone.</p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button className="iso-btn" onClick={() => setProjectToDelete(null)}>{t('ui.cancel')}</button>
-              <button className="iso-btn" style={{ background: 'var(--iso-danger)', color: '#fff', border: 'none' }} onClick={() => {
-                import('./lib/supabase.js').then(({ supabase }) => {
-                  supabase.from('projects').delete().eq('id', projectToDelete).then(() => {
-                    setProjects(prev => prev.filter(p => p.id !== projectToDelete));
-                    setProjectToDelete(null);
-                    addToast('Project deleted successfully');
-                  });
-                });
-              }}>Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {renameModalOpen && (
-        <div className="iso-modal-overlay" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
-            <button className="iso-modal-close-btn" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>×</button>
-            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>
-              Rename {renameType === 'project' ? 'Project' : 'Category'}
-            </h3>
-            <div className="iso-modal-field">
-              <label>New Name</label>
-              <input 
-                type="text" 
-                className="iso-input" 
-                value={renameValue} 
-                onChange={e => setRenameValue(e.target.value)} 
-                placeholder={renameType === 'project' ? 'Project name...' : 'Category name...'}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && renameValue.trim()) {
-                    handleRenameSubmit();
-                  }
-                }}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-              <button className="iso-btn" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>{t('ui.cancel')}</button>
-              <button className="iso-btn iso-btn--primary" disabled={!renameValue.trim()} onClick={handleRenameSubmit}>
-                Rename
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} initialMode={authMode} />
-      
-      {saveToCloudModalOpen && (
-        <div className="iso-modal-overlay" onClick={() => setSaveToCloudModalOpen(false)}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()}>
-            <h2 className="iso-modal-title">Save to Cloud</h2>
-            <p className="iso-modal-desc">Select a project to save this diagram into.</p>
-            <div className="iso-modal-field">
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <select className="iso-select" style={{ flex: 1 }} value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)}>
-                  <option value="">-- Select Project --</option>
-                  {projects.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-                <button className="iso-btn" onClick={() => {
-                  setNewModalTab('project');
-                  setIsNewModalOpen(true);
-                  setSaveToCloudModalOpen(false);
-                  setIsSavingFlow(true);
-                }}>New Project</button>
-              </div>
-            </div>
-            <div className="iso-modal-actions">
-              <button className="iso-modal-btn cancel" onClick={() => setSaveToCloudModalOpen(false)}>{t('ui.cancel')}</button>
-              <button className="iso-modal-btn confirm" disabled={!selectedProjectId || isSavingToCloud} onClick={async () => {
-                if (!selectedProjectId || !user) return;
-                setIsSavingToCloud(true);
-                try {
-                  const { createDiagram } = await import('./lib/projects.js');
-                  const diagram = await createDiagram(user.id, selectedProjectId, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
-                  if (diagram) {
-                    updateActiveTab(tab => ({ ...tab, diagram_id: diagram.id, project_id: selectedProjectId, savedSource: tab.source }), false);
-                    setSaveToCloudModalOpen(false);
-                    addToast('Saved to cloud');
-                  }
-                } catch (e: any) {
-                  alert(e.message || 'Error saving to cloud');
-                } finally {
-                  setIsSavingToCloud(false);
-                }
-              }}>{isSavingToCloud ? 'Saving...' : 'Save'}</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {toasts.length > 0 && (
         <div className="iso-toast-container">
@@ -4257,10 +4712,3 @@ export default function App() {
     </div>
   );
 }
-
-
-
-
-
-
-

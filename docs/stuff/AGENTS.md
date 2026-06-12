@@ -1,7 +1,7 @@
 # Agent TODO Operating Instructions
 
 ## Mission
-Use this file as the primary execution contract for implementing and closing items from features.md, TODO.md and ROADMAP.md safely, incrementally, and verifiably.
+Use this file as the primary execution contract for implementing and closing items from features.md, TODO.md and ROADMAP.md safely, incrementally, and verifiably. When modifying or adding features check design.md and follow it by heart. After changes always run `npm run build` and `npm run typecheck`.
 
 ## Workflow Rules
 - Work in small batches, starting from highest-priority unchecked items (typically P0 first).

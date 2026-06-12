@@ -150,3 +150,30 @@ export async function updateDiagramContent(diagramId: string, content: any): Pro
   }
   return true;
 }
+
+export async function updateDiagram(diagramId: string, updates: Partial<Diagram>): Promise<boolean> {
+  const { error } = await supabase
+    .from('diagrams')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', diagramId);
+
+  if (error) {
+    console.error('Error updating diagram details:', error);
+    return false;
+  }
+  return true;
+}
+
+export async function deleteDiagram(diagramId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('diagrams')
+    .delete()
+    .eq('id', diagramId);
+
+  if (error) {
+    console.error('Error deleting diagram:', error);
+    return false;
+  }
+  return true;
+}
+
