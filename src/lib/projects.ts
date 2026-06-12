@@ -7,6 +7,10 @@ export interface Project {
   owner_id: string;
   created_at: string;
   updated_at: string;
+  settings?: {
+    is_favorite?: boolean;
+    category?: string | null;
+  };
 }
 
 export interface Diagram {

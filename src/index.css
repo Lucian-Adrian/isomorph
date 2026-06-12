@@ -56,6 +56,9 @@
   --iso-error:         #ff5f57;
   --iso-warning:       #febc2e;
   --iso-info:          #0550ae;
+  --iso-danger:        var(--iso-error);
+  --iso-primary:       var(--ink-deep);
+  --iso-primary-hover: var(--ink);
 
   /* Radius */
   --iso-radius-sm:     6px;
@@ -127,12 +130,14 @@
 
   /* Border */
   --iso-border-strong: rgba(255,255,255,0.15);
-
   /* Semantic */
   --iso-error:         #ff7b72;
   --iso-warning:       #d29922;
   --iso-success:       #3fb950;
   --iso-info:          #58a6ff;
+  --iso-danger:        var(--iso-error);
+  --iso-primary:       var(--ink-deep);
+  --iso-primary-hover: var(--ink);
 
   /* Syntax Highlighting */
   --syn-kw: #79c0ff;
@@ -1038,6 +1043,7 @@ body {
   z-index: 1000;
 }
 .iso-modal {
+  position: relative;
   background: var(--iso-bg-app);
   border: 1px solid var(--iso-border);
   padding: 24px;
@@ -1077,6 +1083,55 @@ body {
   min-width: 0;
   -webkit-user-select: text;
   user-select: text;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.iso-modal-field input:not([type="checkbox"]):focus,
+.iso-modal-field select:focus,
+.iso-modal-field textarea:focus {
+  border-color: var(--iso-primary);
+  box-shadow: 0 0 0 2px rgba(138, 138, 130, 0.15);
+}
+
+.iso-modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--iso-text-muted);
+  cursor: pointer;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.iso-modal-close-btn:hover {
+  background: var(--iso-bg-hover);
+  color: var(--iso-text);
+}
+
+.iso-input {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--iso-text);
+  border: 1px solid var(--iso-border);
+  border-radius: var(--iso-radius);
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 14px;
+  width: 100%;
+  min-width: 0;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.iso-input:focus {
+  border-color: var(--iso-primary);
+  box-shadow: 0 0 0 2px rgba(138, 138, 130, 0.15);
 }
 .iso-modal-actions {
   display: flex;

@@ -891,6 +891,11 @@ export default function App() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [contextMenu, setContextMenu] = useState<{ type: 'category' | 'project', id: string, x: number, y: number } | null>(null);
 
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameType, setRenameType] = useState<'project' | 'category' | null>(null);
+  const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const { session, user, signOut } = useAuth();
@@ -932,6 +937,56 @@ export default function App() {
         setProfile(p => p ? { ...p, settings: { ...cleanSettings, projects: { tabs: cats } } } : null);
       }
     }
+  };
+
+  const handleRenameSubmit = () => {
+    const trimmed = renameValue.trim();
+    if (!trimmed || !renameTargetId || !renameType) return;
+
+    if (renameType === 'project') {
+      import('./lib/projects.js').then(({ updateProject }) => {
+        if (user) {
+          updateProject(user.id, renameTargetId, { name: trimmed }).then(success => {
+            if (success) {
+              setProjects(prev => prev.map(p => p.id === renameTargetId ? { ...p, name: trimmed } : p));
+              addToast('Project renamed');
+            }
+          });
+        }
+      });
+    } else if (renameType === 'category') {
+      if (customCategories.includes(trimmed)) {
+        addToast('Category already exists', 'info');
+        return;
+      }
+      const oldName = renameTargetId;
+      const next = customCategories.map(c => c === oldName ? trimmed : c);
+      setCustomCategories(next);
+      saveCustomCategoriesToDB(next);
+      
+      setProjects(prev => prev.map(p => {
+        if (p.settings?.category === oldName) {
+          const newSettings = { ...p.settings, category: trimmed };
+          if (user) {
+            import('./lib/projects.js').then(({ updateProject }) => {
+              updateProject(user.id, p.id, { settings: newSettings });
+            });
+          }
+          return { ...p, settings: newSettings };
+        }
+        return p;
+      }));
+
+      if (libraryCategory === oldName) {
+        setLibraryCategory(trimmed);
+      }
+      addToast('Category renamed');
+    }
+
+    setRenameModalOpen(false);
+    setRenameType(null);
+    setRenameTargetId(null);
+    setRenameValue('');
   };
 
   const handleSaveSettings = async () => {
@@ -3287,13 +3342,13 @@ export default function App() {
             
             <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--iso-bg-header)', padding: '4px', borderRadius: '8px' }}>
               <button 
-                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'tab' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'tab' ? '#fff' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
+                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'tab' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'tab' ? 'var(--white)' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
                 onClick={() => { setNewModalTab('tab'); setNewProjectError(''); }}
               >
                 Diagram
               </button>
               <button 
-                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'project' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'project' ? '#fff' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
+                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'project' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'project' ? 'var(--white)' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
                 onClick={() => { setNewModalTab('project'); setNewProjectError(''); }}
               >
                 Project
@@ -3302,13 +3357,17 @@ export default function App() {
 
             {newModalTab === 'tab' ? (
               <>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Diagram Type</label>
+                <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Diagram Type</label>
                   <select 
                     className="iso-select" 
                     value={newDiagramKind} 
                     onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px' }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        executeNewDiagram(newDiagramKind);
+                      }
+                    }}
                   >
                     {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
                       <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
@@ -3322,8 +3381,8 @@ export default function App() {
               </>
             ) : (
               <>
-                <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Project Name</label>
+                <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Project Name</label>
                   <input 
                     type="text" 
                     className="iso-input" 
@@ -3331,7 +3390,24 @@ export default function App() {
                     onChange={e => { setNewProjectName(e.target.value); setNewProjectError(''); }} 
                     placeholder="E.g., Q3 System Architecture..." 
                     autoFocus
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', borderColor: newProjectError ? 'var(--iso-danger)' : undefined }}
+                    style={{ borderColor: newProjectError ? 'var(--iso-danger)' : undefined }}
+                    onKeyDown={async (e) => {
+                      if (e.key === 'Enter' && newProjectName.trim()) {
+                        if (user && newProjectName.trim()) {
+                          const { createProject } = await import('./lib/projects.js');
+                          try {
+                            const p = await createProject(user.id, newProjectName.trim());
+                            if (p) {
+                              setProjects(prev => [p, ...prev]);
+                              addToast('Project created successfully', 'success');
+                              setIsNewModalOpen(false);
+                              setNewProjectName('');
+                              setNewProjectError('');
+                            }
+                          } catch(err: any) { setNewProjectError(err.message); }
+                        } else { setNewProjectError("You must be logged in to create a project."); }
+                      }
+                    }}
                   />
                   {newProjectError && <div style={{ color: 'var(--iso-danger)', fontSize: '12px', marginTop: '6px' }}>{newProjectError}</div>}
                 </div>
@@ -3581,7 +3657,6 @@ export default function App() {
                       </p>
                       <button className="iso-btn iso-btn--primary" style={{ marginTop: '8px', alignSelf: 'flex-start' }} onClick={() => window.open('https://isomorph.ro/pricing', '_blank')}>View Plans</button>
                     </div>
-                    <button className="iso-btn iso-btn--primary" style={{ alignSelf: 'flex-start', marginTop: '16px' }} onClick={handleSaveSettings}>Save Changes</button>
                   </div>
                 </div>
               )}
@@ -3755,7 +3830,8 @@ export default function App() {
                         onClick={() => setLibraryCategory(cat)}
                         onContextMenu={(e) => {
                           e.preventDefault();
-                          if (cat !== 'All Projects' && cat !== 'Favourites') {
+                          const isProtected = cat.toLowerCase() === 'all projects' || cat.toLowerCase() === 'favorites' || cat.toLowerCase() === 'favourites';
+                          if (!isProtected) {
                             setContextMenu({ type: 'category', id: cat, x: e.clientX, y: e.clientY });
                           }
                         }}
@@ -3777,12 +3853,11 @@ export default function App() {
                         if (libraryVisibilityFilter === 'public') filtered = filtered.filter(() => false); // no public projects yet
                         if (libraryVisibilityFilter === 'private') filtered = filtered.filter(() => true); // all private for now
                         
-                        if (libraryCategory === 'Favourites') {
-                          // For now, no Favourites schema, so just filter empty or fake
-                          filtered = filtered.filter(() => false); 
+                        const isFavTab = libraryCategory.toLowerCase() === 'favorites' || libraryCategory.toLowerCase() === 'favourites';
+                        if (isFavTab) {
+                          filtered = filtered.filter(p => p.settings?.is_favorite); 
                         } else if (libraryCategory !== 'All Projects') {
-                           // If custom category, we don't have schema mapping yet, so filter empty
-                          filtered = filtered.filter(() => false);
+                          filtered = filtered.filter(p => p.settings?.category === libraryCategory);
                         }
 
                         filtered = filtered.sort((a, b) => {
@@ -3860,6 +3935,9 @@ export default function App() {
                       </select>
                     </div>
                   </div>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)', minHeight: '200px' }}>
+                    No shared works
+                  </div>
                 </div>
               )}
               {libraryTab === 'examples' && (
@@ -3890,6 +3968,7 @@ export default function App() {
       {newCategoryPrompt && (
         <div className="iso-modal-overlay" onClick={() => setNewCategoryPrompt(false)}>
           <div className="iso-modal" onClick={e => e.stopPropagation()}>
+            <button className="iso-modal-close-btn" onClick={() => setNewCategoryPrompt(false)}>×</button>
             <h2 className="iso-modal-title">New Category Name</h2>
             <div className="iso-modal-field">
               <input type="text" className="iso-input" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} autoFocus onKeyDown={(e) => {
@@ -3927,55 +4006,116 @@ export default function App() {
           <div style={{ position: 'fixed', inset: 0, zIndex: 99998 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}></div>
           <div style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 99999, background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '150px' }}>
             {contextMenu.type === 'category' && (
-              <button className="iso-btn" style={{ textAlign: 'left', color: 'var(--iso-danger)', background: 'transparent' }} onClick={() => {
-                const next = customCategories.filter(c => c !== contextMenu.id);
-                setCustomCategories(next);
-                saveCustomCategoriesToDB(next);
-                if (libraryCategory === contextMenu.id) setLibraryCategory('All Projects');
-                setContextMenu(null);
-              }}>Delete Category</button>
-            )}
-            {contextMenu.type === 'project' && (
               <>
                 <button className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
-                  const name = prompt('New name:', projects.find(p => p.id === contextMenu.id)?.name);
-                  if (name && name.trim()) {
-                    import('./lib/projects.js').then(({ updateProject }) => {
-                      if (user) {
-                        updateProject(user.id, contextMenu.id, { name: name.trim() }).then(success => {
-                          if (success) {
-                            setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, name: name.trim() } : p));
-                          }
-                        });
-                      }
-                    });
-                  }
+                  setRenameType('category');
+                  setRenameTargetId(contextMenu.id);
+                  setRenameValue(contextMenu.id);
+                  setRenameModalOpen(true);
                   setContextMenu(null);
                 }}>Rename</button>
-                <button className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
-                  setContextMenu(null);
-                  addToast('Added to Favourites');
-                }}>Add to Favorites</button>
-                <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
-                  <button className="iso-btn" style={{ justifyContent: 'space-between', background: 'transparent', width: '100%', border: 'none', display: 'flex' }}>
-                    Add to Folder <span>▶</span>
-                  </button>
-                  <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '8px', display: 'none', flexDirection: 'column', minWidth: '120px' }}>
-                    {customCategories.map(cat => (
-                      <button key={cat} className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
-                        addToast(`Added to ${cat}`);
-                        setContextMenu(null);
-                      }}>{cat}</button>
-                    ))}
-                  </div>
-                </div>
                 <div style={{ height: '1px', background: 'var(--iso-border)', margin: '4px 0' }} />
                 <button className="iso-btn" style={{ justifyContent: 'flex-start', color: 'var(--iso-danger)', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
-                  setProjectToDelete(contextMenu.id);
+                  const next = customCategories.filter(c => c !== contextMenu.id);
+                  setCustomCategories(next);
+                  saveCustomCategoriesToDB(next);
+                  if (libraryCategory === contextMenu.id) setLibraryCategory('All Projects');
+                  
+                  setProjects(prev => prev.map(p => {
+                    if (p.settings?.category === contextMenu.id) {
+                      const newSettings = { ...p.settings, category: null };
+                      if (user) {
+                        import('./lib/projects.js').then(({ updateProject }) => {
+                          updateProject(user.id, p.id, { settings: newSettings });
+                        });
+                      }
+                      return { ...p, settings: newSettings };
+                    }
+                    return p;
+                  }));
+                  
                   setContextMenu(null);
-                }}>Delete Project</button>
+                }}>Delete Category</button>
               </>
             )}
+            {contextMenu.type === 'project' && (() => {
+              const project = projects.find(p => p.id === contextMenu.id);
+              const isFav = project?.settings?.is_favorite;
+              const currentFolder = project?.settings?.category;
+
+              return (
+                <>
+                  <button className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
+                    setRenameType('project');
+                    setRenameTargetId(contextMenu.id);
+                    setRenameValue(project?.name || '');
+                    setRenameModalOpen(true);
+                    setContextMenu(null);
+                  }}>Rename</button>
+                  <button className="iso-btn" style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
+                    if (project) {
+                      const currentSettings = project.settings || {};
+                      const nextFav = !currentSettings.is_favorite;
+                      const newSettings = { ...currentSettings, is_favorite: nextFav };
+                      import('./lib/projects.js').then(({ updateProject }) => {
+                        if (user) {
+                          updateProject(user.id, contextMenu.id, { settings: newSettings }).then(success => {
+                            if (success) {
+                              setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, settings: newSettings } : p));
+                              addToast(nextFav ? 'Added to Favorites' : 'Removed from Favorites');
+                            }
+                          });
+                        }
+                      });
+                    }
+                    setContextMenu(null);
+                  }}>{isFav ? 'Remove from Favorites' : 'Add to Favorites'}</button>
+                  <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
+                    <button className="iso-btn" style={{ justifyContent: 'space-between', background: 'transparent', width: '100%', border: 'none', display: 'flex' }}>
+                      Add to Folder <span>▶</span>
+                    </button>
+                    <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '8px', display: 'none', flexDirection: 'column', minWidth: '120px' }}>
+                      {customCategories
+                        .filter(cat => cat.toLowerCase() !== 'favorites' && cat.toLowerCase() !== 'favourites')
+                        .map(cat => {
+                          const isCurrent = currentFolder === cat;
+                          return (
+                            <button 
+                              key={cat} 
+                              className="iso-btn" 
+                              style={{ justifyContent: 'flex-start', background: 'transparent', width: '100%', border: 'none', fontWeight: isCurrent ? 'bold' : 'normal' }} 
+                              onClick={() => {
+                                if (project) {
+                                  const currentSettings = project.settings || {};
+                                  const newSettings = { ...currentSettings, category: isCurrent ? null : cat };
+                                  import('./lib/projects.js').then(({ updateProject }) => {
+                                    if (user) {
+                                      updateProject(user.id, contextMenu.id, { settings: newSettings }).then(success => {
+                                        if (success) {
+                                          setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, settings: newSettings } : p));
+                                          addToast(isCurrent ? `Removed from ${cat}` : `Added to ${cat}`);
+                                        }
+                                      });
+                                    }
+                                  });
+                                }
+                                setContextMenu(null);
+                              }}
+                            >
+                              {cat} {isCurrent && '✓'}
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
+                  <div style={{ height: '1px', background: 'var(--iso-border)', margin: '4px 0' }} />
+                  <button className="iso-btn" style={{ justifyContent: 'flex-start', color: 'var(--iso-danger)', background: 'transparent', width: '100%', border: 'none' }} onClick={() => {
+                    setProjectToDelete(contextMenu.id);
+                    setContextMenu(null);
+                  }}>Delete Project</button>
+                </>
+              );
+            })()}
           </div>
         </>
       )}
@@ -3996,6 +4136,39 @@ export default function App() {
                   });
                 });
               }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {renameModalOpen && (
+        <div className="iso-modal-overlay" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+            <button className="iso-modal-close-btn" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>×</button>
+            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>
+              Rename {renameType === 'project' ? 'Project' : 'Category'}
+            </h3>
+            <div className="iso-modal-field">
+              <label>New Name</label>
+              <input 
+                type="text" 
+                className="iso-input" 
+                value={renameValue} 
+                onChange={e => setRenameValue(e.target.value)} 
+                placeholder={renameType === 'project' ? 'Project name...' : 'Category name...'}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && renameValue.trim()) {
+                    handleRenameSubmit();
+                  }
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+              <button className="iso-btn" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>{t('ui.cancel')}</button>
+              <button className="iso-btn iso-btn--primary" disabled={!renameValue.trim()} onClick={handleRenameSubmit}>
+                Rename
+              </button>
             </div>
           </div>
         </div>
