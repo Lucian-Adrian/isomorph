@@ -848,7 +848,16 @@ export default function App() {
   const [editingEntity, setEditingEntity]   = useState<(IOMEntity & { bodyText?: string; origName?: string; elseBlocks?: { label?: string }[] }) | null>(null);
   const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
   const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string, seqMessageType?: SequenceMessageType } | null>(null);
-  const [errorsCopied, setErrorsCopied] = useState(false);
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'info' }[]>([]);
+  const [collabShowTrail, setCollabShowTrail] = useState(true);
+
+  const addToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
+  }, []);
   const [renamingTabId, setRenamingTabId]   = useState<string | null>(null);
   const [pendingMobileDropKeyword, setPendingMobileDropKeyword] = useState<string | null>(null);
   const examplesRef                         = useRef<HTMLDivElement>(null);
@@ -1155,8 +1164,7 @@ export default function App() {
     }
 
     if (copied) {
-      setErrorsCopied(true);
-      window.setTimeout(() => setErrorsCopied(false), 1400);
+      addToast(t('ui.copied') || 'Copied');
     }
   }, [allErrors]);
 
@@ -1466,7 +1474,7 @@ export default function App() {
           if (snippets.length > 0) {
             const textToCopy = snippets.join('\n');
             if (e.key === 'c') {
-              navigator.clipboard.writeText(textToCopy).catch(() => {});
+              navigator.clipboard.writeText(textToCopy).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => {});
               pasteCounterRef.current = 1; // Reset cascade on copy
             } else if (e.key === 'd') {
               // Re-use paste logic for duplicate
@@ -1582,7 +1590,7 @@ export default function App() {
               }
             }
             if (snippets.length > 0) {
-              navigator.clipboard.writeText(snippets.join('\n')).catch(() => {});
+              navigator.clipboard.writeText(snippets.join('\n')).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => {});
             }
             return { ...tab, source: nextSource };
           });
@@ -1878,7 +1886,7 @@ export default function App() {
               onClick={handleCopyErrors}
               style={{ padding: '2px 8px', fontSize: '0.72rem' }}
             >
-              {errorsCopied ? t('ui.copied') : t('ui.copy_errors')}
+              {t('ui.copy_errors')}
             </button>
           </div>
           {allErrors.slice(0, 8).map((msg, i) => (
@@ -2003,7 +2011,7 @@ export default function App() {
     const annoMatches = activeTab.source.match(annoRx);
     if (annoMatches) snippets.push(...annoMatches);
     if (snippets.length > 0) {
-      navigator.clipboard.writeText(snippets.join('\n')).catch(() => {});
+      navigator.clipboard.writeText(snippets.join('\n')).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => {});
       pasteCounterRef.current = 1;
     }
   }, [activeTab]);
@@ -3253,8 +3261,16 @@ export default function App() {
                   {session ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '400px' }}>
                       <div className="iso-modal-field">
-                        <label>Email Address</label>
-                        <input type="email" value={user?.email || ''} disabled className="iso-input" style={{ opacity: 0.7 }} />
+                        <label>Profile Photo</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                            {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '24px' }}>👤</span>}
+                          </div>
+                          <button className="iso-btn" style={{ fontSize: '13px' }} onClick={() => {
+                            const url = prompt('Enter profile image URL:');
+                            if (url && profile) setProfile({ ...profile, avatar_url: url });
+                          }}>Upload Photo</button>
+                        </div>
                       </div>
                       <div className="iso-modal-field">
                         <label>Display Name</label>
@@ -3265,17 +3281,25 @@ export default function App() {
                         <input type="text" placeholder="alice_wonder" value={profile?.username || ''} onChange={e => setProfile(p => p ? { ...p, username: e.target.value } : null)} className="iso-input" />
                       </div>
                       <div className="iso-modal-field">
-                        <label>Profile Photo</label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                            {profile?.avatar_url ? <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '24px' }}>👤</span>}
-                          </div>
-                          <button className="iso-btn" style={{ fontSize: '13px' }}>Upload Photo</button>
-                        </div>
+                        <label>Email Address</label>
+                        <input type="email" value={user?.email || ''} disabled className="iso-input" style={{ opacity: 0.7 }} />
                       </div>
                       
                       <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                        <button className="iso-btn iso-btn--primary" style={{ flex: 1 }}>Save Changes</button>
+                        <button className="iso-btn iso-btn--primary" style={{ flex: 1 }} onClick={async () => {
+                          if (user && profile) {
+                            const { error } = await supabase.from('profiles').update({
+                              display_name: profile.display_name,
+                              username: profile.username,
+                              avatar_url: profile.avatar_url
+                            }).eq('id', user.id);
+                            if (error) {
+                              alert('Error updating profile: ' + error.message);
+                            } else {
+                              addToast('Profile updated successfully');
+                            }
+                          }
+                        }}>Save Changes</button>
                         <button className="iso-btn" style={{ color: 'var(--iso-error)' }} onClick={() => signOut()}>Sign Out</button>
                       </div>
                     </div>
@@ -3297,9 +3321,9 @@ export default function App() {
                     
                     <div className="iso-modal-field">
                       <label>Cursor Live Preview</label>
-                      <div style={{ height: '120px', background: 'var(--iso-bg-canvas)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                      <div style={{ height: '120px', background: 'var(--iso-bg-canvas)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                         
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
                             <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.84c.45 0 .67-.54.35-.85L5.5 3.21z" fill={profile?.cursor_colour || '#3B82F6'} stroke="white" strokeWidth="1.5" />
                           </svg>
@@ -3317,6 +3341,14 @@ export default function App() {
                           </div>
                         </div>
 
+                        {collabShowTrail && (
+                          <>
+                            <div style={{ position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.5, transform: 'translate(-12px, 12px)', zIndex: 1 }}></div>
+                            <div style={{ position: 'absolute', width: 6, height: 6, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.3, transform: 'translate(-20px, 20px)', zIndex: 1 }}></div>
+                            <div style={{ position: 'absolute', width: 4, height: 4, borderRadius: '50%', background: profile?.cursor_colour || '#3B82F6', opacity: 0.15, transform: 'translate(-26px, 26px)', zIndex: 1 }}></div>
+                          </>
+                        )}
+
                       </div>
                     </div>
 
@@ -3327,14 +3359,15 @@ export default function App() {
                           <button
                             key={color}
                             onClick={() => {
-                              // We will save to profile in Phase B, for now just update local state
                               setProfile(p => p ? { ...p, cursor_colour: color } : null);
                             }}
                             style={{
                               width: '32px', height: '32px', borderRadius: '50%', background: color, 
-                              border: profile?.cursor_colour === color ? '2px solid white' : '1px solid var(--iso-border)',
-                              outline: profile?.cursor_colour === color ? `2px solid ${color}` : 'none',
-                              cursor: 'pointer'
+                              border: profile?.cursor_colour === color ? '2px solid var(--iso-bg-app)' : '2px solid transparent',
+                              boxShadow: profile?.cursor_colour === color ? `0 0 0 2px ${color}` : '0 0 0 1px var(--iso-border)',
+                              outline: 'none',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
                             }}
                             aria-label={`Select color ${color}`}
                           />
@@ -3348,7 +3381,7 @@ export default function App() {
                         Show my name label to others
                       </label>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 'normal', marginTop: '12px' }}>
-                        <input type="checkbox" defaultChecked />
+                        <input type="checkbox" checked={collabShowTrail} onChange={e => setCollabShowTrail(e.target.checked)} />
                         Show cursor particle trails
                       </label>
                     </div>
@@ -3376,7 +3409,16 @@ export default function App() {
                         {projects.length} / {profile?.tier === 'enterprise' ? '100' : profile?.tier === 'power' ? '25' : '5'} projects
                       </span>
                     </div>
-                    <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.storage_future')}</p>
+                    <p style={{ color: 'var(--iso-text-muted)', marginBottom: '8px' }}>{t('ui.storage_future')}</p>
+                    <div style={{ padding: '16px', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <strong style={{ fontSize: '14px' }}>Upgrade Plan</strong>
+                      <p style={{ fontSize: '12px', color: 'var(--iso-text-muted)', margin: 0 }}>
+                        Basic: 5 projects (Free)<br/>
+                        Power: 25 projects ($5/mo)<br/>
+                        Enterprise: 100+ projects (Contact us)
+                      </p>
+                      <button className="iso-btn iso-btn--primary" style={{ marginTop: '8px', alignSelf: 'flex-start' }}>View Plans</button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -3497,24 +3539,36 @@ export default function App() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.my_works')}</h3>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <input 
-                        type="text" 
-                        placeholder={t('ui.search') || 'Search...'} 
-                        value={librarySearchQuery} 
-                        onChange={(e) => setLibrarySearchQuery(e.target.value)}
-                        className="iso-input"
-                        style={{ width: '200px' }}
-                      />
-                      <select className="iso-select" style={{ width: '120px' }} aria-label="Filter visibility">
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'absolute', left: '10px', color: 'var(--iso-text-muted)', pointerEvents: 'none' }}>
+                          <circle cx="11" cy="11" r="8"></circle>
+                          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input 
+                          type="text" 
+                          placeholder={t('ui.search') || 'Search projects...'} 
+                          value={librarySearchQuery} 
+                          onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                          className="iso-input"
+                          style={{ width: '200px', paddingLeft: '32px', borderRadius: '20px', background: 'var(--iso-bg-app)' }}
+                        />
+                      </div>
+                      <select className="iso-select" style={{ width: '120px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Filter visibility">
                         <option value="all">All</option>
                         <option value="public">Public</option>
                         <option value="private">Private</option>
                       </select>
-                      <select className="iso-select" style={{ width: '150px' }} aria-label="Sort projects">
+                      <select className="iso-select" style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
                         <option value="accessed">Last Accessed</option>
                         <option value="name">Name</option>
                       </select>
                     </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                    <button className="iso-btn iso-btn--primary" style={{ borderRadius: '20px', padding: '4px 12px' }}>All Projects</button>
+                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }}>Favorites</button>
+                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }}>Work</button>
+                    <button className="iso-btn" style={{ borderRadius: '20px', padding: '4px 12px', background: 'var(--iso-bg-header)' }}>Personal</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
                     {!user ? (
@@ -3541,19 +3595,28 @@ export default function App() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <h3 style={{ margin: 0, fontSize: '20px' }}>{t('ui.shared_works')}</h3>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <input 
-                        type="text" 
-                        placeholder={t('ui.search') || 'Search...'} 
-                        value={librarySearchQuery} 
-                        onChange={(e) => setLibrarySearchQuery(e.target.value)}
-                        className="iso-input"
-                        style={{ width: '200px' }}
-                      />
-                      <select className="iso-select" style={{ width: '150px' }} aria-label="Sort projects">
+                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'absolute', left: '10px', color: 'var(--iso-text-muted)', pointerEvents: 'none' }}>
+                          <circle cx="11" cy="11" r="8"></circle>
+                          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input 
+                          type="text" 
+                          placeholder={t('ui.search') || 'Search projects...'} 
+                          value={librarySearchQuery} 
+                          onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                          className="iso-input"
+                          style={{ width: '200px', paddingLeft: '32px', borderRadius: '20px', background: 'var(--iso-bg-app)' }}
+                        />
+                      </div>
+                      <select className="iso-select" style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }} aria-label="Sort projects">
                         <option value="accessed">Last Accessed</option>
                         <option value="name">Name</option>
                       </select>
                     </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                    <button className="iso-btn iso-btn--primary" style={{ borderRadius: '20px', padding: '4px 12px' }}>All Projects</button>
                   </div>
                   <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.shared_future')}</p>
                 </div>
@@ -3589,6 +3652,7 @@ export default function App() {
                   if (diagram) {
                     updateActiveTab(tab => ({ ...tab, diagram_id: diagram.id, project_id: selectedProjectId, savedSource: tab.source }), false);
                     setSaveToCloudModalOpen(false);
+                    addToast('Saved to cloud');
                   }
                 } catch (e: any) {
                   alert(e.message || 'Error saving to cloud');
@@ -3598,6 +3662,17 @@ export default function App() {
               }}>{isSavingToCloud ? 'Saving...' : 'Save'}</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {toasts.length > 0 && (
+        <div className="iso-toast-container">
+          {toasts.map(t => (
+            <div key={t.id} className="iso-toast">
+              {t.type === 'success' && <span style={{ color: 'var(--iso-success, #4caf50)' }}>✓</span>}
+              {t.message}
+            </div>
+          ))}
         </div>
       )}
     </div>

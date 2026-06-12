@@ -66,7 +66,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
               {t('feedback.success')}
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="iso-form">
+            <form onSubmit={handleSubmit} className="iso-form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div className="iso-modal-field">
                 <label>{t('feedback.type')}</label>
                 <select className="iso-select" value={type} onChange={e => setType(e.target.value as any)} style={{ width: '100%' }}>
@@ -95,7 +95,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
               {error && <div className="iso-error-message">{error}</div>}
 
-              <button type="submit" className="iso-button iso-button--primary" style={{ width: '100%' }} disabled={loading}>
+              <button type="submit" className="iso-btn iso-btn--primary" style={{ width: '100%', padding: '12px', fontSize: '16px' }} disabled={loading}>
                 {loading ? '...' : t('feedback.submit')}
               </button>
             </form>
