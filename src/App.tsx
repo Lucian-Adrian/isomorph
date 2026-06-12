@@ -1321,7 +1321,7 @@ export default function App() {
       if (p) {
         setProjects(prev => [p, ...prev]);
         addToast('Project created successfully', 'success');
-        
+
         if (isSavingFlow) {
           const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
           if (d) {
@@ -4603,7 +4603,7 @@ export default function App() {
         <div className="iso-modal-overlay" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>
           <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
             <button className="iso-modal-close-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>×</button>
-            <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '16px' }}>{t('welcome.create_new') || 'Create New'}</h3>
+            <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '16px' }}>{'Create new'}</h3>
 
             <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--iso-bg-header)', padding: '4px', borderRadius: '8px' }}>
               <button
@@ -4623,7 +4623,7 @@ export default function App() {
             {newModalTab === 'tab' ? (
               <>
                 <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Diagram Type</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Diagram type</label>
                   <select
                     className="iso-select"
                     value={newDiagramKind}
@@ -4647,13 +4647,13 @@ export default function App() {
             ) : (
               <>
                 <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Project Name</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Project name</label>
                   <input
                     type="text"
                     className="iso-input"
                     value={newProjectName}
                     onChange={e => { setNewProjectName(e.target.value); setNewProjectError(''); }}
-                    placeholder="E.g., Q3 System Architecture..."
+                    placeholder="Q3 System architecture..."
                     autoFocus
                     style={{ borderColor: newProjectError ? 'var(--iso-danger)' : undefined }}
                     onKeyDown={(e) => {
