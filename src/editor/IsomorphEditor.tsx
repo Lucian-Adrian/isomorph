@@ -179,7 +179,7 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
   return (
     <div
       ref={containerRef}
-      style={{ height: '100%', overflow: 'hidden', border: '1px solid #d0d7de', borderRadius: '6px' }}
+      style={{ height: '100%', overflow: 'hidden', border: '1px solid var(--iso-border)', borderRadius: '6px' }}
     />
   );
 }

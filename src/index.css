@@ -526,11 +526,6 @@ body {
   letter-spacing: 0.6px;
   color: var(--iso-text-faint);
 }
-.iso-panel--canvas .iso-panel-header {
-  background: var(--iso-bg-hover);
-  border-bottom: 1px solid var(--iso-divider);
-  color: var(--iso-text-muted);
-}
 .iso-panel-info {
   font-size: 11px;
   color: var(--iso-info);
@@ -538,9 +533,6 @@ body {
   text-transform: none;
   letter-spacing: 0;
   margin-left: 4px;
-}
-.iso-panel--canvas .iso-panel-info {
-  color: var(--iso-info);
 }
 .iso-panel-spacer { flex: 1; }
 .iso-panel-body {
