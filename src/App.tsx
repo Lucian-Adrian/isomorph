@@ -28,7 +28,7 @@ import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Lan
 import { computeLayout } from './utils/auto-layout.js';
 import { useAuth } from './lib/auth-context.js';
 import { AuthModal } from './components/AuthModal.js';
-import { getProjects, type Project, getDiagramHistory, saveDiagramHistory, type DiagramHistory } from './lib/projects.js';
+import { getProjects, type Project, getDiagramHistory, deleteDiagramHistoryAfter, type DiagramHistory } from './lib/projects.js';
 import { isTelemetryEnabled, setTelemetryEnabled } from './lib/telemetry.js';
 
 type DiagramKind = IOMDiagram['kind'];
@@ -356,38 +356,52 @@ function toolsetFor(kind?: DiagramKind): CanvasTool[] {
   return ['move', 'hand', 'add-edge', 'edit-node', 'edit-edge'];
 }
 
-function getStencilsForKind(kind?: DiagramKind) {
+function getStencilsForKind(kind?: DiagramKind): { label: string; keyword: string; icon?: JSX.Element }[] {
+  const SvgClass = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>;
+  const SvgAbstractClass = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>;
+  const SvgInterface = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>;
+  const SvgEnum = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>;
+  const SvgPackage = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>;
+  const SvgNote = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>;
+  const SvgActor = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21v-2a4 4 0 0 1 4-4h5a4 4 0 0 1 4 4v2"></path></svg>;
+  const SvgUseCase = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="12" rx="10" ry="6"></ellipse></svg>;
+  const SvgSystem = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>;
+  const SvgComponent = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect></svg>;
+  const SvgNode = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>;
+  const SvgArtifact = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>;
+  const SvgEnvironment = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>;
+
   switch (kind) {
     case 'class':
       return [
-        { label: 'Class', keyword: 'class' },
-        { label: 'Abstract Class', keyword: 'abstract class' },
-        { label: 'Interface', keyword: 'interface' },
-        { label: 'Enum', keyword: 'enum' },
-        { label: 'Package', keyword: 'package' },
-        { label: 'Note', keyword: 'note' },
+        { label: 'Class', keyword: 'class', icon: SvgClass },
+        { label: 'Abstract Class', keyword: 'abstract class', icon: SvgAbstractClass },
+        { label: 'Interface', keyword: 'interface', icon: SvgInterface },
+        { label: 'Enum', keyword: 'enum', icon: SvgEnum },
+        { label: 'Package', keyword: 'package', icon: SvgPackage },
+        { label: 'Note', keyword: 'note', icon: SvgNote },
       ];
     case 'usecase':
       return [
-        { label: 'Actor', keyword: 'actor' },
-        { label: 'Use Case', keyword: 'usecase' },
-        { label: 'System', keyword: 'system' },
-        { label: 'Note', keyword: 'note' },
+        { label: 'Actor', keyword: 'actor', icon: SvgActor },
+        { label: 'Use Case', keyword: 'usecase', icon: SvgUseCase },
+        { label: 'System', keyword: 'system', icon: SvgSystem },
+        { label: 'Note', keyword: 'note', icon: SvgNote },
       ];
     case 'component':
       return [
-        { label: 'Component', keyword: 'component' },
-        { label: 'Interface', keyword: 'interface' },
-        { label: 'Note', keyword: 'note' },
+        { label: 'Component', keyword: 'component', icon: SvgComponent },
+        { label: 'Interface', keyword: 'interface', icon: SvgInterface },
+        { label: 'Note', keyword: 'note', icon: SvgNote },
       ];
     case 'deployment':
       return [
-        { label: 'Node', keyword: 'node' },
-        { label: 'Component', keyword: 'component' },
-        { label: 'Device', keyword: 'node <<device>>' },
-        { label: 'Artifact', keyword: 'artifact' },
-        { label: 'Environment', keyword: 'environment' },
-        { label: 'Note', keyword: 'note' },
+        { label: 'Node', keyword: 'node', icon: SvgNode },
+        { label: 'Component', keyword: 'component', icon: SvgComponent },
+        { label: 'Device', keyword: 'node <<device>>', icon: SvgNode },
+        { label: 'Artifact', keyword: 'artifact', icon: SvgArtifact },
+        { label: 'Environment', keyword: 'environment', icon: SvgEnvironment },
+        { label: 'Note', keyword: 'note', icon: SvgNote },
       ];
     case 'sequence':
       return [
@@ -876,6 +890,7 @@ export default function App() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [diagramHistoryList, setDiagramHistoryList] = useState<DiagramHistory[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
 
   const [libraryTab, setLibraryTab] = useState<'my' | 'shared' | 'open_folder' | 'examples'>('my');
   const [isExporting, setIsExporting] = useState(false);
@@ -1358,6 +1373,8 @@ export default function App() {
 
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId]);
   const source = activeTab?.source ?? '';
+  const selectedHistoryItem = diagramHistoryList.find(h => h.id === selectedHistoryId);
+  const displaySource = selectedHistoryItem ? selectedHistoryItem.content?.source || '' : source;
   const fileName = activeTab?.name ?? 'untitled.isx';
 
   const updateActiveTab = useCallback((update: (tab: WorkspaceTab) => WorkspaceTab, saveHistory = true) => {
@@ -1408,8 +1425,8 @@ export default function App() {
 
   // ── Parse + analyze on every keystroke ───────────────────
   const parseResult = useMemo(() => {
-    try { return parse(source); } catch { return null; }
-  }, [source]);
+    try { return parse(displaySource); } catch { return null; }
+  }, [displaySource]);
 
   const analysisResult = useMemo(() => {
     if (!parseResult) return null;
@@ -2340,8 +2357,10 @@ export default function App() {
               e.dataTransfer.effectAllowed = 'copy';
             }}
             className="iso-stencil"
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 8px' }}
           >
-            {stencil.label}
+            {stencil.icon && <div style={{ color: 'var(--iso-text)' }}>{stencil.icon}</div>}
+            <div style={{ fontSize: '11px', textAlign: 'center', fontWeight: 500 }}>{stencil.label}</div>
           </div>
         ))}
       </div>
@@ -2349,7 +2368,7 @@ export default function App() {
   ) : null;
 
   const historyPane = (
-    <div className="iso-sidebar" style={{ width: 'var(--iso-sidebar-width, 160px)', flexShrink: 0 }}>
+    <div className="iso-sidebar" style={{ width: 'var(--iso-sidebar-width, 200px)', flexShrink: 0 }}>
       <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
           <circle cx="12" cy="12" r="10"></circle>
@@ -2357,7 +2376,7 @@ export default function App() {
         </svg>
         History
       </div>
-      <div className="iso-sidebar-body" style={{ padding: '8px' }}>
+      <div className="iso-sidebar-body" style={{ padding: '8px', overflowY: 'auto' }}>
         {diagramHistoryList.length === 0 ? (
           <div style={{ color: 'var(--iso-text-muted)', fontSize: '12px', padding: '16px', textAlign: 'center' }}>No history available.</div>
         ) : (
@@ -2374,9 +2393,20 @@ export default function App() {
               }}
               onClick={() => setSelectedHistoryId(selectedHistoryId === h.id ? null : h.id)}
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ fontSize: '13px', fontWeight: 600 }}>{new Date(h.created_at).toLocaleString()}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>{new Date(h.created_at).toLocaleString()}</span>
+                </div>
                 {h.user_id && <span style={{ fontSize: '11px', color: 'var(--iso-text-muted)' }}>Saved by {h.user_id === user?.id ? 'you' : 'collaborator'}</span>}
+                {selectedHistoryId === h.id && (
+                   <button 
+                     className="iso-btn" 
+                     style={{ marginTop: 8, padding: '4px 8px', fontSize: 11, width: '100%', background: 'var(--iso-error)', color: '#fff', border: 'none' }} 
+                     onClick={(e) => { e.stopPropagation(); setIsRevertModalOpen(true); }}
+                   >
+                     Revert to this snapshot
+                   </button>
+                )}
               </div>
             </button>
           ))
@@ -2384,9 +2414,6 @@ export default function App() {
       </div>
     </div>
   );
-
-  const selectedHistoryItem = diagramHistoryList.find(h => h.id === selectedHistoryId);
-  const displaySource = selectedHistoryItem ? selectedHistoryItem.content?.source || '' : source;
 
   const toggleHistory = async () => {
     if (!isHistoryOpen && activeTab?.diagram_id) {
@@ -2396,12 +2423,15 @@ export default function App() {
     setIsHistoryOpen(!isHistoryOpen);
   };
 
-  const revertToHistory = () => {
-    if (!selectedHistoryItem) return;
+  const confirmRevertHistory = async () => {
+    if (!selectedHistoryItem || !activeTab?.diagram_id) return;
+    await deleteDiagramHistoryAfter(activeTab.diagram_id, selectedHistoryItem.created_at);
     updateActiveTab(tab => ({ ...tab, source: selectedHistoryItem.content?.source || '' }));
+    setDiagramHistoryList(prev => prev.filter(h => h.created_at <= selectedHistoryItem.created_at));
     setSelectedHistoryId(null);
     setIsHistoryOpen(false);
-    addToast('Reverted to snapshot');
+    setIsRevertModalOpen(false);
+    addToast('Reverted to snapshot and deleted newer history');
   };
 
   const sourcePane = (
@@ -2410,10 +2440,7 @@ export default function App() {
         <IconCode size={11} />
         {t('ui.source')}
         {selectedHistoryItem && (
-          <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: 'var(--iso-brand)', fontSize: 11 }}>(Viewing History)</span>
-            <button className="iso-btn" style={{ padding: '2px 8px', fontSize: 11 }} onClick={revertToHistory}>Revert to snapshot</button>
-          </div>
+          <span style={{ marginLeft: 8, color: 'var(--iso-brand)', fontSize: 11 }}>(Viewing History - Read Only)</span>
         )}
         <span className="iso-panel-info" aria-live="polite">
         </span>
@@ -2422,8 +2449,9 @@ export default function App() {
       <div className="iso-panel-body">
         <IsomorphEditor
           value={displaySource}
+          readOnly={!!selectedHistoryItem}
           onChange={value => {
-            if (selectedHistoryItem) return; // Read-only in history mode
+            if (selectedHistoryItem) return;
             updateActiveTab(tab => ({ ...tab, source: value }))
           }}
           errors={editorDiagnostics}
@@ -2670,7 +2698,7 @@ export default function App() {
           onDropEntity={handleDropEntity}
           pendingDropKeyword={isMobileLayout ? pendingMobileDropKeyword : null}
           onConsumePendingDrop={() => setPendingMobileDropKeyword(null)}
-          availableTools={toolsetFor(activeDiagram?.kind)}
+          availableTools={selectedHistoryItem ? [] : toolsetFor(activeDiagram?.kind)}
           selectedItems={selectedItems}
           onSelectionChange={setSelectedItems}
           onAutoLayout={handleAutoLayout}
@@ -2693,7 +2721,9 @@ export default function App() {
           type="button"
           className="iso-mobile-stencil"
           onClick={() => handleStencilInsert(stencil.keyword)}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
         >
+          {stencil.icon && <div style={{ display: 'flex' }}>{stencil.icon}</div>}
           {stencil.label}
         </button>
       ))}
@@ -4208,6 +4238,21 @@ export default function App() {
           </div>
         )}
 
+        {isRevertModalOpen && (
+          <div className="iso-modal-overlay" onClick={() => setIsRevertModalOpen(false)}>
+            <div className="iso-modal" onClick={e => e.stopPropagation()}>
+              <h2 style={{ marginTop: 0 }}>Revert to Snapshot?</h2>
+              <p style={{ color: 'var(--iso-text-muted)' }}>
+                Are you sure you want to revert to this snapshot? This will <strong>permanently delete</strong> all newer saves that were made after this point in time. This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '24px', justifyContent: 'flex-end' }}>
+                <button className="iso-btn" onClick={() => setIsRevertModalOpen(false)}>{t('ui.cancel')}</button>
+                <button className="iso-btn iso-btn--danger" style={{ background: 'var(--iso-error)', color: 'white', borderColor: 'transparent' }} onClick={confirmRevertHistory}>Yes, Revert & Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} initialMode={authMode} />
 
         {saveToCloudModalOpen && (
@@ -4880,7 +4925,7 @@ export default function App() {
         ) : (
           <>
             <div style={{
-              width: isHistoryOpen ? 0 : 'var(--iso-sidebar-width, 160px)',
+              width: isHistoryOpen ? 0 : 'var(--iso-sidebar-width, 200px)',
               overflow: 'hidden',
               transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
               opacity: isHistoryOpen ? 0 : 1,
@@ -4890,7 +4935,7 @@ export default function App() {
             </div>
             <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
             <div style={{
-              width: isHistoryOpen ? 'var(--iso-sidebar-width, 160px)' : 0,
+              width: isHistoryOpen ? 'var(--iso-sidebar-width, 200px)' : 0,
               overflow: 'hidden',
               transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
               opacity: isHistoryOpen ? 1 : 0,

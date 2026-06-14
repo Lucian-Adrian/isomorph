@@ -161,6 +161,20 @@ export async function getDiagramHistory(diagramId: string): Promise<DiagramHisto
   return data;
 }
 
+export async function deleteDiagramHistoryAfter(diagramId: string, timestamp: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('diagram_history')
+    .delete()
+    .eq('diagram_id', diagramId)
+    .gt('created_at', timestamp);
+
+  if (error) {
+    console.error('Error deleting newer history:', error);
+    return false;
+  }
+  return true;
+}
+
 export async function saveDiagramHistory(diagramId: string, content: any, userId: string): Promise<boolean> {
   const profile = await getProfile(userId);
   const tier = profile?.tier || 'basic';
