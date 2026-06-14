@@ -23,6 +23,15 @@ export interface Diagram {
   updated_at: string;
 }
 
+export interface DiagramHistory {
+  id: string;
+  diagram_id: string;
+  user_id: string | null;
+  content: any;
+  created_at: string;
+}
+
+
 const TIER_LIMITS = {
   basic: { projects: 5, diagramsPerProject: 4, editors: 2, saves: 10 },
   power: { projects: 25, diagramsPerProject: 20, editors: 4, saves: 50 },
@@ -135,6 +144,53 @@ export async function getDiagrams(projectId: string): Promise<Diagram[]> {
     return [];
   }
   return data;
+}
+
+
+export async function getDiagramHistory(diagramId: string): Promise<DiagramHistory[]> {
+  const { data, error } = await supabase
+    .from('diagram_history')
+    .select('*')
+    .eq('diagram_id', diagramId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching diagram history:', error);
+    return [];
+  }
+  return data;
+}
+
+export async function saveDiagramHistory(diagramId: string, content: any, userId: string): Promise<boolean> {
+  const profile = await getProfile(userId);
+  const tier = profile?.tier || 'basic';
+  const limit = TIER_LIMITS[tier].saves;
+
+  const { error: insertError } = await supabase
+    .from('diagram_history')
+    .insert([{ diagram_id: diagramId, user_id: userId, content }]);
+
+  if (insertError) {
+    console.error('Error saving diagram history:', insertError);
+    return false;
+  }
+
+  // Enforce rolling buffer quota
+  const { data: history, error: countError } = await supabase
+    .from('diagram_history')
+    .select('id')
+    .eq('diagram_id', diagramId)
+    .order('created_at', { ascending: false });
+
+  if (!countError && history && history.length > limit) {
+    const toDelete = history.slice(limit).map(h => h.id);
+    await supabase
+      .from('diagram_history')
+      .delete()
+      .in('id', toDelete);
+  }
+
+  return true;
 }
 
 export async function updateDiagramContent(diagramId: string, content: any): Promise<boolean> {

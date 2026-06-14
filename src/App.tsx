@@ -28,7 +28,7 @@ import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Lan
 import { computeLayout } from './utils/auto-layout.js';
 import { useAuth } from './lib/auth-context.js';
 import { AuthModal } from './components/AuthModal.js';
-import { getProjects, type Project } from './lib/projects.js';
+import { getProjects, type Project, getDiagramHistory, saveDiagramHistory, type DiagramHistory } from './lib/projects.js';
 import { isTelemetryEnabled, setTelemetryEnabled } from './lib/telemetry.js';
 
 type DiagramKind = IOMDiagram['kind'];
@@ -873,6 +873,18 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'collab' | 'storage' | 'app'>('profile');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [diagramHistoryList, setDiagramHistoryList] = useState<DiagramHistory[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+
+  const toggleHistory = async () => {
+    if (!isHistoryOpen && activeDiagram?.id) {
+      const history = await getDiagramHistory(activeDiagram.id);
+      setDiagramHistoryList(history);
+    }
+    setIsHistoryOpen(!isHistoryOpen);
+  };
+
   const [libraryTab, setLibraryTab] = useState<'my' | 'shared' | 'open_folder' | 'examples'>('my');
   const [isExporting, setIsExporting] = useState(false);
   const [exportTime, setExportTime] = useState<number>(0);
@@ -2165,8 +2177,9 @@ export default function App() {
     }
     if (activeTab.diagram_id) {
       setIsSavingToCloud(true);
-      const { updateDiagramContent } = await import('./lib/projects.js');
+      const { updateDiagramContent, saveDiagramHistory } = await import('./lib/projects.js');
       await updateDiagramContent(activeTab.diagram_id, { source: activeTab.source });
+      await saveDiagramHistory(activeTab.diagram_id, { source: activeTab.source }, user.id);
       setIsSavingToCloud(false);
       updateActiveTab(tab => ({ ...tab, savedSource: tab.source }), false);
     } else {
@@ -2343,19 +2356,63 @@ export default function App() {
     </div>
   ) : null;
 
+  const historyPane = (
+    <div className="iso-sidebar" style={{ width: 'var(--iso-sidebar-width, 240px)', flexShrink: 0 }}>
+      <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        History
+      </div>
+      <div className="iso-sidebar-body" style={{ padding: '8px' }}>
+        {diagramHistoryList.length === 0 ? (
+          <div style={{ color: 'var(--iso-text-muted)', fontSize: '12px', padding: '16px', textAlign: 'center' }}>No history available.</div>
+        ) : (
+          diagramHistoryList.map(h => (
+            <button
+              key={h.id}
+              className="iso-btn"
+              style={{
+                width: '100%',
+                justifyContent: 'flex-start',
+                marginBottom: '8px',
+                background: selectedHistoryId === h.id ? 'var(--iso-bg-active)' : 'transparent',
+                border: selectedHistoryId === h.id ? '1px solid var(--iso-brand)' : '1px solid transparent',
+              }}
+              onClick={() => setSelectedHistoryId(selectedHistoryId === h.id ? null : h.id)}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>{new Date(h.created_at).toLocaleString()}</span>
+                {h.user_id && <span style={{ fontSize: '11px', color: 'var(--iso-text-muted)' }}>Saved by {h.user_id === user?.id ? 'you' : 'collaborator'}</span>}
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const selectedHistoryItem = diagramHistoryList.find(h => h.id === selectedHistoryId);
+  const displaySource = selectedHistoryItem ? selectedHistoryItem.content?.source || '' : source;
+
   const sourcePane = (
     <div className="iso-panel" style={{ height: '100%' }}>
       <div className="iso-panel-header">
         <IconCode size={11} />
         {t('ui.source')}
+        {selectedHistoryItem && <span style={{ marginLeft: 8, color: 'var(--iso-brand)', fontSize: 11 }}>(Viewing History)</span>}
         <span className="iso-panel-info" aria-live="polite">
         </span>
         <span className="iso-panel-spacer" />
       </div>
       <div className="iso-panel-body">
         <IsomorphEditor
-          value={source}
-          onChange={value => updateActiveTab(tab => ({ ...tab, source: value }))}
+          value={displaySource}
+          onChange={value => {
+            if (selectedHistoryItem) return; // Read-only in history mode
+            updateActiveTab(tab => ({ ...tab, source: value }))
+          }}
           errors={editorDiagnostics}
         />
       </div>
@@ -2668,7 +2725,7 @@ export default function App() {
                           <div className="iso-settings-grid" style={{ gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
                             {/* Profile Photo Card */}
                             <div className="iso-settings-card" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '2px solid var(--iso-border-strong)', boxShadow: '0 2px 8px var(--iso-shadow)', flexShrink: 0 }}>
+                              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '2px solid var(--iso-border-strong)', boxShadow: '0 2px 8px var(--iso-shadow)', flexShrink: 0 }}>
                                 {profile?.avatar_url ? (
                                   <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
@@ -3096,7 +3153,6 @@ export default function App() {
                                   <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>Ideal for starting out. Up to 5 projects stored securely in the cloud.</span>
                                 </div>
                                 <div style={{ background: 'var(--iso-bg-active)', border: '1px solid var(--iso-brand)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', transform: 'scale(1.02)' }}>
-                                  <span style={{ position: 'absolute', top: '-10px', right: '12px', background: 'var(--iso-brand)', color: 'var(--white)', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase' }}>Popular</span>
                                   <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>Power Plan</strong>
                                   <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--iso-brand)' }}>$5 <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--iso-text-muted)' }}>/ month</span></span>
                                   <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>For power users. Up to 25 projects and advanced sharing options.</span>
@@ -4502,6 +4558,22 @@ export default function App() {
               {t('menu.save_isx_ext')}
             </button>
 
+            {session && (
+              <button
+                type="button"
+                className={`iso-btn${isHistoryOpen ? ' iso-btn--active' : ''}`}
+                onClick={toggleHistory}
+                aria-label="Toggle History"
+                data-tooltip="View History"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                History
+              </button>
+            )}
+
             <div style={{ position: 'relative' }}>
               <button
                 type="button"
@@ -4794,8 +4866,27 @@ export default function App() {
           </div>
         ) : (
           <>
-            {shapesPane}
+            <div style={{
+              width: isHistoryOpen ? 0 : 'var(--iso-sidebar-width, 240px)',
+              overflow: 'hidden',
+              transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
+              opacity: isHistoryOpen ? 0 : 1,
+              flexShrink: 0
+            }}>
+              {shapesPane}
+            </div>
             <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
+            <div style={{
+              width: isHistoryOpen ? 'var(--iso-sidebar-width, 240px)' : 0,
+              overflow: 'hidden',
+              transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
+              opacity: isHistoryOpen ? 1 : 0,
+              flexShrink: 0,
+              borderLeft: isHistoryOpen ? '1px solid var(--iso-border)' : 'none',
+              background: 'var(--iso-bg-sidebar)'
+            }}>
+              {historyPane}
+            </div>
           </>
         )}
       </main>
