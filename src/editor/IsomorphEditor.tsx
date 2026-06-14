@@ -92,6 +92,7 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
           '.cm-activeLineGutter': { backgroundColor: 'var(--iso-bg-hover)', color: 'var(--ink)' },
           '.cm-selectionBackground, ::selection': { backgroundColor: 'rgba(0,0,0,0.08)' },
           '.cm-cursor': { borderLeftColor: 'var(--iso-brand-dark)', borderLeftWidth: '2px' },
+          '.cm-dropCursor': { backgroundColor: 'var(--iso-brand-dark) !important', width: '2px !important' },
           '.cm-matchingBracket': { background: 'var(--stone)', borderRadius: '2px' },
           // Lint gutter styling (light theme)
           '.cm-lintRange-error': { backgroundImage: 'none', textDecoration: 'underline wavy var(--iso-error) 2px' },

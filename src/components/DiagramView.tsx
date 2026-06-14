@@ -1326,7 +1326,7 @@ export function DiagramView({
         onDragOver={e => e.preventDefault()}
         onDrop={e => {
           e.preventDefault();
-          const keyword = e.dataTransfer.getData('text/plain');
+          const keyword = e.dataTransfer.getData('application/x-isomorph-stencil') || e.dataTransfer.getData('text/plain');
           if (keyword && onDropEntity) {
             const pos = screenToCanvas(e.clientX, e.clientY);
             const target = e.target as Element;

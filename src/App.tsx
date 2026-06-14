@@ -1846,7 +1846,7 @@ export default function App() {
         name = `${prefixName}${index}`;
       }
 
-      const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum'];
+      const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum', 'note'];
       const FRAGMENT_KINDS = ['alt', 'loop', 'opt', 'par', 'break', 'critical'];
       let declaration = `  ${keyword} ${name}`;
       if (BRACE_KINDS.includes(baseName)) {
@@ -2377,7 +2377,39 @@ export default function App() {
             key={stencil.label}
             draggable
             onDragStart={e => {
-              e.dataTransfer.setData('text/plain', stencil.keyword);
+              const baseName = stencil.keyword.split(' ')[0];
+              const prefixName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+              
+              let index = 1;
+              let name = `${prefixName}${index}`;
+              const src = activeTab?.source || '';
+              while (new RegExp(`${ENTITY_KINDS_RX}[ \\t]+${name}\\b`).test(src)) {
+                index++;
+                name = `${prefixName}${index}`;
+              }
+
+              let expandedCode = stencil.keyword;
+              const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum', 'note'];
+              const FRAGMENT_KINDS = ['alt', 'loop', 'opt', 'par', 'break', 'critical'];
+              
+              if (BRACE_KINDS.includes(baseName)) {
+                expandedCode = `${stencil.keyword} ${name} {\n\n}`;
+              } else if (FRAGMENT_KINDS.includes(baseName)) {
+                if (baseName === 'alt') {
+                  expandedCode = `${stencil.keyword} ${name} {\n\n} else {\n\n}`;
+                } else {
+                  expandedCode = `${stencil.keyword} ${name} {\n\n}`;
+                }
+              } else if (['start', 'stop', 'fork', 'join', 'decision', 'merge'].includes(baseName)) {
+                expandedCode = `${stencil.keyword} ${name}`;
+              } else if (baseName === 'action') {
+                expandedCode = `action ${name}`;
+              } else {
+                expandedCode = `${stencil.keyword} ${name}`;
+              }
+
+              e.dataTransfer.setData('text/plain', expandedCode);
+              e.dataTransfer.setData('application/x-isomorph-stencil', stencil.keyword);
               e.dataTransfer.effectAllowed = 'copy';
             }}
             className="iso-stencil"
@@ -5435,10 +5467,11 @@ export default function App() {
                     }}
                   />
                   {newProjectError && <div style={{ color: 'var(--iso-danger)', fontSize: '12px', marginTop: '6px' }}>{newProjectError}</div>}
+                  {!user && <div style={{ color: 'var(--iso-text)', fontSize: '12px', marginTop: '6px' }}>You must be logged in to create projects</div>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   <button className="iso-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>{t('ui.cancel')}</button>
-                  <button className="iso-btn iso-btn--primary" disabled={!newProjectName.trim()} onClick={handleCreateProjectSubmit}>{t('ui.create')}</button>
+                  <button className="iso-btn iso-btn--primary" disabled={!user || !newProjectName.trim()} onClick={handleCreateProjectSubmit}>{t('ui.create')}</button>
                 </div>
               </>
             )}
