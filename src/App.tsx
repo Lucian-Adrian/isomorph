@@ -371,6 +371,14 @@ function getStencilsForKind(kind?: DiagramKind): { label: string; keyword: strin
   const SvgArtifact = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>;
   const SvgEnvironment = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>;
 
+  const SvgParticipant = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>;
+  const SvgFragment = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>;
+  const SvgState = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="8" ry="8"></rect></svg>;
+  const SvgStart = <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="10"></circle></svg>;
+  const SvgEnd = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="5" fill="currentColor"></circle></svg>;
+  const SvgDecision = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 22 12 12 22 2 12 12 2"></polygon></svg>;
+  const SvgFork = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="6"><line x1="2" y1="12" x2="22" y2="12"></line></svg>;
+
   switch (kind) {
     case 'class':
       return [
@@ -405,59 +413,59 @@ function getStencilsForKind(kind?: DiagramKind): { label: string; keyword: strin
       ];
     case 'sequence':
       return [
-        { label: 'Actor', keyword: 'actor' },
-        { label: 'Participant', keyword: 'participant' },
-        { label: 'Alt Fragment', keyword: 'alt' },
-        { label: 'Loop Fragment', keyword: 'loop' },
-        { label: 'Opt Fragment', keyword: 'opt' },
-        { label: 'Par Fragment', keyword: 'par' },
-        { label: 'Break Fragment', keyword: 'break' },
-        { label: 'Critical Fragment', keyword: 'critical' },
-        { label: 'Note', keyword: 'note' },
+        { label: 'Actor', keyword: 'actor', icon: SvgActor },
+        { label: 'Participant', keyword: 'participant', icon: SvgParticipant },
+        { label: 'Alt Fragment', keyword: 'alt', icon: SvgFragment },
+        { label: 'Loop Fragment', keyword: 'loop', icon: SvgFragment },
+        { label: 'Opt Fragment', keyword: 'opt', icon: SvgFragment },
+        { label: 'Par Fragment', keyword: 'par', icon: SvgFragment },
+        { label: 'Break Fragment', keyword: 'break', icon: SvgFragment },
+        { label: 'Critical Fragment', keyword: 'critical', icon: SvgFragment },
+        { label: 'Note', keyword: 'note', icon: SvgNote },
       ];
     case 'state':
       return [
-        { label: 'State', keyword: 'state' },
-        { label: 'Start Node', keyword: 'start' },
-        { label: 'Final Node', keyword: 'stop' },
-        { label: 'Decision', keyword: 'decision' },
-        { label: 'Fork', keyword: 'fork' },
-        { label: 'Join', keyword: 'join' },
-        { label: 'History', keyword: 'history' },
-        { label: 'Concurrent', keyword: 'concurrent' },
-        { label: 'Composite', keyword: 'composite' },
-        { label: 'Note', keyword: 'note' },
+        { label: 'State', keyword: 'state', icon: SvgState },
+        { label: 'Start Node', keyword: 'start', icon: SvgStart },
+        { label: 'Final Node', keyword: 'stop', icon: SvgEnd },
+        { label: 'Decision', keyword: 'decision', icon: SvgDecision },
+        { label: 'Fork', keyword: 'fork', icon: SvgFork },
+        { label: 'Join', keyword: 'join', icon: SvgFork },
+        { label: 'History', keyword: 'history', icon: SvgState },
+        { label: 'Concurrent', keyword: 'concurrent', icon: SvgState },
+        { label: 'Composite', keyword: 'composite', icon: SvgState },
+        { label: 'Note', keyword: 'note', icon: SvgNote },
       ];
     case 'activity':
       return [
-        { label: 'Action', keyword: 'action' },
-        { label: 'Start Node', keyword: 'start' },
-        { label: 'Activity Final', keyword: 'stop' },
-        { label: 'Decision', keyword: 'decision' },
-        { label: 'Merge', keyword: 'merge' },
-        { label: 'Fork', keyword: 'fork' },
-        { label: 'Join', keyword: 'join' },
-        { label: 'Partition', keyword: 'partition' },
-        { label: 'Note', keyword: 'note' },
+        { label: 'Action', keyword: 'action', icon: SvgState },
+        { label: 'Start Node', keyword: 'start', icon: SvgStart },
+        { label: 'Activity Final', keyword: 'stop', icon: SvgEnd },
+        { label: 'Decision', keyword: 'decision', icon: SvgDecision },
+        { label: 'Merge', keyword: 'merge', icon: SvgDecision },
+        { label: 'Fork', keyword: 'fork', icon: SvgFork },
+        { label: 'Join', keyword: 'join', icon: SvgFork },
+        { label: 'Partition', keyword: 'partition', icon: SvgSystem },
+        { label: 'Note', keyword: 'note', icon: SvgNote },
       ];
     case 'collaboration':
       return [
-        { label: 'Object', keyword: 'object' },
-        { label: 'Actor', keyword: 'actor' },
-        { label: 'Multiobject', keyword: 'multiobject' },
-        { label: 'Active Object', keyword: 'active_object' },
-        { label: 'Composite Obj', keyword: 'composite_object' },
-        { label: 'Note', keyword: 'note' },
+        { label: 'Object', keyword: 'object', icon: SvgParticipant },
+        { label: 'Actor', keyword: 'actor', icon: SvgActor },
+        { label: 'Multiobject', keyword: 'multiobject', icon: SvgSystem },
+        { label: 'Active Object', keyword: 'active_object', icon: SvgParticipant },
+        { label: 'Composite Obj', keyword: 'composite_object', icon: SvgState },
+        { label: 'Note', keyword: 'note', icon: SvgNote },
       ];
     case 'flow':
       return [
-        { label: 'Process', keyword: 'action' },
-        { label: 'Decision', keyword: 'decision' },
-        { label: 'Start', keyword: 'start' },
-        { label: 'End', keyword: 'stop' },
-        { label: 'Fork', keyword: 'fork' },
-        { label: 'Join', keyword: 'join' },
-        { label: 'Note', keyword: 'note' },
+        { label: 'Process', keyword: 'action', icon: SvgState },
+        { label: 'Decision', keyword: 'decision', icon: SvgDecision },
+        { label: 'Start', keyword: 'start', icon: SvgStart },
+        { label: 'End', keyword: 'stop', icon: SvgEnd },
+        { label: 'Fork', keyword: 'fork', icon: SvgFork },
+        { label: 'Join', keyword: 'join', icon: SvgFork },
+        { label: 'Note', keyword: 'note', icon: SvgNote },
       ];
     default:
       return [];
@@ -1408,6 +1416,17 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [hasUnsavedChanges]);
 
+  // ── Keyboard Esc listener for Revert Modal ──────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isRevertModalOpen) {
+        setIsRevertModalOpen(false);
+      }
+    };
+    if (isRevertModalOpen) window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isRevertModalOpen]);
+
   // ── Close dropdown on outside click ──────────────────────
   useEffect(() => {
     function handleOutsideInteraction(e: Event) {
@@ -2357,10 +2376,10 @@ export default function App() {
               e.dataTransfer.effectAllowed = 'copy';
             }}
             className="iso-stencil"
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 8px' }}
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: '12px', padding: '10px 12px', width: '100%', boxSizing: 'border-box' }}
           >
-            {stencil.icon && <div style={{ color: 'var(--iso-text)' }}>{stencil.icon}</div>}
-            <div style={{ fontSize: '11px', textAlign: 'center', fontWeight: 500 }}>{stencil.label}</div>
+            {stencil.icon && <div style={{ color: 'var(--iso-text)', display: 'flex' }}>{stencil.icon}</div>}
+            <div style={{ fontSize: '12px', fontWeight: 500 }}>{stencil.label}</div>
           </div>
         ))}
       </div>
@@ -2401,10 +2420,10 @@ export default function App() {
                 {selectedHistoryId === h.id && (
                    <button 
                      className="iso-btn" 
-                     style={{ marginTop: 8, padding: '4px 8px', fontSize: 11, width: '100%', background: 'var(--iso-error)', color: '#fff', border: 'none' }} 
+                     style={{ marginTop: 8, padding: '4px 8px', fontSize: 11, width: '100%', background: 'transparent', color: 'var(--iso-error)', border: '1px solid var(--iso-error)' }} 
                      onClick={(e) => { e.stopPropagation(); setIsRevertModalOpen(true); }}
                    >
-                     Revert to this snapshot
+                     Revert snapshot
                    </button>
                 )}
               </div>
@@ -4241,14 +4260,16 @@ export default function App() {
         {isRevertModalOpen && (
           <div className="iso-modal-overlay" onClick={() => setIsRevertModalOpen(false)}>
             <div className="iso-modal" onClick={e => e.stopPropagation()}>
-              <h2 style={{ marginTop: 0 }}>Revert to Snapshot?</h2>
-              <p style={{ color: 'var(--iso-text-muted)' }}>
-                Are you sure you want to revert to this snapshot? This will <strong>permanently delete</strong> all newer saves that were made after this point in time. This action cannot be undone.
-              </p>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '24px', justifyContent: 'flex-end' }}>
-                <button className="iso-btn" onClick={() => setIsRevertModalOpen(false)}>{t('ui.cancel')}</button>
-                <button className="iso-btn iso-btn--danger" style={{ background: 'var(--iso-error)', color: 'white', borderColor: 'transparent' }} onClick={confirmRevertHistory}>Yes, Revert & Delete</button>
-              </div>
+              <form onSubmit={e => { e.preventDefault(); confirmRevertHistory(); }}>
+                <h2 className="iso-modal-title">Revert to snapshot</h2>
+                <p className="iso-modal-desc" style={{ color: 'var(--iso-text-muted)' }}>
+                  Are you sure you want to revert to this snapshot? This will permanently delete all newer saves.
+                </p>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+                  <button type="button" className="iso-btn" onClick={() => setIsRevertModalOpen(false)}>{t('ui.cancel')}</button>
+                  <button type="submit" className="iso-btn" style={{ background: 'var(--iso-error)', color: 'white', borderColor: 'var(--iso-error)' }}>Revert</button>
+                </div>
+              </form>
             </div>
           </div>
         )}
