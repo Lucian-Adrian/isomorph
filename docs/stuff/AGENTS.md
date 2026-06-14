@@ -1,7 +1,7 @@
 # Agent TODO Operating Instructions
 
 ## Mission
-Use this file as the primary execution contract for implementing and closing items from TODO.md and ROADMAP.md safely, incrementally, and verifiably.
+Use this file as the primary execution contract for implementing and closing items from features.md, TODO.md and ROADMAP.md safely, incrementally, and verifiably. When modifying or adding features check design.md and follow it by heart. After changes always run `npm run build` and `npm run typecheck`.
 
 ## Workflow Rules
 - Work in small batches, starting from highest-priority unchecked items (typically P0 first).
@@ -29,6 +29,9 @@ When a bug is reported in chat:
 ## Implementation Safety Rules
 - Prefer minimal, targeted changes over broad refactors.
 - Preserve existing design language (UI style, spacing, controls, visual patterns).
+- **All buttons MUST have hover effects.**
+- **All tooltips and modals MUST close on `Escape` key press and on clicks outside of them.**
+- **All modals and editable fields should ideally save on `Enter` key press.**
 - Preserve dark/light theme compatibility from day 1 for all new/changed UI.
 - Preserve i18n compatibility from day 1 for EN/RO/RU (no hardcoded visible strings).
 - Keep behavior backward-compatible unless explicitly approved otherwise.

@@ -21,7 +21,7 @@ const GRID_COLS     = 4;
 
 // ─── Main entry ──────────────────────────────────────────────
 
-export function renderClassDiagram(diag: IOMDiagram): string {
+export function renderClassDiagram(diag: IOMDiagram, options?: { isAnimating?: boolean, animationSpeed?: number, animationTimeMs?: number }): string {
   const entities = [...diag.entities.values()];
   if (entities.length === 0 && diag.packages.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>';
 
@@ -96,7 +96,7 @@ export function renderClassDiagram(diag: IOMDiagram): string {
       svg += `    <text x="8" y="18" font-size="11" fill="var(--iso-pkg-text)" font-style="italic" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">«package» ${escapeXml(pkg.name)}</text>\n`;
       
       for (const member of members) {
-        svg += renderEntityBox(member, px, py);
+        svg += renderEntityBox(member, px, py, options);
         renderedEntities.add(member.entity.name);
       }
 
@@ -108,13 +108,13 @@ export function renderClassDiagram(diag: IOMDiagram): string {
     const from = positioned.find(p => p.entity.name === rel.from);
     const to   = positioned.find(p => p.entity.name === rel.to);
     if (!from || !to) continue;
-    svg += renderRelation(from, to, rel);
+    svg += renderRelation(from, to, rel, options);
   }
 
   // Draw entity boxes
   for (const p of positioned) {
     if (!renderedEntities.has(p.entity.name)) {
-      svg += renderEntityBox(p);
+      svg += renderEntityBox(p, 0, 0, options);
     }
   }
 
@@ -133,7 +133,7 @@ interface Positioned {
   height: number;
 }
 
-function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
+function renderEntityBox(p: Positioned, parentX = 0, parentY = 0, options?: any): string {
   const { entity, pos, width, height } = p;
   const x = pos.x - parentX;
   const y = pos.y - parentY;
@@ -151,11 +151,31 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
   let s = '';
   // Container
   s += `  <g transform="translate(${x},${y})" data-entity-name="${escapeXml(entity.name)}">\n`;
-  s += `    <rect width="${width}" height="${height}" rx="6" fill="var(--iso-bg-panel)" stroke="${borderColor}" stroke-width="${borderWidth}" filter="url(#shadow)"/>\n`;
+
+  let boxAnimStyle = '';
+  if (options?.isAnimating) {
+    const perimeter = 2 * width + 2 * height;
+    const duration = 2000;
+    const t = (options?.animationTimeMs ?? 0) % (duration + 1000);
+    const progress = Math.min(1, t / duration);
+    const offset = perimeter * (1 - progress);
+    boxAnimStyle = ` stroke-dasharray="${perimeter}" stroke-dashoffset="${offset}"`;
+  }
+
+  s += `    <rect width="${width}" height="${height}" rx="6" fill="var(--iso-bg-panel)" stroke="${borderColor}" stroke-width="${borderWidth}" filter="url(#shadow)"${boxAnimStyle}/>\n`;
 
   // Header background
-  s += `    <rect width="${width}" height="${HEADER_HEIGHT}" rx="6" fill="${headerFill}" stroke="${borderColor}" stroke-width="${borderWidth}"/>\n`;
-  s += `    <rect y="${HEADER_HEIGHT - 6}" width="${width}" height="6" fill="${headerFill}"/>\n`;
+  let headerOpacity = '1';
+  if (options?.isAnimating) {
+    const duration = 2000;
+    const t = (options?.animationTimeMs ?? 0) % (duration + 1000);
+    const progress = Math.max(0, Math.min(1, (t - 500) / 1000));
+    headerOpacity = progress.toString();
+  }
+  s += `    <g opacity="${headerOpacity}">\n`;
+  s += `      <rect width="${width}" height="${HEADER_HEIGHT}" rx="6" fill="${headerFill}" stroke="${borderColor}" stroke-width="${borderWidth}"/>\n`;
+  s += `      <rect y="${HEADER_HEIGHT - 6}" width="${width}" height="6" fill="${headerFill}"/>\n`;
+  s += `    </g>\n`;
 
   // Header text
   let nameY = HEADER_HEIGHT / 2 + 4;
@@ -218,13 +238,19 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0): string {
 
 // ─── Relation line ───────────────────────────────────────────
 
-function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): string {
+function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation, options?: any): string {
   const [x1, y1] = boxCenter(from);
   const [x2, y2] = boxCenter(to);
 
   // Compute edge connection points
   const [sx, sy] = boxEdge(from, x2, y2);
   const [ex, ey] = boxEdge(to, x1, y1);
+
+  const dx = ex - sx;
+  const dy = ey - sy;
+  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+  const ux = dx / len;
+  const uy = dy / len;
 
   const strokeDash   = rel.kind === 'realization' || rel.kind === 'dependency' ? '6,3' : '';
   const markerEnd    = markerEndFor(rel.kind);
@@ -234,22 +260,31 @@ function renderRelation(from: Positioned, to: Positioned, rel: IOMRelation): str
   const safeLabel = rel.label ? escapeXml(rel.label) : '';
   let s = `  <g data-relation-id="${escapeXml(rel.id)}" data-relation-from="${escapeXml(rel.from)}" data-relation-to="${escapeXml(rel.to)}" data-relation-kind="${escapeXml(rel.kind)}" data-relation-label="${safeLabel}">\n`;
   const dashAttr = strokeDash ? ` stroke-dasharray="${strokeDash}"` : '';
+  let lineAnimStyle = '';
+  let labelOpacity = '1';
+  if (options?.isAnimating) {
+    const duration = 1500;
+    const t = (options?.animationTimeMs ?? 0) % (duration + 1000);
+    const progress = Math.min(1, t / duration);
+    const offset = len * (1 - progress);
+    lineAnimStyle = ` stroke-dasharray="${strokeDash ? strokeDash : len}" stroke-dashoffset="${offset}"`;
+    labelOpacity = (Math.max(0, Math.min(1, (t - 1000) / 500))).toString();
+  } else {
+    lineAnimStyle = dashAttr;
+  }
+
   const meAttr   = markerEnd ? ` marker-end="url(#${markerEnd})"` : '';
-  const msAttr   = markerStart ? ` marker-start="url(#${markerStart})"` : '';    s += `    <line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;  s += `    <line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="${color}" stroke-width="1.5"${dashAttr}${meAttr}${msAttr}/>\n`;
+  const msAttr   = markerStart ? ` marker-start="url(#${markerStart})"` : '';    s += `    <line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="transparent" stroke-width="15" style="cursor: pointer"/>\n`;  s += `    <line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="${color}" stroke-width="1.5"${lineAnimStyle}${meAttr}${msAttr}/>\n`;
 
   // Label
   const mx = (sx + ex) / 2, my = (sy + ey) / 2 - 6;
   if (rel.label) {
-    s += `    <rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="var(--iso-bg-panel)" opacity="0.9"/>\n`;
-    s += `    <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text)" font-style="italic">${escapeXml(rel.label)}</text>\n`;
+    s += `    <g opacity="${labelOpacity}">\n`;
+    s += `      <rect x="${mx - rel.label.length * 3.5 - 4}" y="${my - 12}" width="${rel.label.length * 7 + 8}" height="16" fill="var(--iso-bg-panel)" opacity="0.9"/>\n`;
+    s += `      <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="var(--iso-text)" font-style="italic">${escapeXml(rel.label)}</text>\n`;
+    s += `    </g>\n`;
   }
 
-  // Multiplicities
-  const dx = ex - sx;
-  const dy = ey - sy;
-  const len = Math.sqrt(dx * dx + dy * dy) || 1;
-  const ux = dx / len;
-  const uy = dy / len;
 
   if (rel.fromMult) {
     const multX = (sx + ux * 25).toFixed(1);
@@ -276,8 +311,6 @@ function markerEndFor(kind: string): string {
     case 'inheritance':          return 'hollow-arrow';
     case 'realization':          return 'hollow-arrow';
     case 'dependency':           return 'arrow';
-    // composition: filled diamond at source only, no arrowhead
-    // aggregation: open diamond at source only, no arrowhead
     default:                     return '';
   }
 }

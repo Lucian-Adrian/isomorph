@@ -11,7 +11,7 @@ function getSequenceRelationType(rel: { kind: string; from?: string; to?: string
   return 'synchronous';
 }
 
-export function renderSequenceDiagram(diag: IOMDiagram): string {
+export function renderSequenceDiagram(diag: IOMDiagram, options?: { isAnimating?: boolean, animationSpeed?: number, animationTimeMs?: number }): string {
   const allEntities = Array.from(diag.entities.values());
   const entities = allEntities.filter(e => e.kind !== 'note');
   const notes = allEntities.filter(e => e.kind === 'note');
@@ -285,6 +285,7 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
 
   // --- Messages (Relations) ---
   let msgIndex = 1;
+  let animMsgIndex = 0;
   for (const rel of diag.relations) {
     const startX = entityX.get(rel.from);
     const endX = entityX.get(rel.to);
@@ -328,7 +329,47 @@ export function renderSequenceDiagram(diag: IOMDiagram): string {
         svg += `      <text x="${mx}" y="${relationY - 6}" text-anchor="middle" font-size="11" fill="var(--iso-text-muted)">${labelTxt}</text>\n`;
       }
     }
+    
+    // Animation: Light Trail
+    if (options?.isAnimating) {
+      const msgDuration = 800;
+      const totalDuration = diag.relations.length * msgDuration + 1000; // 1s pause
+      const t = (options.animationTimeMs ?? 0) % totalDuration;
+      const startTime = animMsgIndex * msgDuration;
+      const endTime = startTime + msgDuration;
+      
+      if (t >= startTime && t <= endTime + 300) {
+        const progress = Math.min(1, Math.max(0, (t - startTime) / msgDuration));
+        const fadeOut = t > endTime ? 1 - ((t - endTime) / 300) : 1;
+        
+        let cx = 0;
+        let cy = 0;
+        if (isSelf) {
+          // Approximate path for self-loop
+          const loopRight = startX + selfLoopWidth;
+          if (progress < 0.33) {
+            cx = startX + (loopRight - startX) * (progress / 0.33);
+            cy = relationY;
+          } else if (progress < 0.66) {
+            cx = loopRight;
+            cy = relationY + selfLoopHeight * ((progress - 0.33) / 0.33);
+          } else {
+            cx = loopRight - (loopRight - startX) * ((progress - 0.66) / 0.34);
+            cy = relationY + selfLoopHeight;
+          }
+        } else {
+          cx = startX + (endX - startX) * progress;
+          cy = relationY;
+        }
+        
+        // Render Glowing Orb
+        svg += `      <circle cx="${cx}" cy="${cy}" r="4" fill="var(--iso-accent, #6366f1)" opacity="${fadeOut}" style="pointer-events:none" />\n`;
+        svg += `      <circle cx="${cx}" cy="${cy}" r="12" fill="var(--iso-accent, #6366f1)" opacity="${fadeOut * 0.3}" style="pointer-events:none" />\n`;
+      }
+    }
+
     svg += `    </g>\n`;
+    animMsgIndex++;
   }
 
   // --- Fragments ---

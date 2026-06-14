@@ -14,3 +14,24 @@ This file documents the features and changes implemented by the agent.
 - **Multiline Lexer Fix:** Added CodeMirror state tracking to `isomorph.lang.ts` so `/* ... */` multiline comments are properly greyed out across line breaks.
 - **Keyboard Shortcuts Update:** Changed the shortcuts overlay toggle hotkey from `Ctrl + ?` to `Ctrl + Q`.
 - **Ctrl+D Duplication:** Added `Ctrl+D` support to instantly duplicate single or multiple selected entities, re-using existing auto-renaming and placement logic.
+
+## Date: 2026-06-10
+**Features Implemented:**
+- **Watermark Toggle:** Added a "Generated with Isomorph" watermark, which can be toggled via the Settings menu.
+- **Diagram Animations:** Implemented a system to animate various diagrams. The animations can be toggled on/off and their speed can be adjusted (Fast, Normal, Slow) in the Settings menu. Supported animations include:
+  - **Sequence Diagrams:** Light orb animation that follows message lines in sequential order.
+  - **Communication Diagrams:** Simultaneous ping effects on connections.
+  - **Activity Diagrams:** Baton pass animation across swimlanes.
+  - **Flowcharts:** Split pulse for decision branches and fill-up effects.
+  - **State Machine Diagrams:** Breathing nodes and leaping transitions.
+  - **Class Diagrams:** Blueprint reveal animation that traces the strokes of the class boxes.
+- **GIF & Video (WebM) Export:** Added the ability to export diagrams as animated GIFs or Video (WebM). The export only shows up when animations are enabled. 
+- **Export Loading UI:** Implemented a loading spinner and a live seconds timer that displays the elapsed time during GIF and WebM exports.
+- **i18n Support:** Added translations for the new "Exporting..." status in English, Romanian, and Russian.
+- **UI & UX Polishing:**
+  - **Dark Mode Icon:** The theme toggle now displays a Sun icon when in dark mode, and a Moon icon when in light mode.
+  - **Modal Interactions:** All modals, tooltips, and dropdown menus now strictly close when pressing the `Escape` key or when clicking outside of them.
+  - **Quick Save:** Pressing `Enter` now saves the contents of editable fields and modals.
+  - **Dropdown Hover Effects:** Restored and ensured that all buttons and dropdown items have proper hover effects.
+  - **Export Icons:** Added distinct icons for each "Save as" option in the export menu (`PNG`, `SVG`, `GIF`, `WebM`).
+  - **Settings Clean-up:** Removed a duplicate "Strict UML" toggle from the settings modal.

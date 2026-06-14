@@ -18,7 +18,7 @@ function pickDefaultBoundaryName(diag: IOMDiagram): string {
   return candidate;
 }
 
-export function renderUseCaseDiagram(diag: IOMDiagram): string {
+export function renderUsecaseDiagram(diag: IOMDiagram, _options?: { isAnimating?: boolean, animationSpeed?: number, animationTimeMs?: number }): string {
   const entities = [...diag.entities.values()];
   if (entities.length === 0) return '<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0"></svg>';
 

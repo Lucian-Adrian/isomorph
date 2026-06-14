@@ -28,7 +28,7 @@ function entityHeight(entity: IOMEntity): number {
   return (k === 'node' || k === 'device' || k === 'environment') ? NODE_H + DEPTH : COMP_H;
 }
 
-export function renderComponentDiagram(diag: IOMDiagram): string {
+export function renderComponentDiagram(diag: IOMDiagram, _options?: { isAnimating?: boolean, animationSpeed?: number, animationTimeMs?: number }): string {
   const allEntities = [...diag.entities.values()];
   const entities = allEntities.filter(e => e.kind !== 'note');
   const notes = allEntities.filter(e => e.kind === 'note');

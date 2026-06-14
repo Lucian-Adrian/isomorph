@@ -180,3 +180,180 @@ export function exportPNG(
   };
   img.src = url;
 }
+
+// ============================================================
+// Animation Exporters
+// ============================================================
+import type { IOMDiagram } from '../semantics/iom.js';
+import { renderDiagram } from '../renderer/index.js';
+import { encode } from 'modern-gif';
+// @ts-ignore
+import workerUrl from 'modern-gif/worker?url';
+
+function getDiagramDuration(diagram: IOMDiagram): number {
+  if (diagram.kind === 'sequence') {
+    return diagram.relations.length * 800 + 1000;
+  }
+  return 1700;
+}
+
+async function renderFrames(diagram: IOMDiagram, options: any, fps: number): Promise<{ canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, frames: { data: Uint8ClampedArray, imageData: ImageData, delay: number }[] }> {
+  const durationMs = getDiagramDuration(diagram);
+  const delayMs = 1000 / fps;
+  const numFrames = Math.ceil(durationMs / delayMs);
+  
+  const testSvg = renderDiagram(diagram, { ...options, isAnimating: false });
+  const wMatch = testSvg.match(/width="([^"]+)"/);
+  const hMatch = testSvg.match(/height="([^"]+)"/);
+  const width = wMatch ? parseFloat(wMatch[1]) : 800;
+  const height = hMatch ? parseFloat(hMatch[1]) : 600;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width * 2;
+  canvas.height = height * 2;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('No canvas context');
+  
+  const frames = [];
+  const computed = getComputedStyle(document.documentElement);
+  const bg = computed.getPropertyValue('--iso-bg-canvas').trim() || '#fafafa';
+
+  for (let i = 0; i < numFrames; i++) {
+    const t = i * delayMs * (options.animationSpeed ?? 1);
+    const svgStr = renderDiagram(diagram, { ...options, isAnimating: true, animationTimeMs: t });
+    
+    const clone = document.createElement('div');
+    clone.innerHTML = svgStr;
+    const svgEl = clone.querySelector('svg');
+    if (svgEl) {
+      const vars = [
+        '--white', '--off', '--stone', '--ink-light', '--ink-mid', '--ink', '--ink-deep', '--accent',
+        '--iso-brand', '--iso-brand-dark', '--iso-brand-glow',
+        '--iso-bg-app', '--iso-bg-header', '--iso-bg-sidebar', '--iso-bg-editor', '--iso-bg-canvas',
+        '--iso-bg-panel', '--iso-bg-hover', '--iso-bg-active',
+        '--iso-text-muted', '--iso-text-body', '--iso-text-faint', '--iso-text-canvas', '--iso-bg-blue', '--iso-bg-green',
+        '--iso-bg-purple', '--iso-bg-orange', '--iso-bg-yellow', '--iso-border', '--iso-text',
+        '--iso-note-bg', '--iso-note-fold', '--iso-note-border', '--iso-note-title', '--iso-note-text', '--iso-note-code',
+        '--iso-pkg-bg', '--iso-pkg-border', '--iso-pkg-text'
+      ];
+      let cssVars = '';
+      for (const v of vars) {
+        const val = computed.getPropertyValue(v).trim();
+        if (val) cssVars += `      ${v}: ${val};\n`;
+      }
+      const styleEl = document.createElement('style');
+      styleEl.textContent = `svg { ${cssVars} font-family: 'Segoe UI', Arial, sans-serif; }`;
+      svgEl.prepend(styleEl);
+    }
+    
+    const finalSvgStr = new XMLSerializer().serializeToString(svgEl || clone);
+    const img = new Image();
+    const svgBlob = new Blob([finalSvgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    
+    const frameCanvas = document.createElement('canvas');
+    frameCanvas.width = width * 2;
+    frameCanvas.height = height * 2;
+    const fctx = frameCanvas.getContext('2d');
+    
+    await new Promise<void>((resolve) => {
+      img.onload = () => {
+        if (fctx) {
+          fctx.scale(2, 2);
+          fctx.fillStyle = bg;
+          fctx.fillRect(0, 0, width, height);
+          fctx.drawImage(img, 0, 0, width, height);
+        }
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      img.src = url;
+    });
+
+    // Also draw to the main canvas for WebM/preview
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(frameCanvas, 0, 0);
+
+    const imageData = fctx ? fctx.getImageData(0, 0, width * 2, height * 2) : ctx.getImageData(0, 0, width * 2, height * 2);
+    frames.push({ data: imageData.data, imageData, delay: delayMs });
+  }
+
+  return { canvas, ctx, frames };
+}
+
+export async function exportGIF(diagram: IOMDiagram, diagramName: string, options: any) {
+  try {
+    const { canvas, frames } = await renderFrames(diagram, options, 15); // 15 fps is good for GIF
+    const gifFrames = frames.map(f => ({
+      data: f.data,
+      delay: f.delay
+    }));
+
+    const gifBlob = await encode({
+      workerUrl,
+      width: canvas.width,
+      height: canvas.height,
+      frames: gifFrames as any,
+      format: 'blob'
+    });
+    
+    let finalBlob: Blob;
+    if (gifBlob instanceof Blob) {
+      finalBlob = gifBlob;
+    } else {
+      finalBlob = new Blob([gifBlob as any], { type: 'image/gif' });
+    }
+    
+    const url = URL.createObjectURL(finalBlob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${diagramName}.gif`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Failed to export GIF", err);
+    alert("Failed to export GIF. See console for details.");
+  }
+}
+
+export async function exportVideo(diagram: IOMDiagram, diagramName: string, options: any) {
+  try {
+    const fps = 30;
+    const { canvas, frames } = await renderFrames(diagram, options, fps);
+    
+    const stream = canvas.captureStream(fps);
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks: Blob[] = [];
+    
+    recorder.ondataavailable = e => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+    
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${diagramName}.webm`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    };
+
+    recorder.start();
+    
+    // Play back frames into canvas in real-time
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    for (const frame of frames) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.putImageData(frame.imageData, 0, 0);
+      await new Promise(resolve => setTimeout(resolve, frame.delay));
+    }
+    
+    recorder.stop();
+  } catch (err) {
+    console.error("Failed to export WebM", err);
+    alert("Failed to export WebM. See console for details.");
+  }
+}

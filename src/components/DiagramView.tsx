@@ -8,11 +8,25 @@ import { renderDiagram } from '../renderer/index.js';
 import { IconPointer, IconHand, IconEdge } from './Icons';
 import type { IOMEntity } from '../semantics/iom.js';
 import { tText, type Language } from '../i18n.js';
+import { FeedbackModal } from './FeedbackModal.js';
 
 export type CanvasTool = 'move' | 'hand' | 'edit-node' | 'edit-edge' | 'add-edge';
 
+interface ContextMenuState {
+  x: number;
+  y: number;
+  target: 'entity' | 'relation' | 'canvas';
+  entityName?: string;
+  relationId?: string;
+  relationLabel?: string;
+  relationKind?: string;
+}
+
 interface DiagramViewProps {
   diagram: IOMDiagram | null;
+  isWatermarkEnabled?: boolean;
+  isAnimating?: boolean;
+  animationSpeed?: number;
   language?: Language;
   onEntityMove?: (entityName: string, x: number, y: number, dx?: number, dy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => void;
   onEntityResize?: (entityName: string, w: number, h: number, x?: number, y?: number) => void;
@@ -28,17 +42,26 @@ interface DiagramViewProps {
   onSelectionChange?: (selection: { type: 'entity' | 'relation', id: string }[]) => void;
   pendingDropKeyword?: string | null;
   onConsumePendingDrop?: () => void;
+  onAutoLayout?: (mode: 'left-right' | 'snowflake' | 'compact') => void;
+  onEntityDelete?: (entityName: string) => void;
+  onEntityDuplicate?: (entityName: string) => void;
+  onEntityCopy?: (entityName: string) => void;
+  onRelationDelete?: (relationId: string) => void;
+  onPaste?: () => void;
+  onAddNote?: (x: number, y: number) => void;
 }
 
 export function DiagramView({
   diagram,
+  isWatermarkEnabled,
+  isAnimating = false,
+  animationSpeed = 1.0,
   language = 'en',
   onEntityMove,
   onEntityResize,
   onEntityEditRequest,
   onRelationEditRequest,
   onRelationVerticalMove,
-  onExportSVG,
   onDropEntity,
   onRelationAddRequest,
   onTextRenameRequest,
@@ -47,6 +70,13 @@ export function DiagramView({
   onSelectionChange,
   pendingDropKeyword,
   onConsumePendingDrop,
+  onAutoLayout,
+  onEntityDelete,
+  onEntityDuplicate,
+  onEntityCopy,
+  onRelationDelete,
+  onPaste,
+  onAddNote,
 }: DiagramViewProps) {
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -57,6 +87,9 @@ export function DiagramView({
   const [drawingEdge, setDrawingEdge] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
   const [marqueeState, setMarqueeState] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [layoutDropdownOpen, setLayoutDropdownOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
   const dragRef = useRef<{
     mode: 'none' | 'entity' | 'pan' | 'add-edge' | 'resize-entity' | 'relation-vertical' | 'marquee';
@@ -230,16 +263,6 @@ export function DiagramView({
     return () => window.removeEventListener('contextmenu', handleContextMenu);
   }, []);
 
-  // Keyboard shortcut: Ctrl+E → export SVG
-  useEffect(() => {
-    if (!onExportSVG) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === 'e') { e.preventDefault(); onExportSVG(); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onExportSVG]);
-
   // Keyboard shortcut: Arrow keys for moving selected entities
   useEffect(() => {
     if (!onEntityMove || selectedItems.length === 0) return;
@@ -306,7 +329,7 @@ export function DiagramView({
     return () => window.removeEventListener('keydown', handler);
   }, [selectedItems, onEntityMove]);
 
-  // Render SVG into container on diagram change
+  // Render SVG into container on diagram change or animation
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -316,15 +339,40 @@ export function DiagramView({
       return;
     }
 
-    const svg = renderDiagram(diagram);
-    el.innerHTML = svg;
+    let frameId: number;
+    let startTime = performance.now();
 
-    const svgEl = el.querySelector('svg');
-    if (!svgEl) return;
+    const loop = (now: number) => {
+      if (!isAnimating) return;
+      const t = (now - startTime) * animationSpeed;
+      const svg = renderDiagram(diagram, { isWatermarkEnabled, isAnimating: true, animationSpeed, animationTimeMs: t });
+      el.innerHTML = svg;
+      
+      const svgEl = el.querySelector('svg');
+      if (svgEl) {
+        svgEl.style.userSelect = 'none';
+        svgEl.style.webkitUserSelect = 'none';
+      }
+      
+      frameId = requestAnimationFrame(loop);
+    };
 
-    svgEl.style.userSelect = 'none';
-    svgEl.style.webkitUserSelect = 'none';
-  }, [diagram]);
+    if (isAnimating) {
+      frameId = requestAnimationFrame(loop);
+    } else {
+      const svg = renderDiagram(diagram, { isWatermarkEnabled, isAnimating: false, animationSpeed });
+      el.innerHTML = svg;
+      const svgEl = el.querySelector('svg');
+      if (svgEl) {
+        svgEl.style.userSelect = 'none';
+        svgEl.style.webkitUserSelect = 'none';
+      }
+    }
+
+    return () => {
+      if (frameId) cancelAnimationFrame(frameId);
+    };
+  }, [diagram, isWatermarkEnabled, isAnimating, animationSpeed]);
 
   // Apply selection outlines separately to preserve DOM during drag
   useEffect(() => {
@@ -396,9 +444,45 @@ export function DiagramView({
 
     const now = Date.now();
     const isRightClick = e.button === 2;
-    if (now - lastClickRef.current < 300 || isRightClick) {
+
+    // Right-click → open context menu (not edit modal)
+    if (isRightClick) {
+      e.preventDefault();
+      e.stopPropagation();
       lastClickRef.current = 0;
-      // It's a double click or right click!
+
+      const relationGroup = target.closest('g[data-relation-id]') as SVGGElement | null;
+      if (relationGroup) {
+        const relationId = relationGroup.getAttribute('data-relation-id') ?? '';
+        const relationKind = relationGroup.getAttribute('data-relation-kind') ?? 'association';
+        const relationLabel = relationGroup.getAttribute('data-relation-label') ?? '';
+        setContextMenu({ x: e.clientX, y: e.clientY, target: 'relation', relationId, relationKind, relationLabel });
+        return;
+      }
+
+      const entityGroup = target.closest('g[data-entity-name]') as SVGGElement | null;
+      if (entityGroup) {
+        const entityName = entityGroup.getAttribute('data-entity-name') ?? '';
+        if (entityName) {
+          setContextMenu({ x: e.clientX, y: e.clientY, target: 'entity', entityName });
+          return;
+        }
+      }
+
+      // Canvas background right-click
+      const canvasPos = screenToCanvas(e.clientX, e.clientY);
+      setContextMenu({ x: e.clientX, y: e.clientY, target: 'canvas', entityName: `${Math.round(canvasPos.x)},${Math.round(canvasPos.y)}` });
+      return;
+    }
+
+    // Close context menu on any left click
+    if (contextMenu) {
+      setContextMenu(null);
+    }
+
+    if (now - lastClickRef.current < 300) {
+      lastClickRef.current = 0;
+      // It's a double click → open edit modal
       const relationGroup = target.closest('g[data-relation-id]') as SVGGElement | null;
       if (relationGroup && onRelationEditRequest && availableTools.includes('edit-edge')) {
         const relationId = relationGroup.getAttribute('data-relation-id');
@@ -753,7 +837,40 @@ export function DiagramView({
       canvasRef.current.setPointerCapture(e.pointerId);
       e.preventDefault();
     }
-  }, [diagram, availableTools, activeTool, pan, zoom, selectedItems, onSelectionChange, onRelationEditRequest, onEntityEditRequest, onRelationVerticalMove, pendingDropKeyword, onDropEntity, onConsumePendingDrop, screenToCanvas]);
+  }, [diagram, availableTools, activeTool, pan, zoom, selectedItems, onSelectionChange, onRelationEditRequest, onEntityEditRequest, onRelationVerticalMove, pendingDropKeyword, onDropEntity, onConsumePendingDrop, screenToCanvas, contextMenu]);
+
+  // Close context menu on Escape or outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setContextMenu(null); };
+    const handleClick = (e: PointerEvent | MouseEvent) => {
+      const target = e.target as Element;
+      if (!target.closest('.iso-context-menu')) setContextMenu(null);
+    };
+    window.addEventListener('keydown', handleKey);
+    window.addEventListener('pointerdown', handleClick, { capture: true });
+    window.addEventListener('mousedown', handleClick, { capture: true });
+    return () => {
+      window.removeEventListener('keydown', handleKey);
+      window.removeEventListener('pointerdown', handleClick, { capture: true });
+      window.removeEventListener('mousedown', handleClick, { capture: true });
+    };
+  }, [contextMenu]);
+
+  // Close layout dropdown on outside click
+  useEffect(() => {
+    if (!layoutDropdownOpen) return;
+    const handleClick = (e: PointerEvent | MouseEvent) => {
+      const target = e.target as Element;
+      if (!target.closest('.iso-layout-dropdown')) setLayoutDropdownOpen(false);
+    };
+    window.addEventListener('pointerdown', handleClick);
+    window.addEventListener('mousedown', handleClick);
+    return () => {
+      window.removeEventListener('pointerdown', handleClick);
+      window.removeEventListener('mousedown', handleClick);
+    };
+  }, [layoutDropdownOpen]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -1177,7 +1294,8 @@ export function DiagramView({
           display: diagram ? undefined : 'none',
           backgroundPosition: `${pan.x}px ${pan.y}px`,
           backgroundSize: `${24 * (zoom / 100)}px ${24 * (zoom / 100)}px`,
-          touchAction: 'none' /* prevent native zooming on trackpads */
+          touchAction: 'none', /* prevent native zooming on trackpads */
+          cursor: activeTool === 'hand' ? (isInteracting ? 'grabbing' : 'grab') : undefined
         }}
         onWheel={(e) => {
           if (e.ctrlKey) {
@@ -1269,9 +1387,22 @@ export function DiagramView({
         )}
       </div>
 
-      {/* Zoom controls */}
+      {/* Zoom controls and Feedback */}
       {diagram && (
-        <div className="iso-canvas-toolbar" role="toolbar" aria-label={t('tool.zoom_controls')}>
+        <>
+          <button
+            type="button"
+            className="iso-feedback-pill iso-mobile-hide"
+            onClick={() => setIsFeedbackOpen(true)}
+            aria-label={t('ui.feedback')}
+          >
+            <div className="iso-feedback-icon">!</div>
+            <span className="iso-feedback-text">{t('ui.feedback')}</span>
+          </button>
+          
+          <FeedbackModal isOpen={isFeedbackOpen} onClose={() => setIsFeedbackOpen(false)} />
+          
+          <div className="iso-canvas-toolbar" role="toolbar" aria-label={t('tool.zoom_controls')}>
             <button
             type="button"
             className="iso-canvas-btn"
@@ -1301,6 +1432,122 @@ export function DiagramView({
           >
             +
           </button>
+          {onAutoLayout && (
+            <>
+              <div className="iso-canvas-sep" />
+              <div className="iso-layout-dropdown">
+                <button
+                  type="button"
+                  className="iso-canvas-btn"
+                  onClick={() => setLayoutDropdownOpen(o => !o)}
+                  aria-label={t('layout.auto_layout')}
+                  data-tooltip={t('layout.auto_layout')}
+                  style={{ width: 'auto', padding: '0 8px', fontSize: 11 }}
+                >
+                  ⊞
+                </button>
+                {layoutDropdownOpen && (
+                  <div className="iso-layout-dropdown-menu">
+                    <button className="iso-layout-option" onClick={() => { onAutoLayout('left-right'); setLayoutDropdownOpen(false); }}>
+                      <span className="iso-layout-option-title">{t('layout.left_right')}</span>
+                      <span className="iso-layout-option-desc">{t('layout.left_right_desc')}</span>
+                    </button>
+                    <button className="iso-layout-option" onClick={() => { onAutoLayout('snowflake'); setLayoutDropdownOpen(false); }}>
+                      <span className="iso-layout-option-title">{t('layout.snowflake')}</span>
+                      <span className="iso-layout-option-desc">{t('layout.snowflake_desc')}</span>
+                    </button>
+                    <button className="iso-layout-option" onClick={() => { onAutoLayout('compact'); setLayoutDropdownOpen(false); }}>
+                      <span className="iso-layout-option-title">{t('layout.compact')}</span>
+                      <span className="iso-layout-option-desc">{t('layout.compact_desc')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+        </>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div
+          className="iso-context-menu"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          {contextMenu.target === 'entity' && (
+            <>
+              <button className="iso-context-menu-item" onClick={() => {
+                if (contextMenu.entityName && diagram) {
+                  const ent = diagram.entities.get(contextMenu.entityName);
+                  if (ent && onEntityEditRequest) onEntityEditRequest(ent);
+                }
+                setContextMenu(null);
+              }}>
+                {t('ctx.edit')}
+                <span className="iso-context-menu-shortcut">Dbl-click</span>
+              </button>
+              {onEntityDuplicate && (
+                <button className="iso-context-menu-item" onClick={() => { if (contextMenu.entityName) onEntityDuplicate(contextMenu.entityName); setContextMenu(null); }}>
+                  {t('ctx.duplicate')}
+                  <span className="iso-context-menu-shortcut">Ctrl+D</span>
+                </button>
+              )}
+              {onEntityCopy && (
+                <button className="iso-context-menu-item" onClick={() => { if (contextMenu.entityName) onEntityCopy(contextMenu.entityName); setContextMenu(null); }}>
+                  {t('ctx.copy')}
+                  <span className="iso-context-menu-shortcut">Ctrl+C</span>
+                </button>
+              )}
+              <div className="iso-context-menu-sep" />
+              {onEntityDelete && (
+                <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => { if (contextMenu.entityName) onEntityDelete(contextMenu.entityName); setContextMenu(null); }}>
+                  {t('ctx.delete')}
+                  <span className="iso-context-menu-shortcut">Del</span>
+                </button>
+              )}
+            </>
+          )}
+          {contextMenu.target === 'relation' && (
+            <>
+              <button className="iso-context-menu-item" onClick={() => {
+                if (contextMenu.relationId && onRelationEditRequest) {
+                  onRelationEditRequest(contextMenu.relationId, contextMenu.relationLabel ?? '', contextMenu.relationKind ?? 'association');
+                }
+                setContextMenu(null);
+              }}>
+                {t('ctx.edit')}
+                <span className="iso-context-menu-shortcut">Dbl-click</span>
+              </button>
+              <div className="iso-context-menu-sep" />
+              {onRelationDelete && (
+                <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => { if (contextMenu.relationId) onRelationDelete(contextMenu.relationId); setContextMenu(null); }}>
+                  {t('ctx.delete')}
+                  <span className="iso-context-menu-shortcut">Del</span>
+                </button>
+              )}
+            </>
+          )}
+          {contextMenu.target === 'canvas' && (
+            <>
+              {onPaste && (
+                <button className="iso-context-menu-item" onClick={() => { onPaste(); setContextMenu(null); }}>
+                  {t('ctx.paste')}
+                  <span className="iso-context-menu-shortcut">Ctrl+V</span>
+                </button>
+              )}
+              {onAddNote && (
+                <button className="iso-context-menu-item" onClick={() => {
+                  const coords = contextMenu.entityName?.split(',').map(Number) ?? [100, 100];
+                  onAddNote(coords[0] ?? 100, coords[1] ?? 100);
+                  setContextMenu(null);
+                }}>
+                  {t('ctx.add_note')}
+                </button>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

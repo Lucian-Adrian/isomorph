@@ -33,7 +33,7 @@ function entityBounds(p: Placed): Rect {
   return { x: p.x, y: p.y, w: BOX_W, h: BOX_H };
 }
 
-export function renderCollaborationDiagram(diag: IOMDiagram): string {
+export function renderCollaborationDiagram(diag: IOMDiagram, options?: { isAnimating?: boolean, animationSpeed?: number, animationTimeMs?: number }): string {
   const allEntities = [...diag.entities.values()];
   const entities = allEntities.filter(e => e.kind !== 'note');
   const notes = allEntities.filter(e => e.kind === 'note');
@@ -167,6 +167,22 @@ export function renderCollaborationDiagram(diag: IOMDiagram): string {
       svg += `<rect x="${chosenRect.x}" y="${chosenRect.y}" width="${chosenRect.w}" height="${chosenRect.h}" fill="var(--iso-bg-panel)" opacity="0.9"/>`;
       svg += `<text x="${chosenX}" y="${chosenY}" text-anchor="middle" font-size="11" fill="var(--iso-text-body)">${safeText}</text>`;
     }
+    
+    // Animation: Simultaneous Ping
+    if (options?.isAnimating) {
+      const duration = 1200;
+      const t = (options.animationTimeMs ?? 0) % (duration + 500); // 500ms pause
+      if (t <= duration) {
+        const progress = t / duration;
+        const pX = Math.pow(1 - progress, 2) * x1 + 2 * (1 - progress) * progress * cx + Math.pow(progress, 2) * x2;
+        const pY = Math.pow(1 - progress, 2) * y1 + 2 * (1 - progress) * progress * cy + Math.pow(progress, 2) * y2;
+        const fadeOut = progress > 0.8 ? (1 - progress) / 0.2 : (progress < 0.2 ? progress / 0.2 : 1);
+        
+        svg += `<circle cx="${pX}" cy="${pY}" r="4" fill="var(--iso-accent, #6366f1)" opacity="${fadeOut}" style="pointer-events:none" />`;
+        svg += `<circle cx="${pX}" cy="${pY}" r="12" fill="var(--iso-accent, #6366f1)" opacity="${fadeOut * 0.3}" style="pointer-events:none" />`;
+      }
+    }
+
     svg += `</g>\n`;
   }
 

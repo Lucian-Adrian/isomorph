@@ -94,10 +94,10 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
           '.cm-cursor': { borderLeftColor: 'var(--iso-brand-dark)', borderLeftWidth: '2px' },
           '.cm-matchingBracket': { background: 'var(--stone)', borderRadius: '2px' },
           // Lint gutter styling (light theme)
-          '.cm-lintRange-error': { backgroundImage: 'none', borderBottom: '2px wavy var(--iso-error)' },
-          '.cm-lintRange-warning': { backgroundImage: 'none', borderBottom: '2px wavy var(--iso-warning)' },
-          '.cm-lint-marker-error': { content: '""', color: 'var(--iso-error)' },
-          '.cm-lint-marker-warning': { content: '""', color: 'var(--iso-warning)' },
+          '.cm-lintRange-error': { backgroundImage: 'none', textDecoration: 'underline wavy var(--iso-error) 2px' },
+          '.cm-lintRange-warning': { backgroundImage: 'none', textDecoration: 'underline wavy var(--iso-warning) 2px' },
+          '.cm-lint-marker-error': { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--iso-error)', marginTop: '4px', display: 'inline-block' },
+          '.cm-lint-marker-warning': { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--iso-warning)', marginTop: '4px', display: 'inline-block' },
           '.cm-tooltip-lint': { backgroundColor: 'var(--white)', border: '1px solid var(--iso-border-strong)', borderRadius: '6px', color: 'var(--ink)', boxShadow: 'var(--iso-shadow)' },
           // Tooltip styling (applies to autocomplete and lint)
           '.cm-tooltip': {
@@ -168,7 +168,9 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
       const lineNum = Math.max(1, Math.min(e.line, view.state.doc.lines));
       const line = view.state.doc.line(lineNum);
       const from = line.from + Math.max(0, (e.col ?? 1) - 1);
-      const to = Math.min(from + 1, line.to);
+      const restOfLine = line.text.slice(Math.max(0, (e.col ?? 1) - 1));
+      const match = restOfLine.match(/^\S+/);
+      const to = match ? from + match[0].length : Math.min(from + 1, line.to);
       return [{ from, to, severity: (e.severity ?? 'error') as Diagnostic['severity'], message: e.message }];
     });
     view.dispatch(setDiagnostics(view.state, diagnostics));
@@ -177,7 +179,7 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
   return (
     <div
       ref={containerRef}
-      style={{ height: '100%', overflow: 'hidden', border: '1px solid #d0d7de', borderRadius: '6px' }}
+      style={{ height: '100%', overflow: 'hidden', border: '1px solid var(--iso-border)', borderRadius: '6px' }}
     />
   );
 }

@@ -26,7 +26,7 @@
 - **Multi-User Collaboration**: Real-time collaboration with visible mouse cursors (comments, roles - viewer, commenter,editor) [WebSocket-based real-time editing with conflict resolution.].
 - **Settings Page**: User preferences for themes, colors, and collaboration options.
 - **Cloud Saves**: Per-account cloud storage with version history.
-- **Integrated Chat**: Real-time chat for collaborators.
+~~- **Integrated Chat**: Real-time chat for collaborators.~~ NOT NEEDED
 - **Notifications**: Alerts for diagram changes and comments.
 - **Multiple Languages**: Internationalization support.
 - **Advanced Export Options**: PDF export formats.
@@ -46,7 +46,7 @@
 - **Open Source Local Compiler**: Free local version without collaboration.
 - **Enterprise Solutions**: Custom features and support for businesses.
 
-### User Experience Layers
+### User Experience Layers - maybe these need rework - i think three type of users would be enough - basic, power and enterprise - also we need to think about monetization for each of the types of users but that is later, and how much stuff we give to each of them in terms of how many saved diagrams and all
 - **Basic User**: Create and edit diagrams locally.
 - **Power User**: Use advanced features like animations and custom exports.
 - **Collaborative User**: Real-time multi-user editing with chat.
