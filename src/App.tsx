@@ -877,14 +877,6 @@ export default function App() {
   const [diagramHistoryList, setDiagramHistoryList] = useState<DiagramHistory[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
 
-  const toggleHistory = async () => {
-    if (!isHistoryOpen && activeDiagram?.id) {
-      const history = await getDiagramHistory(activeDiagram.id);
-      setDiagramHistoryList(history);
-    }
-    setIsHistoryOpen(!isHistoryOpen);
-  };
-
   const [libraryTab, setLibraryTab] = useState<'my' | 'shared' | 'open_folder' | 'examples'>('my');
   const [isExporting, setIsExporting] = useState(false);
   const [exportTime, setExportTime] = useState<number>(0);
@@ -2357,7 +2349,7 @@ export default function App() {
   ) : null;
 
   const historyPane = (
-    <div className="iso-sidebar" style={{ width: 'var(--iso-sidebar-width, 240px)', flexShrink: 0 }}>
+    <div className="iso-sidebar" style={{ width: 'var(--iso-sidebar-width, 160px)', flexShrink: 0 }}>
       <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
           <circle cx="12" cy="12" r="10"></circle>
@@ -2396,12 +2388,33 @@ export default function App() {
   const selectedHistoryItem = diagramHistoryList.find(h => h.id === selectedHistoryId);
   const displaySource = selectedHistoryItem ? selectedHistoryItem.content?.source || '' : source;
 
+  const toggleHistory = async () => {
+    if (!isHistoryOpen && activeTab?.diagram_id) {
+      const history = await getDiagramHistory(activeTab.diagram_id);
+      setDiagramHistoryList(history);
+    }
+    setIsHistoryOpen(!isHistoryOpen);
+  };
+
+  const revertToHistory = () => {
+    if (!selectedHistoryItem) return;
+    updateActiveTab(tab => ({ ...tab, source: selectedHistoryItem.content?.source || '' }));
+    setSelectedHistoryId(null);
+    setIsHistoryOpen(false);
+    addToast('Reverted to snapshot');
+  };
+
   const sourcePane = (
     <div className="iso-panel" style={{ height: '100%' }}>
       <div className="iso-panel-header">
         <IconCode size={11} />
         {t('ui.source')}
-        {selectedHistoryItem && <span style={{ marginLeft: 8, color: 'var(--iso-brand)', fontSize: 11 }}>(Viewing History)</span>}
+        {selectedHistoryItem && (
+          <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: 'var(--iso-brand)', fontSize: 11 }}>(Viewing History)</span>
+            <button className="iso-btn" style={{ padding: '2px 8px', fontSize: 11 }} onClick={revertToHistory}>Revert to snapshot</button>
+          </div>
+        )}
         <span className="iso-panel-info" aria-live="polite">
         </span>
         <span className="iso-panel-spacer" />
@@ -2724,16 +2737,16 @@ export default function App() {
                           <div className="iso-settings-section-title">Personal Information</div>
                           <div className="iso-settings-grid" style={{ gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
                             {/* Profile Photo Card */}
-                            <div className="iso-settings-card" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-                              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '2px solid var(--iso-border-strong)', boxShadow: '0 2px 8px var(--iso-shadow)', flexShrink: 0 }}>
+                            <div className="iso-settings-card" style={{ display: 'flex', flexDirection: 'row', gap: '20px', alignItems: 'center', justifyContent: 'flex-start' }}>
+                              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--iso-divider)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid var(--iso-border-strong)', flexShrink: 0 }}>
                                 {profile?.avatar_url ? (
                                   <img src={profile.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 ) : (
-                                  <span style={{ fontSize: '28px' }}>👤</span>
+                                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--iso-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                 )}
                               </div>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, alignItems: 'flex-start' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                                   <div className="iso-settings-label" style={{ marginBottom: '2px' }}>{t('ui.profile_photo')}</div>
                                   <div className="iso-settings-desc">Upload a custom profile photo. Supports JPG, PNG, and GIF.</div>
                                 </div>
@@ -4867,7 +4880,7 @@ export default function App() {
         ) : (
           <>
             <div style={{
-              width: isHistoryOpen ? 0 : 'var(--iso-sidebar-width, 240px)',
+              width: isHistoryOpen ? 0 : 'var(--iso-sidebar-width, 160px)',
               overflow: 'hidden',
               transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
               opacity: isHistoryOpen ? 0 : 1,
@@ -4877,7 +4890,7 @@ export default function App() {
             </div>
             <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
             <div style={{
-              width: isHistoryOpen ? 'var(--iso-sidebar-width, 240px)' : 0,
+              width: isHistoryOpen ? 'var(--iso-sidebar-width, 160px)' : 0,
               overflow: 'hidden',
               transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
               opacity: isHistoryOpen ? 1 : 0,
