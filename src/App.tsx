@@ -1891,12 +1891,7 @@ export default function App() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setIsSettingsOpen(false);
-        setIsLibraryOpen(false);
-        setExportMenuOpen(false);
-        setTabToClose(null);
-      }
+      // Skip Escape handling here, handled in the other useEffect
 
       // Skip if user is focused on CodeMirror editor or an input/textarea
       const ae = document.activeElement;
@@ -2239,6 +2234,16 @@ export default function App() {
         if (isNewModalOpen) { setIsNewModalOpen(false); setIsSavingFlow(false); return; }
         if (tabToClose) { setTabToClose(null); return; }
         if (shortcutsOpen) { setShortcutsOpen(false); return; }
+        if (isDeleteModalOpen) { setIsDeleteModalOpen(false); return; }
+        if (renameModalOpen) { setRenameModalOpen(false); return; }
+        if (isRevertModalOpen) { setIsRevertModalOpen(false); return; }
+        if (saveToCloudModalOpen) { setSaveToCloudModalOpen(false); return; }
+        if (projectDetailModalOpen) { setProjectDetailModalOpen(false); return; }
+        if (isHistoryOpen) { setIsHistoryOpen(false); return; }
+        if (isAuthOpen) { setIsAuthOpen(false); return; }
+        if (isSettingsOpen) { setIsSettingsOpen(false); return; }
+        if (isLibraryOpen) { setIsLibraryOpen(false); return; }
+        if (exportMenuOpen) { setExportMenuOpen(false); return; }
       }
       if (e.ctrlKey && !e.shiftKey && e.key === 'n') { e.preventDefault(); handleNew(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'o') { e.preventDefault(); setIsLibraryOpen(true); }
@@ -2249,7 +2254,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user, isSavingFlow]);
+  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user, isSavingFlow, isDeleteModalOpen, renameModalOpen, isRevertModalOpen, saveToCloudModalOpen, projectDetailModalOpen, isHistoryOpen, isAuthOpen, isSettingsOpen, isLibraryOpen, exportMenuOpen]);
 
 
   const handleExportGIF = useCallback(async () => {
@@ -4267,7 +4272,7 @@ export default function App() {
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
                   <button type="button" className="iso-btn" onClick={() => setIsRevertModalOpen(false)}>{t('ui.cancel')}</button>
-                  <button type="submit" className="iso-btn" style={{ background: 'var(--iso-error)', color: 'white', borderColor: 'var(--iso-error)' }}>Revert</button>
+                  <button type="submit" className="iso-btn" style={{ background: 'var(--iso-error)', color: 'white', borderColor: 'var(--iso-error)' }} autoFocus>Revert</button>
                 </div>
               </form>
             </div>
@@ -5342,17 +5347,17 @@ export default function App() {
         <span className="iso-statusbar-item">{t('ui.isomorph_dsl')}</span>
         <span className="iso-statusbar-sep">·</span>
         <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {t('status.lines', { count: source.split('\n').length })}
+          {t(source.split('\n').length === 1 ? 'status.line' : 'status.lines', { count: source.split('\n').length })}
         </span>
         {activeDiagram && (
           <>
             <span className="iso-statusbar-sep">·</span>
             <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {t('status.entities', { count: activeDiagram.entities.size })}
+              {t(activeDiagram.entities.size === 1 ? 'status.entity' : 'status.entities', { count: activeDiagram.entities.size })}
             </span>
             <span className="iso-statusbar-sep">·</span>
             <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {t('status.relations', { count: activeDiagram.relations.length })}
+              {t(activeDiagram.relations.length === 1 ? 'status.relation' : 'status.relations', { count: activeDiagram.relations.length })}
             </span>
             <span className="iso-statusbar-sep">·</span>
             <span className="iso-statusbar-item">{activeDiagram.kind}</span>
