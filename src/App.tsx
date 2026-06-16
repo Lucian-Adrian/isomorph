@@ -16,7 +16,7 @@ import { DiagramView } from './components/DiagramView.js';
 import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
-import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconFileImage, IconImage, IconVideo, IconGif, IconUserPlus } from './components/Icons.js';
+import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -965,7 +965,7 @@ export default function App() {
   useEffect(() => {
     if (user) {
       import('./lib/profile.js').then(({ getProfile }) => {
-        getProfile(user.id).then(data => {
+        getProfile(user.id).then(async data => {
           if (data) {
             setProfile(data);
             if (data.settings?.projects?.tabs) {
@@ -1004,6 +1004,18 @@ export default function App() {
             if (typeof data.settings?.anim_speed === 'number') {
               setAnimationSpeed(data.settings.anim_speed);
               localStorage.setItem('isomorph-anim-speed', String(data.settings.anim_speed));
+            }
+          } else {
+            // Profile is missing, let's create it automatically
+            const { updateProfile } = await import('./lib/profile.js');
+            const created = await updateProfile(user.id, {
+              username: user.email?.split('@')[0] || 'user_' + user.id.slice(0, 5),
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+              avatar_url: user.user_metadata?.avatar_url || null,
+            });
+            if (created) {
+              const fresh = await getProfile(user.id);
+              if (fresh) setProfile(fresh);
             }
           }
         });
@@ -1486,11 +1498,34 @@ export default function App() {
 
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId]);
 
-  const { awareness, isConnected, isSynced, getSourceText } = useCollaboration(
+  const { awareness, isConnected, isSynced, getSourceText, connectedDiagramId, collaborators } = useCollaboration(
     activeTab?.diagram_id || null,
     profile?.full_name || profile?.username || user?.email || anonymousName || 'Anonymous',
     profile?.settings?.cursor_colour || '#3B82F6'
   );
+
+  const isCollabActive = !!(activeTab?.diagram_id && connectedDiagramId === activeTab.diagram_id);
+  const [isCollabDropdownOpen, setIsCollabDropdownOpen] = useState(false);
+  const collabRef = useRef<HTMLDivElement>(null);
+
+  const getInitials = useCallback((name: string) => {
+    const clean = name.trim();
+    if (!clean) return '?';
+    const parts = clean.split(/\s+/);
+    if (parts.length > 1) {
+      return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+    return clean.slice(0, 2).toUpperCase();
+  }, []);
+
+  const sortedCollaborators = useMemo(() => {
+    if (!collaborators || !awareness) return [];
+    const localClientId = awareness.clientID;
+    const localUser = collaborators.find(c => c.clientId === localClientId);
+    const otherUsers = collaborators.filter(c => c.clientId !== localClientId);
+    return localUser ? [localUser, ...otherUsers] : otherUsers;
+  }, [collaborators, awareness]);
+
   const source = activeTab?.source ?? '';
   const selectedHistoryItem = diagramHistoryList.find(h => h.id === selectedHistoryId);
   const displaySource = selectedHistoryItem ? selectedHistoryItem.content?.source || '' : source;
@@ -1553,6 +1588,28 @@ export default function App() {
     };
   }, [examplesOpen]);
 
+  // ── Close collaboration dropdown on outside click or Escape ──
+  useEffect(() => {
+    function handleOutsideCollabClick(e: Event) {
+      if (collabRef.current && !collabRef.current.contains(e.target as Node)) {
+        setIsCollabDropdownOpen(false);
+      }
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsCollabDropdownOpen(false);
+      }
+    }
+    if (isCollabDropdownOpen) {
+      document.addEventListener('click', handleOutsideCollabClick);
+      document.addEventListener('keydown', handleEscape);
+    }
+    return () => {
+      document.removeEventListener('click', handleOutsideCollabClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isCollabDropdownOpen]);
+
   // ── Parse + analyze on every keystroke ───────────────────
   const parseResult = useMemo(() => {
     try { return parse(displaySource); } catch { return null; }
@@ -1580,40 +1637,62 @@ export default function App() {
       .map(e => ({ message: `(${e.rule}) ${e.message}`, line: e.line, col: e.col ?? 1, severity: 'error' as const })),
   ];
   const diagrams: IOMDiagram[] = analysisResult?.iom.diagrams ?? [];
-  const filteredDiagrams = useMemo(() => {
-    if (!activeTab || activeTab.diagramKindFilter === 'all') return diagrams;
-    return diagrams.filter(d => d.kind === activeTab.diagramKindFilter);
-  }, [diagrams, activeTab]);
-  const activeDiagramIdx = activeTab?.activeDiagramIdx ?? 0;
-  const safeDiagramIdx = Math.max(0, Math.min(activeDiagramIdx, Math.max(filteredDiagrams.length - 1, 0)));
-  const activeDiagram = filteredDiagrams[safeDiagramIdx] ?? null;
+  const activeDiagram = diagrams[0] ?? null;
 
   const handleCreateProjectSubmit = useCallback(async () => {
     if (!user || !newProjectName.trim()) return;
     const { createProject, createDiagram } = await import('./lib/projects.js');
     try {
       const p = await createProject(user.id, newProjectName.trim());
-      if (p) {
-        setProjects(prev => [p, ...prev]);
-        addToast('Project created successfully', 'success');
-
-        if (isSavingFlow) {
-          const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
-          if (d) {
-            updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
-            addToast('Saved to cloud');
-          }
-          setIsSavingFlow(false);
-        }
-
-        setIsNewModalOpen(false);
-        setNewProjectName('');
-        setNewProjectError('');
+      if (!p) {
+        throw new Error('Failed to create project (empty response).');
       }
+
+      setProjects(prev => [p, ...prev]);
+      addToast('Project created successfully', 'success');
+
+      if (isSavingFlow) {
+        const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+        if (d) {
+          updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source, project_role: 'owner' }), false);
+          addToast('Saved to cloud');
+        } else {
+          throw new Error('Failed to save the diagram to the new project.');
+        }
+        setIsSavingFlow(false);
+      } else {
+        // Simple flow: Create project and a new diagram of newDiagramKind inside it
+        const defaultSrc = templateFor(newDiagramKind);
+        const d = await createDiagram(user.id, p.id, `diagram.isx`, newDiagramKind, { source: defaultSrc });
+        if (d) {
+          const tabId = `tab-${slugId()}`;
+          setTabs(prev => [
+            ...prev,
+            {
+              id: tabId,
+              name: 'diagram.isx',
+              source: defaultSrc,
+              savedSource: defaultSrc,
+              activeDiagramIdx: 0,
+              diagramKindFilter: 'all',
+              project_id: p.id,
+              diagram_id: d.id,
+              project_role: 'owner',
+            },
+          ]);
+          setActiveTabId(tabId);
+        } else {
+          throw new Error('Failed to create default diagram inside the new project.');
+        }
+      }
+
+      setIsNewModalOpen(false);
+      setNewProjectName('');
+      setNewProjectError('');
     } catch (err: any) {
       setNewProjectError(err.message);
     }
-  }, [user, newProjectName, isSavingFlow, activeTab, activeDiagram, updateActiveTab]);
+  }, [user, newProjectName, isSavingFlow, activeTab, activeDiagram, updateActiveTab, newDiagramKind]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 900px)');
@@ -1647,12 +1726,7 @@ export default function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  useEffect(() => {
-    if (!activeTab) return;
-    if (safeDiagramIdx !== activeDiagramIdx) {
-      updateActiveTab(tab => ({ ...tab, activeDiagramIdx: safeDiagramIdx }));
-    }
-  }, [activeTab, safeDiagramIdx, activeDiagramIdx, updateActiveTab]);
+
 
   const getPlacedItemPosition = useCallback((name: string) => {
     const partitionPos = activeDiagram?.partitions.find(p => p.name === name)?.position;
@@ -1872,7 +1946,7 @@ export default function App() {
               }
             }
           };
-          walk(ast.program.diagrams[tab.activeDiagramIdx]?.body || []);
+          walk(ast.program.diagrams[0]?.body || []);
           if (foundFrag && foundFrag.span) {
             const extractBodyTextSafe = (src: string, body: any[]) => {
               if (!body || body.length === 0) return '';
@@ -2305,6 +2379,24 @@ export default function App() {
     e.target.value = '';
   }, []);
 
+  const handleSaveToCloudSubmit = useCallback(async () => {
+    if (!selectedProjectId || !user || isSavingToCloud) return;
+    setIsSavingToCloud(true);
+    try {
+      const { createDiagram } = await import('./lib/projects.js');
+      const diagram = await createDiagram(user.id, selectedProjectId, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+      if (diagram) {
+        updateActiveTab(tab => ({ ...tab, diagram_id: diagram.id, project_id: selectedProjectId, savedSource: tab.source, project_role: 'owner' }), false);
+        setSaveToCloudModalOpen(false);
+        addToast('Saved to cloud');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error saving to cloud');
+    } finally {
+      setIsSavingToCloud(false);
+    }
+  }, [user, selectedProjectId, isSavingToCloud, activeTab, activeDiagram, updateActiveTab]);
+
   const handleSaveToCloud = useCallback(async (projectName?: string) => {
     if (!user) {
       setAuthMode('login');
@@ -2325,9 +2417,10 @@ export default function App() {
         const { createProject, createDiagram } = await import('./lib/projects.js');
         const p = await createProject(user.id, projectName);
         if (p) {
-          const d = await createDiagram(user.id, p.id, activeTab.name, activeTab.diagramKindFilter, { source: activeTab.source });
+          const kind = activeTab.diagramKindFilter === 'all' ? (activeDiagram?.kind || 'class') : activeTab.diagramKindFilter;
+          const d = await createDiagram(user.id, p.id, activeTab.name, kind, { source: activeTab.source });
           if (d) {
-            updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
+            updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source, project_role: 'owner' }), false);
             addToast('Saved to cloud');
           }
         }
@@ -2336,7 +2429,7 @@ export default function App() {
         setSaveToCloudModalOpen(true);
       }
     }
-  }, [user, activeTab, updateActiveTab]);
+  }, [user, activeTab, activeDiagram, updateActiveTab]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -2456,6 +2549,12 @@ export default function App() {
         return;
       }
 
+      if (saveToCloudModalOpen) {
+        e.preventDefault();
+        handleSaveToCloudSubmit();
+        return;
+      }
+
       if (tabToClose) {
         e.preventDefault();
         setTabs(prev => {
@@ -2481,6 +2580,8 @@ export default function App() {
     activeTabId,
     newModalTab,
     handleCreateProjectSubmit,
+    saveToCloudModalOpen,
+    handleSaveToCloudSubmit,
   ]);
 
   const applyExample = useCallback((ex: (typeof EXAMPLES)[number]) => {
@@ -2640,9 +2741,9 @@ export default function App() {
             updateActiveTab(tab => ({ ...tab, source: value }))
           }}
           errors={editorDiagnostics}
-          yText={activeTab?.diagram_id ? getSourceText() : null}
-          isSynced={isSynced}
-          awareness={awareness}
+          yText={isCollabActive ? getSourceText() : null}
+          isSynced={isCollabActive ? isSynced : false}
+          awareness={isCollabActive ? awareness : null}
         />
       </div>
       {allErrors.length > 0 && (
@@ -4463,7 +4564,19 @@ export default function App() {
               <p className="iso-modal-desc">Select a project to save this diagram into.</p>
               <div className="iso-modal-field">
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <select className="iso-select" style={{ flex: 1 }} value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)}>
+                  <select
+                    className="iso-select"
+                    style={{ flex: 1 }}
+                    value={selectedProjectId}
+                    onChange={e => setSelectedProjectId(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSaveToCloudSubmit();
+                      }
+                    }}
+                  >
                     <option value="">-- Select Project --</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
@@ -4479,23 +4592,7 @@ export default function App() {
               </div>
               <div className="iso-modal-actions">
                 <button className="iso-modal-btn cancel" onClick={() => setSaveToCloudModalOpen(false)}>{t('ui.cancel')}</button>
-                <button className="iso-modal-btn confirm" disabled={!selectedProjectId || isSavingToCloud} onClick={async () => {
-                  if (!selectedProjectId || !user) return;
-                  setIsSavingToCloud(true);
-                  try {
-                    const { createDiagram } = await import('./lib/projects.js');
-                    const diagram = await createDiagram(user.id, selectedProjectId, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
-                    if (diagram) {
-                      updateActiveTab(tab => ({ ...tab, diagram_id: diagram.id, project_id: selectedProjectId, savedSource: tab.source }), false);
-                      setSaveToCloudModalOpen(false);
-                      addToast('Saved to cloud');
-                    }
-                  } catch (e: any) {
-                    alert(e.message || 'Error saving to cloud');
-                  } finally {
-                    setIsSavingToCloud(false);
-                  }
-                }}>{isSavingToCloud ? 'Saving...' : 'Save'}</button>
+                <button className="iso-modal-btn confirm" disabled={!selectedProjectId || isSavingToCloud} onClick={handleSaveToCloudSubmit}>{isSavingToCloud ? 'Saving...' : 'Save'}</button>
               </div>
             </div>
           </div>
@@ -4682,24 +4779,7 @@ export default function App() {
 
         <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
 
-        {/* Diagram tabs */}
-        {diagrams.length > 1 && (
-          <nav className="iso-tabs iso-mobile-hide" aria-label={t('ui.diagrams')} style={{ flex: '1 1 auto', minWidth: 0, overflowX: 'auto' }}>
-            {filteredDiagrams.map((d, i) => (
-              <button
-                key={d.name}
-                className={`iso-tab${i === safeDiagramIdx ? ' iso-tab--active' : ''}`}
-                type="button"
-                onClick={() => updateActiveTab(tab => ({ ...tab, activeDiagramIdx: i }))}
-                aria-pressed={i === safeDiagramIdx}
-                aria-label={t('tabs.switch', { name: d.name, kind: d.kind })}
-              >
-                {d.name}
-                <span className="iso-tab-kind">{d.kind}</span>
-              </button>
-            ))}
-          </nav>
-        )}
+
 
         <div className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', flex: '0 1 auto', minWidth: 0, overflow: 'hidden', marginLeft: '12px' }}>
           <button
@@ -4801,16 +4881,48 @@ export default function App() {
           </div>
         )}
 
-        {activeTab?.diagram_id && (
-          <div title={isConnected ? 'Connected to live collaboration' : 'Disconnected from collaboration server'} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 500, color: 'var(--iso-text-muted)', marginRight: '16px', padding: '2px 6px', background: 'var(--iso-bg-hover)', borderRadius: 'var(--iso-radius)', border: '1px solid var(--iso-border)' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: isConnected ? 'var(--iso-brand)' : 'var(--iso-error)' }}></span>
-            {activeTab?.project_role === 'owner' && (
-              <button type="button" className="iso-btn" onClick={() => setIsShareModalOpen(true)} aria-label="Share Project" data-tooltip="Share Project">
-                <IconUserPlus size={14} />
-                {t('ui.share')}
-              </button>
+        {activeTab?.diagram_id && isConnected && (
+          <div ref={collabRef} className="iso-avatar-stack">
+            {sortedCollaborators.slice(0, 2).map((collab) => (
+              <div
+                key={collab.clientId}
+                className="iso-avatar"
+                style={{ backgroundColor: collab.color }}
+                title={collab.clientId === awareness?.clientID ? `${collab.name} (${t('ui.you')})` : collab.name}
+                onClick={() => setIsCollabDropdownOpen(prev => !prev)}
+              >
+                {getInitials(collab.name)}
+              </div>
+            ))}
+            {sortedCollaborators.length > 2 && (
+              <div
+                className="iso-avatar iso-avatar-more"
+                title={t('ui.connected_users')}
+                onClick={() => setIsCollabDropdownOpen(prev => !prev)}
+              >
+                ...
+              </div>
             )}
-            {isConnected ? 'Live' : 'Offline'}
+            {isCollabDropdownOpen && (
+              <div className="iso-collab-dropdown">
+                <div className="iso-collab-dropdown-title">
+                  {t('ui.connected_users')} ({sortedCollaborators.length})
+                </div>
+                {sortedCollaborators.map((c) => (
+                  <div key={c.clientId} className="iso-collab-user-row">
+                    <span className="iso-collab-user-dot" style={{ backgroundColor: c.color }} />
+                    <span className="iso-collab-user-name" title={c.name}>
+                      {c.name}
+                    </span>
+                    {c.clientId === awareness?.clientID && (
+                      <span className="iso-collab-user-you">
+                        ({t('ui.you')})
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -5031,23 +5143,7 @@ export default function App() {
             </div>
           )}
 
-          {diagrams.length > 1 && (
-            <div className="iso-mobile-strip iso-mobile-strip--muted">
-              <nav className="iso-tabs" aria-label={t('ui.diagrams')}>
-                {filteredDiagrams.map((d, i) => (
-                  <button
-                    key={d.name}
-                    type="button"
-                    className={`iso-tab${i === safeDiagramIdx ? ' iso-tab--active' : ''}`}
-                    onClick={() => updateActiveTab(tab => ({ ...tab, activeDiagramIdx: i }))}
-                  >
-                    {d.name}
-                    <span className="iso-tab-kind">{d.kind}</span>
-                  </button>
-                ))}
-              </nav>
-            </div>
-          )}
+
 
           <div className="iso-mobile-actions">
             <div className="iso-mobile-actions-group">

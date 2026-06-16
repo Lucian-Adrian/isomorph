@@ -66,16 +66,21 @@ export function useCollaboration(
   const [isConnected, setIsConnected] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const [awareness, setAwareness] = useState(yjsManager.getAwareness());
+  const [connectedDiagramId, setConnectedDiagramId] = useState<string | null>(null);
+  const [collaborators, setCollaborators] = useState<{ clientId: number; name: string; color: string }[]>([]);
 
   useEffect(() => {
     if (!diagramId) {
       yjsManager.disconnect();
       setIsConnected(false);
+      setConnectedDiagramId(null);
+      setCollaborators([]);
       return;
     }
 
     const provider = yjsManager.connect(diagramId, userName, cursorColor);
     setAwareness(provider.awareness);
+    setConnectedDiagramId(diagramId);
 
     const handleStatus = (event: { status: string }) => {
       setIsConnected(event.status === 'connected');
@@ -85,14 +90,33 @@ export function useCollaboration(
       setIsSynced(synced);
     };
 
+    const updateCollaborators = () => {
+      const states = provider.awareness.getStates();
+      const users: { clientId: number; name: string; color: string }[] = [];
+      states.forEach((state: any, clientId: number) => {
+        if (state.user) {
+          users.push({
+            clientId,
+            name: state.user.name || 'Anonymous',
+            color: state.user.color || '#3B82F6',
+          });
+        }
+      });
+      setCollaborators(users);
+    };
+
     provider.on('status', handleStatus);
     provider.on('sync', handleSync);
+    provider.awareness.on('change', updateCollaborators);
+
     setIsConnected(provider.wsconnected);
     setIsSynced(provider.synced);
+    updateCollaborators();
 
     return () => {
       provider.off('status', handleStatus);
       provider.off('sync', handleSync);
+      provider.awareness.off('change', updateCollaborators);
       // We don't automatically disconnect here if the component unmounts but we are still in the diagram.
       // The diagram switch logic handles reconnecting/disconnecting.
     };
@@ -110,5 +134,7 @@ export function useCollaboration(
     isConnected,
     isSynced,
     getSourceText,
+    connectedDiagramId,
+    collaborators,
   };
 }

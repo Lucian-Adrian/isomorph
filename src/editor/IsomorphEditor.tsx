@@ -192,13 +192,30 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false,
     });
   }, [readOnly]);
 
+  // Reset initialized ref when yText changes
+  useEffect(() => {
+    initializedYTextRef.current = false;
+  }, [yText]);
+
   // Sync Yjs collab
   useEffect(() => {
-    if (yText && awareness) {
-      if (isSynced && yText.length === 0 && !initializedYTextRef.current) {
+    if (yText && awareness && isSynced) {
+      if (yText.length === 0 && !initializedYTextRef.current) {
         initializedYTextRef.current = true;
         yText.insert(0, value);
       }
+
+      // Sync CodeMirror content with Yjs content before enabling yCollab to prevent duplicate text
+      const yStr = yText.toString();
+      if (viewRef.current) {
+        const current = viewRef.current.state.doc.toString();
+        if (current !== yStr) {
+          viewRef.current.dispatch({
+            changes: { from: 0, to: current.length, insert: yStr }
+          });
+        }
+      }
+
       viewRef.current?.dispatch({
         effects: collabCompartment.reconfigure(yCollab(yText, awareness)),
       });

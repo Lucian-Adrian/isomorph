@@ -80,7 +80,7 @@ export async function createProject(userId: string, name: string): Promise<Proje
 
   if (error) {
     console.error('Error creating project:', error);
-    return null;
+    throw new Error(error.message || 'Failed to create project');
   }
   return data;
 }
@@ -113,7 +113,7 @@ export async function createDiagram(userId: string, projectId: string, name: str
 
   if (error) {
     console.error('Error creating diagram:', error);
-    return null;
+    throw new Error(error.message || 'Failed to create diagram');
   }
   return data;
 }
