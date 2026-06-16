@@ -16,7 +16,7 @@ import { DiagramView } from './components/DiagramView.js';
 import type { CanvasTool } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
-import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
+import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconFileImage, IconImage, IconVideo, IconGif, IconUserPlus } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -29,7 +29,10 @@ import { computeLayout } from './utils/auto-layout.js';
 import { useAuth } from './lib/auth-context.js';
 import { AuthModal } from './components/AuthModal.js';
 import { getProjects, type Project, getDiagramHistory, deleteDiagramHistoryAfter, type DiagramHistory } from './lib/projects.js';
-import { isTelemetryEnabled, setTelemetryEnabled } from './lib/telemetry.js';
+import { isTelemetryEnabled, setTelemetryEnabled, logEvent } from './lib/telemetry.js';
+import { useCollaboration } from './lib/collaboration.js';
+import { ShareModal } from './components/ShareModal.js';
+import { AnonymousLoginModal } from './components/AnonymousLoginModal.js';
 
 type DiagramKind = IOMDiagram['kind'];
 
@@ -42,6 +45,7 @@ interface WorkspaceTab {
   undoStack?: string[];
   redoStack?: string[];
   savedSource?: string; // Snapshot of source when tab was created/opened — used for beforeunload guard
+  project_role?: 'owner' | 'editor' | 'commenter' | 'viewer' | string;
   diagram_id?: string;
   project_id?: string;
 }
@@ -946,9 +950,17 @@ export default function App() {
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const { session, user, signOut } = useAuth();
+  const { session, user, signOut, loading } = useAuth();
 
   const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null, settings?: any } | null>(null);
+
+  // Share and Anonymous states
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isAnonymousLoginOpen, setIsAnonymousLoginOpen] = useState(false);
+  const [anonymousName, setAnonymousName] = useState<string | null>(() => localStorage.getItem('isomorph-anon-name'));
+  const [pendingShareToken, setPendingShareToken] = useState<string | null>(null);
+  const [urlShareToken, setUrlShareToken] = useState<string | null>(null);
+  const [isJoiningShare, setIsJoiningShare] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -1002,6 +1014,85 @@ export default function App() {
       setCustomCategories(['Favorites', 'Work', 'Personal']);
     }
   }, [user]);
+
+  // 1. Read share token from URL on mount only
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareToken = params.get('share');
+    if (shareToken) {
+      setUrlShareToken(shareToken);
+      // Remove token from URL immediately to keep it clean
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // 2. Process the share link after auth loading settles
+  useEffect(() => {
+    if (loading) return;
+    if (urlShareToken) {
+      setPendingShareToken(urlShareToken);
+      if (user) {
+        handleRedeemShareLink(urlShareToken);
+      } else {
+        const savedAnonName = localStorage.getItem('isomorph-anon-name');
+        if (savedAnonName) {
+          handleRedeemShareLink(urlShareToken, savedAnonName);
+        } else {
+          setIsAnonymousLoginOpen(true);
+        }
+      }
+      setUrlShareToken(null); // Mark as processed
+    }
+  }, [loading, urlShareToken, user]);
+
+  const handleRedeemShareLink = async (token: string, anonName?: string) => {
+    setIsJoiningShare(true);
+    const { supabase } = await import('./lib/supabase.js');
+    if (user) {
+      // Logged in: redeem via RPC
+      const { data: success, error } = await supabase.rpc('redeem_share_link', { p_token: token });
+      if (success && !error) {
+        addToast('Project access granted!', 'success');
+        // Let's fetch the project and open it
+        const { data: projData } = await supabase.rpc('get_shared_project_data', { p_token: token });
+        if (projData && projData.project && projData.diagrams) {
+          // Add project to projects list so its name resolves in the breadcrumbs
+          setProjects(prev => {
+            if (!prev.some(p => p.id === projData.project.id)) {
+              return [projData.project, ...prev];
+            }
+            return prev;
+          });
+          openWholeProject(projData.diagrams, projData.project.id, projData.role || 'editor');
+        }
+      } else {
+        addToast('Invalid or expired share link', 'info');
+      }
+    } else {
+      // Anonymous
+      const { data: projData, error } = await supabase.rpc('get_shared_project_data', { p_token: token });
+      if (projData && projData.project && projData.diagrams && !error) {
+        if (anonName) {
+          setAnonymousName(anonName);
+          localStorage.setItem('isomorph-anon-name', anonName);
+        }
+        setIsAnonymousLoginOpen(false);
+        addToast(`Joined project ${projData.project.name} anonymously`);
+        // Add project to projects list so its name resolves in the breadcrumbs
+        setProjects(prev => {
+          if (!prev.some(p => p.id === projData.project.id)) {
+            return [projData.project, ...prev];
+          }
+          return prev;
+        });
+        openWholeProject(projData.diagrams, projData.project.id, projData.role || 'viewer');
+      } else {
+        addToast('Invalid or expired share link', 'info');
+      }
+    }
+    setIsJoiningShare(false);
+    setPendingShareToken(null);
+  };
 
   const handleSignOut = useCallback(async () => {
     await signOut();
@@ -1157,11 +1248,13 @@ export default function App() {
     }
   };
 
-  const openProjectFile = (diagram: any, projectId: string) => {
-    const existingTab = tabs.find(t => t.diagram_id === diagram.id);
-    if (existingTab) {
-      setActiveTabId(existingTab.id);
-    } else {
+  const openProjectFile = useCallback((diagram: any, projectId: string, role: string = 'owner') => {
+    setTabs(prev => {
+      const existingTab = prev.find(t => t.diagram_id === diagram.id);
+      if (existingTab) {
+        setTimeout(() => setActiveTabId(existingTab.id), 0);
+        return prev;
+      }
       const content = diagram.content as any;
       const sourceText = typeof content === 'string' ? content : (content?.source || '');
       const newTab: WorkspaceTab = {
@@ -1172,58 +1265,70 @@ export default function App() {
         diagramKindFilter: diagram.kind as 'all' | DiagramKind,
         diagram_id: diagram.id,
         project_id: projectId,
-        savedSource: sourceText
+        savedSource: sourceText,
+        project_role: role
       };
-      setTabs(prev => [...prev, newTab]);
-      setActiveTabId(newTab.id);
-    }
+      setTimeout(() => setActiveTabId(newTab.id), 0);
+      return [...prev, newTab];
+    });
     setProjectDetailModalOpen(false);
     setIsLibraryOpen(false);
-  };
+  }, []);
 
-  const openWholeProject = (diagrams: any[], projectId: string) => {
+  const openWholeProject = useCallback((diagrams: any[], projectId: string, role: string = 'owner') => {
     if (diagrams.length === 0) {
-      addToast('Project is empty');
+      const newTabId = `tab-${slugId()}`;
+      setTabs([{
+        id: newTabId,
+        name: 'Untitled Diagram',
+        source: templateFor('class'),
+        activeDiagramIdx: 0,
+        diagramKindFilter: 'all',
+        project_id: projectId,
+        project_role: role
+      }]);
+      setActiveTabId(newTabId);
+      addToast('Opened empty project', 'info');
+      setProjectDetailModalOpen(false);
+      setIsLibraryOpen(false);
       return;
     }
-    const newTabsToAppend: WorkspaceTab[] = [];
-    let firstTabIdToSelect: string | null = null;
 
-    diagrams.forEach(d => {
-      const existingTab = tabs.find(t => t.diagram_id === d.id);
-      if (existingTab) {
-        if (!firstTabIdToSelect) {
-          firstTabIdToSelect = existingTab.id;
+    setTabs(prev => {
+      const next: WorkspaceTab[] = [];
+      let firstTabIdToSelect: string | null = null;
+      diagrams.forEach(d => {
+        const existing = prev.find(t => t.diagram_id === d.id);
+        if (existing) {
+          next.push({ ...existing, project_role: role, project_id: projectId });
+          if (!firstTabIdToSelect) firstTabIdToSelect = existing.id;
+        } else {
+          const content = d.content as any;
+          const sourceText = typeof content === 'string' ? content : (content?.source || '');
+          const newTab: WorkspaceTab = {
+            id: d.id,
+            name: d.name,
+            source: sourceText,
+            activeDiagramIdx: 0,
+            diagramKindFilter: d.kind as 'all' | DiagramKind,
+            diagram_id: d.id,
+            project_id: projectId,
+            savedSource: sourceText,
+            project_role: role
+          };
+          next.push(newTab);
+          if (!firstTabIdToSelect) firstTabIdToSelect = newTab.id;
         }
-      } else {
-        const content = d.content as any;
-        const sourceText = typeof content === 'string' ? content : (content?.source || '');
-        const newTab: WorkspaceTab = {
-          id: d.id,
-          name: d.name,
-          source: sourceText,
-          activeDiagramIdx: 0,
-          diagramKindFilter: d.kind as 'all' | DiagramKind,
-          diagram_id: d.id,
-          project_id: projectId,
-          savedSource: sourceText
-        };
-        newTabsToAppend.push(newTab);
-        if (!firstTabIdToSelect) {
-          firstTabIdToSelect = newTab.id;
-        }
+      });
+      if (firstTabIdToSelect) {
+        setTimeout(() => setActiveTabId(firstTabIdToSelect!), 0);
       }
+      return next;
     });
 
-    if (newTabsToAppend.length > 0) {
-      setTabs(prev => [...prev, ...newTabsToAppend]);
-    }
-    if (firstTabIdToSelect) {
-      setActiveTabId(firstTabIdToSelect);
-    }
     setProjectDetailModalOpen(false);
     setIsLibraryOpen(false);
-  };
+  }, []);
 
   const handleLoadedFiles = (files: File[]) => {
     const isxFiles = files.filter(f => f.name.endsWith('.isx'));
@@ -1380,6 +1485,12 @@ export default function App() {
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
 
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId]);
+
+  const { awareness, isConnected, isSynced, getSourceText } = useCollaboration(
+    activeTab?.diagram_id || null,
+    profile?.full_name || profile?.username || user?.email || anonymousName || 'Anonymous',
+    profile?.settings?.cursor_colour || '#3B82F6'
+  );
   const source = activeTab?.source ?? '';
   const selectedHistoryItem = diagramHistoryList.find(h => h.id === selectedHistoryId);
   const displaySource = selectedHistoryItem ? selectedHistoryItem.content?.source || '' : source;
@@ -1896,11 +2007,10 @@ export default function App() {
       // Skip if user is focused on CodeMirror editor or an input/textarea
       const ae = document.activeElement;
       const isInEditor = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.closest?.('.cm-content') || ae.closest?.('.cm-editor'));
+      if (isInEditor) return;
 
       // Deletion of selected items
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (isInEditor) return;
-
         if (selectedItems.length > 0) {
           updateActiveTab(tab => {
             let nextSource = tab.source;
@@ -2114,10 +2224,12 @@ export default function App() {
 
   // ── Export callbacks (delegated to exporter module) ───────
   const handleExportSVG = useCallback(() => {
+    logEvent('diagram_exported', { format: 'svg', kind: activeDiagram?.kind });
     exportSVG(activeDiagram?.name ?? 'diagram');
   }, [activeDiagram]);
 
   const handleExportPNG = useCallback(() => {
+    logEvent('diagram_exported', { format: 'png', kind: activeDiagram?.kind });
     exportPNG(activeDiagram?.name ?? 'diagram');
   }, [activeDiagram]);
 
@@ -2125,6 +2237,7 @@ export default function App() {
   const executeNewDiagram = useCallback((kind: DiagramKind) => {
     const id = `tab-${slugId()}`;
     const src = templateFor(kind);
+    logEvent('diagram_created', { kind });
     setTabs(prev => [
       ...prev,
       {
@@ -2200,6 +2313,7 @@ export default function App() {
     }
     if (activeTab.diagram_id) {
       setIsSavingToCloud(true);
+      logEvent('diagram_saved', { project_id: activeTab.project_id, diagram_id: activeTab.diagram_id });
       const { updateDiagramContent, saveDiagramHistory } = await import('./lib/projects.js');
       await updateDiagramContent(activeTab.diagram_id, { source: activeTab.source });
       await saveDiagramHistory(activeTab.diagram_id, { source: activeTab.source }, user.id);
@@ -2224,9 +2338,11 @@ export default function App() {
     }
   }, [user, activeTab, updateActiveTab]);
 
-  // ── Global keyboard shortcuts ─────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const ae = document.activeElement;
+      const isInInput = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
+
       if (e.key === 'Escape') {
         if (editingEntity) { setEditingEntity(null); return; }
         if (editingRelation) { setEditingRelation(null); return; }
@@ -2245,8 +2361,20 @@ export default function App() {
         if (isLibraryOpen) { setIsLibraryOpen(false); return; }
         if (exportMenuOpen) { setExportMenuOpen(false); return; }
       }
-      if (e.ctrlKey && !e.shiftKey && e.key === 'n') { e.preventDefault(); handleNew(); }
-      if (e.ctrlKey && !e.shiftKey && e.key === 'o') { e.preventDefault(); setIsLibraryOpen(true); }
+
+      if (isInInput) return;
+      if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
+        if (!activeTab?.project_id || activeTab?.project_role === 'owner') {
+          e.preventDefault();
+          handleNew();
+        }
+      }
+      if (e.ctrlKey && !e.shiftKey && e.key === 'o') {
+        if (!activeTab?.project_id || activeTab?.project_role === 'owner') {
+          e.preventDefault();
+          setIsLibraryOpen(true);
+        }
+      }
       if (e.ctrlKey && !e.shiftKey && e.key === 's') { e.preventDefault(); handleSaveToCloud(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'e') { e.preventDefault(); handleExportSVG(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); handleExportPNG(); }
@@ -2254,7 +2382,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user, isSavingFlow, isDeleteModalOpen, renameModalOpen, isRevertModalOpen, saveToCloudModalOpen, projectDetailModalOpen, isHistoryOpen, isAuthOpen, isSettingsOpen, isLibraryOpen, exportMenuOpen]);
+  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user, isSavingFlow, isDeleteModalOpen, renameModalOpen, isRevertModalOpen, saveToCloudModalOpen, projectDetailModalOpen, isHistoryOpen, isAuthOpen, isSettingsOpen, isLibraryOpen, exportMenuOpen, activeTab]);
 
 
   const handleExportGIF = useCallback(async () => {
@@ -2504,13 +2632,17 @@ export default function App() {
       </div>
       <div className="iso-panel-body">
         <IsomorphEditor
+          key={activeTab?.id || 'empty'}
           value={displaySource}
-          readOnly={!!selectedHistoryItem}
+          readOnly={!!selectedHistoryItem || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'}
           onChange={value => {
             if (selectedHistoryItem) return;
             updateActiveTab(tab => ({ ...tab, source: value }))
           }}
           errors={editorDiagnostics}
+          yText={activeTab?.diagram_id ? getSourceText() : null}
+          isSynced={isSynced}
+          awareness={awareness}
         />
       </div>
       {allErrors.length > 0 && (
@@ -2706,7 +2838,7 @@ export default function App() {
     }).catch(() => { });
   }, [activeTab, updateActiveTab]);
 
-  const handleAddNote = useCallback((_x: number, _y: number) => {
+  const handleAddNote = useCallback((_x: number, _y: number, attachToEntity?: string) => {
     if (!activeTab) return;
     updateActiveTab(tab => {
       let src = tab.source;
@@ -2718,7 +2850,11 @@ export default function App() {
       if (block) {
         const before = src.slice(0, block.closeBrace);
         const after = src.slice(block.closeBrace);
-        src = before.trimEnd() + `\n\n  note ${noteName} {\n    New note\n  }\n` + after;
+        let extra = '';
+        if (attachToEntity) {
+          extra = `  ${attachToEntity} ..> ${noteName}\n`;
+        }
+        src = before.trimEnd() + `\n\n  note ${noteName} {\n    New note\n  }\n${extra}` + after;
       }
       return { ...tab, source: src };
     });
@@ -2743,33 +2879,40 @@ export default function App() {
           isAnimating={isAnimating}
           animationSpeed={animationSpeed}
           language={language}
-          onEntityMove={handleEntityMove}
-          onEntityResize={handleEntityResize}
-          onRelationVerticalMove={handleRelationVerticalMove}
-          onEntityEditRequest={handleEntityEditRequest}
-          onRelationEditRequest={handleRelationEditRequest}
-          onRelationAddRequest={handleRelationAddRequest}
+          onEntityMove={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleEntityMove}
+          onEntityResize={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleEntityResize}
+          onRelationVerticalMove={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleRelationVerticalMove}
+          onEntityEditRequest={(entity) => {
+            if (activeTab?.project_role === 'viewer') return;
+            if (activeTab?.project_role === 'commenter' && entity.kind !== 'note') return;
+            handleEntityEditRequest(entity);
+          }}
+          onRelationEditRequest={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleRelationEditRequest}
+          onRelationAddRequest={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleRelationAddRequest}
           onTextRenameRequest={handleTextRenameRequest}
           onExportSVG={handleExportSVG}
-          onDropEntity={handleDropEntity}
+          onDropEntity={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleDropEntity}
           pendingDropKeyword={isMobileLayout ? pendingMobileDropKeyword : null}
           onConsumePendingDrop={() => setPendingMobileDropKeyword(null)}
-          availableTools={selectedHistoryItem ? [] : toolsetFor(activeDiagram?.kind)}
+          availableTools={selectedHistoryItem ? [] : (activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? ['hand'] : toolsetFor(activeDiagram?.kind)}
           selectedItems={selectedItems}
           onSelectionChange={setSelectedItems}
-          onAutoLayout={handleAutoLayout}
-          onEntityDelete={handleContextEntityDelete}
-          onEntityDuplicate={handleContextEntityDuplicate}
-          onEntityCopy={handleContextEntityCopy}
-          onRelationDelete={handleContextRelationDelete}
-          onPaste={handleContextPaste}
-          onAddNote={handleAddNote}
+          onAutoLayout={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleAutoLayout}
+          onEntityDelete={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextEntityDelete}
+          onEntityDuplicate={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextEntityDuplicate}
+          onEntityCopy={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextEntityCopy}
+          onRelationDelete={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextRelationDelete}
+          onPaste={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextPaste}
+          onAddNote={activeTab?.project_role === 'viewer' ? undefined : handleAddNote}
         />
       </div>
     </div>
   );
 
-  const mobileStencilRail = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
+  const mobileStencilRail = activeDiagram?.kind && 
+    activeTab?.project_role !== 'viewer' && 
+    activeTab?.project_role !== 'commenter' && 
+    getStencilsForKind(activeDiagram.kind).length > 0 ? (
     <div className="iso-mobile-stencil-rail" role="toolbar" aria-label={t('ui.insert_shapes')}>
       {getStencilsForKind(activeDiagram.kind).map(stencil => (
         <button
@@ -4357,10 +4500,33 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {isAnonymousLoginOpen && pendingShareToken && (
+          <AnonymousLoginModal
+            isLoading={isJoiningShare}
+            onJoin={(name) => handleRedeemShareLink(pendingShareToken, name)}
+            onCancel={() => {
+              setIsAnonymousLoginOpen(false);
+              setPendingShareToken(null);
+            }}
+          />
+        )}
+
+        {toasts.length > 0 && (
+          <div className="iso-toast-container">
+            {toasts.map(t => (
+              <div key={t.id} className="iso-toast">
+                {t.type === 'success' && <span style={{ color: 'var(--iso-success, #4caf50)' }}>✓</span>}
+                {t.message}
+              </div>
+            ))}
+          </div>
+        )}
       </>
     );
   };
   if (tabs.length === 0) {
+    const isRedeeming = pendingShareToken || isJoiningShare || isAnonymousLoginOpen;
     return (
       <div className="iso-shell">
         <header className="iso-header">
@@ -4368,29 +4534,36 @@ export default function App() {
             <span className="iso-logo-name">Isomorph</span>
           </button>
         </header>
-        <div className="iso-empty-state">
-          <h1 className="iso-empty-title">{t('welcome.title')}</h1>
-          <p className="iso-empty-copy">{t('welcome.description')}</p>
-          <div className="iso-empty-actions">
-            <div className="iso-empty-group">
-              <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
-                {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                  <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
-                ))}
-              </select>
-              <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={() => executeNewDiagram(newDiagramKind)}>
-                {t('welcome.create_new')}
-              </button>
-            </div>
-            <div className="iso-empty-divider" aria-hidden="true"></div>
-            <div className="iso-empty-group iso-empty-group--secondary">
-              <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => { setLibraryTab('open_folder'); setIsLibraryOpen(true); }}>
-                {t('welcome.open_existing')}
-              </button>
-            </div>
+        {isRedeeming ? (
+          <div className="iso-empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+            <div className="iso-spinner" style={{ width: '40px', height: '40px', borderWidth: '3px', marginBottom: '16px' }} />
+            <p style={{ color: 'var(--iso-text-muted)', fontSize: '14px' }}>{t('share.loading') || 'Loading shared diagram...'}</p>
           </div>
-          <input ref={fileInputRef} type="file" accept=".isx" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
-        </div>
+        ) : (
+          <div className="iso-empty-state">
+            <h1 className="iso-empty-title">{t('welcome.title')}</h1>
+            <p className="iso-empty-copy">{t('welcome.description')}</p>
+            <div className="iso-empty-actions">
+              <div className="iso-empty-group">
+                <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
+                  {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+                    <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
+                  ))}
+                </select>
+                <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={() => executeNewDiagram(newDiagramKind)}>
+                  {t('welcome.create_new')}
+                </button>
+              </div>
+              <div className="iso-empty-divider" aria-hidden="true"></div>
+              <div className="iso-empty-group iso-empty-group--secondary">
+                <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => { setLibraryTab('open_folder'); setIsLibraryOpen(true); }}>
+                  {t('welcome.open_existing')}
+                </button>
+              </div>
+            </div>
+            <input ref={fileInputRef} type="file" accept=".isx" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
+          </div>
+        )}
 
         {/* ──────────────── MODALS (Empty State) ───────────────── */}
         {isNewModalOpen && (
@@ -4427,7 +4600,9 @@ export default function App() {
 
         {/* File breadcrumb */}
         <div className="iso-breadcrumb iso-mobile-hide" onDoubleClick={() => {
-          if (activeTab?.project_id) setRenamingTabId('project-' + activeTab.project_id);
+          if (activeTab?.project_id && (!activeTab.project_role || activeTab.project_role === 'owner')) {
+            setRenamingTabId('project-' + activeTab.project_id);
+          }
         }}>
           {renamingTabId === 'project-' + activeTab?.project_id ? (
             <input
@@ -4452,8 +4627,8 @@ export default function App() {
           ) : (
             <span
               className="iso-breadcrumb-name"
-              style={{ cursor: activeTab?.project_id ? 'pointer' : 'default' }}
-              data-tooltip={activeTab?.project_id ? "Double click to rename project" : undefined}
+              style={{ cursor: (activeTab?.project_id && (!activeTab.project_role || activeTab.project_role === 'owner')) ? 'pointer' : 'default' }}
+              data-tooltip={(activeTab?.project_id && (!activeTab.project_role || activeTab.project_role === 'owner')) ? "Double click to rename project" : undefined}
             >
               {projects.find(p => p.id === activeTab?.project_id)?.name || 'Local Project'}
             </span>
@@ -4562,7 +4737,7 @@ export default function App() {
                 }}
                 className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
                 onClick={() => setActiveTabId(tab.id)}
-                onDoubleClick={() => setRenamingTabId(tab.id)}
+                onDoubleClick={() => { if (!tab.project_role || tab.project_role === 'owner') setRenamingTabId(tab.id); }}
                 aria-label={t('tabs.open_name', { name: tab.name })}
                 style={{ paddingRight: tabs.length > 1 ? '4px' : '10px', cursor: 'grab' }}
               >
@@ -4626,17 +4801,43 @@ export default function App() {
           </div>
         )}
 
+        {activeTab?.diagram_id && (
+          <div title={isConnected ? 'Connected to live collaboration' : 'Disconnected from collaboration server'} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 500, color: 'var(--iso-text-muted)', marginRight: '16px', padding: '2px 6px', background: 'var(--iso-bg-hover)', borderRadius: 'var(--iso-radius)', border: '1px solid var(--iso-border)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: isConnected ? 'var(--iso-brand)' : 'var(--iso-error)' }}></span>
+            {activeTab?.project_role === 'owner' && (
+              <button type="button" className="iso-btn" onClick={() => setIsShareModalOpen(true)} aria-label="Share Project" data-tooltip="Share Project">
+                <IconUserPlus size={14} />
+                {t('ui.share')}
+              </button>
+            )}
+            {isConnected ? 'Live' : 'Offline'}
+          </div>
+        )}
+
         {!isMobileLayout && (
           <div className="iso-header-actions">
-            <button type="button" className="iso-btn" onClick={handleNew} aria-label={t('menu.new_diagram')} data-tooltip={t('menu.new_shortcut')}>
-              <IconNew />
-              {t('menu.new')}
-            </button>
+            {(!activeTab?.project_id || activeTab?.project_role === 'owner') && (
+              <>
+                <button type="button" className="iso-btn" onClick={handleNew} aria-label={t('menu.new_diagram')} data-tooltip={t('menu.new_shortcut')}>
+                  <IconNew />
+                  {t('menu.new')}
+                </button>
 
-            <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)} aria-label={t('menu.open_isx')} data-tooltip={t('menu.open_shortcut')}>
-              <IconOpen />
-              {t('menu.open')}
-            </button>
+                <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)} aria-label={t('menu.open_isx')} data-tooltip={t('menu.open_shortcut')}>
+                  <IconOpen />
+                  {t('menu.open')}
+                </button>
+              </>
+            )}
+
+            {activeTab?.project_role === 'owner' && (
+              <button type="button" className="iso-btn" onClick={() => setIsShareModalOpen(true)} aria-label="Share Project" data-tooltip="Share Project">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ marginRight: 4 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                {t('ui.share')}
+              </button>
+            )}
 
 
 
@@ -4777,7 +4978,7 @@ export default function App() {
                     onClick={() => {
                       setActiveTabId(tab.id);
                     }}
-                    onDoubleClick={() => setRenamingTabId(tab.id)}
+                    onDoubleClick={() => { if (!tab.project_role || tab.project_role === 'owner') setRenamingTabId(tab.id); }}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
                     {renamingTabId === tab.id ? (
@@ -4850,14 +5051,18 @@ export default function App() {
 
           <div className="iso-mobile-actions">
             <div className="iso-mobile-actions-group">
-              <button type="button" className="iso-btn" onClick={handleNew}>
-                <IconNew />
-                {t('menu.new')}
-              </button>
-              <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)}>
-                <IconOpen />
-                {t('menu.open')}
-              </button>
+              {(!activeTab?.project_id || activeTab?.project_role === 'owner') && (
+                <>
+                  <button type="button" className="iso-btn" onClick={handleNew}>
+                    <IconNew />
+                    {t('menu.new')}
+                  </button>
+                  <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)}>
+                    <IconOpen />
+                    {t('menu.open')}
+                  </button>
+                </>
+              )}
 
               {activeDiagram?.kind === 'sequence' && (
                 <button type="button" className="iso-btn" onClick={handleTransformToCollaboration}>
@@ -4983,13 +5188,13 @@ export default function App() {
         ) : (
           <>
             <div style={{
-              width: isHistoryOpen ? 0 : 'var(--iso-sidebar-width, 200px)',
+              width: (isHistoryOpen || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? 0 : 'var(--iso-sidebar-width, 200px)',
               overflow: 'hidden',
               transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
-              opacity: isHistoryOpen ? 0 : 1,
+              opacity: (isHistoryOpen || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? 0 : 1,
               flexShrink: 0
             }}>
-              {shapesPane}
+              {(activeTab?.project_role !== 'viewer' && activeTab?.project_role !== 'commenter') && shapesPane}
             </div>
             <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
             <div style={{
@@ -5501,16 +5706,15 @@ export default function App() {
 
       {renderCommonModals()}
 
-
-      {toasts.length > 0 && (
-        <div className="iso-toast-container">
-          {toasts.map(t => (
-            <div key={t.id} className="iso-toast">
-              {t.type === 'success' && <span style={{ color: 'var(--iso-success, #4caf50)' }}>✓</span>}
-              {t.message}
-            </div>
-          ))}
-        </div>
+      {isShareModalOpen && activeTab?.project_id && (
+        <ShareModal
+          projectId={activeTab.project_id}
+          diagramId={activeTab.diagram_id || undefined}
+          diagramName={activeTab.name || undefined}
+          onClose={() => setIsShareModalOpen(false)}
+          onToast={addToast}
+          language={language}
+        />
       )}
     </div>
   );

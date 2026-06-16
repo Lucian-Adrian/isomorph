@@ -1,0 +1,114 @@
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
+import { useState, useEffect, useCallback } from 'react';
+
+// Use an environment variable or fallback for the WebSocket server
+export const COLLAB_SERVER_URL = import.meta.env.VITE_COLLAB_SERVER_URL || 'ws://localhost:1234';
+
+class YjsManager {
+  public doc: Y.Doc;
+  public provider: any = null;
+  public roomName: string | null = null;
+
+  constructor() {
+    this.doc = new Y.Doc();
+  }
+
+  public connect(roomName: string, userName: string, cursorColor: string) {
+    if (this.provider) {
+      if (this.roomName === roomName) {
+        // Already connected to this room
+        return this.provider;
+      }
+      // Disconnect from previous room
+      this.disconnect();
+    }
+
+    this.roomName = roomName;
+    // We clear the doc before connecting to a new room to start fresh
+    this.doc = new Y.Doc();
+
+    this.provider = new WebsocketProvider(COLLAB_SERVER_URL, roomName, this.doc, {
+      connect: true,
+    });
+
+    // Set up awareness (presence)
+    const awareness = this.provider.awareness;
+    awareness.setLocalStateField('user', {
+      name: userName,
+      color: cursorColor,
+    });
+
+    return this.provider;
+  }
+
+  public disconnect() {
+    if (this.provider) {
+      this.provider.disconnect();
+      this.provider.destroy();
+      this.provider = null;
+      this.roomName = null;
+    }
+  }
+
+  public getAwareness() {
+    return this.provider?.awareness;
+  }
+}
+
+export const yjsManager = new YjsManager();
+
+export function useCollaboration(
+  diagramId: string | null,
+  userName: string = 'Anonymous',
+  cursorColor: string = '#3B82F6'
+) {
+  const [isConnected, setIsConnected] = useState(false);
+  const [isSynced, setIsSynced] = useState(false);
+  const [awareness, setAwareness] = useState(yjsManager.getAwareness());
+
+  useEffect(() => {
+    if (!diagramId) {
+      yjsManager.disconnect();
+      setIsConnected(false);
+      return;
+    }
+
+    const provider = yjsManager.connect(diagramId, userName, cursorColor);
+    setAwareness(provider.awareness);
+
+    const handleStatus = (event: { status: string }) => {
+      setIsConnected(event.status === 'connected');
+    };
+
+    const handleSync = (synced: boolean) => {
+      setIsSynced(synced);
+    };
+
+    provider.on('status', handleStatus);
+    provider.on('sync', handleSync);
+    setIsConnected(provider.wsconnected);
+    setIsSynced(provider.synced);
+
+    return () => {
+      provider.off('status', handleStatus);
+      provider.off('sync', handleSync);
+      // We don't automatically disconnect here if the component unmounts but we are still in the diagram.
+      // The diagram switch logic handles reconnecting/disconnecting.
+    };
+  }, [diagramId, userName, cursorColor]);
+
+  // Provide a way to get the active Y.Text for the source code
+  const getSourceText = useCallback(() => {
+    return yjsManager.doc.getText('source');
+  }, []);
+
+  return {
+    doc: yjsManager.doc,
+    provider: yjsManager.provider,
+    awareness,
+    isConnected,
+    isSynced,
+    getSourceText,
+  };
+}

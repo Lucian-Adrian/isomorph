@@ -189,3 +189,14 @@ export function IconVideo({ size = 14 }: IconProps) {
 export function IconGif({ size = 14 }: IconProps) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12h2v4H8V8h4"/><path d="M14 8v8"/><path d="M18 8v4h-2"/></svg>;
 }
+
+export function IconUserPlus({ size = 14 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+      <circle cx="8.5" cy="7" r="4"></circle>
+      <line x1="20" y1="8" x2="20" y2="14"></line>
+      <line x1="23" y1="11" x2="17" y2="11"></line>
+    </svg>
+  );
+}

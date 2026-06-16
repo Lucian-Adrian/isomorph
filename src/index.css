@@ -2152,3 +2152,18 @@ body {
   border-color: var(--iso-divider);
 }
 
+.iso-spinner {
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top: 2px solid var(--iso-brand, #3b82f6);
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  animation: iso-spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes iso-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
