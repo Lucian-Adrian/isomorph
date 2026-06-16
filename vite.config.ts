@@ -6,6 +6,13 @@ export default defineConfig({
   base: './',
   server: {
     host: true,
+    proxy: {
+      '/supabase-api': {
+        target: 'https://bnswfyqrxebauaiggzwu.supabase.co',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/supabase-api/, ''),
+      },
+    },
   },
   plugins: [react()],
   resolve: {

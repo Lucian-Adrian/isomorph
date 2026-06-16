@@ -45,9 +45,30 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
         if (error) throw error;
         onClose();
       } else if (mode === 'register') {
-        // OSINT protection - don't reveal if email exists, handled by Supabase default settings if configure properly
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
+        // OSINT protection - check if the email exists on the server first.
+        // If it exists, we skip signing up (which would send a duplicate confirmation mail)
+        // but still display the success message so the outcome is indistinguishable.
+        let exists = false;
+        try {
+          const collabServerUrl = import.meta.env.VITE_COLLAB_SERVER_URL || 'ws://localhost:1234';
+          const collabHttpUrl = collabServerUrl.replace(/^ws/, 'http');
+          const checkRes = await fetch(`${collabHttpUrl}/api/check-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          if (checkRes.ok) {
+            const checkData = await checkRes.json();
+            exists = !!checkData.exists;
+          }
+        } catch (err) {
+          console.warn('Failed to verify email existence with backend server:', err);
+        }
+
+        if (!exists) {
+          const { error } = await supabase.auth.signUp({ email, password });
+          if (error) throw error;
+        }
         setSuccess(t('auth.success_register'));
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {

@@ -1501,7 +1501,9 @@ export default function App() {
   const { awareness, isConnected, isSynced, getSourceText, connectedDiagramId, collaborators } = useCollaboration(
     activeTab?.diagram_id || null,
     profile?.full_name || profile?.username || user?.email || anonymousName || 'Anonymous',
-    profile?.settings?.cursor_colour || '#3B82F6'
+    profile?.settings?.cursor_colour || '#3B82F6',
+    profile?.avatar_url || null,
+    activeTab?.project_role || 'owner'
   );
 
   const isCollabActive = !!(activeTab?.diagram_id && connectedDiagramId === activeTab.diagram_id);
@@ -4887,11 +4889,25 @@ export default function App() {
               <div
                 key={collab.clientId}
                 className="iso-avatar"
-                style={{ backgroundColor: collab.color }}
+                style={{ backgroundColor: collab.avatarUrl ? 'transparent' : collab.color }}
                 title={collab.clientId === awareness?.clientID ? `${collab.name} (${t('ui.you')})` : collab.name}
                 onClick={() => setIsCollabDropdownOpen(prev => !prev)}
               >
-                {getInitials(collab.name)}
+                {collab.avatarUrl ? (
+                  <img
+                    src={collab.avatarUrl}
+                    alt={collab.name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      display: 'block'
+                    }}
+                  />
+                ) : (
+                  getInitials(collab.name)
+                )}
               </div>
             ))}
             {sortedCollaborators.length > 2 && (
@@ -4909,13 +4925,42 @@ export default function App() {
                   {t('ui.connected_users')} ({sortedCollaborators.length})
                 </div>
                 {sortedCollaborators.map((c) => (
-                  <div key={c.clientId} className="iso-collab-user-row">
-                    <span className="iso-collab-user-dot" style={{ backgroundColor: c.color }} />
-                    <span className="iso-collab-user-name" title={c.name}>
+                  <div key={c.clientId} className="iso-collab-user-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {c.avatarUrl ? (
+                      <img
+                        src={c.avatarUrl}
+                        alt={c.name}
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          flexShrink: 0
+                        }}
+                      />
+                    ) : (
+                      <span className="iso-collab-user-dot" style={{ backgroundColor: c.color }} />
+                    )}
+                    <span className="iso-collab-user-name" title={c.name} style={{ flex: 1 }}>
                       {c.name}
                     </span>
+                    <span
+                      className="iso-collab-user-role"
+                      style={{
+                        fontSize: '10px',
+                        color: 'var(--iso-text-muted)',
+                        textTransform: 'capitalize',
+                        border: '1px solid var(--iso-border)',
+                        borderRadius: '4px',
+                        padding: '1px 5px',
+                        backgroundColor: 'var(--iso-bg-app)',
+                        lineHeight: 1.2
+                      }}
+                    >
+                      {c.role === 'owner' ? 'editor' : c.role}
+                    </span>
                     {c.clientId === awareness?.clientID && (
-                      <span className="iso-collab-user-you">
+                      <span className="iso-collab-user-you" style={{ marginLeft: '4px' }}>
                         ({t('ui.you')})
                       </span>
                     )}

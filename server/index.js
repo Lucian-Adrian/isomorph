@@ -69,7 +69,60 @@ setPersistence({
   }
 });
 
+const url = require('url');
+
 const server = http.createServer((request, response) => {
+  // Add CORS headers for local development and general connection
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
+
+  const parsedUrl = url.parse(request.url, true);
+
+  if (parsedUrl.pathname === '/api/check-email' && request.method === 'POST') {
+    let body = '';
+    request.on('data', chunk => {
+      body += chunk.toString();
+    });
+    request.on('end', async () => {
+      try {
+        const { email } = JSON.parse(body);
+        if (!email) {
+          response.writeHead(400, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ error: 'Email is required' }));
+          return;
+        }
+
+        const cleanEmail = email.trim().toLowerCase();
+
+        // Use the Supabase Admin API with service role key to list and check existing users
+        const { data, error } = await supabase.auth.admin.listUsers();
+        if (error) {
+          console.error('Error fetching users from Supabase admin:', error.message);
+          response.writeHead(500, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ error: 'Failed to verify email availability' }));
+          return;
+        }
+
+        const exists = data.users.some(u => u.email && u.email.toLowerCase() === cleanEmail);
+
+        response.writeHead(200, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ exists }));
+      } catch (err) {
+        console.error('Error in check-email endpoint:', err);
+        response.writeHead(500, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ error: 'Internal server error' }));
+      }
+    });
+    return;
+  }
+
   response.writeHead(200, { 'Content-Type': 'text/plain' });
   response.end('Isomorph Collaboration Server OK');
 });

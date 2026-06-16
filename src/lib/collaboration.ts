@@ -61,13 +61,15 @@ export const yjsManager = new YjsManager();
 export function useCollaboration(
   diagramId: string | null,
   userName: string = 'Anonymous',
-  cursorColor: string = '#3B82F6'
+  cursorColor: string = '#3B82F6',
+  avatarUrl: string | null = null,
+  role: string = 'viewer'
 ) {
   const [isConnected, setIsConnected] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const [awareness, setAwareness] = useState(yjsManager.getAwareness());
   const [connectedDiagramId, setConnectedDiagramId] = useState<string | null>(null);
-  const [collaborators, setCollaborators] = useState<{ clientId: number; name: string; color: string }[]>([]);
+  const [collaborators, setCollaborators] = useState<{ clientId: number; name: string; color: string; avatarUrl: string | null; role: string }[]>([]);
 
   useEffect(() => {
     if (!diagramId) {
@@ -82,6 +84,14 @@ export function useCollaboration(
     setAwareness(provider.awareness);
     setConnectedDiagramId(diagramId);
 
+    // Set local presence data including avatar and role
+    provider.awareness.setLocalStateField('user', {
+      name: userName,
+      color: cursorColor,
+      avatarUrl,
+      role
+    });
+
     const handleStatus = (event: { status: string }) => {
       setIsConnected(event.status === 'connected');
     };
@@ -92,13 +102,15 @@ export function useCollaboration(
 
     const updateCollaborators = () => {
       const states = provider.awareness.getStates();
-      const users: { clientId: number; name: string; color: string }[] = [];
+      const users: { clientId: number; name: string; color: string; avatarUrl: string | null; role: string }[] = [];
       states.forEach((state: any, clientId: number) => {
         if (state.user) {
           users.push({
             clientId,
             name: state.user.name || 'Anonymous',
             color: state.user.color || '#3B82F6',
+            avatarUrl: state.user.avatarUrl || null,
+            role: state.user.role || 'viewer',
           });
         }
       });
@@ -120,7 +132,7 @@ export function useCollaboration(
       // We don't automatically disconnect here if the component unmounts but we are still in the diagram.
       // The diagram switch logic handles reconnecting/disconnecting.
     };
-  }, [diagramId, userName, cursorColor]);
+  }, [diagramId, userName, cursorColor, avatarUrl, role]);
 
   // Provide a way to get the active Y.Text for the source code
   const getSourceText = useCallback(() => {
