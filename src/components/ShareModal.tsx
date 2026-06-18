@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createShareLink, getShareLinks, deleteShareLink, type ShareLink } from '../lib/share-links.js';
 import { getProjectAccess, grantAccess, revokeAccess, type ProjectAccess } from '../lib/access-control.js';
 import { tText, type Language } from '../i18n.js';
+import { logAudit } from '../lib/audit.js';
 
 interface ShareModalProps {
   projectId: string;
@@ -63,6 +64,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
     const link = await createShareLink(projectId, newLinkRole, newLinkScope === 'file' ? diagramId : null);
     if (link) {
       setLinks([link, ...links]);
+      logAudit('share_link_created', 'share_link', link.id, { role: newLinkRole, scope: newLinkScope, projectId });
       onToast(t('share.success_link_created', { role: t(`share.${newLinkRole}`) }), 'success');
     }
   }
@@ -71,6 +73,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
     const success = await deleteShareLink(id);
     if (success) {
       setLinks(links.filter(l => l.id !== id));
+      logAudit('share_link_revoked', 'share_link', id, { projectId });
       onToast(t('share.success_link_revoked'), 'success');
     }
   }
@@ -81,6 +84,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
     if (success) {
       setInviteEmail('');
       loadAccess();
+      logAudit('access_granted', 'project', projectId, { email: inviteEmail, role: inviteRole, scope: inviteScope });
       onToast(t('share.success_access_granted'), 'success');
     } else {
       alert(t('share.error_user_not_found'));
@@ -91,6 +95,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
     const success = await revokeAccess(projectId, userId);
     if (success) {
       setAccess(access.filter(a => a.user_id !== userId));
+      logAudit('access_revoked', 'project', projectId, { revokedUserId: userId });
       onToast(t('share.success_access_revoked'), 'success');
     }
   }

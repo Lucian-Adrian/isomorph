@@ -43,33 +43,27 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        // Audit log login
+        try {
+          const { logAudit } = await import('../lib/audit.js');
+          logAudit('login');
+        } catch { /* silent */ }
         onClose();
       } else if (mode === 'register') {
-        // OSINT protection - check if the email exists on the server first.
-        // If it exists, we skip signing up (which would send a duplicate confirmation mail)
-        // but still display the success message so the outcome is indistinguishable.
-        let exists = false;
-        try {
-          const collabServerUrl = import.meta.env.VITE_COLLAB_SERVER_URL || 'ws://localhost:1234';
-          const collabHttpUrl = collabServerUrl.replace(/^ws/, 'http');
-          const checkRes = await fetch(`${collabHttpUrl}/api/check-email`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-          });
-          if (checkRes.ok) {
-            const checkData = await checkRes.json();
-            exists = !!checkData.exists;
+        // OSINT protection: always show the same success message regardless of whether
+        // the email already exists. Supabase handles duplicate suppression natively.
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) {
+          // Suppress "User already registered" to prevent email enumeration
+          if (error.message?.toLowerCase().includes('already registered')) {
+            // Show same success message as a new registration
+            setSuccess(t('auth.success_register'));
+          } else {
+            throw error;
           }
-        } catch (err) {
-          console.warn('Failed to verify email existence with backend server:', err);
+        } else {
+          setSuccess(t('auth.success_register'));
         }
-
-        if (!exists) {
-          const { error } = await supabase.auth.signUp({ email, password });
-          if (error) throw error;
-        }
-        setSuccess(t('auth.success_register'));
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`, // This would need a route in a real app, placeholder for now

@@ -1503,7 +1503,8 @@ export default function App() {
     profile?.full_name || profile?.username || user?.email || anonymousName || 'Anonymous',
     profile?.settings?.cursor_colour || '#3B82F6',
     profile?.avatar_url || null,
-    activeTab?.project_role || 'owner'
+    activeTab?.project_role || 'owner',
+    session?.access_token
   );
 
   const isCollabActive = !!(activeTab?.diagram_id && connectedDiagramId === activeTab.diagram_id);

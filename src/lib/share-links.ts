@@ -20,7 +20,7 @@ export async function createShareLink(
   expiresAt: string | null = null,
   maxUses: number | null = null
 ): Promise<ShareLink | null> {
-  const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const token = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 
   const { data, error } = await supabase
     .from('share_links')

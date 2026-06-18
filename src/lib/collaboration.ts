@@ -14,7 +14,7 @@ class YjsManager {
     this.doc = new Y.Doc();
   }
 
-  public connect(roomName: string, userName: string, cursorColor: string) {
+  public connect(roomName: string, userName: string, cursorColor: string, accessToken?: string) {
     if (this.provider) {
       if (this.roomName === roomName) {
         // Already connected to this room
@@ -28,8 +28,12 @@ class YjsManager {
     // We clear the doc before connecting to a new room to start fresh
     this.doc = new Y.Doc();
 
-    this.provider = new WebsocketProvider(COLLAB_SERVER_URL, roomName, this.doc, {
+    // Build WebSocket URL with optional auth token
+    const baseUrl = COLLAB_SERVER_URL;
+
+    this.provider = new WebsocketProvider(baseUrl, roomName, this.doc, {
       connect: true,
+      params: accessToken ? { token: accessToken } : {},
     });
 
     // Set up awareness (presence)
@@ -63,7 +67,8 @@ export function useCollaboration(
   userName: string = 'Anonymous',
   cursorColor: string = '#3B82F6',
   avatarUrl: string | null = null,
-  role: string = 'viewer'
+  role: string = 'viewer',
+  accessToken?: string
 ) {
   const [isConnected, setIsConnected] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
@@ -80,7 +85,7 @@ export function useCollaboration(
       return;
     }
 
-    const provider = yjsManager.connect(diagramId, userName, cursorColor);
+    const provider = yjsManager.connect(diagramId, userName, cursorColor, accessToken);
     setAwareness(provider.awareness);
     setConnectedDiagramId(diagramId);
 
@@ -132,7 +137,7 @@ export function useCollaboration(
       // We don't automatically disconnect here if the component unmounts but we are still in the diagram.
       // The diagram switch logic handles reconnecting/disconnecting.
     };
-  }, [diagramId, userName, cursorColor, avatarUrl, role]);
+  }, [diagramId, userName, cursorColor, avatarUrl, role, accessToken]);
 
   // Provide a way to get the active Y.Text for the source code
   const getSourceText = useCallback(() => {
