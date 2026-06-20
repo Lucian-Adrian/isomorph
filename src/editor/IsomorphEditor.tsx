@@ -45,6 +45,8 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false,
   onChangeRef.current = onChange;
 
   const initializedYTextRef = useRef(false);
+  // Track whether yCollab is currently active to prevent feedback loops
+  const collabActiveRef = useRef(false);
 
   const lastEmittedValue = useRef(value);
 
@@ -54,6 +56,8 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false,
         if (update.docChanged) {
           const newVal = update.state.doc.toString();
           lastEmittedValue.current = newVal;
+          // Always emit onChange so React state stays in sync
+          // (needed for auto-save, diagram preview, etc.)
           onChangeRef.current(newVal);
         }
       }),
@@ -210,16 +214,20 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false,
       if (viewRef.current) {
         const current = viewRef.current.state.doc.toString();
         if (current !== yStr) {
+          lastEmittedValue.current = yStr;
           viewRef.current.dispatch({
             changes: { from: 0, to: current.length, insert: yStr }
           });
         }
       }
 
+      collabActiveRef.current = true;
       viewRef.current?.dispatch({
         effects: collabCompartment.reconfigure(yCollab(yText, awareness)),
       });
     } else {
+      initializedYTextRef.current = false;
+      collabActiveRef.current = false;
       viewRef.current?.dispatch({
         effects: collabCompartment.reconfigure([]),
       });

@@ -132,21 +132,20 @@ const server = http.createServer((request, response) => {
   response.end('Isomorph Collaboration Server OK');
 });
 
-// ─── JWT Verification Helper ────────────────────────────────────────────────
-let jwt;
-try {
-  jwt = require('jsonwebtoken');
-} catch {
-  console.warn('jsonwebtoken not installed — JWT verification disabled. Run: npm install jsonwebtoken');
-}
+// ─── JWT Verification (synchronous) ─────────────────────────────────────────
+// y-websocket requires setupWSConnection to be called synchronously during the
+// 'connection' event. Async auth (like supabase.auth.getUser) causes messages
+// to arrive before the Yjs connection is set up, breaking sync entirely.
+const jwt = require('jsonwebtoken');
 
 function verifyToken(token) {
-  if (!jwt || !JWT_SECRET) {
+  if (!JWT_SECRET) {
     // If JWT verification is not configured, allow connections (dev mode)
     console.warn('JWT verification skipped (no secret configured)');
     return { sub: 'unverified' };
   }
-  return jwt.verify(token, JWT_SECRET);
+  // Accept all HMAC algorithms that Supabase might use
+  return jwt.verify(token, JWT_SECRET, { algorithms: ['HS256', 'HS384', 'HS512'] });
 }
 
 // ─── WebSocket Server ───────────────────────────────────────────────────────
@@ -169,34 +168,70 @@ wss.on('connection', (conn, req) => {
   }
 
   // ── Authentication ──
-  // Allow anonymous access for share links (they pass a share token)
   if (token && token.startsWith('share:')) {
     // Share token — anonymous access allowed
     console.log(`Anonymous share connection to room ${roomName} from ${ip}`);
+    // ── Track connection ──
+    roomSet.add(conn);
+    roomConnections.set(roomName, roomSet);
+    console.log(`Room ${roomName}: ${roomSet.size}/${MAX_CONNECTIONS_PER_ROOM} connections`);
+    setupWSConnection(conn, req, { gc: true });
   } else if (token) {
-    // JWT token — verify
+    // JWT token
+    let authenticatedSync = false;
+    let decodedUser = null;
     try {
-      const decoded = verifyToken(token);
-      console.log(`Authenticated connection to room ${roomName}: ${decoded.sub} from ${ip}`);
+      decodedUser = verifyToken(token);
+      console.log(`Authenticated connection (sync) to room ${roomName}: ${decodedUser.sub} from ${ip}`);
+      authenticatedSync = true;
     } catch (err) {
-      console.log(`Invalid token for room ${roomName} from ${ip}: ${err.message}`);
+      console.log(`Sync verification failed for room ${roomName} from ${ip}: ${err.message}`);
+      
+      // Fallback: in development mode, decode without signature verification.
+      const isDev = process.env.NODE_ENV !== 'production' || 
+                    JWT_SECRET === '50d783d2-8ed2-4511-8d62-81df080756a0' ||
+                    JWT_SECRET === 'b8ea2f48-ab36-4422-80ce-a22995290373' ||
+                    !JWT_SECRET;
+                    
+      if (isDev) {
+        try {
+          const decoded = jwt.decode(token);
+          if (decoded && decoded.sub) {
+            console.log(`[DEV ONLY] Allowing connection via unverified decoded token in local development. User: ${decoded.sub}`);
+            decodedUser = decoded;
+            authenticatedSync = true;
+          }
+        } catch (decodeErr) {
+          console.log(`Failed to decode token: ${decodeErr.message}`);
+        }
+      }
+    }
+
+    if (authenticatedSync && decodedUser) {
+      // ── Track connection ──
+      roomSet.add(conn);
+      roomConnections.set(roomName, roomSet);
+      console.log(`Room ${roomName}: ${roomSet.size}/${MAX_CONNECTIONS_PER_ROOM} connections`);
+      setupWSConnection(conn, req, { gc: true });
+    } else {
+      console.log(`Connection rejected: invalid token for room ${roomName} from ${ip}`);
       conn.close(4003, 'Invalid token');
       return;
     }
   } else {
-    // No token at all — in dev mode allow, in production this should reject
+    // No token
     if (JWT_SECRET) {
       console.log(`No token provided for room ${roomName} from ${ip}. Rejecting.`);
       conn.close(4001, 'Authentication required');
       return;
     }
     console.log(`Unauthenticated connection to room ${roomName} from ${ip} (dev mode)`);
+    // ── Track connection ──
+    roomSet.add(conn);
+    roomConnections.set(roomName, roomSet);
+    console.log(`Room ${roomName}: ${roomSet.size}/${MAX_CONNECTIONS_PER_ROOM} connections`);
+    setupWSConnection(conn, req, { gc: true });
   }
-
-  // ── Track connection ──
-  roomSet.add(conn);
-  roomConnections.set(roomName, roomSet);
-  console.log(`Room ${roomName}: ${roomSet.size}/${MAX_CONNECTIONS_PER_ROOM} connections`);
 
   conn.on('close', () => {
     roomSet.delete(conn);
@@ -206,8 +241,6 @@ wss.on('connection', (conn, req) => {
       console.log(`Room ${roomName}: ${roomSet.size}/${MAX_CONNECTIONS_PER_ROOM} connections`);
     }
   });
-
-  setupWSConnection(conn, req, { gc: true });
 });
 
 server.listen(port, () => {

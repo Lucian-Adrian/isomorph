@@ -32,18 +32,13 @@ export async function getProjectAccess(projectId: string): Promise<ProjectAccess
 }
 
 export async function grantAccess(projectId: string, emailOrUsername: string, role: string, diagramId: string | null = null): Promise<boolean> {
-  const { data: profiles, error: profileError } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('username', emailOrUsername)
-    .limit(1);
+  const { data: userId, error: lookupError } = await supabase
+    .rpc('get_user_id_by_email_or_username', { input_text: emailOrUsername });
 
-  if (profileError || !profiles || profiles.length === 0) {
-    console.error('User not found:', profileError);
+  if (lookupError || !userId) {
+    console.error('User not found:', lookupError);
     return false;
   }
-
-  const userId = profiles[0].id;
 
   // Since we dropped the unique constraint, check if exists first
   let query = supabase.from('project_access').select('id').eq('project_id', projectId).eq('user_id', userId);

@@ -1446,6 +1446,13 @@ export default function App() {
 
     if (error) {
       console.error('Error auto-saving profile:', error);
+      // Revert local state
+      setProfile(profile);
+      if (error.code === '23505') {
+        addToast('Error: Username already taken');
+      } else {
+        addToast('Error saving profile changes');
+      }
     }
   };
 
@@ -1504,7 +1511,11 @@ export default function App() {
     profile?.settings?.cursor_colour || '#3B82F6',
     profile?.avatar_url || null,
     activeTab?.project_role || 'owner',
-    session?.access_token
+    // For authenticated users, pass the JWT access token.
+    // For anonymous share-link users (no session), pass 'share:anonymous'
+    // so the server recognizes them as allowed share connections.
+    session?.access_token || (activeTab?.diagram_id ? 'share:anonymous' : undefined),
+    profile?.username || undefined
   );
 
   const isCollabActive = !!(activeTab?.diagram_id && connectedDiagramId === activeTab.diagram_id);
@@ -4942,9 +4953,17 @@ export default function App() {
                     ) : (
                       <span className="iso-collab-user-dot" style={{ backgroundColor: c.color }} />
                     )}
-                    <span className="iso-collab-user-name" title={c.name} style={{ flex: 1 }}>
-                      {c.name}
-                    </span>
+                    <div className="iso-collab-user-name" title={c.name} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {c.name}
+                        {c.clientId === awareness?.clientID && ` (${t('ui.you')})`}
+                      </span>
+                      {c.username && (
+                        <span style={{ fontSize: '10px', color: 'var(--iso-text-muted)', lineHeight: 1 }}>
+                          @{c.username}
+                        </span>
+                      )}
+                    </div>
                     <span
                       className="iso-collab-user-role"
                       style={{

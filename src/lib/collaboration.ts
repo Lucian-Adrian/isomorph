@@ -3,28 +3,41 @@ import { WebsocketProvider } from 'y-websocket';
 import { useState, useEffect, useCallback } from 'react';
 
 // Use an environment variable or fallback for the WebSocket server
-export const COLLAB_SERVER_URL = import.meta.env.VITE_COLLAB_SERVER_URL || 'ws://localhost:1234';
+const rawUrl = import.meta.env.VITE_COLLAB_SERVER_URL || import.meta.env.VITE_WS_URL || 'ws://localhost:1234';
+
+let resolvedUrl = rawUrl;
+if (resolvedUrl.includes('localhost') || resolvedUrl.includes('127.0.0.1')) {
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+    resolvedUrl = resolvedUrl.replace('localhost', hostname).replace('127.0.0.1', hostname);
+  }
+}
+
+export const COLLAB_SERVER_URL = resolvedUrl;
 
 class YjsManager {
   public doc: Y.Doc;
   public provider: any = null;
   public roomName: string | null = null;
+  public token: string | null = null;
 
   constructor() {
     this.doc = new Y.Doc();
   }
 
   public connect(roomName: string, userName: string, cursorColor: string, accessToken?: string) {
+    const tokenVal = accessToken || null;
     if (this.provider) {
-      if (this.roomName === roomName) {
-        // Already connected to this room
+      if (this.roomName === roomName && this.token === tokenVal) {
+        // Already connected to this room with the same token
         return this.provider;
       }
-      // Disconnect from previous room
+      // Disconnect from previous room or if token changed
       this.disconnect();
     }
 
     this.roomName = roomName;
+    this.token = tokenVal;
     // We clear the doc before connecting to a new room to start fresh
     this.doc = new Y.Doc();
 
@@ -52,6 +65,7 @@ class YjsManager {
       this.provider.destroy();
       this.provider = null;
       this.roomName = null;
+      this.token = null;
     }
   }
 
@@ -68,13 +82,14 @@ export function useCollaboration(
   cursorColor: string = '#3B82F6',
   avatarUrl: string | null = null,
   role: string = 'viewer',
-  accessToken?: string
+  accessToken?: string,
+  username?: string
 ) {
   const [isConnected, setIsConnected] = useState(false);
   const [isSynced, setIsSynced] = useState(false);
   const [awareness, setAwareness] = useState(yjsManager.getAwareness());
   const [connectedDiagramId, setConnectedDiagramId] = useState<string | null>(null);
-  const [collaborators, setCollaborators] = useState<{ clientId: number; name: string; color: string; avatarUrl: string | null; role: string }[]>([]);
+  const [collaborators, setCollaborators] = useState<{ clientId: number; name: string; username?: string; color: string; avatarUrl: string | null; role: string }[]>([]);
 
   useEffect(() => {
     if (!diagramId) {
@@ -92,6 +107,7 @@ export function useCollaboration(
     // Set local presence data including avatar and role
     provider.awareness.setLocalStateField('user', {
       name: userName,
+      username,
       color: cursorColor,
       avatarUrl,
       role
@@ -107,12 +123,13 @@ export function useCollaboration(
 
     const updateCollaborators = () => {
       const states = provider.awareness.getStates();
-      const users: { clientId: number; name: string; color: string; avatarUrl: string | null; role: string }[] = [];
+      const users: { clientId: number; name: string; username?: string; color: string; avatarUrl: string | null; role: string }[] = [];
       states.forEach((state: any, clientId: number) => {
         if (state.user) {
           users.push({
             clientId,
             name: state.user.name || 'Anonymous',
+            username: state.user.username,
             color: state.user.color || '#3B82F6',
             avatarUrl: state.user.avatarUrl || null,
             role: state.user.role || 'viewer',
@@ -137,12 +154,15 @@ export function useCollaboration(
       // We don't automatically disconnect here if the component unmounts but we are still in the diagram.
       // The diagram switch logic handles reconnecting/disconnecting.
     };
-  }, [diagramId, userName, cursorColor, avatarUrl, role, accessToken]);
+  }, [diagramId, userName, cursorColor, avatarUrl, role, accessToken, username]);
 
-  // Provide a way to get the active Y.Text for the source code
+  // Provide a way to get the active Y.Text for the source code.
+  // NOTE: yjsManager.doc is replaced on every connect(), so we must NOT
+  // capture it in a closure with [] deps — we read it at call time.
   const getSourceText = useCallback(() => {
     return yjsManager.doc.getText('source');
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectedDiagramId]);
 
   return {
     doc: yjsManager.doc,

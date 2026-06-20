@@ -43,7 +43,8 @@ For each implementation batch:
 2. Run existing test suite and ensure old tests still pass.
 3. Run build/type checks.
 4. Validate with manual UI steps for interactive changes.
-5. Report:
+5. **Always verify the LSP for errors before saying done (for both frontend and backend files).**
+6. Report:
   - changed files,
   - test/build results,
   - manual test checklist,

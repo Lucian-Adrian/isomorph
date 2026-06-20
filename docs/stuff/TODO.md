@@ -84,6 +84,17 @@ High-confidence current state:
   - Double-click edit path resolves entity through diagram.entities.get(name); partitions are not in diagram.entities, so modal never opens.
   - This creates feature inconsistency vs other draggable elements.
 
+### 4.3) Real-time Collaboration Failure and CodeMirror Clearing
+- observed behavior: Typing on phone does not affect laptop, and typing on laptop causes phone's CodeMirror editor to get completely cleared.
+- code-level root cause:
+  1. `VITE_COLLAB_SERVER_URL` in `collaboration.ts` defaults to `ws://localhost:1234`. In local network mobile testing, `localhost` points to the phone itself where no server is running, causing connection failure.
+  2. `IsomorphEditor.tsx` keeps `initializedYTextRef.current` as `true` after a successful connection. If the connection drops and reconnects (or if sync is incomplete and a blank doc is received), the editor fails to re-initialize `yText` with its current content and instead replaces it with the empty state from Yjs, clearing CodeMirror and triggering database deletion.
+- scope/impact: Prevents real-time collaboration on any mobile/network clients. High risk of diagram data loss during network reconnects.
+- concrete fix tasks:
+  1. Fall back to `VITE_WS_URL` in `collaboration.ts` and rewrite `localhost`/`127.0.0.1` at runtime to match `window.location.hostname`.
+  2. Reset `initializedYTextRef.current` to `false` when `isSynced` is `false`.
+- test/verification criteria: Successful mobile connection over local network, no CodeMirror clearing during disconnect/reconnect cycles.
+
 ### 5) System boundaries in use case
 - task.md says: missing.
 - chat.md says: present but drag behavior bug exists in some cases.
@@ -270,6 +281,9 @@ High-confidence current state:
   - allow title/subtitle/caption/legend/return as identifiers in member context (or implement contextual keyword parsing).
 - [x] Document true deployment renderer architecture.
   - update README table to reflect shared renderer implementation instead of To Be Extracted.
+- [x] Fix real-time collaboration failure and CodeMirror document clearing on phone/network client.
+  - Dynamically adapt localhost WS URL to host IP for mobile clients.
+  - Reset CodeMirror collab initialization state on disconnect to prevent clearing document contents upon reconnect.
 
 ## P1 High Value Functional Completion
 - [x] Add first-class relation operators for provides/requires in parser + AST + semantics.
