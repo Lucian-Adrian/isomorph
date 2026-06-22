@@ -2273,37 +2273,33 @@ body {
 
 /* ── CodeMirror Collaboration Cursors & Selections ─────────── */
 .cm-ySelection {
-  background-color: var(--y-selection-color, rgba(120, 120, 120, 0.3)) !important;
+  /* background-color is set dynamically by y-codemirror */
 }
 
 .cm-ySelectionCaret {
   position: relative;
-  border-left: 2px solid currentColor !important;
-  border-right: 0px solid transparent !important;
+  border-left: 2px solid;
+  border-right: 0px solid transparent;
   margin-left: -1px;
   margin-right: -1px;
   box-sizing: border-box;
+  /* border-color is set dynamically by y-codemirror */
 }
 
 .cm-ySelectionInfo {
   position: absolute;
-  top: -1.8em;
+  top: -1.05em;
   left: -1px;
-  color: #fff !important;
-  font-family: inherit;
-  font-size: 10px !important;
-  padding: 2px 6px !important;
-  border-radius: 3px !important;
-  font-weight: 500 !important;
-  opacity: 0;
-  transition: opacity 0.15s ease-in-out;
+  color: #fff;
+  font-family: var(--iso-font-sans, sans-serif);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
   pointer-events: none;
-  z-index: 100 !important;
+  z-index: 100;
   white-space: nowrap;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-}
-
-.cm-ySelectionCaret:hover .cm-ySelectionInfo {
-  opacity: 1;
+  transition: opacity 0.15s ease-in-out;
 }
 

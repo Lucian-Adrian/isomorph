@@ -141,6 +141,7 @@ export async function getSharedProjects(userId: string): Promise<Array<Project &
     .from('project_access')
     .select(`
       role,
+      diagram_id,
       project:projects(*)
     `)
     .eq('user_id', userId);
@@ -150,14 +151,22 @@ export async function getSharedProjects(userId: string): Promise<Array<Project &
     return [];
   }
 
-  return (data || [])
-    .map((item: any) => {
-      if (!item.project) return null;
-      return {
+  const projectsMap = new Map<string, Project & { role: string }>();
+
+  (data || []).forEach((item: any) => {
+    if (!item.project) return;
+    const projId = item.project.id;
+    const existing = projectsMap.get(projId);
+
+    if (!existing || item.diagram_id === null) {
+      projectsMap.set(projId, {
         ...item.project,
         role: item.role
-      };
-    })
+      });
+    }
+  });
+
+  return Array.from(projectsMap.values())
     .filter((p: any): p is Project & { role: string } => p !== null && p.owner_id !== userId);
 }
 

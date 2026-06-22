@@ -940,6 +940,7 @@ export default function App() {
   const [projectDetailModalOpen, setProjectDetailModalOpen] = useState(false);
   const [projectDetailProject, setProjectDetailProject] = useState<Project | null>(null);
   const [projectDetailDiagrams, setProjectDetailDiagrams] = useState<any[]>([]);
+  const [projectDetailAccessMap, setProjectDetailAccessMap] = useState<{ base: string; diagrams: Record<string, string> }>({ base: 'viewer', diagrams: {} });
   const [isLoadingProjectDetail, setIsLoadingProjectDetail] = useState(false);
   const [diagramToDelete, setDiagramToDelete] = useState<any | null>(null);
 
@@ -1266,6 +1267,37 @@ export default function App() {
       const { getDiagrams } = await import('./lib/projects.js');
       const diagrams = await getDiagrams(project.id);
       setProjectDetailDiagrams(diagrams);
+
+      // Fetch user specific permissions for diagrams in this project
+      if (user) {
+        const { supabase } = await import('./lib/supabase.js');
+        const { data: accessList } = await supabase
+          .from('project_access')
+          .select('diagram_id, role')
+          .eq('project_id', project.id)
+          .eq('user_id', user.id);
+
+        const mapping: Record<string, string> = {};
+        let projectRole = (project as any).role || 'viewer';
+        if (accessList) {
+          accessList.forEach((a: any) => {
+            if (a.diagram_id === null) {
+              projectRole = a.role;
+            } else {
+              mapping[a.diagram_id] = a.role;
+            }
+          });
+        }
+        setProjectDetailAccessMap({
+          base: projectRole,
+          diagrams: mapping
+        });
+      } else {
+        setProjectDetailAccessMap({
+          base: (project as any).role || 'viewer',
+          diagrams: {}
+        });
+      }
     } catch (error) {
       console.error('Failed to load project files:', error);
       addToast('Failed to load project files', 'info');
@@ -1273,6 +1305,12 @@ export default function App() {
       setIsLoadingProjectDetail(false);
     }
   };
+
+  const getDiagramRole = useCallback((diagramId: string) => {
+    if (!projectDetailProject || !user) return 'viewer';
+    if (projectDetailProject.owner_id === user.id) return 'owner';
+    return projectDetailAccessMap.diagrams[diagramId] || projectDetailAccessMap.base || 'viewer';
+  }, [projectDetailProject, user, projectDetailAccessMap]);
 
   const openProjectFile = useCallback((diagram: any, projectId: string, role: string = 'owner') => {
     setTabs(prev => {
@@ -1301,7 +1339,7 @@ export default function App() {
     setIsLibraryOpen(false);
   }, []);
 
-  const openWholeProject = useCallback((diagrams: any[], projectId: string, role: string = 'owner') => {
+  const openWholeProject = useCallback((diagrams: any[], projectId: string, role: string = 'owner', rolesMap?: Record<string, string>) => {
     if (diagrams.length === 0) {
       const newTabId = `tab-${slugId()}`;
       setTabs([{
@@ -1324,9 +1362,10 @@ export default function App() {
       const next: WorkspaceTab[] = [];
       let firstTabIdToSelect: string | null = null;
       diagrams.forEach(d => {
+        const diagramRole = rolesMap?.[d.id] || role;
         const existing = prev.find(t => t.diagram_id === d.id);
         if (existing) {
-          next.push({ ...existing, project_role: role, project_id: projectId });
+          next.push({ ...existing, project_role: diagramRole, project_id: projectId });
           if (!firstTabIdToSelect) firstTabIdToSelect = existing.id;
         } else {
           const content = d.content as any;
@@ -1340,7 +1379,7 @@ export default function App() {
             diagram_id: d.id,
             project_id: projectId,
             savedSource: sourceText,
-            project_role: role
+            project_role: diagramRole
           };
           next.push(newTab);
           if (!firstTabIdToSelect) firstTabIdToSelect = newTab.id;
@@ -4300,7 +4339,7 @@ export default function App() {
                   projectDetailDiagrams.map(d => (
                     <div
                       key={d.id}
-                      onClick={() => openProjectFile(d, projectDetailProject.id, (projectDetailProject as any).role || 'owner')}
+                      onClick={() => openProjectFile(d, projectDetailProject.id, getDiagramRole(d.id))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({
@@ -4336,7 +4375,23 @@ export default function App() {
                       }}
                     >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{d.name}</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{d.name}</strong>
+                          {projectDetailProject.owner_id !== user?.id && (
+                            <span style={{
+                              fontSize: '10px',
+                              background: 'var(--iso-bg-app)',
+                              border: '1px solid var(--iso-border)',
+                              padding: '1px 5px',
+                              borderRadius: '8px',
+                              textTransform: 'capitalize',
+                              color: 'var(--iso-text-muted)',
+                              fontWeight: 500
+                            }}>
+                              {t(`share.${getDiagramRole(d.id)}`) || getDiagramRole(d.id)}
+                            </span>
+                          )}
+                        </div>
                         <span style={{ fontSize: '11px', color: 'var(--iso-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{d.kind}</span>
                       </div>
                       <span style={{ fontSize: '18px', color: 'var(--iso-text-muted)' }}>→</span>
@@ -4353,7 +4408,18 @@ export default function App() {
                   className="iso-btn iso-btn--primary"
                   style={{ flex: 1 }}
                   disabled={isLoadingProjectDetail || projectDetailDiagrams.length === 0}
-                  onClick={() => openWholeProject(projectDetailDiagrams, projectDetailProject.id, (projectDetailProject as any).role || 'owner')}
+                  onClick={() => {
+                    const rolesMap: Record<string, string> = {};
+                    projectDetailDiagrams.forEach(d => {
+                      rolesMap[d.id] = getDiagramRole(d.id);
+                    });
+                    openWholeProject(
+                      projectDetailDiagrams,
+                      projectDetailProject.id,
+                      projectDetailProject.owner_id === user?.id ? 'owner' : (projectDetailAccessMap.base || 'viewer'),
+                      rolesMap
+                    );
+                  }}
                 >
                   Open Whole Project
                 </button>
