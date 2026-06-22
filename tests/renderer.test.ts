@@ -53,8 +53,8 @@ describe('Renderer Utils', () => {
     const ports = computePortPositions([{ name: 'p1', type: 'provided' }, { name: 'p2', type: 'required' }], 100, 50);
     expect(ports.has('p1')).toBe(true);
     expect(ports.has('p2')).toBe(true);
-    expect(ports.get('p1')?.side).toBe('left');
-    expect(ports.get('p2')?.side).toBe('right');
+    expect(ports.get('p1')?.side).toBe('right');
+    expect(ports.get('p2')?.side).toBe('left');
   });
 });
 

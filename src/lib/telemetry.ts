@@ -1,10 +1,19 @@
 import { supabase } from './supabase.js';
 
-let telemetryEnabled = localStorage.getItem('isomorph-telemetry') !== 'false';
+let telemetryEnabled = true;
+try {
+  if (typeof localStorage !== 'undefined' && localStorage.getItem) {
+    telemetryEnabled = localStorage.getItem('isomorph-telemetry') !== 'false';
+  }
+} catch (e) {}
 
 export function setTelemetryEnabled(enabled: boolean) {
   telemetryEnabled = enabled;
-  localStorage.setItem('isomorph-telemetry', String(enabled));
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage.setItem) {
+      localStorage.setItem('isomorph-telemetry', String(enabled));
+    }
+  } catch (e) {}
 }
 
 export function isTelemetryEnabled() {
