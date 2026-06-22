@@ -110,8 +110,8 @@ export function DiagramView({
       const states = awareness.getStates();
       const nextCursors = new Map<number, any>();
       states.forEach((state: any, clientId: number) => {
-        if (clientId !== awareness.clientID && state.cursor && state.user) {
-          nextCursors.set(clientId, { cursor: state.cursor, user: state.user });
+        if (clientId !== awareness.clientID && state.pointer && state.user) {
+          nextCursors.set(clientId, { cursor: state.pointer, user: state.user });
         }
       });
       setRemoteCursors(nextCursors);
@@ -180,7 +180,7 @@ export function DiagramView({
         
         // Broadcast local cursor
         if (awareness) {
-          awareness.setLocalStateField('cursor', { x: local.x, y: local.y });
+          awareness.setLocalStateField('pointer', { x: local.x, y: local.y });
         }
         
         return { x: local.x, y: local.y };
@@ -923,7 +923,7 @@ export function DiagramView({
         const scale = zoom / 100;
         const x = (e.clientX - rect.left + wrap.scrollLeft - pan.x) / scale;
         const y = (e.clientY - rect.top + wrap.scrollTop - pan.y) / scale;
-        awareness.setLocalStateField('cursor', { x, y });
+        awareness.setLocalStateField('pointer', { x, y });
       }
     }
 
@@ -1300,7 +1300,7 @@ export function DiagramView({
 
   const handlePointerLeave = useCallback(() => {
     if (awareness) {
-      awareness.setLocalStateField('cursor', null);
+      awareness.setLocalStateField('pointer', null);
     }
   }, [awareness]);
 

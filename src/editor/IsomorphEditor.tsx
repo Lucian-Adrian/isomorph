@@ -204,7 +204,7 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false,
   // Sync Yjs collab
   useEffect(() => {
     if (yText && awareness && isSynced) {
-      if (yText.length === 0 && !initializedYTextRef.current) {
+      if (!readOnly && yText.length === 0 && !initializedYTextRef.current) {
         initializedYTextRef.current = true;
         yText.insert(0, value);
       }

@@ -5142,11 +5142,6 @@ export default function App() {
                     >
                       {c.role === 'owner' ? 'editor' : c.role}
                     </span>
-                    {c.clientId === awareness?.clientID && (
-                      <span className="iso-collab-user-you" style={{ marginLeft: '4px' }}>
-                        ({t('ui.you')})
-                      </span>
-                    )}
                   </div>
                 ))}
               </div>
