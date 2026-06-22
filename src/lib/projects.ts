@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { getProfile } from './profile.js';
+import { logAudit } from './audit.js';
 
 export interface Project {
   id: string;
@@ -82,6 +83,9 @@ export async function createProject(userId: string, name: string): Promise<Proje
     console.error('Error creating project:', error);
     throw new Error(error.message || 'Failed to create project');
   }
+  if (data) {
+    await logAudit('project_created', 'project', data.id, { name });
+  }
   return data;
 }
 
@@ -130,6 +134,41 @@ export async function getProjects(userId: string): Promise<Project[]> {
     return [];
   }
   return data;
+}
+
+export async function getSharedProjects(userId: string): Promise<Array<Project & { role: string }>> {
+  const { data, error } = await supabase
+    .from('project_access')
+    .select(`
+      role,
+      project:projects(*)
+    `)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching shared projects:', error);
+    return [];
+  }
+
+  return (data || [])
+    .map((item: any) => {
+      if (!item.project) return null;
+      return {
+        ...item.project,
+        role: item.role
+      };
+    })
+    .filter((p: any): p is Project & { role: string } => p !== null && p.owner_id !== userId);
+}
+
+export async function getPublicProjectIds(): Promise<Set<string>> {
+  const { data: links } = await supabase.from('share_links').select('project_id');
+  const { data: access } = await supabase.from('project_access').select('project_id');
+  
+  const publicIds = new Set<string>();
+  links?.forEach(l => publicIds.add(l.project_id));
+  access?.forEach(a => publicIds.add(a.project_id));
+  return publicIds;
 }
 
 export async function getDiagrams(projectId: string): Promise<Diagram[]> {

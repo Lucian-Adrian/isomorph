@@ -28,7 +28,7 @@ import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Lan
 import { computeLayout } from './utils/auto-layout.js';
 import { useAuth } from './lib/auth-context.js';
 import { AuthModal } from './components/AuthModal.js';
-import { getProjects, type Project, getDiagramHistory, deleteDiagramHistoryAfter, type DiagramHistory } from './lib/projects.js';
+import { getProjects, getSharedProjects, getPublicProjectIds, type Project, getDiagramHistory, deleteDiagramHistoryAfter, type DiagramHistory } from './lib/projects.js';
 import { isTelemetryEnabled, setTelemetryEnabled, logEvent } from './lib/telemetry.js';
 import { useCollaboration } from './lib/collaboration.js';
 import { ShareModal } from './components/ShareModal.js';
@@ -908,6 +908,9 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportTime, setExportTime] = useState<number>(0);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
+  const [publicProjectIds, setPublicProjectIds] = useState<Set<string>>(new Set());
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [librarySearchQuery, setLibrarySearchQuery] = useState('');
   const [isSavingToCloud, setIsSavingToCloud] = useState(false);
   const [saveToCloudModalOpen, setSaveToCloudModalOpen] = useState(false);
@@ -1068,6 +1071,10 @@ export default function App() {
         // Let's fetch the project and open it
         const { data: projData } = await supabase.rpc('get_shared_project_data', { p_token: token });
         if (projData && projData.project && projData.diagrams) {
+          // Log audit: share link redeemed
+          const { logAudit } = await import('./lib/audit.js');
+          await logAudit('share_link_redeemed', 'share_link', undefined, { token, projectId: projData.project.id });
+
           // Add project to projects list so its name resolves in the breadcrumbs
           setProjects(prev => {
             if (!prev.some(p => p.id === projData.project.id)) {
@@ -1084,6 +1091,10 @@ export default function App() {
       // Anonymous
       const { data: projData, error } = await supabase.rpc('get_shared_project_data', { p_token: token });
       if (projData && projData.project && projData.diagrams && !error) {
+        // Log audit: share link redeemed
+        const { logAudit } = await import('./lib/audit.js');
+        await logAudit('share_link_redeemed', 'share_link', undefined, { token, projectId: projData.project.id, anonymous: true });
+
         if (anonName) {
           setAnonymousName(anonName);
           localStorage.setItem('isomorph-anon-name', anonName);
@@ -1148,6 +1159,9 @@ export default function App() {
 
   const handleDeleteAccount = async () => {
     if (!user) return;
+    const { logAudit } = await import('./lib/audit.js');
+    await logAudit('account_deleted');
+
     const { supabase } = await import('./lib/supabase.js');
     const { error } = await supabase.rpc('delete_user');
     if (error) {
@@ -1494,11 +1508,21 @@ export default function App() {
   };
 
 
+  const refreshPublicProjects = useCallback(() => {
+    getPublicProjectIds().then(data => setPublicProjectIds(data));
+  }, []);
+
   useEffect(() => {
     if (user) {
       getProjects(user.id).then(data => setProjects(data));
+      getSharedProjects(user.id).then(data => setSharedProjects(data));
+      refreshPublicProjects();
+    } else {
+      setProjects([]);
+      setSharedProjects([]);
+      setPublicProjectIds(new Set());
     }
-  }, [user]);
+  }, [user, refreshPublicProjects]);
 
   const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
@@ -1654,7 +1678,8 @@ export default function App() {
   const activeDiagram = diagrams[0] ?? null;
 
   const handleCreateProjectSubmit = useCallback(async () => {
-    if (!user || !newProjectName.trim()) return;
+    if (!user || !newProjectName.trim() || isCreatingProject) return;
+    setIsCreatingProject(true);
     const { createProject, createDiagram } = await import('./lib/projects.js');
     try {
       const p = await createProject(user.id, newProjectName.trim());
@@ -1705,8 +1730,10 @@ export default function App() {
       setNewProjectError('');
     } catch (err: any) {
       setNewProjectError(err.message);
+    } finally {
+      setIsCreatingProject(false);
     }
-  }, [user, newProjectName, isSavingFlow, activeTab, activeDiagram, updateActiveTab, newDiagramKind]);
+  }, [user, newProjectName, isSavingFlow, activeTab, activeDiagram, updateActiveTab, newDiagramKind, isCreatingProject]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 900px)');
@@ -2423,6 +2450,8 @@ export default function App() {
       const { updateDiagramContent, saveDiagramHistory } = await import('./lib/projects.js');
       await updateDiagramContent(activeTab.diagram_id, { source: activeTab.source });
       await saveDiagramHistory(activeTab.diagram_id, { source: activeTab.source }, user.id);
+      const { logAudit } = await import('./lib/audit.js');
+      await logAudit('diagram_saved', 'diagram', activeTab.diagram_id, { project_id: activeTab.project_id });
       setIsSavingToCloud(false);
       updateActiveTab(tab => ({ ...tab, savedSource: tab.source }), false);
     } else {
@@ -3019,6 +3048,7 @@ export default function App() {
           onRelationDelete={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextRelationDelete}
           onPaste={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextPaste}
           onAddNote={activeTab?.project_role === 'viewer' ? undefined : handleAddNote}
+          awareness={awareness}
         />
       </div>
     </div>
@@ -3868,8 +3898,11 @@ export default function App() {
                       ) : (() => {
                         let filtered = projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase()));
 
-                        if (libraryVisibilityFilter === 'public') filtered = filtered.filter(() => false); // no public projects yet
-                        if (libraryVisibilityFilter === 'private') filtered = filtered.filter(() => true); // all private for now
+                        if (libraryVisibilityFilter === 'public') {
+                          filtered = filtered.filter(p => publicProjectIds.has(p.id));
+                        } else if (libraryVisibilityFilter === 'private') {
+                          filtered = filtered.filter(p => !publicProjectIds.has(p.id));
+                        }
 
                         const isFavTab = libraryCategory.toLowerCase() === 'favorites' || libraryCategory.toLowerCase() === 'favourites';
                         if (isFavTab) {
@@ -3935,8 +3968,71 @@ export default function App() {
                             </select>
                           </div>
                         </div>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)', minHeight: '200px' }}>
-                          No shared works
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
+                          {(() => {
+                            let filtered = sharedProjects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase()));
+                            
+                            filtered = filtered.sort((a, b) => {
+                              if (librarySort === 'name') return a.name.localeCompare(b.name);
+                              return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                            });
+
+                            if (filtered.length === 0) {
+                              return (
+                                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
+                                  {t('ui.shared_future')}
+                                </div>
+                              );
+                            }
+
+                            return filtered.map(p => (
+                              <div
+                                key={p.id}
+                                onClick={() => handleOpenProjectDetails(p)}
+                                style={{
+                                  height: '140px',
+                                  background: 'var(--iso-bg-header)',
+                                  borderRadius: '8px',
+                                  border: '1px solid var(--iso-border)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'var(--iso-text)',
+                                  cursor: 'pointer',
+                                  padding: '16px',
+                                  textAlign: 'center',
+                                  position: 'relative'
+                                }}
+                                onMouseOver={e => {
+                                  e.currentTarget.style.borderColor = 'var(--iso-accent)';
+                                  e.currentTarget.style.background = 'var(--iso-bg-hover)';
+                                }}
+                                onMouseOut={e => {
+                                  e.currentTarget.style.borderColor = 'var(--iso-border)';
+                                  e.currentTarget.style.background = 'var(--iso-bg-header)';
+                                }}
+                              >
+                                <span style={{
+                                  position: 'absolute',
+                                  top: '8px',
+                                  right: '8px',
+                                  fontSize: '10px',
+                                  background: 'var(--iso-bg-app)',
+                                  border: '1px solid var(--iso-border)',
+                                  padding: '2px 6px',
+                                  borderRadius: '12px',
+                                  textTransform: 'capitalize',
+                                  color: 'var(--iso-text-muted)',
+                                  fontWeight: 500
+                                }}>
+                                  {t(`share.${(p as any).role}`) || (p as any).role}
+                                </span>
+                                <strong style={{ marginBottom: '8px', marginTop: '12px' }}>{p.name}</strong>
+                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{new Date(p.updated_at).toLocaleDateString()}</span>
+                              </div>
+                            ));
+                          })()}
                         </div>
                       </>
                     )}
@@ -4204,7 +4300,7 @@ export default function App() {
                   projectDetailDiagrams.map(d => (
                     <div
                       key={d.id}
-                      onClick={() => openProjectFile(d, projectDetailProject.id)}
+                      onClick={() => openProjectFile(d, projectDetailProject.id, (projectDetailProject as any).role || 'owner')}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({
@@ -4257,7 +4353,7 @@ export default function App() {
                   className="iso-btn iso-btn--primary"
                   style={{ flex: 1 }}
                   disabled={isLoadingProjectDetail || projectDetailDiagrams.length === 0}
-                  onClick={() => openWholeProject(projectDetailDiagrams, projectDetailProject.id)}
+                  onClick={() => openWholeProject(projectDetailDiagrams, projectDetailProject.id, (projectDetailProject as any).role || 'owner')}
                 >
                   Open Whole Project
                 </button>
@@ -4901,7 +4997,7 @@ export default function App() {
               <div
                 key={collab.clientId}
                 className="iso-avatar"
-                style={{ backgroundColor: collab.avatarUrl ? 'transparent' : collab.color }}
+                style={{ backgroundColor: collab.avatarUrl ? 'transparent' : collab.color, border: `2px solid ${collab.color}` }}
                 title={collab.clientId === awareness?.clientID ? `${collab.name} (${t('ui.you')})` : collab.name}
                 onClick={() => setIsCollabDropdownOpen(prev => !prev)}
               >
@@ -4947,7 +5043,8 @@ export default function App() {
                           height: '20px',
                           borderRadius: '50%',
                           objectFit: 'cover',
-                          flexShrink: 0
+                          flexShrink: 0,
+                          border: `2px solid ${c.color}`
                         }}
                       />
                     ) : (
@@ -5837,7 +5934,13 @@ export default function App() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   <button className="iso-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>{t('ui.cancel')}</button>
-                  <button className="iso-btn iso-btn--primary" disabled={!user || !newProjectName.trim()} onClick={handleCreateProjectSubmit}>{t('ui.create')}</button>
+                  <button
+                    className="iso-btn iso-btn--primary"
+                    disabled={!user || !newProjectName.trim() || isCreatingProject}
+                    onClick={handleCreateProjectSubmit}
+                  >
+                    {isCreatingProject ? 'Creating...' : t('ui.create')}
+                  </button>
                 </div>
               </>
             )}
@@ -5875,6 +5978,7 @@ export default function App() {
           onClose={() => setIsShareModalOpen(false)}
           onToast={addToast}
           language={language}
+          onShareChange={refreshPublicProjects}
         />
       )}
     </div>

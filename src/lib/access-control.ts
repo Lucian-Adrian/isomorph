@@ -71,12 +71,11 @@ export async function grantAccess(projectId: string, emailOrUsername: string, ro
   return true;
 }
 
-export async function revokeAccess(projectId: string, userId: string): Promise<boolean> {
+export async function revokeAccess(accessId: string): Promise<boolean> {
   const { error } = await supabase
     .from('project_access')
     .delete()
-    .eq('project_id', projectId)
-    .eq('user_id', userId);
+    .eq('id', accessId);
 
   if (error) {
     console.error('Error revoking access:', error);

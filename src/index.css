@@ -1211,7 +1211,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 9999;
+  z-index: 99999 !important;
   pointer-events: none;
 }
 
@@ -2269,5 +2269,41 @@ body {
   color: var(--iso-brand);
   font-weight: 600;
   margin-left: auto;
+}
+
+/* ── CodeMirror Collaboration Cursors & Selections ─────────── */
+.cm-ySelection {
+  background-color: var(--y-selection-color, rgba(120, 120, 120, 0.3)) !important;
+}
+
+.cm-ySelectionCaret {
+  position: relative;
+  border-left: 2px solid currentColor !important;
+  border-right: 0px solid transparent !important;
+  margin-left: -1px;
+  margin-right: -1px;
+  box-sizing: border-box;
+}
+
+.cm-ySelectionInfo {
+  position: absolute;
+  top: -1.8em;
+  left: -1px;
+  color: #fff !important;
+  font-family: inherit;
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  font-weight: 500 !important;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  pointer-events: none;
+  z-index: 100 !important;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.cm-ySelectionCaret:hover .cm-ySelectionInfo {
+  opacity: 1;
 }
 

@@ -11,9 +11,10 @@ interface ShareModalProps {
   onClose: () => void;
   onToast: (msg: string, type?: 'success' | 'info') => void;
   language?: Language;
+  onShareChange?: () => void;
 }
 
-export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast, language = 'en' }: ShareModalProps) {
+export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast, language = 'en', onShareChange }: ShareModalProps) {
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
   
   const [activeTab, setActiveTab] = useState<'links' | 'access'>('links');
@@ -30,6 +31,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
   
   const [newLinkRole, setNewLinkRole] = useState<'editor' | 'commenter' | 'viewer'>('viewer');
   const [newLinkScope, setNewLinkScope] = useState<'project' | 'file'>('project');
+  const [userNotFoundError, setUserNotFoundError] = useState(false);
 
   useEffect(() => {
     loadLinks();
@@ -66,6 +68,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
       setLinks([link, ...links]);
       logAudit('share_link_created', 'share_link', link.id, { role: newLinkRole, scope: newLinkScope, projectId });
       onToast(t('share.success_link_created', { role: t(`share.${newLinkRole}`) }), 'success');
+      onShareChange?.();
     }
   }
 
@@ -75,6 +78,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
       setLinks(links.filter(l => l.id !== id));
       logAudit('share_link_revoked', 'share_link', id, { projectId });
       onToast(t('share.success_link_revoked'), 'success');
+      onShareChange?.();
     }
   }
 
@@ -86,17 +90,19 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
       loadAccess();
       logAudit('access_granted', 'project', projectId, { email: inviteEmail, role: inviteRole, scope: inviteScope });
       onToast(t('share.success_access_granted'), 'success');
+      onShareChange?.();
     } else {
-      alert(t('share.error_user_not_found'));
+      setUserNotFoundError(true);
     }
   }
 
-  async function handleRevokeAccess(userId: string) {
-    const success = await revokeAccess(projectId, userId);
+  async function handleRevokeAccess(accessId: string) {
+    const success = await revokeAccess(accessId);
     if (success) {
-      setAccess(access.filter(a => a.user_id !== userId));
-      logAudit('access_revoked', 'project', projectId, { revokedUserId: userId });
+      setAccess(access.filter(a => a.id !== accessId));
+      logAudit('access_revoked', 'project', projectId, { revokedAccessId: accessId });
       onToast(t('share.success_access_revoked'), 'success');
+      onShareChange?.();
     }
   }
 
@@ -213,7 +219,13 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
                     placeholder={t('share.username_or_email')}
                     value={inviteEmail}
                     onChange={e => setInviteEmail(e.target.value)}
-                    onKeyDown={e => { if (e.key !== 'Escape') e.stopPropagation(); }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleGrantAccess();
+                      }
+                      if (e.key !== 'Escape') e.stopPropagation();
+                    }}
                     onKeyUp={e => { if (e.key !== 'Escape') e.stopPropagation(); }}
                     onKeyPress={e => { if (e.key !== 'Escape') e.stopPropagation(); }}
                     className="iso-input"
@@ -271,7 +283,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
                           </div>
                         </div>
                         <button
-                          onClick={() => handleRevokeAccess(a.user_id)}
+                          onClick={() => handleRevokeAccess(a.id)}
                           className="iso-btn"
                           style={{ padding: '6px 12px', fontSize: '12px', color: 'var(--iso-error)', borderColor: 'rgba(255, 95, 87, 0.2)', background: 'var(--iso-bg-panel)' }}
                           title="Remove Access"
@@ -292,6 +304,30 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
           </div>
         </div>
       </div>
+      
+      {userNotFoundError && (
+        <div className="iso-modal-overlay" onClick={() => setUserNotFoundError(false)} style={{ zIndex: 11000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%', padding: '24px', position: 'relative', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <button className="iso-modal-close-btn" style={{ position: 'absolute', top: '16px', right: '16px', border: 'none', background: 'transparent', fontSize: '18px', cursor: 'pointer', color: 'var(--iso-text-muted)' }} onClick={() => setUserNotFoundError(false)} aria-label={t('ui.close')}>×</button>
+            <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--iso-danger, #ff5f57)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="9" x2="12" y2="9" />
+              </svg>
+              {t('ui.error') || 'Error'}
+            </h3>
+            <p style={{ margin: 0, color: 'var(--iso-text)', fontSize: '14px', lineHeight: '1.5' }}>
+              {t('share.error_user_not_found')}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button className="iso-btn iso-btn--primary" onClick={() => setUserNotFoundError(false)} style={{ padding: '6px 16px', fontSize: '13px' }}>
+                {t('ui.ok') || 'OK'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

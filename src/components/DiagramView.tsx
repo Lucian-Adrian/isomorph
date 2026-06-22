@@ -916,6 +916,17 @@ export function DiagramView({
   }, [layoutDropdownOpen]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (awareness) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const wrap = canvasRef.current;
+      if (rect && wrap) {
+        const scale = zoom / 100;
+        const x = (e.clientX - rect.left + wrap.scrollLeft - pan.x) / scale;
+        const y = (e.clientY - rect.top + wrap.scrollTop - pan.y) / scale;
+        awareness.setLocalStateField('cursor', { x, y });
+      }
+    }
+
     const drag = dragRef.current;
     if (drag.mode === 'none' || drag.pointerId !== e.pointerId) return;
 
@@ -1285,7 +1296,13 @@ export function DiagramView({
     }
     setIsInteracting(false);
     dragRef.current = { mode: 'none', hasMoved: false, pointerId: -1, startClientX: 0, startClientY: 0 };
-  }, [diagram, zoom, pan, marqueeState, selectedItems, onSelectionChange, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
+  }, [diagram, zoom, pan, marqueeState, selectedItems, onSelectionChange, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove, awareness]);
+
+  const handlePointerLeave = useCallback(() => {
+    if (awareness) {
+      awareness.setLocalStateField('cursor', null);
+    }
+  }, [awareness]);
 
   const isDiagramEmpty = diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
 
@@ -1364,6 +1381,7 @@ export function DiagramView({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
         onPointerCancel={handlePointerUp}
         onContextMenu={(e) => e.preventDefault()}
         onDragOver={e => e.preventDefault()}
