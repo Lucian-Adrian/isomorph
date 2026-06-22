@@ -11,6 +11,9 @@ import { closeBrackets, autocompletion, closeBracketsKeymap, completionKeymap } 
 import { lintKeymap, lintGutter, setDiagnostics } from '@codemirror/lint';
 import type { Diagnostic } from '@codemirror/lint';
 import { isomorphLanguage, isomorphSyntax } from './isomorph.lang.js';
+import { diff } from 'fast-myers-diff';
+import { yCollab } from 'y-codemirror.next';
+import type * as Y from 'yjs';
 
 /** A single editor diagnostic (parse error or semantic error). */
 export interface LintDiagnostic {
@@ -25,22 +28,37 @@ interface IsomorphEditorProps {
   onChange: (value: string) => void;
   errors?: LintDiagnostic[];
   readOnly?: boolean;
+  yText?: Y.Text | null;
+  awareness?: any;
+  isSynced?: boolean;
 }
 
 /** Compartment for toggling read-only mode at runtime */
 const readOnlyCompartment = new Compartment();
+/** Compartment for toggling Yjs collaboration at runtime */
+const collabCompartment = new Compartment();
 
-export function IsomorphEditor({ value, onChange, errors = [], readOnly = false }: IsomorphEditorProps) {
+export function IsomorphEditor({ value, onChange, errors = [], readOnly = false, yText, awareness, isSynced = false }: IsomorphEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef      = useRef<EditorView | null>(null);
   const onChangeRef  = useRef(onChange);
   onChangeRef.current = onChange;
 
+  const initializedYTextRef = useRef(false);
+  // Track whether yCollab is currently active to prevent feedback loops
+  const collabActiveRef = useRef(false);
+
+  const lastEmittedValue = useRef(value);
+
   const updateListener = useMemo(
     () =>
       EditorView.updateListener.of(update => {
         if (update.docChanged) {
-          onChangeRef.current(update.state.doc.toString());
+          const newVal = update.state.doc.toString();
+          lastEmittedValue.current = newVal;
+          // Always emit onChange so React state stays in sync
+          // (needed for auto-save, diagram preview, etc.)
+          onChangeRef.current(newVal);
         }
       }),
     [],
@@ -51,7 +69,7 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
     if (!containerRef.current) return;
 
     const startState = EditorState.create({
-      doc: value,
+      doc: yText ? yText.toString() : value,
       extensions: [
         lineNumbers(),
         highlightActiveLineGutter(),
@@ -81,6 +99,7 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
           ...lintKeymap,
         ]),
         readOnlyCompartment.of(EditorState.readOnly.of(readOnly)),
+        collabCompartment.of([]),
         updateListener,
         EditorView.theme({
           '&': { height: '100%', fontSize: '13px', background: 'var(--iso-bg-editor)', color: 'var(--iso-text)' },
@@ -92,6 +111,7 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
           '.cm-activeLineGutter': { backgroundColor: 'var(--iso-bg-hover)', color: 'var(--ink)' },
           '.cm-selectionBackground, ::selection': { backgroundColor: 'rgba(0,0,0,0.08)' },
           '.cm-cursor': { borderLeftColor: 'var(--iso-brand-dark)', borderLeftWidth: '2px' },
+          '.cm-dropCursor': { backgroundColor: 'var(--iso-brand-dark) !important', width: '2px !important' },
           '.cm-matchingBracket': { background: 'var(--stone)', borderRadius: '2px' },
           // Lint gutter styling (light theme)
           '.cm-lintRange-error': { backgroundImage: 'none', textDecoration: 'underline wavy var(--iso-error) 2px' },
@@ -143,15 +163,31 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
 
   // Sync external value changes (e.g. from diagram drag)
   useEffect(() => {
+    if (value === lastEmittedValue.current) return;
+    
+    // If we are in collab mode, wait until synced to avoid race conditions and duping text
+    if (yText && !isSynced) return;
+
     const view = viewRef.current;
     if (!view) return;
     const current = view.state.doc.toString();
     if (current !== value) {
-      view.dispatch({
-        changes: { from: 0, to: current.length, insert: value },
-      });
+      lastEmittedValue.current = value;
+      if (yText) {
+        const changes = [];
+        for (const [sx, ex, sy, ey] of diff(current, value)) {
+          changes.push({ from: sx, to: ex, insert: value.slice(sy, ey) });
+        }
+        // Reverse changes so higher indices are applied first, avoiding offset shift bugs
+        changes.reverse();
+        view.dispatch({ changes });
+      } else {
+        view.dispatch({
+          changes: { from: 0, to: current.length, insert: value },
+        });
+      }
     }
-  }, [value]);
+  }, [value, yText, isSynced]);
 
   // Sync readOnly toggle
   useEffect(() => {
@@ -159,6 +195,44 @@ export function IsomorphEditor({ value, onChange, errors = [], readOnly = false 
       effects: readOnlyCompartment.reconfigure(EditorState.readOnly.of(readOnly)),
     });
   }, [readOnly]);
+
+  // Reset initialized ref when yText changes
+  useEffect(() => {
+    initializedYTextRef.current = false;
+  }, [yText]);
+
+  // Sync Yjs collab
+  useEffect(() => {
+    if (yText && awareness && isSynced) {
+      if (!readOnly && yText.length === 0 && !initializedYTextRef.current) {
+        initializedYTextRef.current = true;
+        yText.insert(0, value);
+      }
+
+      // Sync CodeMirror content with Yjs content before enabling yCollab to prevent duplicate text
+      const yStr = yText.toString();
+      if (viewRef.current) {
+        const current = viewRef.current.state.doc.toString();
+        if (current !== yStr) {
+          lastEmittedValue.current = yStr;
+          viewRef.current.dispatch({
+            changes: { from: 0, to: current.length, insert: yStr }
+          });
+        }
+      }
+
+      collabActiveRef.current = true;
+      viewRef.current?.dispatch({
+        effects: collabCompartment.reconfigure(yCollab(yText, awareness)),
+      });
+    } else {
+      initializedYTextRef.current = false;
+      collabActiveRef.current = false;
+      viewRef.current?.dispatch({
+        effects: collabCompartment.reconfigure([]),
+      });
+    }
+  }, [yText, awareness, isSynced]);
 
   // Sync parse/semantic errors → CodeMirror lint diagnostics (red squiggles + gutter markers)
   useEffect(() => {

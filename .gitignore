@@ -6,6 +6,8 @@ coverage/
 *.local
 .DS_Store
 *.log
+server/.env
+.temp.txt
 
 # Generated slide exports (not source)
 slides/3-slides/append.html

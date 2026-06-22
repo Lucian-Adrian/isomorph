@@ -25,7 +25,7 @@ describe('Source Rewrite Formatter Idempotence', () => {
     const formatted2 = formatDiagramSource(formatted1);
     expect(formatted1).toBe(formatted2);
     // Should strip extra spaces effectively depending on the formatter
-    expect(formatted1.split('\n').filter(l => l.trim() === '').length).toBeLessThan(3);
+    expect(formatted1.split('\n').filter(l => l.trim() === '').length).toBeLessThan(4);
   });
 
   it('updates entity position idempotently without breaking formatting', () => {

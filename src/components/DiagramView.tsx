@@ -48,7 +48,8 @@ interface DiagramViewProps {
   onEntityCopy?: (entityName: string) => void;
   onRelationDelete?: (relationId: string) => void;
   onPaste?: () => void;
-  onAddNote?: (x: number, y: number) => void;
+  onAddNote?: (x: number, y: number, attachToEntity?: string) => void;
+  awareness?: any;
 }
 
 export function DiagramView({
@@ -77,6 +78,7 @@ export function DiagramView({
   onRelationDelete,
   onPaste,
   onAddNote,
+  awareness,
 }: DiagramViewProps) {
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -84,12 +86,42 @@ export function DiagramView({
   const [zoom, setZoom] = useState(100);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [activeTool, setActiveTool] = useState<CanvasTool>('move');
+
+  useEffect(() => {
+    if (availableTools.length > 0 && !availableTools.includes(activeTool)) {
+      setActiveTool(availableTools[0]);
+    }
+  }, [availableTools, activeTool]);
+
   const [drawingEdge, setDrawingEdge] = useState<{ x1: number, y1: number, x2: number, y2: number } | null>(null);
   const [marqueeState, setMarqueeState] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [layoutDropdownOpen, setLayoutDropdownOpen] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  
+  // Remote Cursors State
+  const [remoteCursors, setRemoteCursors] = useState<Map<number, any>>(new Map());
+
+  // Listen to awareness changes to update remote cursors
+  useEffect(() => {
+    if (!awareness) return;
+    const updateCursors = () => {
+      const states = awareness.getStates();
+      const nextCursors = new Map<number, any>();
+      states.forEach((state: any, clientId: number) => {
+        if (clientId !== awareness.clientID && state.pointer && state.user) {
+          nextCursors.set(clientId, { cursor: state.pointer, user: state.user });
+        }
+      });
+      setRemoteCursors(nextCursors);
+    };
+    awareness.on('change', updateCursors);
+    updateCursors();
+    return () => {
+      awareness.off('change', updateCursors);
+    };
+  }, [awareness]);
 
   const dragRef = useRef<{
     mode: 'none' | 'entity' | 'pan' | 'add-edge' | 'resize-entity' | 'relation-vertical' | 'marquee';
@@ -145,6 +177,12 @@ export function DiagramView({
         point.x = clientX;
         point.y = clientY;
         const local = point.matrixTransform(ctm.inverse());
+        
+        // Broadcast local cursor
+        if (awareness) {
+          awareness.setLocalStateField('pointer', { x: local.x, y: local.y });
+        }
+        
         return { x: local.x, y: local.y };
       }
     }
@@ -451,6 +489,11 @@ export function DiagramView({
       e.stopPropagation();
       lastClickRef.current = 0;
 
+      // If viewer, they have no actions, so do not show context menu at all
+      if (!onAddNote && (!onEntityEditRequest || !availableTools.includes('edit-node'))) {
+        return;
+      }
+
       const relationGroup = target.closest('g[data-relation-id]') as SVGGElement | null;
       if (relationGroup) {
         const relationId = relationGroup.getAttribute('data-relation-id') ?? '';
@@ -644,7 +687,7 @@ export function DiagramView({
       }
     }
 
-    const canMoveEntity = availableTools.includes('move') || availableTools.includes('hand');
+    const canMoveEntity = !!onEntityMove && (availableTools.includes('move') || availableTools.includes('hand'));
     const shouldPan = activeTool === 'hand';
     const shouldMarquee = activeTool === 'move';
 
@@ -669,7 +712,7 @@ export function DiagramView({
       return;
     }
 
-    if (resizeHandle && entityGroup && activeTool !== 'add-edge') {
+    if (onEntityResize && resizeHandle && entityGroup && activeTool !== 'add-edge') {
       const handle = (resizeHandle.getAttribute('data-resize-handle') ?? 'se') as 'e' | 's' | 'se';
       const entityName = entityGroup.getAttribute('data-entity-name') ?? undefined;
       if (!entityName) return;
@@ -873,6 +916,17 @@ export function DiagramView({
   }, [layoutDropdownOpen]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (awareness) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const wrap = canvasRef.current;
+      if (rect && wrap) {
+        const scale = zoom / 100;
+        const x = (e.clientX - rect.left + wrap.scrollLeft - pan.x) / scale;
+        const y = (e.clientY - rect.top + wrap.scrollTop - pan.y) / scale;
+        awareness.setLocalStateField('pointer', { x, y });
+      }
+    }
+
     const drag = dragRef.current;
     if (drag.mode === 'none' || drag.pointerId !== e.pointerId) return;
 
@@ -1242,7 +1296,13 @@ export function DiagramView({
     }
     setIsInteracting(false);
     dragRef.current = { mode: 'none', hasMoved: false, pointerId: -1, startClientX: 0, startClientY: 0 };
-  }, [diagram, zoom, pan, marqueeState, selectedItems, onSelectionChange, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove]);
+  }, [diagram, zoom, pan, marqueeState, selectedItems, onSelectionChange, onEntityMove, onEntityResize, onRelationAddRequest, onRelationVerticalMove, awareness]);
+
+  const handlePointerLeave = useCallback(() => {
+    if (awareness) {
+      awareness.setLocalStateField('pointer', null);
+    }
+  }, [awareness]);
 
   const isDiagramEmpty = diagram && diagram.entities.size === 0 && (!diagram.packages || diagram.packages.length === 0);
 
@@ -1321,12 +1381,13 @@ export function DiagramView({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
         onPointerCancel={handlePointerUp}
         onContextMenu={(e) => e.preventDefault()}
         onDragOver={e => e.preventDefault()}
         onDrop={e => {
           e.preventDefault();
-          const keyword = e.dataTransfer.getData('text/plain');
+          const keyword = e.dataTransfer.getData('application/x-isomorph-stencil') || e.dataTransfer.getData('text/plain');
           if (keyword && onDropEntity) {
             const pos = screenToCanvas(e.clientX, e.clientY);
             const target = e.target as Element;
@@ -1353,6 +1414,47 @@ export function DiagramView({
             </g>
           </svg>
         )}
+        
+        {/* Remote Cursors Layer */}
+        {Array.from(remoteCursors.entries()).map(([clientId, info]) => {
+          const cx = info.cursor.x * (zoom / 100) + pan.x;
+          const cy = info.cursor.y * (zoom / 100) + pan.y;
+          const color = info.user.color || '#3B82F6';
+          const name = info.user.name || 'Anonymous';
+          return (
+            <div
+              key={clientId}
+              className="iso-remote-cursor"
+              style={{
+                position: 'absolute',
+                left: cx,
+                top: cy,
+                pointerEvents: 'none',
+                zIndex: 200,
+                transition: 'left 0.1s linear, top 0.1s linear',
+              }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>
+                <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.84c.45 0 .67-.54.35-.85L5.5 3.21z" fill={color} stroke="white" strokeWidth="1.5" />
+              </svg>
+              <div style={{
+                position: 'absolute',
+                left: 12,
+                top: 24,
+                backgroundColor: color,
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }}>
+                {name}
+              </div>
+            </div>
+          );
+        })}
         {marqueeState && (
           <div style={{
             position: 'absolute',
@@ -1478,16 +1580,21 @@ export function DiagramView({
         >
           {contextMenu.target === 'entity' && (
             <>
-              <button className="iso-context-menu-item" onClick={() => {
-                if (contextMenu.entityName && diagram) {
-                  const ent = diagram.entities.get(contextMenu.entityName);
-                  if (ent && onEntityEditRequest) onEntityEditRequest(ent);
-                }
-                setContextMenu(null);
-              }}>
-                {t('ctx.edit')}
-                <span className="iso-context-menu-shortcut">Dbl-click</span>
-              </button>
+              {onEntityEditRequest && (
+                availableTools.includes('edit-node') ||
+                (contextMenu.entityName && diagram?.entities.get(contextMenu.entityName)?.kind === 'note')
+              ) && (
+                <button className="iso-context-menu-item" onClick={() => {
+                  if (contextMenu.entityName && diagram) {
+                    const ent = diagram.entities.get(contextMenu.entityName);
+                    if (ent) onEntityEditRequest(ent);
+                  }
+                  setContextMenu(null);
+                }}>
+                  {t('ctx.edit')}
+                  <span className="iso-context-menu-shortcut">Dbl-click</span>
+                </button>
+              )}
               {onEntityDuplicate && (
                 <button className="iso-context-menu-item" onClick={() => { if (contextMenu.entityName) onEntityDuplicate(contextMenu.entityName); setContextMenu(null); }}>
                   {t('ctx.duplicate')}
@@ -1505,6 +1612,15 @@ export function DiagramView({
                 <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => { if (contextMenu.entityName) onEntityDelete(contextMenu.entityName); setContextMenu(null); }}>
                   {t('ctx.delete')}
                   <span className="iso-context-menu-shortcut">Del</span>
+                </button>
+              )}
+              {onAddNote && (
+                <button className="iso-context-menu-item" onClick={() => {
+                   const coords = screenToCanvas(contextMenu.x, contextMenu.y);
+                   if (contextMenu.entityName) onAddNote(coords.x ?? 100, coords.y ?? 100, contextMenu.entityName);
+                   setContextMenu(null);
+                }}>
+                  {t('ctx.add_note')}
                 </button>
               )}
             </>

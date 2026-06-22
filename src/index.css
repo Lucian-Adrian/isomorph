@@ -1211,7 +1211,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 9999;
+  z-index: 99999 !important;
   pointer-events: none;
 }
 
@@ -2150,5 +2150,156 @@ body {
   cursor: not-allowed;
   background-color: var(--iso-bg-hover);
   border-color: var(--iso-divider);
+}
+
+.iso-spinner {
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top: 2px solid var(--iso-brand, #3b82f6);
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  animation: iso-spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes iso-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ── Live Collaborator Avatar Stack ────────────────────────── */
+.iso-avatar-stack {
+  display: flex;
+  align-items: center;
+  margin-right: 16px;
+  position: relative;
+}
+.iso-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--iso-bg-app);
+  margin-left: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  user-select: none;
+  cursor: pointer;
+  transition: transform var(--iso-duration) var(--iso-ease), z-index var(--iso-duration) var(--iso-ease);
+  position: relative;
+  box-shadow: var(--iso-shadow-sm);
+}
+.iso-avatar:first-child {
+  margin-left: 0;
+}
+.iso-avatar:hover {
+  transform: translateY(-2px);
+  z-index: 10;
+}
+.iso-avatar-more {
+  background: var(--iso-bg-hover);
+  color: var(--iso-text-muted);
+  border: 2px solid var(--iso-bg-app);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--iso-shadow-sm);
+}
+.iso-avatar-more:hover {
+  color: var(--iso-text);
+  transform: translateY(-2px);
+  z-index: 10;
+}
+
+/* Dropdown popover for collaborator list */
+.iso-collab-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  background: var(--iso-bg-panel);
+  border: 1px solid var(--iso-border-strong);
+  border-radius: var(--iso-radius-lg);
+  box-shadow: var(--iso-shadow-lg);
+  padding: 12px;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fade-in 120ms var(--iso-ease);
+}
+.iso-collab-dropdown-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--iso-text-faint);
+  margin-bottom: 4px;
+}
+.iso-collab-user-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: var(--iso-radius);
+  transition: background var(--iso-duration);
+}
+.iso-collab-user-row:hover {
+  background: var(--iso-bg-hover);
+}
+.iso-collab-user-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.iso-collab-user-name {
+  font-size: 13px;
+  color: var(--iso-text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.iso-collab-user-you {
+  font-size: 11px;
+  color: var(--iso-brand);
+  font-weight: 600;
+  margin-left: auto;
+}
+
+/* ── CodeMirror Collaboration Cursors & Selections ─────────── */
+.cm-ySelection {
+  /* background-color is set dynamically by y-codemirror */
+}
+
+.cm-ySelectionCaret {
+  position: relative;
+  border-left: 2px solid;
+  border-right: 0px solid transparent;
+  margin-left: -1px;
+  margin-right: -1px;
+  box-sizing: border-box;
+  /* border-color is set dynamically by y-codemirror */
+}
+
+.cm-ySelectionInfo {
+  position: absolute;
+  top: -1.05em;
+  left: -1px;
+  color: #fff;
+  font-family: var(--iso-font-sans, sans-serif);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: opacity 0.15s ease-in-out;
 }
 

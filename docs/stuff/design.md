@@ -96,3 +96,27 @@ All buttons, tab items, and clickable options must include active/hover feedback
   1. Local storage (`localStorage`) for immediate persistence in the offline state.
   2. Supabase database via updates to user profile settings or projects settings columns for cloud sync.
 - Both light/dark mode theme configurations and custom folder category tabs must sync automatically.
+
+---
+
+## 8. Toast Foreground & Z-Index
+- **Absolute Foreground Priority**: The toast container (`.iso-toast-container`) must use a high `z-index` (specifically `99999 !important`) to guarantee that notification bubbles remain in the absolute foreground, rendering cleanly above active modals, drawer panels, drop-downs, and dark overlay backdrops.
+- **Micro-Animations**: Toasts must slide in or fade in smoothly and remain interactable (e.g., clickable to dismiss or pause auto-dismiss on hover).
+
+---
+
+## 9. Double-Press Button Prevention
+- **State Protection**: All interactive controls that trigger asynchronous operations, network requests, database mutations, or file creation (e.g., creating a diagram, creating a project, sending an email invite) **must** implement double-press prevention.
+- **Visual Feedback**:
+  - Disable the trigger element immediately upon click (`disabled={loading}`).
+  - Change the cursor state to `not-allowed`.
+  - Shift label text to indicate active progress (e.g., changing "Create" to "Creating...", "Save" to "Saving...").
+  - Restore interactive capabilities only after the asynchronous operation has fully resolved or failed (providing appropriate error toast notifications).
+
+---
+
+## 10. Security Blueprints & Input Sanitization
+- **Cross-Site Scripting (XSS)**: Ensure all user input is sanitized before rendering. React's default escaping is leveraged, but any raw HTML insertion (`dangerouslySetInnerHTML`) is strictly prohibited unless sanitized via a validated library.
+- **SQL Injection (SQLi)**: All database queries must run through PostgREST/Supabase client parameterized queries. Do not construct raw SQL query strings dynamically inside client-side components or database functions.
+- **Server-Side Request Forgery (SSRF)**: Any fetch or redirection endpoints validating external URLs must parse and whitelist protocol prefixes (`http://`, `https://`) and explicitly reject requests targeting local subnets, private IPs, or internal service endpoints.
+- **Input Validation**: Enforce strict constraints on input fields (max length, allowed characters) both client-side and via database constraints/policies to safeguard resources against buffer manipulation and formatting issues.

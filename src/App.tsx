@@ -28,8 +28,11 @@ import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Lan
 import { computeLayout } from './utils/auto-layout.js';
 import { useAuth } from './lib/auth-context.js';
 import { AuthModal } from './components/AuthModal.js';
-import { getProjects, type Project, getDiagramHistory, deleteDiagramHistoryAfter, type DiagramHistory } from './lib/projects.js';
-import { isTelemetryEnabled, setTelemetryEnabled } from './lib/telemetry.js';
+import { getProjects, getSharedProjects, getPublicProjectIds, type Project, getDiagramHistory, deleteDiagramHistoryAfter, type DiagramHistory } from './lib/projects.js';
+import { isTelemetryEnabled, setTelemetryEnabled, logEvent } from './lib/telemetry.js';
+import { useCollaboration } from './lib/collaboration.js';
+import { ShareModal } from './components/ShareModal.js';
+import { AnonymousLoginModal } from './components/AnonymousLoginModal.js';
 
 type DiagramKind = IOMDiagram['kind'];
 
@@ -42,6 +45,7 @@ interface WorkspaceTab {
   undoStack?: string[];
   redoStack?: string[];
   savedSource?: string; // Snapshot of source when tab was created/opened — used for beforeunload guard
+  project_role?: 'owner' | 'editor' | 'commenter' | 'viewer' | string;
   diagram_id?: string;
   project_id?: string;
 }
@@ -904,6 +908,9 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportTime, setExportTime] = useState<number>(0);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
+  const [publicProjectIds, setPublicProjectIds] = useState<Set<string>>(new Set());
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [librarySearchQuery, setLibrarySearchQuery] = useState('');
   const [isSavingToCloud, setIsSavingToCloud] = useState(false);
   const [saveToCloudModalOpen, setSaveToCloudModalOpen] = useState(false);
@@ -933,6 +940,7 @@ export default function App() {
   const [projectDetailModalOpen, setProjectDetailModalOpen] = useState(false);
   const [projectDetailProject, setProjectDetailProject] = useState<Project | null>(null);
   const [projectDetailDiagrams, setProjectDetailDiagrams] = useState<any[]>([]);
+  const [projectDetailAccessMap, setProjectDetailAccessMap] = useState<{ base: string; diagrams: Record<string, string> }>({ base: 'viewer', diagrams: {} });
   const [isLoadingProjectDetail, setIsLoadingProjectDetail] = useState(false);
   const [diagramToDelete, setDiagramToDelete] = useState<any | null>(null);
 
@@ -946,14 +954,22 @@ export default function App() {
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const { session, user, signOut } = useAuth();
+  const { session, user, signOut, loading } = useAuth();
 
   const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null, settings?: any } | null>(null);
+
+  // Share and Anonymous states
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isAnonymousLoginOpen, setIsAnonymousLoginOpen] = useState(false);
+  const [anonymousName, setAnonymousName] = useState<string | null>(() => localStorage.getItem('isomorph-anon-name'));
+  const [pendingShareToken, setPendingShareToken] = useState<string | null>(null);
+  const [urlShareToken, setUrlShareToken] = useState<string | null>(null);
+  const [isJoiningShare, setIsJoiningShare] = useState(false);
 
   useEffect(() => {
     if (user) {
       import('./lib/profile.js').then(({ getProfile }) => {
-        getProfile(user.id).then(data => {
+        getProfile(user.id).then(async data => {
           if (data) {
             setProfile(data);
             if (data.settings?.projects?.tabs) {
@@ -993,6 +1009,18 @@ export default function App() {
               setAnimationSpeed(data.settings.anim_speed);
               localStorage.setItem('isomorph-anim-speed', String(data.settings.anim_speed));
             }
+          } else {
+            // Profile is missing, let's create it automatically
+            const { updateProfile } = await import('./lib/profile.js');
+            const created = await updateProfile(user.id, {
+              username: user.email?.split('@')[0] || 'user_' + user.id.slice(0, 5),
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+              avatar_url: user.user_metadata?.avatar_url || null,
+            });
+            if (created) {
+              const fresh = await getProfile(user.id);
+              if (fresh) setProfile(fresh);
+            }
           }
         });
       });
@@ -1002,6 +1030,93 @@ export default function App() {
       setCustomCategories(['Favorites', 'Work', 'Personal']);
     }
   }, [user]);
+
+  // 1. Read share token from URL on mount only
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareToken = params.get('share');
+    if (shareToken) {
+      setUrlShareToken(shareToken);
+      // Remove token from URL immediately to keep it clean
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // 2. Process the share link after auth loading settles
+  useEffect(() => {
+    if (loading) return;
+    if (urlShareToken) {
+      setPendingShareToken(urlShareToken);
+      if (user) {
+        handleRedeemShareLink(urlShareToken);
+      } else {
+        const savedAnonName = localStorage.getItem('isomorph-anon-name');
+        if (savedAnonName) {
+          handleRedeemShareLink(urlShareToken, savedAnonName);
+        } else {
+          setIsAnonymousLoginOpen(true);
+        }
+      }
+      setUrlShareToken(null); // Mark as processed
+    }
+  }, [loading, urlShareToken, user]);
+
+  const handleRedeemShareLink = async (token: string, anonName?: string) => {
+    setIsJoiningShare(true);
+    const { supabase } = await import('./lib/supabase.js');
+    if (user) {
+      // Logged in: redeem via RPC
+      const { data: success, error } = await supabase.rpc('redeem_share_link', { p_token: token });
+      if (success && !error) {
+        addToast('Project access granted!', 'success');
+        // Let's fetch the project and open it
+        const { data: projData } = await supabase.rpc('get_shared_project_data', { p_token: token });
+        if (projData && projData.project && projData.diagrams) {
+          // Log audit: share link redeemed
+          const { logAudit } = await import('./lib/audit.js');
+          await logAudit('share_link_redeemed', 'share_link', undefined, { token, projectId: projData.project.id });
+
+          // Add project to projects list so its name resolves in the breadcrumbs
+          setProjects(prev => {
+            if (!prev.some(p => p.id === projData.project.id)) {
+              return [projData.project, ...prev];
+            }
+            return prev;
+          });
+          openWholeProject(projData.diagrams, projData.project.id, projData.role || 'editor');
+        }
+      } else {
+        addToast('Invalid or expired share link', 'info');
+      }
+    } else {
+      // Anonymous
+      const { data: projData, error } = await supabase.rpc('get_shared_project_data', { p_token: token });
+      if (projData && projData.project && projData.diagrams && !error) {
+        // Log audit: share link redeemed
+        const { logAudit } = await import('./lib/audit.js');
+        await logAudit('share_link_redeemed', 'share_link', undefined, { token, projectId: projData.project.id, anonymous: true });
+
+        if (anonName) {
+          setAnonymousName(anonName);
+          localStorage.setItem('isomorph-anon-name', anonName);
+        }
+        setIsAnonymousLoginOpen(false);
+        addToast(`Joined project ${projData.project.name} anonymously`);
+        // Add project to projects list so its name resolves in the breadcrumbs
+        setProjects(prev => {
+          if (!prev.some(p => p.id === projData.project.id)) {
+            return [projData.project, ...prev];
+          }
+          return prev;
+        });
+        openWholeProject(projData.diagrams, projData.project.id, projData.role || 'viewer');
+      } else {
+        addToast('Invalid or expired share link', 'info');
+      }
+    }
+    setIsJoiningShare(false);
+    setPendingShareToken(null);
+  };
 
   const handleSignOut = useCallback(async () => {
     await signOut();
@@ -1045,6 +1160,9 @@ export default function App() {
 
   const handleDeleteAccount = async () => {
     if (!user) return;
+    const { logAudit } = await import('./lib/audit.js');
+    await logAudit('account_deleted');
+
     const { supabase } = await import('./lib/supabase.js');
     const { error } = await supabase.rpc('delete_user');
     if (error) {
@@ -1149,6 +1267,37 @@ export default function App() {
       const { getDiagrams } = await import('./lib/projects.js');
       const diagrams = await getDiagrams(project.id);
       setProjectDetailDiagrams(diagrams);
+
+      // Fetch user specific permissions for diagrams in this project
+      if (user) {
+        const { supabase } = await import('./lib/supabase.js');
+        const { data: accessList } = await supabase
+          .from('project_access')
+          .select('diagram_id, role')
+          .eq('project_id', project.id)
+          .eq('user_id', user.id);
+
+        const mapping: Record<string, string> = {};
+        let projectRole = (project as any).role || 'viewer';
+        if (accessList) {
+          accessList.forEach((a: any) => {
+            if (a.diagram_id === null) {
+              projectRole = a.role;
+            } else {
+              mapping[a.diagram_id] = a.role;
+            }
+          });
+        }
+        setProjectDetailAccessMap({
+          base: projectRole,
+          diagrams: mapping
+        });
+      } else {
+        setProjectDetailAccessMap({
+          base: (project as any).role || 'viewer',
+          diagrams: {}
+        });
+      }
     } catch (error) {
       console.error('Failed to load project files:', error);
       addToast('Failed to load project files', 'info');
@@ -1157,11 +1306,19 @@ export default function App() {
     }
   };
 
-  const openProjectFile = (diagram: any, projectId: string) => {
-    const existingTab = tabs.find(t => t.diagram_id === diagram.id);
-    if (existingTab) {
-      setActiveTabId(existingTab.id);
-    } else {
+  const getDiagramRole = useCallback((diagramId: string) => {
+    if (!projectDetailProject || !user) return 'viewer';
+    if (projectDetailProject.owner_id === user.id) return 'owner';
+    return projectDetailAccessMap.diagrams[diagramId] || projectDetailAccessMap.base || 'viewer';
+  }, [projectDetailProject, user, projectDetailAccessMap]);
+
+  const openProjectFile = useCallback((diagram: any, projectId: string, role: string = 'owner') => {
+    setTabs(prev => {
+      const existingTab = prev.find(t => t.diagram_id === diagram.id);
+      if (existingTab) {
+        setTimeout(() => setActiveTabId(existingTab.id), 0);
+        return prev;
+      }
       const content = diagram.content as any;
       const sourceText = typeof content === 'string' ? content : (content?.source || '');
       const newTab: WorkspaceTab = {
@@ -1172,58 +1329,71 @@ export default function App() {
         diagramKindFilter: diagram.kind as 'all' | DiagramKind,
         diagram_id: diagram.id,
         project_id: projectId,
-        savedSource: sourceText
+        savedSource: sourceText,
+        project_role: role
       };
-      setTabs(prev => [...prev, newTab]);
-      setActiveTabId(newTab.id);
-    }
+      setTimeout(() => setActiveTabId(newTab.id), 0);
+      return [...prev, newTab];
+    });
     setProjectDetailModalOpen(false);
     setIsLibraryOpen(false);
-  };
+  }, []);
 
-  const openWholeProject = (diagrams: any[], projectId: string) => {
+  const openWholeProject = useCallback((diagrams: any[], projectId: string, role: string = 'owner', rolesMap?: Record<string, string>) => {
     if (diagrams.length === 0) {
-      addToast('Project is empty');
+      const newTabId = `tab-${slugId()}`;
+      setTabs([{
+        id: newTabId,
+        name: 'Untitled Diagram',
+        source: templateFor('class'),
+        activeDiagramIdx: 0,
+        diagramKindFilter: 'all',
+        project_id: projectId,
+        project_role: role
+      }]);
+      setActiveTabId(newTabId);
+      addToast('Opened empty project', 'info');
+      setProjectDetailModalOpen(false);
+      setIsLibraryOpen(false);
       return;
     }
-    const newTabsToAppend: WorkspaceTab[] = [];
-    let firstTabIdToSelect: string | null = null;
 
-    diagrams.forEach(d => {
-      const existingTab = tabs.find(t => t.diagram_id === d.id);
-      if (existingTab) {
-        if (!firstTabIdToSelect) {
-          firstTabIdToSelect = existingTab.id;
+    setTabs(prev => {
+      const next: WorkspaceTab[] = [];
+      let firstTabIdToSelect: string | null = null;
+      diagrams.forEach(d => {
+        const diagramRole = rolesMap?.[d.id] || role;
+        const existing = prev.find(t => t.diagram_id === d.id);
+        if (existing) {
+          next.push({ ...existing, project_role: diagramRole, project_id: projectId });
+          if (!firstTabIdToSelect) firstTabIdToSelect = existing.id;
+        } else {
+          const content = d.content as any;
+          const sourceText = typeof content === 'string' ? content : (content?.source || '');
+          const newTab: WorkspaceTab = {
+            id: d.id,
+            name: d.name,
+            source: sourceText,
+            activeDiagramIdx: 0,
+            diagramKindFilter: d.kind as 'all' | DiagramKind,
+            diagram_id: d.id,
+            project_id: projectId,
+            savedSource: sourceText,
+            project_role: diagramRole
+          };
+          next.push(newTab);
+          if (!firstTabIdToSelect) firstTabIdToSelect = newTab.id;
         }
-      } else {
-        const content = d.content as any;
-        const sourceText = typeof content === 'string' ? content : (content?.source || '');
-        const newTab: WorkspaceTab = {
-          id: d.id,
-          name: d.name,
-          source: sourceText,
-          activeDiagramIdx: 0,
-          diagramKindFilter: d.kind as 'all' | DiagramKind,
-          diagram_id: d.id,
-          project_id: projectId,
-          savedSource: sourceText
-        };
-        newTabsToAppend.push(newTab);
-        if (!firstTabIdToSelect) {
-          firstTabIdToSelect = newTab.id;
-        }
+      });
+      if (firstTabIdToSelect) {
+        setTimeout(() => setActiveTabId(firstTabIdToSelect!), 0);
       }
+      return next;
     });
 
-    if (newTabsToAppend.length > 0) {
-      setTabs(prev => [...prev, ...newTabsToAppend]);
-    }
-    if (firstTabIdToSelect) {
-      setActiveTabId(firstTabIdToSelect);
-    }
     setProjectDetailModalOpen(false);
     setIsLibraryOpen(false);
-  };
+  }, []);
 
   const handleLoadedFiles = (files: File[]) => {
     const isxFiles = files.filter(f => f.name.endsWith('.isx'));
@@ -1329,6 +1499,13 @@ export default function App() {
 
     if (error) {
       console.error('Error auto-saving profile:', error);
+      // Revert local state
+      setProfile(profile);
+      if (error.code === '23505') {
+        addToast('Error: Username already taken');
+      } else {
+        addToast('Error saving profile changes');
+      }
     }
   };
 
@@ -1370,16 +1547,62 @@ export default function App() {
   };
 
 
+  const refreshPublicProjects = useCallback(() => {
+    getPublicProjectIds().then(data => setPublicProjectIds(data));
+  }, []);
+
   useEffect(() => {
     if (user) {
       getProjects(user.id).then(data => setProjects(data));
+      getSharedProjects(user.id).then(data => setSharedProjects(data));
+      refreshPublicProjects();
+    } else {
+      setProjects([]);
+      setSharedProjects([]);
+      setPublicProjectIds(new Set());
     }
-  }, [user]);
+  }, [user, refreshPublicProjects]);
 
   const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
 
   const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId]);
+
+  const { awareness, isConnected, isSynced, getSourceText, connectedDiagramId, collaborators } = useCollaboration(
+    activeTab?.diagram_id || null,
+    profile?.full_name || profile?.username || user?.email || anonymousName || 'Anonymous',
+    profile?.settings?.cursor_colour || '#3B82F6',
+    profile?.avatar_url || null,
+    activeTab?.project_role || 'owner',
+    // For authenticated users, pass the JWT access token.
+    // For anonymous share-link users (no session), pass 'share:anonymous'
+    // so the server recognizes them as allowed share connections.
+    session?.access_token || (activeTab?.diagram_id ? 'share:anonymous' : undefined),
+    profile?.username || undefined
+  );
+
+  const isCollabActive = !!(activeTab?.diagram_id && connectedDiagramId === activeTab.diagram_id);
+  const [isCollabDropdownOpen, setIsCollabDropdownOpen] = useState(false);
+  const collabRef = useRef<HTMLDivElement>(null);
+
+  const getInitials = useCallback((name: string) => {
+    const clean = name.trim();
+    if (!clean) return '?';
+    const parts = clean.split(/\s+/);
+    if (parts.length > 1) {
+      return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+    return clean.slice(0, 2).toUpperCase();
+  }, []);
+
+  const sortedCollaborators = useMemo(() => {
+    if (!collaborators || !awareness) return [];
+    const localClientId = awareness.clientID;
+    const localUser = collaborators.find(c => c.clientId === localClientId);
+    const otherUsers = collaborators.filter(c => c.clientId !== localClientId);
+    return localUser ? [localUser, ...otherUsers] : otherUsers;
+  }, [collaborators, awareness]);
+
   const source = activeTab?.source ?? '';
   const selectedHistoryItem = diagramHistoryList.find(h => h.id === selectedHistoryId);
   const displaySource = selectedHistoryItem ? selectedHistoryItem.content?.source || '' : source;
@@ -1442,6 +1665,28 @@ export default function App() {
     };
   }, [examplesOpen]);
 
+  // ── Close collaboration dropdown on outside click or Escape ──
+  useEffect(() => {
+    function handleOutsideCollabClick(e: Event) {
+      if (collabRef.current && !collabRef.current.contains(e.target as Node)) {
+        setIsCollabDropdownOpen(false);
+      }
+    }
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setIsCollabDropdownOpen(false);
+      }
+    }
+    if (isCollabDropdownOpen) {
+      document.addEventListener('click', handleOutsideCollabClick);
+      document.addEventListener('keydown', handleEscape);
+    }
+    return () => {
+      document.removeEventListener('click', handleOutsideCollabClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isCollabDropdownOpen]);
+
   // ── Parse + analyze on every keystroke ───────────────────
   const parseResult = useMemo(() => {
     try { return parse(displaySource); } catch { return null; }
@@ -1469,40 +1714,65 @@ export default function App() {
       .map(e => ({ message: `(${e.rule}) ${e.message}`, line: e.line, col: e.col ?? 1, severity: 'error' as const })),
   ];
   const diagrams: IOMDiagram[] = analysisResult?.iom.diagrams ?? [];
-  const filteredDiagrams = useMemo(() => {
-    if (!activeTab || activeTab.diagramKindFilter === 'all') return diagrams;
-    return diagrams.filter(d => d.kind === activeTab.diagramKindFilter);
-  }, [diagrams, activeTab]);
-  const activeDiagramIdx = activeTab?.activeDiagramIdx ?? 0;
-  const safeDiagramIdx = Math.max(0, Math.min(activeDiagramIdx, Math.max(filteredDiagrams.length - 1, 0)));
-  const activeDiagram = filteredDiagrams[safeDiagramIdx] ?? null;
+  const activeDiagram = diagrams[0] ?? null;
 
   const handleCreateProjectSubmit = useCallback(async () => {
-    if (!user || !newProjectName.trim()) return;
+    if (!user || !newProjectName.trim() || isCreatingProject) return;
+    setIsCreatingProject(true);
     const { createProject, createDiagram } = await import('./lib/projects.js');
     try {
       const p = await createProject(user.id, newProjectName.trim());
-      if (p) {
-        setProjects(prev => [p, ...prev]);
-        addToast('Project created successfully', 'success');
-
-        if (isSavingFlow) {
-          const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
-          if (d) {
-            updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
-            addToast('Saved to cloud');
-          }
-          setIsSavingFlow(false);
-        }
-
-        setIsNewModalOpen(false);
-        setNewProjectName('');
-        setNewProjectError('');
+      if (!p) {
+        throw new Error('Failed to create project (empty response).');
       }
+
+      setProjects(prev => [p, ...prev]);
+      addToast('Project created successfully', 'success');
+
+      if (isSavingFlow) {
+        const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+        if (d) {
+          updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source, project_role: 'owner' }), false);
+          addToast('Saved to cloud');
+        } else {
+          throw new Error('Failed to save the diagram to the new project.');
+        }
+        setIsSavingFlow(false);
+      } else {
+        // Simple flow: Create project and a new diagram of newDiagramKind inside it
+        const defaultSrc = templateFor(newDiagramKind);
+        const d = await createDiagram(user.id, p.id, `diagram.isx`, newDiagramKind, { source: defaultSrc });
+        if (d) {
+          const tabId = `tab-${slugId()}`;
+          setTabs(prev => [
+            ...prev,
+            {
+              id: tabId,
+              name: 'diagram.isx',
+              source: defaultSrc,
+              savedSource: defaultSrc,
+              activeDiagramIdx: 0,
+              diagramKindFilter: 'all',
+              project_id: p.id,
+              diagram_id: d.id,
+              project_role: 'owner',
+            },
+          ]);
+          setActiveTabId(tabId);
+        } else {
+          throw new Error('Failed to create default diagram inside the new project.');
+        }
+      }
+
+      setIsNewModalOpen(false);
+      setNewProjectName('');
+      setNewProjectError('');
     } catch (err: any) {
       setNewProjectError(err.message);
+    } finally {
+      setIsCreatingProject(false);
     }
-  }, [user, newProjectName, isSavingFlow, activeTab, activeDiagram, updateActiveTab]);
+  }, [user, newProjectName, isSavingFlow, activeTab, activeDiagram, updateActiveTab, newDiagramKind, isCreatingProject]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 900px)');
@@ -1536,12 +1806,7 @@ export default function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-  useEffect(() => {
-    if (!activeTab) return;
-    if (safeDiagramIdx !== activeDiagramIdx) {
-      updateActiveTab(tab => ({ ...tab, activeDiagramIdx: safeDiagramIdx }));
-    }
-  }, [activeTab, safeDiagramIdx, activeDiagramIdx, updateActiveTab]);
+
 
   const getPlacedItemPosition = useCallback((name: string) => {
     const partitionPos = activeDiagram?.partitions.find(p => p.name === name)?.position;
@@ -1761,7 +2026,7 @@ export default function App() {
               }
             }
           };
-          walk(ast.program.diagrams[tab.activeDiagramIdx]?.body || []);
+          walk(ast.program.diagrams[0]?.body || []);
           if (foundFrag && foundFrag.span) {
             const extractBodyTextSafe = (src: string, body: any[]) => {
               if (!body || body.length === 0) return '';
@@ -1846,7 +2111,7 @@ export default function App() {
         name = `${prefixName}${index}`;
       }
 
-      const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum'];
+      const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum', 'note'];
       const FRAGMENT_KINDS = ['alt', 'loop', 'opt', 'par', 'break', 'critical'];
       let declaration = `  ${keyword} ${name}`;
       if (BRACE_KINDS.includes(baseName)) {
@@ -1896,11 +2161,10 @@ export default function App() {
       // Skip if user is focused on CodeMirror editor or an input/textarea
       const ae = document.activeElement;
       const isInEditor = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.closest?.('.cm-content') || ae.closest?.('.cm-editor'));
+      if (isInEditor) return;
 
       // Deletion of selected items
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (isInEditor) return;
-
         if (selectedItems.length > 0) {
           updateActiveTab(tab => {
             let nextSource = tab.source;
@@ -2114,10 +2378,12 @@ export default function App() {
 
   // ── Export callbacks (delegated to exporter module) ───────
   const handleExportSVG = useCallback(() => {
+    logEvent('diagram_exported', { format: 'svg', kind: activeDiagram?.kind });
     exportSVG(activeDiagram?.name ?? 'diagram');
   }, [activeDiagram]);
 
   const handleExportPNG = useCallback(() => {
+    logEvent('diagram_exported', { format: 'png', kind: activeDiagram?.kind });
     exportPNG(activeDiagram?.name ?? 'diagram');
   }, [activeDiagram]);
 
@@ -2125,6 +2391,7 @@ export default function App() {
   const executeNewDiagram = useCallback((kind: DiagramKind) => {
     const id = `tab-${slugId()}`;
     const src = templateFor(kind);
+    logEvent('diagram_created', { kind });
     setTabs(prev => [
       ...prev,
       {
@@ -2192,6 +2459,24 @@ export default function App() {
     e.target.value = '';
   }, []);
 
+  const handleSaveToCloudSubmit = useCallback(async () => {
+    if (!selectedProjectId || !user || isSavingToCloud) return;
+    setIsSavingToCloud(true);
+    try {
+      const { createDiagram } = await import('./lib/projects.js');
+      const diagram = await createDiagram(user.id, selectedProjectId, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+      if (diagram) {
+        updateActiveTab(tab => ({ ...tab, diagram_id: diagram.id, project_id: selectedProjectId, savedSource: tab.source, project_role: 'owner' }), false);
+        setSaveToCloudModalOpen(false);
+        addToast('Saved to cloud');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error saving to cloud');
+    } finally {
+      setIsSavingToCloud(false);
+    }
+  }, [user, selectedProjectId, isSavingToCloud, activeTab, activeDiagram, updateActiveTab]);
+
   const handleSaveToCloud = useCallback(async (projectName?: string) => {
     if (!user) {
       setAuthMode('login');
@@ -2200,9 +2485,12 @@ export default function App() {
     }
     if (activeTab.diagram_id) {
       setIsSavingToCloud(true);
+      logEvent('diagram_saved', { project_id: activeTab.project_id, diagram_id: activeTab.diagram_id });
       const { updateDiagramContent, saveDiagramHistory } = await import('./lib/projects.js');
       await updateDiagramContent(activeTab.diagram_id, { source: activeTab.source });
       await saveDiagramHistory(activeTab.diagram_id, { source: activeTab.source }, user.id);
+      const { logAudit } = await import('./lib/audit.js');
+      await logAudit('diagram_saved', 'diagram', activeTab.diagram_id, { project_id: activeTab.project_id });
       setIsSavingToCloud(false);
       updateActiveTab(tab => ({ ...tab, savedSource: tab.source }), false);
     } else {
@@ -2211,9 +2499,10 @@ export default function App() {
         const { createProject, createDiagram } = await import('./lib/projects.js');
         const p = await createProject(user.id, projectName);
         if (p) {
-          const d = await createDiagram(user.id, p.id, activeTab.name, activeTab.diagramKindFilter, { source: activeTab.source });
+          const kind = activeTab.diagramKindFilter === 'all' ? (activeDiagram?.kind || 'class') : activeTab.diagramKindFilter;
+          const d = await createDiagram(user.id, p.id, activeTab.name, kind, { source: activeTab.source });
           if (d) {
-            updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source }), false);
+            updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source, project_role: 'owner' }), false);
             addToast('Saved to cloud');
           }
         }
@@ -2222,11 +2511,13 @@ export default function App() {
         setSaveToCloudModalOpen(true);
       }
     }
-  }, [user, activeTab, updateActiveTab]);
+  }, [user, activeTab, activeDiagram, updateActiveTab]);
 
-  // ── Global keyboard shortcuts ─────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const ae = document.activeElement;
+      const isInInput = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
+
       if (e.key === 'Escape') {
         if (editingEntity) { setEditingEntity(null); return; }
         if (editingRelation) { setEditingRelation(null); return; }
@@ -2245,8 +2536,20 @@ export default function App() {
         if (isLibraryOpen) { setIsLibraryOpen(false); return; }
         if (exportMenuOpen) { setExportMenuOpen(false); return; }
       }
-      if (e.ctrlKey && !e.shiftKey && e.key === 'n') { e.preventDefault(); handleNew(); }
-      if (e.ctrlKey && !e.shiftKey && e.key === 'o') { e.preventDefault(); setIsLibraryOpen(true); }
+
+      if (isInInput) return;
+      if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
+        if (!activeTab?.project_id || activeTab?.project_role === 'owner') {
+          e.preventDefault();
+          handleNew();
+        }
+      }
+      if (e.ctrlKey && !e.shiftKey && e.key === 'o') {
+        if (!activeTab?.project_id || activeTab?.project_role === 'owner') {
+          e.preventDefault();
+          setIsLibraryOpen(true);
+        }
+      }
       if (e.ctrlKey && !e.shiftKey && e.key === 's') { e.preventDefault(); handleSaveToCloud(); }
       if (e.ctrlKey && !e.shiftKey && e.key === 'e') { e.preventDefault(); handleExportSVG(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); handleExportPNG(); }
@@ -2254,7 +2557,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user, isSavingFlow, isDeleteModalOpen, renameModalOpen, isRevertModalOpen, saveToCloudModalOpen, projectDetailModalOpen, isHistoryOpen, isAuthOpen, isSettingsOpen, isLibraryOpen, exportMenuOpen]);
+  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user, isSavingFlow, isDeleteModalOpen, renameModalOpen, isRevertModalOpen, saveToCloudModalOpen, projectDetailModalOpen, isHistoryOpen, isAuthOpen, isSettingsOpen, isLibraryOpen, exportMenuOpen, activeTab]);
 
 
   const handleExportGIF = useCallback(async () => {
@@ -2328,6 +2631,12 @@ export default function App() {
         return;
       }
 
+      if (saveToCloudModalOpen) {
+        e.preventDefault();
+        handleSaveToCloudSubmit();
+        return;
+      }
+
       if (tabToClose) {
         e.preventDefault();
         setTabs(prev => {
@@ -2353,6 +2662,8 @@ export default function App() {
     activeTabId,
     newModalTab,
     handleCreateProjectSubmit,
+    saveToCloudModalOpen,
+    handleSaveToCloudSubmit,
   ]);
 
   const applyExample = useCallback((ex: (typeof EXAMPLES)[number]) => {
@@ -2377,7 +2688,39 @@ export default function App() {
             key={stencil.label}
             draggable
             onDragStart={e => {
-              e.dataTransfer.setData('text/plain', stencil.keyword);
+              const baseName = stencil.keyword.split(' ')[0];
+              const prefixName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+              
+              let index = 1;
+              let name = `${prefixName}${index}`;
+              const src = activeTab?.source || '';
+              while (new RegExp(`${ENTITY_KINDS_RX}[ \\t]+${name}\\b`).test(src)) {
+                index++;
+                name = `${prefixName}${index}`;
+              }
+
+              let expandedCode = stencil.keyword;
+              const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum', 'note'];
+              const FRAGMENT_KINDS = ['alt', 'loop', 'opt', 'par', 'break', 'critical'];
+              
+              if (BRACE_KINDS.includes(baseName)) {
+                expandedCode = `${stencil.keyword} ${name} {\n\n}`;
+              } else if (FRAGMENT_KINDS.includes(baseName)) {
+                if (baseName === 'alt') {
+                  expandedCode = `${stencil.keyword} ${name} {\n\n} else {\n\n}`;
+                } else {
+                  expandedCode = `${stencil.keyword} ${name} {\n\n}`;
+                }
+              } else if (['start', 'stop', 'fork', 'join', 'decision', 'merge'].includes(baseName)) {
+                expandedCode = `${stencil.keyword} ${name}`;
+              } else if (baseName === 'action') {
+                expandedCode = `action ${name}`;
+              } else {
+                expandedCode = `${stencil.keyword} ${name}`;
+              }
+
+              e.dataTransfer.setData('text/plain', expandedCode);
+              e.dataTransfer.setData('application/x-isomorph-stencil', stencil.keyword);
               e.dataTransfer.effectAllowed = 'copy';
             }}
             className="iso-stencil"
@@ -2472,13 +2815,17 @@ export default function App() {
       </div>
       <div className="iso-panel-body">
         <IsomorphEditor
+          key={activeTab?.id || 'empty'}
           value={displaySource}
-          readOnly={!!selectedHistoryItem}
+          readOnly={!!selectedHistoryItem || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'}
           onChange={value => {
             if (selectedHistoryItem) return;
             updateActiveTab(tab => ({ ...tab, source: value }))
           }}
           errors={editorDiagnostics}
+          yText={isCollabActive ? getSourceText() : null}
+          isSynced={isCollabActive ? isSynced : false}
+          awareness={isCollabActive ? awareness : null}
         />
       </div>
       {allErrors.length > 0 && (
@@ -2674,7 +3021,7 @@ export default function App() {
     }).catch(() => { });
   }, [activeTab, updateActiveTab]);
 
-  const handleAddNote = useCallback((_x: number, _y: number) => {
+  const handleAddNote = useCallback((_x: number, _y: number, attachToEntity?: string) => {
     if (!activeTab) return;
     updateActiveTab(tab => {
       let src = tab.source;
@@ -2686,7 +3033,11 @@ export default function App() {
       if (block) {
         const before = src.slice(0, block.closeBrace);
         const after = src.slice(block.closeBrace);
-        src = before.trimEnd() + `\n\n  note ${noteName} {\n    New note\n  }\n` + after;
+        let extra = '';
+        if (attachToEntity) {
+          extra = `  ${attachToEntity} ..> ${noteName}\n`;
+        }
+        src = before.trimEnd() + `\n\n  note ${noteName} {\n    New note\n  }\n${extra}` + after;
       }
       return { ...tab, source: src };
     });
@@ -2711,33 +3062,41 @@ export default function App() {
           isAnimating={isAnimating}
           animationSpeed={animationSpeed}
           language={language}
-          onEntityMove={handleEntityMove}
-          onEntityResize={handleEntityResize}
-          onRelationVerticalMove={handleRelationVerticalMove}
-          onEntityEditRequest={handleEntityEditRequest}
-          onRelationEditRequest={handleRelationEditRequest}
-          onRelationAddRequest={handleRelationAddRequest}
+          onEntityMove={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleEntityMove}
+          onEntityResize={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleEntityResize}
+          onRelationVerticalMove={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleRelationVerticalMove}
+          onEntityEditRequest={(entity) => {
+            if (activeTab?.project_role === 'viewer') return;
+            if (activeTab?.project_role === 'commenter' && entity.kind !== 'note') return;
+            handleEntityEditRequest(entity);
+          }}
+          onRelationEditRequest={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleRelationEditRequest}
+          onRelationAddRequest={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleRelationAddRequest}
           onTextRenameRequest={handleTextRenameRequest}
           onExportSVG={handleExportSVG}
-          onDropEntity={handleDropEntity}
+          onDropEntity={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleDropEntity}
           pendingDropKeyword={isMobileLayout ? pendingMobileDropKeyword : null}
           onConsumePendingDrop={() => setPendingMobileDropKeyword(null)}
-          availableTools={selectedHistoryItem ? [] : toolsetFor(activeDiagram?.kind)}
+          availableTools={selectedHistoryItem ? [] : (activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? ['hand'] : toolsetFor(activeDiagram?.kind)}
           selectedItems={selectedItems}
           onSelectionChange={setSelectedItems}
-          onAutoLayout={handleAutoLayout}
-          onEntityDelete={handleContextEntityDelete}
-          onEntityDuplicate={handleContextEntityDuplicate}
-          onEntityCopy={handleContextEntityCopy}
-          onRelationDelete={handleContextRelationDelete}
-          onPaste={handleContextPaste}
-          onAddNote={handleAddNote}
+          onAutoLayout={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleAutoLayout}
+          onEntityDelete={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextEntityDelete}
+          onEntityDuplicate={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextEntityDuplicate}
+          onEntityCopy={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextEntityCopy}
+          onRelationDelete={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextRelationDelete}
+          onPaste={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextPaste}
+          onAddNote={activeTab?.project_role === 'viewer' ? undefined : handleAddNote}
+          awareness={awareness}
         />
       </div>
     </div>
   );
 
-  const mobileStencilRail = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
+  const mobileStencilRail = activeDiagram?.kind && 
+    activeTab?.project_role !== 'viewer' && 
+    activeTab?.project_role !== 'commenter' && 
+    getStencilsForKind(activeDiagram.kind).length > 0 ? (
     <div className="iso-mobile-stencil-rail" role="toolbar" aria-label={t('ui.insert_shapes')}>
       {getStencilsForKind(activeDiagram.kind).map(stencil => (
         <button
@@ -3578,8 +3937,11 @@ export default function App() {
                       ) : (() => {
                         let filtered = projects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase()));
 
-                        if (libraryVisibilityFilter === 'public') filtered = filtered.filter(() => false); // no public projects yet
-                        if (libraryVisibilityFilter === 'private') filtered = filtered.filter(() => true); // all private for now
+                        if (libraryVisibilityFilter === 'public') {
+                          filtered = filtered.filter(p => publicProjectIds.has(p.id));
+                        } else if (libraryVisibilityFilter === 'private') {
+                          filtered = filtered.filter(p => !publicProjectIds.has(p.id));
+                        }
 
                         const isFavTab = libraryCategory.toLowerCase() === 'favorites' || libraryCategory.toLowerCase() === 'favourites';
                         if (isFavTab) {
@@ -3645,8 +4007,71 @@ export default function App() {
                             </select>
                           </div>
                         </div>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)', minHeight: '200px' }}>
-                          No shared works
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px', overflowY: 'auto' }}>
+                          {(() => {
+                            let filtered = sharedProjects.filter(p => p.name.toLowerCase().includes(librarySearchQuery.toLowerCase()));
+                            
+                            filtered = filtered.sort((a, b) => {
+                              if (librarySort === 'name') return a.name.localeCompare(b.name);
+                              return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                            });
+
+                            if (filtered.length === 0) {
+                              return (
+                                <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: 'var(--iso-text-muted)' }}>
+                                  {t('ui.shared_future')}
+                                </div>
+                              );
+                            }
+
+                            return filtered.map(p => (
+                              <div
+                                key={p.id}
+                                onClick={() => handleOpenProjectDetails(p)}
+                                style={{
+                                  height: '140px',
+                                  background: 'var(--iso-bg-header)',
+                                  borderRadius: '8px',
+                                  border: '1px solid var(--iso-border)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: 'var(--iso-text)',
+                                  cursor: 'pointer',
+                                  padding: '16px',
+                                  textAlign: 'center',
+                                  position: 'relative'
+                                }}
+                                onMouseOver={e => {
+                                  e.currentTarget.style.borderColor = 'var(--iso-accent)';
+                                  e.currentTarget.style.background = 'var(--iso-bg-hover)';
+                                }}
+                                onMouseOut={e => {
+                                  e.currentTarget.style.borderColor = 'var(--iso-border)';
+                                  e.currentTarget.style.background = 'var(--iso-bg-header)';
+                                }}
+                              >
+                                <span style={{
+                                  position: 'absolute',
+                                  top: '8px',
+                                  right: '8px',
+                                  fontSize: '10px',
+                                  background: 'var(--iso-bg-app)',
+                                  border: '1px solid var(--iso-border)',
+                                  padding: '2px 6px',
+                                  borderRadius: '12px',
+                                  textTransform: 'capitalize',
+                                  color: 'var(--iso-text-muted)',
+                                  fontWeight: 500
+                                }}>
+                                  {t(`share.${(p as any).role}`) || (p as any).role}
+                                </span>
+                                <strong style={{ marginBottom: '8px', marginTop: '12px' }}>{p.name}</strong>
+                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{new Date(p.updated_at).toLocaleDateString()}</span>
+                              </div>
+                            ));
+                          })()}
                         </div>
                       </>
                     )}
@@ -3914,7 +4339,7 @@ export default function App() {
                   projectDetailDiagrams.map(d => (
                     <div
                       key={d.id}
-                      onClick={() => openProjectFile(d, projectDetailProject.id)}
+                      onClick={() => openProjectFile(d, projectDetailProject.id, getDiagramRole(d.id))}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setContextMenu({
@@ -3950,7 +4375,23 @@ export default function App() {
                       }}
                     >
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{d.name}</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{d.name}</strong>
+                          {projectDetailProject.owner_id !== user?.id && (
+                            <span style={{
+                              fontSize: '10px',
+                              background: 'var(--iso-bg-app)',
+                              border: '1px solid var(--iso-border)',
+                              padding: '1px 5px',
+                              borderRadius: '8px',
+                              textTransform: 'capitalize',
+                              color: 'var(--iso-text-muted)',
+                              fontWeight: 500
+                            }}>
+                              {t(`share.${getDiagramRole(d.id)}`) || getDiagramRole(d.id)}
+                            </span>
+                          )}
+                        </div>
                         <span style={{ fontSize: '11px', color: 'var(--iso-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{d.kind}</span>
                       </div>
                       <span style={{ fontSize: '18px', color: 'var(--iso-text-muted)' }}>→</span>
@@ -3967,7 +4408,18 @@ export default function App() {
                   className="iso-btn iso-btn--primary"
                   style={{ flex: 1 }}
                   disabled={isLoadingProjectDetail || projectDetailDiagrams.length === 0}
-                  onClick={() => openWholeProject(projectDetailDiagrams, projectDetailProject.id)}
+                  onClick={() => {
+                    const rolesMap: Record<string, string> = {};
+                    projectDetailDiagrams.forEach(d => {
+                      rolesMap[d.id] = getDiagramRole(d.id);
+                    });
+                    openWholeProject(
+                      projectDetailDiagrams,
+                      projectDetailProject.id,
+                      projectDetailProject.owner_id === user?.id ? 'owner' : (projectDetailAccessMap.base || 'viewer'),
+                      rolesMap
+                    );
+                  }}
                 >
                   Open Whole Project
                 </button>
@@ -4288,7 +4740,19 @@ export default function App() {
               <p className="iso-modal-desc">Select a project to save this diagram into.</p>
               <div className="iso-modal-field">
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <select className="iso-select" style={{ flex: 1 }} value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)}>
+                  <select
+                    className="iso-select"
+                    style={{ flex: 1 }}
+                    value={selectedProjectId}
+                    onChange={e => setSelectedProjectId(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSaveToCloudSubmit();
+                      }
+                    }}
+                  >
                     <option value="">-- Select Project --</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
@@ -4304,31 +4768,38 @@ export default function App() {
               </div>
               <div className="iso-modal-actions">
                 <button className="iso-modal-btn cancel" onClick={() => setSaveToCloudModalOpen(false)}>{t('ui.cancel')}</button>
-                <button className="iso-modal-btn confirm" disabled={!selectedProjectId || isSavingToCloud} onClick={async () => {
-                  if (!selectedProjectId || !user) return;
-                  setIsSavingToCloud(true);
-                  try {
-                    const { createDiagram } = await import('./lib/projects.js');
-                    const diagram = await createDiagram(user.id, selectedProjectId, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
-                    if (diagram) {
-                      updateActiveTab(tab => ({ ...tab, diagram_id: diagram.id, project_id: selectedProjectId, savedSource: tab.source }), false);
-                      setSaveToCloudModalOpen(false);
-                      addToast('Saved to cloud');
-                    }
-                  } catch (e: any) {
-                    alert(e.message || 'Error saving to cloud');
-                  } finally {
-                    setIsSavingToCloud(false);
-                  }
-                }}>{isSavingToCloud ? 'Saving...' : 'Save'}</button>
+                <button className="iso-modal-btn confirm" disabled={!selectedProjectId || isSavingToCloud} onClick={handleSaveToCloudSubmit}>{isSavingToCloud ? 'Saving...' : 'Save'}</button>
               </div>
             </div>
+          </div>
+        )}
+
+        {isAnonymousLoginOpen && pendingShareToken && (
+          <AnonymousLoginModal
+            isLoading={isJoiningShare}
+            onJoin={(name) => handleRedeemShareLink(pendingShareToken, name)}
+            onCancel={() => {
+              setIsAnonymousLoginOpen(false);
+              setPendingShareToken(null);
+            }}
+          />
+        )}
+
+        {toasts.length > 0 && (
+          <div className="iso-toast-container">
+            {toasts.map(t => (
+              <div key={t.id} className="iso-toast">
+                {t.type === 'success' && <span style={{ color: 'var(--iso-success, #4caf50)' }}>✓</span>}
+                {t.message}
+              </div>
+            ))}
           </div>
         )}
       </>
     );
   };
   if (tabs.length === 0) {
+    const isRedeeming = pendingShareToken || isJoiningShare || isAnonymousLoginOpen;
     return (
       <div className="iso-shell">
         <header className="iso-header">
@@ -4336,29 +4807,36 @@ export default function App() {
             <span className="iso-logo-name">Isomorph</span>
           </button>
         </header>
-        <div className="iso-empty-state">
-          <h1 className="iso-empty-title">{t('welcome.title')}</h1>
-          <p className="iso-empty-copy">{t('welcome.description')}</p>
-          <div className="iso-empty-actions">
-            <div className="iso-empty-group">
-              <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
-                {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                  <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
-                ))}
-              </select>
-              <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={() => executeNewDiagram(newDiagramKind)}>
-                {t('welcome.create_new')}
-              </button>
-            </div>
-            <div className="iso-empty-divider" aria-hidden="true"></div>
-            <div className="iso-empty-group iso-empty-group--secondary">
-              <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => { setLibraryTab('open_folder'); setIsLibraryOpen(true); }}>
-                {t('welcome.open_existing')}
-              </button>
-            </div>
+        {isRedeeming ? (
+          <div className="iso-empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+            <div className="iso-spinner" style={{ width: '40px', height: '40px', borderWidth: '3px', marginBottom: '16px' }} />
+            <p style={{ color: 'var(--iso-text-muted)', fontSize: '14px' }}>{t('share.loading') || 'Loading shared diagram...'}</p>
           </div>
-          <input ref={fileInputRef} type="file" accept=".isx" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
-        </div>
+        ) : (
+          <div className="iso-empty-state">
+            <h1 className="iso-empty-title">{t('welcome.title')}</h1>
+            <p className="iso-empty-copy">{t('welcome.description')}</p>
+            <div className="iso-empty-actions">
+              <div className="iso-empty-group">
+                <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
+                  {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
+                    <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
+                  ))}
+                </select>
+                <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={() => executeNewDiagram(newDiagramKind)}>
+                  {t('welcome.create_new')}
+                </button>
+              </div>
+              <div className="iso-empty-divider" aria-hidden="true"></div>
+              <div className="iso-empty-group iso-empty-group--secondary">
+                <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => { setLibraryTab('open_folder'); setIsLibraryOpen(true); }}>
+                  {t('welcome.open_existing')}
+                </button>
+              </div>
+            </div>
+            <input ref={fileInputRef} type="file" accept=".isx" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
+          </div>
+        )}
 
         {/* ──────────────── MODALS (Empty State) ───────────────── */}
         {isNewModalOpen && (
@@ -4395,7 +4873,9 @@ export default function App() {
 
         {/* File breadcrumb */}
         <div className="iso-breadcrumb iso-mobile-hide" onDoubleClick={() => {
-          if (activeTab?.project_id) setRenamingTabId('project-' + activeTab.project_id);
+          if (activeTab?.project_id && (!activeTab.project_role || activeTab.project_role === 'owner')) {
+            setRenamingTabId('project-' + activeTab.project_id);
+          }
         }}>
           {renamingTabId === 'project-' + activeTab?.project_id ? (
             <input
@@ -4420,8 +4900,8 @@ export default function App() {
           ) : (
             <span
               className="iso-breadcrumb-name"
-              style={{ cursor: activeTab?.project_id ? 'pointer' : 'default' }}
-              data-tooltip={activeTab?.project_id ? "Double click to rename project" : undefined}
+              style={{ cursor: (activeTab?.project_id && (!activeTab.project_role || activeTab.project_role === 'owner')) ? 'pointer' : 'default' }}
+              data-tooltip={(activeTab?.project_id && (!activeTab.project_role || activeTab.project_role === 'owner')) ? "Double click to rename project" : undefined}
             >
               {projects.find(p => p.id === activeTab?.project_id)?.name || 'Local Project'}
             </span>
@@ -4475,24 +4955,7 @@ export default function App() {
 
         <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
 
-        {/* Diagram tabs */}
-        {diagrams.length > 1 && (
-          <nav className="iso-tabs iso-mobile-hide" aria-label={t('ui.diagrams')} style={{ flex: '1 1 auto', minWidth: 0, overflowX: 'auto' }}>
-            {filteredDiagrams.map((d, i) => (
-              <button
-                key={d.name}
-                className={`iso-tab${i === safeDiagramIdx ? ' iso-tab--active' : ''}`}
-                type="button"
-                onClick={() => updateActiveTab(tab => ({ ...tab, activeDiagramIdx: i }))}
-                aria-pressed={i === safeDiagramIdx}
-                aria-label={t('tabs.switch', { name: d.name, kind: d.kind })}
-              >
-                {d.name}
-                <span className="iso-tab-kind">{d.kind}</span>
-              </button>
-            ))}
-          </nav>
-        )}
+
 
         <div className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', flex: '0 1 auto', minWidth: 0, overflow: 'hidden', marginLeft: '12px' }}>
           <button
@@ -4530,7 +4993,7 @@ export default function App() {
                 }}
                 className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
                 onClick={() => setActiveTabId(tab.id)}
-                onDoubleClick={() => setRenamingTabId(tab.id)}
+                onDoubleClick={() => { if (!tab.project_role || tab.project_role === 'owner') setRenamingTabId(tab.id); }}
                 aria-label={t('tabs.open_name', { name: tab.name })}
                 style={{ paddingRight: tabs.length > 1 ? '4px' : '10px', cursor: 'grab' }}
               >
@@ -4594,17 +5057,122 @@ export default function App() {
           </div>
         )}
 
+        {activeTab?.diagram_id && isConnected && (
+          <div ref={collabRef} className="iso-avatar-stack">
+            {sortedCollaborators.slice(0, 2).map((collab) => (
+              <div
+                key={collab.clientId}
+                className="iso-avatar"
+                style={{ backgroundColor: collab.avatarUrl ? 'transparent' : collab.color, border: `2px solid ${collab.color}` }}
+                title={collab.clientId === awareness?.clientID ? `${collab.name} (${t('ui.you')})` : collab.name}
+                onClick={() => setIsCollabDropdownOpen(prev => !prev)}
+              >
+                {collab.avatarUrl ? (
+                  <img
+                    src={collab.avatarUrl}
+                    alt={collab.name}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      display: 'block'
+                    }}
+                  />
+                ) : (
+                  getInitials(collab.name)
+                )}
+              </div>
+            ))}
+            {sortedCollaborators.length > 2 && (
+              <div
+                className="iso-avatar iso-avatar-more"
+                title={t('ui.connected_users')}
+                onClick={() => setIsCollabDropdownOpen(prev => !prev)}
+              >
+                ...
+              </div>
+            )}
+            {isCollabDropdownOpen && (
+              <div className="iso-collab-dropdown">
+                <div className="iso-collab-dropdown-title">
+                  {t('ui.connected_users')} ({sortedCollaborators.length})
+                </div>
+                {sortedCollaborators.map((c) => (
+                  <div key={c.clientId} className="iso-collab-user-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {c.avatarUrl ? (
+                      <img
+                        src={c.avatarUrl}
+                        alt={c.name}
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          flexShrink: 0,
+                          border: `2px solid ${c.color}`
+                        }}
+                      />
+                    ) : (
+                      <span className="iso-collab-user-dot" style={{ backgroundColor: c.color }} />
+                    )}
+                    <div className="iso-collab-user-name" title={c.name} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {c.name}
+                        {c.clientId === awareness?.clientID && ` (${t('ui.you')})`}
+                      </span>
+                      {c.username && (
+                        <span style={{ fontSize: '10px', color: 'var(--iso-text-muted)', lineHeight: 1 }}>
+                          @{c.username}
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className="iso-collab-user-role"
+                      style={{
+                        fontSize: '10px',
+                        color: 'var(--iso-text-muted)',
+                        textTransform: 'capitalize',
+                        border: '1px solid var(--iso-border)',
+                        borderRadius: '4px',
+                        padding: '1px 5px',
+                        backgroundColor: 'var(--iso-bg-app)',
+                        lineHeight: 1.2
+                      }}
+                    >
+                      {c.role === 'owner' ? 'editor' : c.role}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {!isMobileLayout && (
           <div className="iso-header-actions">
-            <button type="button" className="iso-btn" onClick={handleNew} aria-label={t('menu.new_diagram')} data-tooltip={t('menu.new_shortcut')}>
-              <IconNew />
-              {t('menu.new')}
-            </button>
+            {(!activeTab?.project_id || activeTab?.project_role === 'owner') && (
+              <>
+                <button type="button" className="iso-btn" onClick={handleNew} aria-label={t('menu.new_diagram')} data-tooltip={t('menu.new_shortcut')}>
+                  <IconNew />
+                  {t('menu.new')}
+                </button>
 
-            <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)} aria-label={t('menu.open_isx')} data-tooltip={t('menu.open_shortcut')}>
-              <IconOpen />
-              {t('menu.open')}
-            </button>
+                <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)} aria-label={t('menu.open_isx')} data-tooltip={t('menu.open_shortcut')}>
+                  <IconOpen />
+                  {t('menu.open')}
+                </button>
+              </>
+            )}
+
+            {activeTab?.project_role === 'owner' && (
+              <button type="button" className="iso-btn" onClick={() => setIsShareModalOpen(true)} aria-label="Share Project" data-tooltip="Share Project">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ marginRight: 4 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                {t('ui.share')}
+              </button>
+            )}
 
 
 
@@ -4745,7 +5313,7 @@ export default function App() {
                     onClick={() => {
                       setActiveTabId(tab.id);
                     }}
-                    onDoubleClick={() => setRenamingTabId(tab.id)}
+                    onDoubleClick={() => { if (!tab.project_role || tab.project_role === 'owner') setRenamingTabId(tab.id); }}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
                     {renamingTabId === tab.id ? (
@@ -4798,34 +5366,22 @@ export default function App() {
             </div>
           )}
 
-          {diagrams.length > 1 && (
-            <div className="iso-mobile-strip iso-mobile-strip--muted">
-              <nav className="iso-tabs" aria-label={t('ui.diagrams')}>
-                {filteredDiagrams.map((d, i) => (
-                  <button
-                    key={d.name}
-                    type="button"
-                    className={`iso-tab${i === safeDiagramIdx ? ' iso-tab--active' : ''}`}
-                    onClick={() => updateActiveTab(tab => ({ ...tab, activeDiagramIdx: i }))}
-                  >
-                    {d.name}
-                    <span className="iso-tab-kind">{d.kind}</span>
-                  </button>
-                ))}
-              </nav>
-            </div>
-          )}
+
 
           <div className="iso-mobile-actions">
             <div className="iso-mobile-actions-group">
-              <button type="button" className="iso-btn" onClick={handleNew}>
-                <IconNew />
-                {t('menu.new')}
-              </button>
-              <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)}>
-                <IconOpen />
-                {t('menu.open')}
-              </button>
+              {(!activeTab?.project_id || activeTab?.project_role === 'owner') && (
+                <>
+                  <button type="button" className="iso-btn" onClick={handleNew}>
+                    <IconNew />
+                    {t('menu.new')}
+                  </button>
+                  <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)}>
+                    <IconOpen />
+                    {t('menu.open')}
+                  </button>
+                </>
+              )}
 
               {activeDiagram?.kind === 'sequence' && (
                 <button type="button" className="iso-btn" onClick={handleTransformToCollaboration}>
@@ -4951,13 +5507,13 @@ export default function App() {
         ) : (
           <>
             <div style={{
-              width: isHistoryOpen ? 0 : 'var(--iso-sidebar-width, 200px)',
+              width: (isHistoryOpen || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? 0 : 'var(--iso-sidebar-width, 200px)',
               overflow: 'hidden',
               transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
-              opacity: isHistoryOpen ? 0 : 1,
+              opacity: (isHistoryOpen || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? 0 : 1,
               flexShrink: 0
             }}>
-              {shapesPane}
+              {(activeTab?.project_role !== 'viewer' && activeTab?.project_role !== 'commenter') && shapesPane}
             </div>
             <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
             <div style={{
@@ -5435,10 +5991,17 @@ export default function App() {
                     }}
                   />
                   {newProjectError && <div style={{ color: 'var(--iso-danger)', fontSize: '12px', marginTop: '6px' }}>{newProjectError}</div>}
+                  {!user && <div style={{ color: 'var(--iso-text)', fontSize: '12px', marginTop: '6px' }}>You must be logged in to create projects</div>}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   <button className="iso-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>{t('ui.cancel')}</button>
-                  <button className="iso-btn iso-btn--primary" disabled={!newProjectName.trim()} onClick={handleCreateProjectSubmit}>{t('ui.create')}</button>
+                  <button
+                    className="iso-btn iso-btn--primary"
+                    disabled={!user || !newProjectName.trim() || isCreatingProject}
+                    onClick={handleCreateProjectSubmit}
+                  >
+                    {isCreatingProject ? 'Creating...' : t('ui.create')}
+                  </button>
                 </div>
               </>
             )}
@@ -5468,16 +6031,16 @@ export default function App() {
 
       {renderCommonModals()}
 
-
-      {toasts.length > 0 && (
-        <div className="iso-toast-container">
-          {toasts.map(t => (
-            <div key={t.id} className="iso-toast">
-              {t.type === 'success' && <span style={{ color: 'var(--iso-success, #4caf50)' }}>✓</span>}
-              {t.message}
-            </div>
-          ))}
-        </div>
+      {isShareModalOpen && activeTab?.project_id && (
+        <ShareModal
+          projectId={activeTab.project_id}
+          diagramId={activeTab.diagram_id || undefined}
+          diagramName={activeTab.name || undefined}
+          onClose={() => setIsShareModalOpen(false)}
+          onToast={addToast}
+          language={language}
+          onShareChange={refreshPublicProjects}
+        />
       )}
     </div>
   );

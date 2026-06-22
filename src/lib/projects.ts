@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { getProfile } from './profile.js';
+import { logAudit } from './audit.js';
 
 export interface Project {
   id: string;
@@ -80,7 +81,10 @@ export async function createProject(userId: string, name: string): Promise<Proje
 
   if (error) {
     console.error('Error creating project:', error);
-    return null;
+    throw new Error(error.message || 'Failed to create project');
+  }
+  if (data) {
+    await logAudit('project_created', 'project', data.id, { name });
   }
   return data;
 }
@@ -113,7 +117,7 @@ export async function createDiagram(userId: string, projectId: string, name: str
 
   if (error) {
     console.error('Error creating diagram:', error);
-    return null;
+    throw new Error(error.message || 'Failed to create diagram');
   }
   return data;
 }
@@ -130,6 +134,50 @@ export async function getProjects(userId: string): Promise<Project[]> {
     return [];
   }
   return data;
+}
+
+export async function getSharedProjects(userId: string): Promise<Array<Project & { role: string }>> {
+  const { data, error } = await supabase
+    .from('project_access')
+    .select(`
+      role,
+      diagram_id,
+      project:projects(*)
+    `)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error fetching shared projects:', error);
+    return [];
+  }
+
+  const projectsMap = new Map<string, Project & { role: string }>();
+
+  (data || []).forEach((item: any) => {
+    if (!item.project) return;
+    const projId = item.project.id;
+    const existing = projectsMap.get(projId);
+
+    if (!existing || item.diagram_id === null) {
+      projectsMap.set(projId, {
+        ...item.project,
+        role: item.role
+      });
+    }
+  });
+
+  return Array.from(projectsMap.values())
+    .filter((p: any): p is Project & { role: string } => p !== null && p.owner_id !== userId);
+}
+
+export async function getPublicProjectIds(): Promise<Set<string>> {
+  const { data: links } = await supabase.from('share_links').select('project_id');
+  const { data: access } = await supabase.from('project_access').select('project_id');
+  
+  const publicIds = new Set<string>();
+  links?.forEach(l => publicIds.add(l.project_id));
+  access?.forEach(a => publicIds.add(a.project_id));
+  return publicIds;
 }
 
 export async function getDiagrams(projectId: string): Promise<Diagram[]> {

@@ -43,12 +43,27 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login' }: AuthModalP
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        // Audit log login
+        try {
+          const { logAudit } = await import('../lib/audit.js');
+          logAudit('login');
+        } catch { /* silent */ }
         onClose();
       } else if (mode === 'register') {
-        // OSINT protection - don't reveal if email exists, handled by Supabase default settings if configure properly
+        // OSINT protection: always show the same success message regardless of whether
+        // the email already exists. Supabase handles duplicate suppression natively.
         const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        setSuccess(t('auth.success_register'));
+        if (error) {
+          // Suppress "User already registered" to prevent email enumeration
+          if (error.message?.toLowerCase().includes('already registered')) {
+            // Show same success message as a new registration
+            setSuccess(t('auth.success_register'));
+          } else {
+            throw error;
+          }
+        } else {
+          setSuccess(t('auth.success_register'));
+        }
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`, // This would need a route in a real app, placeholder for now
