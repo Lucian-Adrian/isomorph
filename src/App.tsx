@@ -22,7 +22,19 @@ import { HistoryPane } from './components/HistoryPane.js';
 import { SettingsModal } from './components/SettingsModal.js';
 import { LibraryModal } from './components/LibraryModal.js';
 import { ExportModal } from './components/ExportModal.js';
-import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconCanvas, IconAlertTriangle } from './components/Icons.js';
+import {
+  IconCode,
+  IconDiagram,
+  IconExport,
+  IconNew,
+  IconOpen,
+  IconKeyboard,
+  IconSave,
+  IconSun,
+  IconMoon,
+  IconCanvas,
+  IconAlertTriangle,
+} from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -75,7 +87,7 @@ import {
   entitySupportsStereotype,
   updateEntityDeclaration,
   normalizePartitionDeclaration,
-  normalizeBoundaryDeclaration
+  normalizeBoundaryDeclaration,
 } from './utils/source-manipulation.js';
 
 import { getStencilsForKind } from './utils/stencils.js';
@@ -127,18 +139,32 @@ export default function App() {
   });
   const [isMobileLayout, setIsMobileLayout] = useState(false);
   const [mobilePane, setMobilePane] = useState<'code' | 'diagram'>('code');
-  const [editingEntity, setEditingEntity] = useState<(IOMEntity & { bodyText?: string; origName?: string; elseBlocks?: { label?: string }[] }) | null>(null);
-  const [editingText, setEditingText] = useState<{ oldName: string, newName: string, type: 'diagram' | 'package' } | null>(null);
-  const [editingRelation, setEditingRelation] = useState<{ relationId: string, label: string, kind: string, direction: 'forward' | 'reverse', fromMult?: string, toMult?: string, seqMessageType?: SequenceMessageType } | null>(null);
+  const [editingEntity, setEditingEntity] = useState<
+    (IOMEntity & { bodyText?: string; origName?: string; elseBlocks?: { label?: string }[] }) | null
+  >(null);
+  const [editingText, setEditingText] = useState<{
+    oldName: string;
+    newName: string;
+    type: 'diagram' | 'package';
+  } | null>(null);
+  const [editingRelation, setEditingRelation] = useState<{
+    relationId: string;
+    label: string;
+    kind: string;
+    direction: 'forward' | 'reverse';
+    fromMult?: string;
+    toMult?: string;
+    seqMessageType?: SequenceMessageType;
+  } | null>(null);
   const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'info' }[]>([]);
   const [collabShowTrail, setCollabShowTrail] = useState(true);
   const [collabShowNameLabel, setCollabShowNameLabel] = useState(true);
 
   const addToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
     const id = Math.random().toString(36).substr(2, 9);
-    setToasts(prev => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
+      setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);
   }, []);
   const [pendingMobileDropKeyword, setPendingMobileDropKeyword] = useState<string | null>(null);
@@ -185,7 +211,7 @@ export default function App() {
     setSelectedHistoryId,
     isRevertModalOpen,
     setIsRevertModalOpen,
-    refreshPublicProjects
+    refreshPublicProjects,
   } = useCloudSync(user);
 
   const [isExporting, setIsExporting] = useState(false);
@@ -202,11 +228,20 @@ export default function App() {
   const [projectDetailModalOpen, setProjectDetailModalOpen] = useState(false);
   const [projectDetailProject, setProjectDetailProject] = useState<Project | null>(null);
   const [projectDetailDiagrams, setProjectDetailDiagrams] = useState<any[]>([]);
-  const [projectDetailAccessMap, setProjectDetailAccessMap] = useState<{ base: string; diagrams: Record<string, string> }>({ base: 'viewer', diagrams: {} });
+  const [projectDetailAccessMap, setProjectDetailAccessMap] = useState<{
+    base: string;
+    diagrams: Record<string, string>;
+  }>({ base: 'viewer', diagrams: {} });
   const [isLoadingProjectDetail, setIsLoadingProjectDetail] = useState(false);
   const [diagramToDelete, setDiagramToDelete] = useState<any | null>(null);
 
-  const [contextMenu, setContextMenu] = useState<{ type: 'category' | 'project' | 'diagram', id: string, x: number, y: number, extra?: any } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    type: 'category' | 'project' | 'diagram';
+    id: string;
+    x: number;
+    y: number;
+    extra?: any;
+  } | null>(null);
 
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [renameType, setRenameType] = useState<'project' | 'category' | 'diagram' | null>(null);
@@ -217,7 +252,13 @@ export default function App() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
 
-  const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null, settings?: any } | null>(null);
+  const [profile, setProfile] = useState<{
+    full_name?: string | null;
+    username?: string | null;
+    avatar_url?: string | null;
+    tier?: string | null;
+    settings?: any;
+  } | null>(null);
 
   // Share and Anonymous states
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -225,7 +266,7 @@ export default function App() {
   useEffect(() => {
     if (user) {
       import('./lib/profile.js').then(({ getProfile }) => {
-        getProfile(user.id).then(async data => {
+        getProfile(user.id).then(async (data) => {
           if (data) {
             setProfile(data);
             if (data.settings?.projects?.tabs) {
@@ -309,11 +350,10 @@ export default function App() {
         savedSource: defaultSrc,
         activeDiagramIdx: 0,
         diagramKindFilter: 'all',
-      }
+      },
     ]);
     setActiveTabId(defaultId);
   }, [signOut]);
-
 
   const saveCustomCategoriesToDB = async (cats: string[]) => {
     if (user && profile) {
@@ -321,16 +361,19 @@ export default function App() {
       // Fix double saving by not spreading the corrupted top-level "tabs"
       const currentSettings = profile.settings || {};
       const { tabs, ...cleanSettings } = currentSettings as any;
-      const { error } = await supabase.from('profiles').update({
-        settings: {
-          ...cleanSettings,
-          projects: {
-            tabs: cats
-          }
-        }
-      }).eq('id', user.id);
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          settings: {
+            ...cleanSettings,
+            projects: {
+              tabs: cats,
+            },
+          },
+        })
+        .eq('id', user.id);
       if (!error) {
-        setProfile(p => p ? { ...p, settings: { ...cleanSettings, projects: { tabs: cats } } } : null);
+        setProfile((p) => (p ? { ...p, settings: { ...cleanSettings, projects: { tabs: cats } } } : null));
       }
     }
   };
@@ -342,9 +385,9 @@ export default function App() {
     if (renameType === 'project') {
       import('./lib/projects.js').then(({ updateProject }) => {
         if (user) {
-          updateProject(user.id, renameTargetId, { name: trimmed }).then(success => {
+          updateProject(user.id, renameTargetId, { name: trimmed }).then((success) => {
             if (success) {
-              setProjects(prev => prev.map(p => p.id === renameTargetId ? { ...p, name: trimmed } : p));
+              setProjects((prev) => prev.map((p) => (p.id === renameTargetId ? { ...p, name: trimmed } : p)));
               addToast('Project renamed');
             }
           });
@@ -356,22 +399,24 @@ export default function App() {
         return;
       }
       const oldName = renameTargetId;
-      const next = customCategories.map(c => c === oldName ? trimmed : c);
+      const next = customCategories.map((c) => (c === oldName ? trimmed : c));
       setCustomCategories(next);
       saveCustomCategoriesToDB(next);
 
-      setProjects(prev => prev.map(p => {
-        if (p.settings?.category === oldName) {
-          const newSettings = { ...p.settings, category: trimmed };
-          if (user) {
-            import('./lib/projects.js').then(({ updateProject }) => {
-              updateProject(user.id, p.id, { settings: newSettings });
-            });
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.settings?.category === oldName) {
+            const newSettings = { ...p.settings, category: trimmed };
+            if (user) {
+              import('./lib/projects.js').then(({ updateProject }) => {
+                updateProject(user.id, p.id, { settings: newSettings });
+              });
+            }
+            return { ...p, settings: newSettings };
           }
-          return { ...p, settings: newSettings };
-        }
-        return p;
-      }));
+          return p;
+        }),
+      );
 
       if (libraryCategory === oldName) {
         setLibraryCategory(trimmed);
@@ -379,10 +424,12 @@ export default function App() {
       addToast('Category renamed');
     } else if (renameType === 'diagram') {
       import('./lib/projects.js').then(({ updateDiagram }) => {
-        updateDiagram(renameTargetId, { name: trimmed }).then(success => {
+        updateDiagram(renameTargetId, { name: trimmed }).then((success) => {
           if (success) {
-            setProjectDetailDiagrams(prev => prev.map(d => d.id === renameTargetId ? { ...d, name: trimmed } : d));
-            setTabs(prev => prev.map(t => t.diagram_id === renameTargetId ? { ...t, name: trimmed } : t));
+            setProjectDetailDiagrams((prev) =>
+              prev.map((d) => (d.id === renameTargetId ? { ...d, name: trimmed } : d)),
+            );
+            setTabs((prev) => prev.map((t) => (t.diagram_id === renameTargetId ? { ...t, name: trimmed } : t)));
             addToast('Diagram renamed');
           }
         });
@@ -426,12 +473,12 @@ export default function App() {
         }
         setProjectDetailAccessMap({
           base: projectRole,
-          diagrams: mapping
+          diagrams: mapping,
         });
       } else {
         setProjectDetailAccessMap({
           base: (project as any).role || 'viewer',
-          diagrams: {}
+          diagrams: {},
         });
       }
     } catch (error) {
@@ -442,21 +489,24 @@ export default function App() {
     }
   };
 
-  const getDiagramRole = useCallback((diagramId: string) => {
-    if (!projectDetailProject || !user) return 'viewer';
-    if (projectDetailProject.owner_id === user.id) return 'owner';
-    return projectDetailAccessMap.diagrams[diagramId] || projectDetailAccessMap.base || 'viewer';
-  }, [projectDetailProject, user, projectDetailAccessMap]);
+  const getDiagramRole = useCallback(
+    (diagramId: string) => {
+      if (!projectDetailProject || !user) return 'viewer';
+      if (projectDetailProject.owner_id === user.id) return 'owner';
+      return projectDetailAccessMap.diagrams[diagramId] || projectDetailAccessMap.base || 'viewer';
+    },
+    [projectDetailProject, user, projectDetailAccessMap],
+  );
 
   const openProjectFile = useCallback((diagram: any, projectId: string, role: string = 'owner') => {
-    setTabs(prev => {
-      const existingTab = prev.find(t => t.diagram_id === diagram.id);
+    setTabs((prev) => {
+      const existingTab = prev.find((t) => t.diagram_id === diagram.id);
       if (existingTab) {
         setTimeout(() => setActiveTabId(existingTab.id), 0);
         return prev;
       }
       const content = diagram.content as any;
-      const sourceText = typeof content === 'string' ? content : (content?.source || '');
+      const sourceText = typeof content === 'string' ? content : content?.source || '';
       const newTab: WorkspaceTab = {
         id: diagram.id,
         name: diagram.name,
@@ -466,7 +516,7 @@ export default function App() {
         diagram_id: diagram.id,
         project_id: projectId,
         savedSource: sourceText,
-        project_role: role
+        project_role: role,
       };
       setTimeout(() => setActiveTabId(newTab.id), 0);
       return [...prev, newTab];
@@ -475,61 +525,66 @@ export default function App() {
     setIsLibraryOpen(false);
   }, []);
 
-  const openWholeProject = useCallback((diagrams: any[], projectId: string, role: string = 'owner', rolesMap?: Record<string, string>) => {
-    if (diagrams.length === 0) {
-      const newTabId = `tab-${slugId()}`;
-      setTabs([{
-        id: newTabId,
-        name: 'Untitled Diagram',
-        source: templateFor('class'),
-        activeDiagramIdx: 0,
-        diagramKindFilter: 'all',
-        project_id: projectId,
-        project_role: role
-      }]);
-      setActiveTabId(newTabId);
-      addToast('Opened empty project', 'info');
+  const openWholeProject = useCallback(
+    (diagrams: any[], projectId: string, role: string = 'owner', rolesMap?: Record<string, string>) => {
+      if (diagrams.length === 0) {
+        const newTabId = `tab-${slugId()}`;
+        setTabs([
+          {
+            id: newTabId,
+            name: 'Untitled Diagram',
+            source: templateFor('class'),
+            activeDiagramIdx: 0,
+            diagramKindFilter: 'all',
+            project_id: projectId,
+            project_role: role,
+          },
+        ]);
+        setActiveTabId(newTabId);
+        addToast('Opened empty project', 'info');
+        setProjectDetailModalOpen(false);
+        setIsLibraryOpen(false);
+        return;
+      }
+
+      setTabs((prev) => {
+        const next: WorkspaceTab[] = [];
+        let firstTabIdToSelect: string | null = null;
+        diagrams.forEach((d) => {
+          const diagramRole = rolesMap?.[d.id] || role;
+          const existing = prev.find((t) => t.diagram_id === d.id);
+          if (existing) {
+            next.push({ ...existing, project_role: diagramRole, project_id: projectId });
+            if (!firstTabIdToSelect) firstTabIdToSelect = existing.id;
+          } else {
+            const content = d.content as any;
+            const sourceText = typeof content === 'string' ? content : content?.source || '';
+            const newTab: WorkspaceTab = {
+              id: d.id,
+              name: d.name,
+              source: sourceText,
+              activeDiagramIdx: 0,
+              diagramKindFilter: d.kind as 'all' | DiagramKind,
+              diagram_id: d.id,
+              project_id: projectId,
+              savedSource: sourceText,
+              project_role: diagramRole,
+            };
+            next.push(newTab);
+            if (!firstTabIdToSelect) firstTabIdToSelect = newTab.id;
+          }
+        });
+        if (firstTabIdToSelect) {
+          setTimeout(() => setActiveTabId(firstTabIdToSelect!), 0);
+        }
+        return next;
+      });
+
       setProjectDetailModalOpen(false);
       setIsLibraryOpen(false);
-      return;
-    }
-
-    setTabs(prev => {
-      const next: WorkspaceTab[] = [];
-      let firstTabIdToSelect: string | null = null;
-      diagrams.forEach(d => {
-        const diagramRole = rolesMap?.[d.id] || role;
-        const existing = prev.find(t => t.diagram_id === d.id);
-        if (existing) {
-          next.push({ ...existing, project_role: diagramRole, project_id: projectId });
-          if (!firstTabIdToSelect) firstTabIdToSelect = existing.id;
-        } else {
-          const content = d.content as any;
-          const sourceText = typeof content === 'string' ? content : (content?.source || '');
-          const newTab: WorkspaceTab = {
-            id: d.id,
-            name: d.name,
-            source: sourceText,
-            activeDiagramIdx: 0,
-            diagramKindFilter: d.kind as 'all' | DiagramKind,
-            diagram_id: d.id,
-            project_id: projectId,
-            savedSource: sourceText,
-            project_role: diagramRole
-          };
-          next.push(newTab);
-          if (!firstTabIdToSelect) firstTabIdToSelect = newTab.id;
-        }
-      });
-      if (firstTabIdToSelect) {
-        setTimeout(() => setActiveTabId(firstTabIdToSelect!), 0);
-      }
-      return next;
-    });
-
-    setProjectDetailModalOpen(false);
-    setIsLibraryOpen(false);
-  }, []);
+    },
+    [],
+  );
 
   const {
     isAnonymousLoginOpen,
@@ -547,19 +602,16 @@ export default function App() {
     addToast,
   });
 
-
-
-
   const handleConfirmDeleteDiagram = () => {
     if (!diagramToDelete) return;
     import('./lib/projects.js').then(({ deleteDiagram }) => {
-      deleteDiagram(diagramToDelete.id).then(success => {
+      deleteDiagram(diagramToDelete.id).then((success) => {
         if (success) {
           // Remove from details modal list
-          setProjectDetailDiagrams(prev => prev.filter(d => d.id !== diagramToDelete.id));
+          setProjectDetailDiagrams((prev) => prev.filter((d) => d.id !== diagramToDelete.id));
           // Close workspace tab if open
-          setTabs(prev => {
-            const next = prev.filter(t => t.diagram_id !== diagramToDelete.id);
+          setTabs((prev) => {
+            const next = prev.filter((t) => t.diagram_id !== diagramToDelete.id);
             if (activeTabId === diagramToDelete.id) {
               setActiveTabId(next[Math.max(0, next.length - 1)]?.id ?? '');
             }
@@ -577,7 +629,7 @@ export default function App() {
   const downloadDiagramFile = (diagram: any) => {
     if (!diagram) return;
     const content = diagram.content as any;
-    const sourceText = typeof content === 'string' ? content : (content?.source || '');
+    const sourceText = typeof content === 'string' ? content : content?.source || '';
     const blob = new Blob([sourceText], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -588,7 +640,12 @@ export default function App() {
     addToast('Diagram downloaded');
   };
 
-  const autoSaveProfile = async (updates: { full_name?: string | null; username?: string | null; avatar_url?: string | null; settings?: any }) => {
+  const autoSaveProfile = async (updates: {
+    full_name?: string | null;
+    username?: string | null;
+    avatar_url?: string | null;
+    settings?: any;
+  }) => {
     if (!user || !profile) return;
     const { supabase } = await import('./lib/supabase.js');
     const updatedProfile = { ...profile, ...updates };
@@ -600,7 +657,7 @@ export default function App() {
       username: updatedProfile.username,
       avatar_url: updatedProfile.avatar_url,
       settings: updatedProfile.settings || profile.settings || {},
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     });
 
     if (error) {
@@ -632,7 +689,7 @@ export default function App() {
       watermark: isWatermarkEnabled,
       animations: isAnimationsEnabled,
       anim_speed: animationSpeed,
-      ...settingsUpdates
+      ...settingsUpdates,
     };
 
     const { supabase } = await import('./lib/supabase.js');
@@ -642,7 +699,7 @@ export default function App() {
       username: profile.username,
       avatar_url: profile.avatar_url,
       settings: newSettings,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     });
 
     if (error) {
@@ -652,13 +709,13 @@ export default function App() {
     }
   };
 
+  const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation'; id: string }[]>([]);
+  const t = useCallback(
+    (key: string, vars?: Record<string, string | number>) => tText(language, key, vars),
+    [language],
+  );
 
-
-
-  const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
-  const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
-
-  const activeTab = useMemo(() => tabs.find(t => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId]);
+  const activeTab = useMemo(() => tabs.find((t) => t.id === activeTabId) ?? tabs[0], [tabs, activeTabId]);
 
   const { awareness, isConnected, isSynced, getSourceText, connectedDiagramId, collaborators } = useCollaboration(
     activeTab?.diagram_id || null,
@@ -670,44 +727,51 @@ export default function App() {
     // For anonymous share-link users (no session), pass 'share:anonymous'
     // so the server recognizes them as allowed share connections.
     session?.access_token || (activeTab?.diagram_id ? 'share:anonymous' : undefined),
-    profile?.username || undefined
+    profile?.username || undefined,
   );
 
   const isCollabActive = !!(activeTab?.diagram_id && connectedDiagramId === activeTab.diagram_id);
 
-
   const sortedCollaborators = useMemo(() => {
     if (!collaborators || !awareness) return [];
     const localClientId = awareness.clientID;
-    const localUser = collaborators.find(c => c.clientId === localClientId);
-    const otherUsers = collaborators.filter(c => c.clientId !== localClientId);
+    const localUser = collaborators.find((c) => c.clientId === localClientId);
+    const otherUsers = collaborators.filter((c) => c.clientId !== localClientId);
     return localUser ? [localUser, ...otherUsers] : otherUsers;
   }, [collaborators, awareness]);
 
   const source = activeTab?.source ?? '';
-  const selectedHistoryItem = diagramHistoryList.find(h => h.id === selectedHistoryId);
+  const selectedHistoryItem = diagramHistoryList.find((h) => h.id === selectedHistoryId);
   const displaySource = selectedHistoryItem ? selectedHistoryItem.content?.source || '' : source;
   const fileName = activeTab?.name ?? 'untitled.isx';
 
-  const updateActiveTab = useCallback((update: (tab: WorkspaceTab) => WorkspaceTab, saveHistory = true) => {
-    setTabs(prev => prev.map(tab => {
-      if (tab.id === (activeTab?.id ?? '')) {
-        const result = update(tab);
-        if (saveHistory && result.source !== tab.source) {
-          result.undoStack = [...(tab.undoStack || []), tab.source];
-          result.redoStack = [];
-        }
-        return result;
-      }
-      return tab;
-    }));
-  }, [activeTab]);
+  const updateActiveTab = useCallback(
+    (update: (tab: WorkspaceTab) => WorkspaceTab, saveHistory = true) => {
+      setTabs((prev) =>
+        prev.map((tab) => {
+          if (tab.id === (activeTab?.id ?? '')) {
+            const result = update(tab);
+            if (saveHistory && result.source !== tab.source) {
+              result.undoStack = [...(tab.undoStack || []), tab.source];
+              result.redoStack = [];
+            }
+            return result;
+          }
+          return tab;
+        }),
+      );
+    },
+    [activeTab],
+  );
 
   // ── Paste cascade counter (Feature 15) ──────────────────
   const pasteCounterRef = useRef(1);
 
   // ── Unsaved-changes guard (Feature 16) ──────────────────
-  const hasUnsavedChanges = useMemo(() => tabs.some(t => t.savedSource !== undefined && t.source !== t.savedSource), [tabs]);
+  const hasUnsavedChanges = useMemo(
+    () => tabs.some((t) => t.savedSource !== undefined && t.source !== t.savedSource),
+    [tabs],
+  );
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -746,16 +810,22 @@ export default function App() {
     };
   }, [examplesOpen]);
 
-
-
   // ── Parse + analyze on every keystroke ───────────────────
   const parseResult = useMemo(() => {
-    try { return parse(displaySource); } catch { return null; }
+    try {
+      return parse(displaySource);
+    } catch {
+      return null;
+    }
   }, [displaySource]);
 
   const analysisResult = useMemo(() => {
     if (!parseResult) return null;
-    try { return analyze(parseResult.program); } catch { return null; }
+    try {
+      return analyze(parseResult.program);
+    } catch {
+      return null;
+    }
   }, [parseResult]);
 
   const parseErrors: ParseError[] = parseResult?.errors ?? [];
@@ -763,16 +833,16 @@ export default function App() {
 
   // Rules that enforce strict UML semantics
   const strictUmlRules = ['SS-4', 'SS-5', 'SS-6', 'SS-11'];
-  const semanticErrors = rawSemanticErrors.filter(e => isUMLCompliant || !strictUmlRules.includes(e.rule));
+  const semanticErrors = rawSemanticErrors.filter((e) => isUMLCompliant || !strictUmlRules.includes(e.rule));
 
   const allErrors: string[] = formatAllErrors(parseErrors, semanticErrors);
 
   // Combined parse + semantic diagnostics for the editor lint gutter
   const editorDiagnostics: LintDiagnostic[] = [
-    ...parseErrors.map(e => ({ message: e.message, line: e.line, col: e.col, severity: 'error' as const })),
+    ...parseErrors.map((e) => ({ message: e.message, line: e.line, col: e.col, severity: 'error' as const })),
     ...semanticErrors
       .filter((e): e is typeof e & { line: number; col: number } => e.line != null)
-      .map(e => ({ message: `(${e.rule}) ${e.message}`, line: e.line, col: e.col ?? 1, severity: 'error' as const })),
+      .map((e) => ({ message: `(${e.rule}) ${e.message}`, line: e.line, col: e.col ?? 1, severity: 'error' as const })),
   ];
   const diagrams: IOMDiagram[] = analysisResult?.iom.diagrams ?? [];
   const activeDiagram = diagrams[0] ?? null;
@@ -787,13 +857,18 @@ export default function App() {
         throw new Error('Failed to create project (empty response).');
       }
 
-      setProjects(prev => [p, ...prev]);
+      setProjects((prev) => [p, ...prev]);
       addToast('Project created successfully', 'success');
 
       if (isSavingFlow) {
-        const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+        const d = await createDiagram(user.id, p.id, activeTab.name, activeDiagram?.kind || 'class', {
+          source: activeTab.source,
+        });
         if (d) {
-          updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source, project_role: 'owner' }), false);
+          updateActiveTab(
+            (tab) => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source, project_role: 'owner' }),
+            false,
+          );
           addToast('Saved to cloud');
         } else {
           throw new Error('Failed to save the diagram to the new project.');
@@ -805,7 +880,7 @@ export default function App() {
         const d = await createDiagram(user.id, p.id, `diagram.isx`, newDiagramKind, { source: defaultSrc });
         if (d) {
           const tabId = `tab-${slugId()}`;
-          setTabs(prev => [
+          setTabs((prev) => [
             ...prev,
             {
               id: tabId,
@@ -833,7 +908,16 @@ export default function App() {
     } finally {
       setIsCreatingProject(false);
     }
-  }, [user, newProjectName, isSavingFlow, activeTab, activeDiagram, updateActiveTab, newDiagramKind, isCreatingProject]);
+  }, [
+    user,
+    newProjectName,
+    isSavingFlow,
+    activeTab,
+    activeDiagram,
+    updateActiveTab,
+    newDiagramKind,
+    isCreatingProject,
+  ]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 900px)');
@@ -867,112 +951,138 @@ export default function App() {
     return () => window.removeEventListener('storage', onStorage);
   }, []);
 
-
-
-  const getPlacedItemPosition = useCallback((name: string) => {
-    const partitionPos = activeDiagram?.partitions.find(p => p.name === name)?.position;
-    if (partitionPos) return partitionPos;
-    const fragmentPos = activeDiagram?.fragments?.find(f => f.id === name)?.position;
-    if (fragmentPos) return fragmentPos;
-    return activeDiagram?.entities.get(name)?.position;
-  }, [activeDiagram]);
+  const getPlacedItemPosition = useCallback(
+    (name: string) => {
+      const partitionPos = activeDiagram?.partitions.find((p) => p.name === name)?.position;
+      if (partitionPos) return partitionPos;
+      const fragmentPos = activeDiagram?.fragments?.find((f) => f.id === name)?.position;
+      if (fragmentPos) return fragmentPos;
+      return activeDiagram?.entities.get(name)?.position;
+    },
+    [activeDiagram],
+  );
 
   // ── Bidirectional: drag entity → update @Entity at ───────
-  const handleEntityMove = useCallback((name: string, x: number, y: number, dragDx?: number, dragDy?: number, seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>) => {
-    updateActiveTab(tab => {
-      let src = tab.source;
+  const handleEntityMove = useCallback(
+    (
+      name: string,
+      x: number,
+      y: number,
+      dragDx?: number,
+      dragDy?: number,
+      seedPositions?: Record<string, { x: number; y: number; w?: number; h?: number }>,
+    ) => {
+      updateActiveTab((tab) => {
+        let src = tab.source;
 
-      if (seedPositions) {
-        for (const [entityName, pos] of Object.entries(seedPositions)) {
-          const current = getPlacedItemPosition(entityName);
-          if (!current) continue;
-          src = updateEntityPosition(
-            src,
-            entityName,
-            Math.round(pos.x),
-            Math.round(pos.y),
-            Number.isFinite(pos.w) ? Math.round(pos.w as number) : current?.w,
-            Number.isFinite(pos.h) ? Math.round(pos.h as number) : current?.h,
-          );
+        if (seedPositions) {
+          for (const [entityName, pos] of Object.entries(seedPositions)) {
+            const current = getPlacedItemPosition(entityName);
+            if (!current) continue;
+            src = updateEntityPosition(
+              src,
+              entityName,
+              Math.round(pos.x),
+              Math.round(pos.y),
+              Number.isFinite(pos.w) ? Math.round(pos.w as number) : current?.w,
+              Number.isFinite(pos.h) ? Math.round(pos.h as number) : current?.h,
+            );
+          }
         }
-      }
 
-      if (activeDiagram) {
-        const pkg = activeDiagram.packages.find(p => p.name === name);
-        if (pkg) {
-          const dx = dragDx ?? 0;
-          const dy = dragDy ?? 0;
+        if (activeDiagram) {
+          const pkg = activeDiagram.packages.find((p) => p.name === name);
+          if (pkg) {
+            const dx = dragDx ?? 0;
+            const dy = dragDy ?? 0;
 
-          // Compute final package position from IOM annotation + cursor delta
-          const oldPkgX = pkg.position?.x ?? 100;
-          const oldPkgY = pkg.position?.y ?? 100;
-          const newPkgX = Math.round(oldPkgX + dx);
-          const newPkgY = Math.round(oldPkgY + dy);
-          const pkgW = pkg.position?.w;
-          const pkgH = pkg.position?.h;
-          src = updateEntityPosition(src, name, newPkgX, newPkgY, pkgW, pkgH);
+            // Compute final package position from IOM annotation + cursor delta
+            const oldPkgX = pkg.position?.x ?? 100;
+            const oldPkgY = pkg.position?.y ?? 100;
+            const newPkgX = Math.round(oldPkgX + dx);
+            const newPkgY = Math.round(oldPkgY + dy);
+            const pkgW = pkg.position?.w;
+            const pkgH = pkg.position?.h;
+            src = updateEntityPosition(src, name, newPkgX, newPkgY, pkgW, pkgH);
 
-          // Shift all nested entities by the same cursor delta
-          if (dx !== 0 || dy !== 0) {
-            for (const eName of pkg.entityNames) {
-              const ent = activeDiagram.entities.get(eName);
-              if (ent && ent.position) {
-                src = updateEntityPosition(src, eName, Math.round(ent.position.x + dx), Math.round(ent.position.y + dy), ent.position.w, ent.position.h);
+            // Shift all nested entities by the same cursor delta
+            if (dx !== 0 || dy !== 0) {
+              for (const eName of pkg.entityNames) {
+                const ent = activeDiagram.entities.get(eName);
+                if (ent && ent.position) {
+                  src = updateEntityPosition(
+                    src,
+                    eName,
+                    Math.round(ent.position.x + dx),
+                    Math.round(ent.position.y + dy),
+                    ent.position.w,
+                    ent.position.h,
+                  );
+                }
               }
             }
+            return { ...tab, source: formatDiagramSource(src) };
           }
-          return { ...tab, source: formatDiagramSource(src) };
         }
-      }
-      let targetName = name;
-      if (activeDiagram?.kind === 'usecase' && !activeDiagram.entities.has(name)) {
-        const promoted = ensureUseCaseBoundaryDeclaration(src, name);
-        src = removeLayoutAnnotation(promoted.source, name);
-        targetName = promoted.name;
-      }
+        let targetName = name;
+        if (activeDiagram?.kind === 'usecase' && !activeDiagram.entities.has(name)) {
+          const promoted = ensureUseCaseBoundaryDeclaration(src, name);
+          src = removeLayoutAnnotation(promoted.source, name);
+          targetName = promoted.name;
+        }
 
-      const moved = seedPositions?.[name];
-      const movedW = Number.isFinite(moved?.w) ? Math.round(moved!.w as number) : getPlacedItemPosition(name)?.w;
-      const movedH = Number.isFinite(moved?.h) ? Math.round(moved!.h as number) : getPlacedItemPosition(name)?.h;
+        const moved = seedPositions?.[name];
+        const movedW = Number.isFinite(moved?.w) ? Math.round(moved!.w as number) : getPlacedItemPosition(name)?.w;
+        const movedH = Number.isFinite(moved?.h) ? Math.round(moved!.h as number) : getPlacedItemPosition(name)?.h;
 
-      return {
-        ...tab,
-        source: formatDiagramSource(updateEntityPosition(src, targetName, x, y, movedW, movedH)),
-      };
-    });
-  }, [updateActiveTab, activeDiagram, getPlacedItemPosition]);
+        return {
+          ...tab,
+          source: formatDiagramSource(updateEntityPosition(src, targetName, x, y, movedW, movedH)),
+        };
+      });
+    },
+    [updateActiveTab, activeDiagram, getPlacedItemPosition],
+  );
 
-  const handleEntityResize = useCallback((name: string, w: number, h: number, x?: number, y?: number) => {
-    updateActiveTab(tab => {
-      let src = tab.source;
-      let targetName = name;
+  const handleEntityResize = useCallback(
+    (name: string, w: number, h: number, x?: number, y?: number) => {
+      updateActiveTab((tab) => {
+        let src = tab.source;
+        let targetName = name;
 
-      if (activeDiagram?.kind === 'usecase' && !activeDiagram.entities.has(name)) {
-        const promoted = ensureUseCaseBoundaryDeclaration(src, name);
-        src = removeLayoutAnnotation(promoted.source, name);
-        targetName = promoted.name;
-      }
+        if (activeDiagram?.kind === 'usecase' && !activeDiagram.entities.has(name)) {
+          const promoted = ensureUseCaseBoundaryDeclaration(src, name);
+          src = removeLayoutAnnotation(promoted.source, name);
+          targetName = promoted.name;
+        }
 
-      const current = getPlacedItemPosition(name);
-      const resizeX = Number.isFinite(x) ? Math.round(x as number) : Math.round(current?.x ?? 40);
-      const resizeY = Number.isFinite(y) ? Math.round(y as number) : Math.round(current?.y ?? 40);
-      return {
-        ...tab,
-        source: formatDiagramSource(updateEntityPosition(src, targetName, resizeX, resizeY, Math.round(w), Math.round(h))),
-      };
-    });
-  }, [updateActiveTab, getPlacedItemPosition, activeDiagram]);
+        const current = getPlacedItemPosition(name);
+        const resizeX = Number.isFinite(x) ? Math.round(x as number) : Math.round(current?.x ?? 40);
+        const resizeY = Number.isFinite(y) ? Math.round(y as number) : Math.round(current?.y ?? 40);
+        return {
+          ...tab,
+          source: formatDiagramSource(
+            updateEntityPosition(src, targetName, resizeX, resizeY, Math.round(w), Math.round(h)),
+          ),
+        };
+      });
+    },
+    [updateActiveTab, getPlacedItemPosition, activeDiagram],
+  );
 
-  const handleRelationVerticalMove = useCallback((relationId: string, y: number, seedRelationYs?: Record<string, number>) => {
-    updateActiveTab(tab => {
-      let src = tab.source;
-      if (seedRelationYs && Object.keys(seedRelationYs).length > 0) {
-        src = updateRelationVerticalPositions(src, seedRelationYs);
-      }
-      src = updateRelationVerticalPosition(src, relationId, y);
-      return { ...tab, source: formatDiagramSource(src) };
-    });
-  }, [updateActiveTab]);
+  const handleRelationVerticalMove = useCallback(
+    (relationId: string, y: number, seedRelationYs?: Record<string, number>) => {
+      updateActiveTab((tab) => {
+        let src = tab.source;
+        if (seedRelationYs && Object.keys(seedRelationYs).length > 0) {
+          src = updateRelationVerticalPositions(src, seedRelationYs);
+        }
+        src = updateRelationVerticalPosition(src, relationId, y);
+        return { ...tab, source: formatDiagramSource(src) };
+      });
+    },
+    [updateActiveTab],
+  );
 
   const handleCopyErrors = useCallback(async () => {
     if (allErrors.length === 0) return;
@@ -1009,204 +1119,269 @@ export default function App() {
     }
   }, [allErrors]);
 
-  const handleEntityEditRequest = useCallback((entity: IOMEntity) => {
-    let body = '';
-    if (activeTab) {
-      body = extractEntityBody(activeTab.source, entity.name) ?? '';
-    }
-    // Strip leading uniform indentation and tabs from body for display
-    if (body) {
-      body = body.replace(/\t/g, '  ');
-      const bodyLines = body.split('\n');
-      // Find minimum leading spaces
-      const minIndent = bodyLines.filter(l => l.trim()).reduce((min, l) => {
-        const match = l.match(/^(\s*)/);
-        return match ? Math.min(min, match[1].length) : min;
-      }, Infinity);
-      if (minIndent > 0 && minIndent < Infinity) {
-        body = bodyLines.map(l => l.slice(minIndent)).join('\n');
+  const handleEntityEditRequest = useCallback(
+    (entity: IOMEntity) => {
+      let body = '';
+      if (activeTab) {
+        body = extractEntityBody(activeTab.source, entity.name) ?? '';
       }
-    }
-    setEditingEntity({ ...entity, bodyText: body, origName: entity.name });
-  }, [activeTab]);
-
-  const handleRelationEditRequest = useCallback((relationId: string, label: string, kind: string) => {
-    // Also extract multiplicities from the source for editing
-    const rel = activeDiagram?.relations.find(r => r.id === relationId);
-    setEditingRelation({
-      relationId,
-      label,
-      kind,
-      direction: 'forward',
-      fromMult: rel?.fromMult || '',
-      toMult: rel?.toMult || '',
-      seqMessageType: activeDiagram?.kind === 'sequence' ? inferSequenceMessageType(kind, rel?.from, rel?.to) : undefined,
-    });
-  }, [activeDiagram]);
-
-  const handleTextRenameRequest = useCallback((oldName: string, _newName: string, type: 'diagram' | 'package') => { setEditingText({ oldName, newName: oldName, type }); }, []);
-  const handleRelationAddRequest = useCallback((fromEntity: string, toEntity: string, y?: number) => {
-    updateActiveTab(tab => {
-      const relationLine = activeDiagram?.kind === 'sequence' && y !== undefined
-        ? `  ${fromEntity} --> ${toEntity} [y="${y}"]`
-        : `  ${fromEntity} --> ${toEntity}`;
-      let newSource = insertRelation(tab.source, relationLine);
-      newSource = formatDiagramSource(newSource);
-      return { ...tab, source: newSource };
-    });
-  }, [updateActiveTab, activeDiagram]);
-
-  const handleEntityEdit = useCallback((entityName: string, updates: { name?: string; stereotype?: string; isAbstract?: boolean; bodyText?: string; kind?: string; elseBlocks?: { label?: string }[] }) => {
-    updateActiveTab(tab => {
-      let sourceIn = tab.source;
-      const nextName = updates.name || entityName;
-      if ((updates.kind === 'system' || updates.kind === 'boundary') && !hasEntityDeclaration(sourceIn, entityName)) {
-        const promoted = ensureUseCaseBoundaryDeclaration(sourceIn, nextName);
-        sourceIn = removeLayoutAnnotation(promoted.source, entityName);
+      // Strip leading uniform indentation and tabs from body for display
+      if (body) {
+        body = body.replace(/\t/g, '  ');
+        const bodyLines = body.split('\n');
+        // Find minimum leading spaces
+        const minIndent = bodyLines
+          .filter((l) => l.trim())
+          .reduce((min, l) => {
+            const match = l.match(/^(\s*)/);
+            return match ? Math.min(min, match[1].length) : min;
+          }, Infinity);
+        if (minIndent > 0 && minIndent < Infinity) {
+          body = bodyLines.map((l) => l.slice(minIndent)).join('\n');
+        }
       }
+      setEditingEntity({ ...entity, bodyText: body, origName: entity.name });
+    },
+    [activeTab],
+  );
 
-      let source = sourceIn;
-      const isFragment = ['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(updates.kind || '');
-      if (isFragment) {
-        try {
-          const ast = parse(sourceIn);
-          let foundFrag: any = null;
-          let fragIndex = 0;
-          const walk = (items: any[]) => {
-            if (foundFrag) return;
-            for (const item of items) {
-              if (item.kind === 'PackageDecl') walk(item.body);
-              else if (item.kind === 'FragmentDecl') {
-                const id = item.name || `frag_${fragIndex + 1}`;
-                fragIndex++;
-                if (id === entityName) { foundFrag = item; }
-                walk(item.body);
-                if (item.elseBlocks) {
-                  for (const b of item.elseBlocks) walk(b.body);
+  const handleRelationEditRequest = useCallback(
+    (relationId: string, label: string, kind: string) => {
+      // Also extract multiplicities from the source for editing
+      const rel = activeDiagram?.relations.find((r) => r.id === relationId);
+      setEditingRelation({
+        relationId,
+        label,
+        kind,
+        direction: 'forward',
+        fromMult: rel?.fromMult || '',
+        toMult: rel?.toMult || '',
+        seqMessageType:
+          activeDiagram?.kind === 'sequence' ? inferSequenceMessageType(kind, rel?.from, rel?.to) : undefined,
+      });
+    },
+    [activeDiagram],
+  );
+
+  const handleTextRenameRequest = useCallback((oldName: string, _newName: string, type: 'diagram' | 'package') => {
+    setEditingText({ oldName, newName: oldName, type });
+  }, []);
+  const handleRelationAddRequest = useCallback(
+    (fromEntity: string, toEntity: string, y?: number) => {
+      updateActiveTab((tab) => {
+        const relationLine =
+          activeDiagram?.kind === 'sequence' && y !== undefined
+            ? `  ${fromEntity} --> ${toEntity} [y="${y}"]`
+            : `  ${fromEntity} --> ${toEntity}`;
+        let newSource = insertRelation(tab.source, relationLine);
+        newSource = formatDiagramSource(newSource);
+        return { ...tab, source: newSource };
+      });
+    },
+    [updateActiveTab, activeDiagram],
+  );
+
+  const handleEntityEdit = useCallback(
+    (
+      entityName: string,
+      updates: {
+        name?: string;
+        stereotype?: string;
+        isAbstract?: boolean;
+        bodyText?: string;
+        kind?: string;
+        elseBlocks?: { label?: string }[];
+      },
+    ) => {
+      updateActiveTab((tab) => {
+        let sourceIn = tab.source;
+        const nextName = updates.name || entityName;
+        if ((updates.kind === 'system' || updates.kind === 'boundary') && !hasEntityDeclaration(sourceIn, entityName)) {
+          const promoted = ensureUseCaseBoundaryDeclaration(sourceIn, nextName);
+          sourceIn = removeLayoutAnnotation(promoted.source, entityName);
+        }
+
+        let source = sourceIn;
+        const isFragment = ['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(updates.kind || '');
+        if (isFragment) {
+          try {
+            const ast = parse(sourceIn);
+            let foundFrag: any = null;
+            let fragIndex = 0;
+            const walk = (items: any[]) => {
+              if (foundFrag) return;
+              for (const item of items) {
+                if (item.kind === 'PackageDecl') walk(item.body);
+                else if (item.kind === 'FragmentDecl') {
+                  const id = item.name || `frag_${fragIndex + 1}`;
+                  fragIndex++;
+                  if (id === entityName) {
+                    foundFrag = item;
+                  }
+                  walk(item.body);
+                  if (item.elseBlocks) {
+                    for (const b of item.elseBlocks) walk(b.body);
+                  }
                 }
               }
-            }
-          };
-          walk(ast.program.diagrams[0]?.body || []);
-          if (foundFrag && foundFrag.span) {
-            const extractBodyTextSafe = (src: string, body: any[]) => {
-              if (!body || body.length === 0) return '';
-              let minStart = Infinity;
-              let maxEnd = -1;
-              for (const item of body) {
-                if (item.span) {
-                  if (item.span.start < minStart) minStart = item.span.start;
-                  if (item.span.end > maxEnd) maxEnd = item.span.end;
-                }
-              }
-              if (minStart === Infinity || maxEnd === -1) return '';
-              return src.slice(minStart, maxEnd);
             };
+            walk(ast.program.diagrams[0]?.body || []);
+            if (foundFrag && foundFrag.span) {
+              const extractBodyTextSafe = (src: string, body: any[]) => {
+                if (!body || body.length === 0) return '';
+                let minStart = Infinity;
+                let maxEnd = -1;
+                for (const item of body) {
+                  if (item.span) {
+                    if (item.span.start < minStart) minStart = item.span.start;
+                    if (item.span.end > maxEnd) maxEnd = item.span.end;
+                  }
+                }
+                if (minStart === Infinity || maxEnd === -1) return '';
+                return src.slice(minStart, maxEnd);
+              };
 
-            const stereo = updates.stereotype ? ` <<${updates.stereotype}>>` : '';
-            let newText = `${updates.kind} ${nextName}${stereo} {\n  `;
-            newText += extractBodyTextSafe(sourceIn, foundFrag.body) + '\n';
-            const newElseBlocks = updates.elseBlocks || [];
-            newElseBlocks.forEach((newB: any, i: number) => {
-              const oldB = foundFrag.elseBlocks?.[i];
-              const bodyText = oldB ? extractBodyTextSafe(sourceIn, oldB.body) : '';
-              newText += `} else${newB.label ? ` <<${newB.label}>>` : ''} {\n  ${bodyText}\n`;
-            });
-            newText += `}`;
-            source = sourceIn.slice(0, foundFrag.span.start) + newText + sourceIn.slice(foundFrag.span.end);
+              const stereo = updates.stereotype ? ` <<${updates.stereotype}>>` : '';
+              let newText = `${updates.kind} ${nextName}${stereo} {\n  `;
+              newText += extractBodyTextSafe(sourceIn, foundFrag.body) + '\n';
+              const newElseBlocks = updates.elseBlocks || [];
+              newElseBlocks.forEach((newB: any, i: number) => {
+                const oldB = foundFrag.elseBlocks?.[i];
+                const bodyText = oldB ? extractBodyTextSafe(sourceIn, oldB.body) : '';
+                newText += `} else${newB.label ? ` <<${newB.label}>>` : ''} {\n  ${bodyText}\n`;
+              });
+              newText += `}`;
+              source = sourceIn.slice(0, foundFrag.span.start) + newText + sourceIn.slice(foundFrag.span.end);
 
-            if (nextName !== entityName) {
-              const identPattern = new RegExp(`\\b${escapeRegex(entityName)}\\b`, 'g');
-              source = source.replace(identPattern, nextName);
+              if (nextName !== entityName) {
+                const identPattern = new RegExp(`\\b${escapeRegex(entityName)}\\b`, 'g');
+                source = source.replace(identPattern, nextName);
+              }
+            } else {
+              source = updateEntityDeclaration(sourceIn, entityName, updates);
             }
-          } else {
+          } catch (e) {
             source = updateEntityDeclaration(sourceIn, entityName, updates);
           }
-        } catch (e) {
+        } else {
           source = updateEntityDeclaration(sourceIn, entityName, updates);
         }
-      } else {
-        source = updateEntityDeclaration(sourceIn, entityName, updates);
-      }
 
-      if (updates.kind === 'partition') {
-        source = normalizePartitionDeclaration(source, updates.name || entityName);
-      } else if (updates.kind === 'system' || updates.kind === 'boundary') {
-        source = normalizeBoundaryDeclaration(source, updates.name || entityName, updates.kind);
-      } else if (updates.bodyText !== undefined && entitySupportsBody(updates.kind)) {
-        source = replaceEntityBody(source, updates.name || entityName, updates.bodyText);
-      }
-      source = formatDiagramSource(source);
-      return { ...tab, source };
-    });
-    setEditingEntity(null);
-  }, [updateActiveTab]);
-
-  const handleRelationEdit = useCallback((
-    relationId: string,
-    updates: { label?: string; kind?: string; direction?: 'forward' | 'reverse'; fromMult?: string; toMult?: string; seqMessageType?: SequenceMessageType },
-  ) => {
-    updateActiveTab(tab => {
-      let src = updateRelationById(tab.source, relationId, updates, activeDiagram?.kind);
-      src = formatDiagramSource(src);
-      return { ...tab, source: src };
-    });
-    setEditingRelation(null);
-  }, [updateActiveTab, activeDiagram]);
-
-  const handleDropEntity = useCallback((keyword: string, x: number, y: number, targetPackage?: string) => {
-    updateActiveTab(tab => {
-      let src = tab.source.trim();
-      if (!src || src.lastIndexOf('}') < 0) {
-        const dk = tab.diagramKindFilter === 'all' ? 'class' : (tab.diagramKindFilter || 'class');
-        src = `diagram NewDiagram : ${dk} {\n\n}\n`;
-      }
-
-      const baseName = keyword.split(' ')[0]; // for "node <<device>>", baseName is "node"
-
-      let index = 1;
-      const prefixName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
-      let name = `${prefixName}${index}`;
-      while (new RegExp(`${ENTITY_KINDS_RX}[ \\t]+${name}\\b`).test(src)) {
-        index++;
-        name = `${prefixName}${index}`;
-      }
-
-      const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum', 'note'];
-      const FRAGMENT_KINDS = ['alt', 'loop', 'opt', 'par', 'break', 'critical'];
-      let declaration = `  ${keyword} ${name}`;
-      if (BRACE_KINDS.includes(baseName)) {
-        declaration += ' {\n\n  }';
-      }
-
-      if (FRAGMENT_KINDS.includes(baseName)) {
-        if (baseName === 'alt' || baseName === 'par') {
-          declaration += ' {\n    \n  } else {\n    \n  }';
-        } else {
-          declaration += ' {\n    \n  }';
+        if (updates.kind === 'partition') {
+          source = normalizePartitionDeclaration(source, updates.name || entityName);
+        } else if (updates.kind === 'system' || updates.kind === 'boundary') {
+          source = normalizeBoundaryDeclaration(source, updates.name || entityName, updates.kind);
+        } else if (updates.bodyText !== undefined && entitySupportsBody(updates.kind)) {
+          source = replaceEntityBody(source, updates.name || entityName, updates.bodyText);
         }
-        src = insertBeforeAnnotations(src, declaration);
-      } else {
-        if (targetPackage) { src = insertIntoPackage(src, targetPackage, declaration); } else { src = insertBeforeAnnotations(src, declaration); }
-        src = insertAtEnd(src, `  @${name} at (${Math.round(x)}, ${Math.round(y)})`);
-      }
-      src = formatDiagramSource(src);
-      return { ...tab, source: src };
-    });
-  }, [updateActiveTab]);
+        source = formatDiagramSource(source);
+        return { ...tab, source };
+      });
+      setEditingEntity(null);
+    },
+    [updateActiveTab],
+  );
 
-  const handleStencilInsert = useCallback((keyword: string) => {
-    if (isMobileLayout) {
-      setPendingMobileDropKeyword(keyword);
+  const handleRelationEdit = useCallback(
+    (
+      relationId: string,
+      updates: {
+        label?: string;
+        kind?: string;
+        direction?: 'forward' | 'reverse';
+        fromMult?: string;
+        toMult?: string;
+        seqMessageType?: SequenceMessageType;
+      },
+    ) => {
+      updateActiveTab((tab) => {
+        let src = updateRelationById(tab.source, relationId, updates, activeDiagram?.kind);
+        src = formatDiagramSource(src);
+        return { ...tab, source: src };
+      });
+      setEditingRelation(null);
+    },
+    [updateActiveTab, activeDiagram],
+  );
+
+  const handleDropEntity = useCallback(
+    (keyword: string, x: number, y: number, targetPackage?: string) => {
+      updateActiveTab((tab) => {
+        let src = tab.source.trim();
+        if (!src || src.lastIndexOf('}') < 0) {
+          const dk = tab.diagramKindFilter === 'all' ? 'class' : tab.diagramKindFilter || 'class';
+          src = `diagram NewDiagram : ${dk} {\n\n}\n`;
+        }
+
+        const baseName = keyword.split(' ')[0]; // for "node <<device>>", baseName is "node"
+
+        let index = 1;
+        const prefixName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+        let name = `${prefixName}${index}`;
+        while (new RegExp(`${ENTITY_KINDS_RX}[ \\t]+${name}\\b`).test(src)) {
+          index++;
+          name = `${prefixName}${index}`;
+        }
+
+        const BRACE_KINDS = [
+          'class',
+          'interface',
+          'component',
+          'node',
+          'state',
+          'usecase',
+          'package',
+          'composite',
+          'concurrent',
+          'environment',
+          'artifact',
+          'device',
+          'enum',
+          'note',
+        ];
+        const FRAGMENT_KINDS = ['alt', 'loop', 'opt', 'par', 'break', 'critical'];
+        let declaration = `  ${keyword} ${name}`;
+        if (BRACE_KINDS.includes(baseName)) {
+          declaration += ' {\n\n  }';
+        }
+
+        if (FRAGMENT_KINDS.includes(baseName)) {
+          if (baseName === 'alt' || baseName === 'par') {
+            declaration += ' {\n    \n  } else {\n    \n  }';
+          } else {
+            declaration += ' {\n    \n  }';
+          }
+          src = insertBeforeAnnotations(src, declaration);
+        } else {
+          if (targetPackage) {
+            src = insertIntoPackage(src, targetPackage, declaration);
+          } else {
+            src = insertBeforeAnnotations(src, declaration);
+          }
+          src = insertAtEnd(src, `  @${name} at (${Math.round(x)}, ${Math.round(y)})`);
+        }
+        src = formatDiagramSource(src);
+        return { ...tab, source: src };
+      });
+    },
+    [updateActiveTab],
+  );
+
+  const handleStencilInsert = useCallback(
+    (keyword: string) => {
+      if (isMobileLayout) {
+        setPendingMobileDropKeyword(keyword);
+        setMobilePane('diagram');
+        return;
+      }
+      const entityCount = activeDiagram?.entities.size ?? 0;
+      const x = 120 + (entityCount % 4) * 110;
+      const y = 110 + Math.floor(entityCount / 4) * 90;
+      handleDropEntity(keyword, x, y);
       setMobilePane('diagram');
-      return;
-    }
-    const entityCount = activeDiagram?.entities.size ?? 0;
-    const x = 120 + (entityCount % 4) * 110;
-    const y = 110 + Math.floor(entityCount / 4) * 90;
-    handleDropEntity(keyword, x, y);
-    setMobilePane('diagram');
-  }, [activeDiagram, handleDropEntity, isMobileLayout]);
+    },
+    [activeDiagram, handleDropEntity, isMobileLayout],
+  );
 
   // ── Keyboard shortcuts (delegated to useKeyboardShortcuts hook) ────────────────────
 
@@ -1226,7 +1401,7 @@ export default function App() {
     const id = `tab-${slugId()}`;
     const src = templateFor(kind);
     logEvent('diagram_created', { kind });
-    setTabs(prev => [
+    setTabs((prev) => [
       ...prev,
       {
         id,
@@ -1252,7 +1427,7 @@ export default function App() {
     const nextName = `${baseName}-collaboration.isx`;
     const transformedSource = sequenceToCollaborationSource(activeDiagram);
 
-    setTabs(prev => [
+    setTabs((prev) => [
       ...prev,
       {
         id,
@@ -1275,7 +1450,7 @@ export default function App() {
       if (typeof reader.result === 'string') {
         const text = reader.result;
         const id = `tab-${slugId()}`;
-        setTabs(prev => [
+        setTabs((prev) => [
           ...prev,
           {
             id,
@@ -1298,9 +1473,20 @@ export default function App() {
     setIsSavingToCloud(true);
     try {
       const { createDiagram } = await import('./lib/projects.js');
-      const diagram = await createDiagram(user.id, selectedProjectId, activeTab.name, activeDiagram?.kind || 'class', { source: activeTab.source });
+      const diagram = await createDiagram(user.id, selectedProjectId, activeTab.name, activeDiagram?.kind || 'class', {
+        source: activeTab.source,
+      });
       if (diagram) {
-        updateActiveTab(tab => ({ ...tab, diagram_id: diagram.id, project_id: selectedProjectId, savedSource: tab.source, project_role: 'owner' }), false);
+        updateActiveTab(
+          (tab) => ({
+            ...tab,
+            diagram_id: diagram.id,
+            project_id: selectedProjectId,
+            savedSource: tab.source,
+            project_role: 'owner',
+          }),
+          false,
+        );
         setSaveToCloudModalOpen(false);
         addToast('Saved to cloud');
       }
@@ -1311,41 +1497,54 @@ export default function App() {
     }
   }, [user, selectedProjectId, isSavingToCloud, activeTab, activeDiagram, updateActiveTab]);
 
-  const handleSaveToCloud = useCallback(async (projectName?: string) => {
-    if (!user) {
-      setAuthMode('login');
-      setIsAuthOpen(true);
-      return;
-    }
-    if (activeTab.diagram_id) {
-      setIsSavingToCloud(true);
-      logEvent('diagram_saved', { project_id: activeTab.project_id, diagram_id: activeTab.diagram_id });
-      const { updateDiagramContent, saveDiagramHistory } = await import('./lib/projects.js');
-      await updateDiagramContent(activeTab.diagram_id, { source: activeTab.source });
-      await saveDiagramHistory(activeTab.diagram_id, { source: activeTab.source }, user.id);
-      const { logAudit } = await import('./lib/audit.js');
-      await logAudit('diagram_saved', 'diagram', activeTab.diagram_id, { project_id: activeTab.project_id });
-      setIsSavingToCloud(false);
-      updateActiveTab(tab => ({ ...tab, savedSource: tab.source }), false);
-    } else {
-      if (projectName) {
-        setIsSavingToCloud(true);
-        const { createProject, createDiagram } = await import('./lib/projects.js');
-        const p = await createProject(user.id, projectName);
-        if (p) {
-          const kind = activeTab.diagramKindFilter === 'all' ? (activeDiagram?.kind || 'class') : activeTab.diagramKindFilter;
-          const d = await createDiagram(user.id, p.id, activeTab.name, kind, { source: activeTab.source });
-          if (d) {
-            updateActiveTab(tab => ({ ...tab, project_id: p.id, diagram_id: d.id, savedSource: tab.source, project_role: 'owner' }), false);
-            addToast('Saved to cloud');
-          }
-        }
-        setIsSavingToCloud(false);
-      } else {
-        setSaveToCloudModalOpen(true);
+  const handleSaveToCloud = useCallback(
+    async (projectName?: string) => {
+      if (!user) {
+        setAuthMode('login');
+        setIsAuthOpen(true);
+        return;
       }
-    }
-  }, [user, activeTab, activeDiagram, updateActiveTab]);
+      if (activeTab.diagram_id) {
+        setIsSavingToCloud(true);
+        logEvent('diagram_saved', { project_id: activeTab.project_id, diagram_id: activeTab.diagram_id });
+        const { updateDiagramContent, saveDiagramHistory } = await import('./lib/projects.js');
+        await updateDiagramContent(activeTab.diagram_id, { source: activeTab.source });
+        await saveDiagramHistory(activeTab.diagram_id, { source: activeTab.source }, user.id);
+        const { logAudit } = await import('./lib/audit.js');
+        await logAudit('diagram_saved', 'diagram', activeTab.diagram_id, { project_id: activeTab.project_id });
+        setIsSavingToCloud(false);
+        updateActiveTab((tab) => ({ ...tab, savedSource: tab.source }), false);
+      } else {
+        if (projectName) {
+          setIsSavingToCloud(true);
+          const { createProject, createDiagram } = await import('./lib/projects.js');
+          const p = await createProject(user.id, projectName);
+          if (p) {
+            const kind =
+              activeTab.diagramKindFilter === 'all' ? activeDiagram?.kind || 'class' : activeTab.diagramKindFilter;
+            const d = await createDiagram(user.id, p.id, activeTab.name, kind, { source: activeTab.source });
+            if (d) {
+              updateActiveTab(
+                (tab) => ({
+                  ...tab,
+                  project_id: p.id,
+                  diagram_id: d.id,
+                  savedSource: tab.source,
+                  project_role: 'owner',
+                }),
+                false,
+              );
+              addToast('Saved to cloud');
+            }
+          }
+          setIsSavingToCloud(false);
+        } else {
+          setSaveToCloudModalOpen(true);
+        }
+      }
+    },
+    [user, activeTab, activeDiagram, updateActiveTab],
+  );
 
   useKeyboardShortcuts({
     activeTab,
@@ -1393,15 +1592,17 @@ export default function App() {
     setExportMenuOpen,
   });
 
-
   const handleExportGIF = useCallback(async () => {
     if (!activeDiagram) return;
     setIsExporting(true);
     setExportTime(0);
-    const timer = setInterval(() => setExportTime(t => t + 1), 1000);
+    const timer = setInterval(() => setExportTime((t) => t + 1), 1000);
     try {
       const m = await import('./utils/exporter');
-      await m.exportGIF(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
+      await m.exportGIF(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', {
+        isWatermarkEnabled,
+        animationSpeed,
+      });
     } finally {
       clearInterval(timer);
       setIsExporting(false);
@@ -1412,10 +1613,13 @@ export default function App() {
     if (!activeDiagram) return;
     setIsExporting(true);
     setExportTime(0);
-    const timer = setInterval(() => setExportTime(t => t + 1), 1000);
+    const timer = setInterval(() => setExportTime((t) => t + 1), 1000);
     try {
       const m = await import('./utils/exporter');
-      await m.exportVideo(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', { isWatermarkEnabled, animationSpeed });
+      await m.exportVideo(activeDiagram, activeTab?.name ? activeTab.name.replace('.isx', '') : 'diagram', {
+        isWatermarkEnabled,
+        animationSpeed,
+      });
     } finally {
       clearInterval(timer);
       setIsExporting(false);
@@ -1430,14 +1634,15 @@ export default function App() {
 
       if (editingEntity) {
         e.preventDefault();
-        const isNameOnlyBoundary = editingEntity.kind === 'partition' || editingEntity.kind === 'system' || editingEntity.kind === 'boundary';
+        const isNameOnlyBoundary =
+          editingEntity.kind === 'partition' || editingEntity.kind === 'system' || editingEntity.kind === 'boundary';
         handleEntityEdit(editingEntity.origName || editingEntity.id, {
           name: editingEntity.name,
           stereotype: isNameOnlyBoundary ? undefined : editingEntity.stereotype,
           isAbstract: editingEntity.isAbstract,
           bodyText: editingEntity.bodyText,
           kind: editingEntity.kind,
-          elseBlocks: editingEntity.elseBlocks
+          elseBlocks: editingEntity.elseBlocks,
         });
         return;
       }
@@ -1473,8 +1678,8 @@ export default function App() {
 
       if (tabToClose) {
         e.preventDefault();
-        setTabs(prev => {
-          const next = prev.filter(t => t.id !== tabToClose);
+        setTabs((prev) => {
+          const next = prev.filter((t) => t.id !== tabToClose);
           if (activeTabId === tabToClose) setActiveTabId(next[Math.max(0, next.length - 1)]?.id ?? '');
           return next;
         });
@@ -1500,12 +1705,6 @@ export default function App() {
     handleSaveToCloudSubmit,
   ]);
 
-
-
-
-
-
-
   const toggleHistory = async () => {
     if (!isHistoryOpen && activeTab?.diagram_id) {
       const history = await getDiagramHistory(activeTab.diagram_id);
@@ -1517,8 +1716,8 @@ export default function App() {
   const confirmRevertHistory = async () => {
     if (!selectedHistoryItem || !activeTab?.diagram_id) return;
     await deleteDiagramHistoryAfter(activeTab.diagram_id, selectedHistoryItem.created_at);
-    updateActiveTab(tab => ({ ...tab, source: selectedHistoryItem.content?.source || '' }));
-    setDiagramHistoryList(prev => prev.filter(h => h.created_at <= selectedHistoryItem.created_at));
+    updateActiveTab((tab) => ({ ...tab, source: selectedHistoryItem.content?.source || '' }));
+    setDiagramHistoryList((prev) => prev.filter((h) => h.created_at <= selectedHistoryItem.created_at));
     setSelectedHistoryId(null);
     setIsHistoryOpen(false);
     setIsRevertModalOpen(false);
@@ -1533,18 +1732,19 @@ export default function App() {
         {selectedHistoryItem && (
           <span style={{ marginLeft: 8, color: 'var(--iso-brand)', fontSize: 11 }}>(Viewing History - Read Only)</span>
         )}
-        <span className="iso-panel-info" aria-live="polite">
-        </span>
+        <span className="iso-panel-info" aria-live="polite"></span>
         <span className="iso-panel-spacer" />
       </div>
       <div className="iso-panel-body">
         <IsomorphEditor
           key={activeTab?.id || 'empty'}
           value={displaySource}
-          readOnly={!!selectedHistoryItem || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'}
-          onChange={value => {
+          readOnly={
+            !!selectedHistoryItem || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+          }
+          onChange={(value) => {
             if (selectedHistoryItem) return;
-            updateActiveTab(tab => ({ ...tab, source: value }))
+            updateActiveTab((tab) => ({ ...tab, source: value }));
           }}
           errors={editorDiagnostics}
           yText={isCollabActive ? getSourceText() : null}
@@ -1554,8 +1754,18 @@ export default function App() {
       </div>
       {allErrors.length > 0 && (
         <div className="iso-error-panel" role="log" aria-label={t('ui.errors')}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-            <strong style={{ fontSize: '0.78rem', color: 'var(--iso-text-muted)', display: 'flex', alignItems: 'center', paddingLeft: '4px' }}>
+          <div
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}
+          >
+            <strong
+              style={{
+                fontSize: '0.78rem',
+                color: 'var(--iso-text-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                paddingLeft: '4px',
+              }}
+            >
               <IconAlertTriangle size={14} /> <span style={{ marginLeft: 4 }}>{t('ui.errors')}</span>
             </strong>
             <button
@@ -1569,13 +1779,17 @@ export default function App() {
           </div>
           {allErrors.slice(0, 8).map((msg, i) => (
             <div key={`err-${msg.slice(0, 20)}-${i}`} className="iso-error-item">
-              <span className="iso-error-icon" aria-hidden="true">✖</span>
+              <span className="iso-error-icon" aria-hidden="true">
+                ✖
+              </span>
               <span className="iso-error-msg">{msg}</span>
             </div>
           ))}
           {allErrors.length > 8 && (
             <div className="iso-error-item">
-              <span className="iso-error-icon" aria-hidden="true">…</span>
+              <span className="iso-error-icon" aria-hidden="true">
+                …
+              </span>
               <span className="iso-error-msg" style={{ color: 'var(--iso-text-muted)' }}>
                 {allErrors.length - 8 > 1
                   ? t('status.more_error_many', { count: allErrors.length - 8 })
@@ -1589,183 +1803,226 @@ export default function App() {
   );
 
   // ── Auto Layout handler (Feature 17) ─────────────────────
-  const handleAutoLayout = useCallback((mode: 'left-right' | 'snowflake' | 'compact') => {
-    if (!activeDiagram || !activeTab) return;
-    const entities = [...activeDiagram.entities.values()];
-    if (entities.length === 0) return;
+  const handleAutoLayout = useCallback(
+    (mode: 'left-right' | 'snowflake' | 'compact') => {
+      if (!activeDiagram || !activeTab) return;
+      const entities = [...activeDiagram.entities.values()];
+      if (entities.length === 0) return;
 
-    const layoutEntities = entities.map(e => ({ name: e.name }));
-    const layoutRelations = activeDiagram.relations.map(r => ({ from: r.from, to: r.to }));
-    const { positions } = computeLayout(mode, layoutEntities, layoutRelations);
+      const layoutEntities = entities.map((e) => ({ name: e.name }));
+      const layoutRelations = activeDiagram.relations.map((r) => ({ from: r.from, to: r.to }));
+      const { positions } = computeLayout(mode, layoutEntities, layoutRelations);
 
-    // Apply positions to source by rewriting/adding @Entity at (...) annotations
-    updateActiveTab(tab => {
-      let src = tab.source;
-      // Remove all existing position annotations
-      src = src.replace(/^\s*@\w+\s+at\s*\([^)]+\)\s*$/gm, '');
-      // Clean up resulting blank lines in annotation area
-      src = src.replace(/\n{3,}/g, '\n\n');
-      // Build new annotations
-      const annotations = [...positions.entries()]
-        .map(([name, pos]) => `  @${name} at (${pos.x}, ${pos.y})`)
-        .join('\n');
-      // Insert before closing brace
-      const block = findDiagramBlock(src);
-      if (block) {
-        const before = src.slice(0, block.closeBrace);
-        const after = src.slice(block.closeBrace);
-        src = before.trimEnd() + '\n\n' + annotations + '\n' + after;
-      }
-      return { ...tab, source: src };
-    });
-  }, [activeDiagram, activeTab, updateActiveTab]);
+      // Apply positions to source by rewriting/adding @Entity at (...) annotations
+      updateActiveTab((tab) => {
+        let src = tab.source;
+        // Remove all existing position annotations
+        src = src.replace(/^\s*@\w+\s+at\s*\([^)]+\)\s*$/gm, '');
+        // Clean up resulting blank lines in annotation area
+        src = src.replace(/\n{3,}/g, '\n\n');
+        // Build new annotations
+        const annotations = [...positions.entries()]
+          .map(([name, pos]) => `  @${name} at (${pos.x}, ${pos.y})`)
+          .join('\n');
+        // Insert before closing brace
+        const block = findDiagramBlock(src);
+        if (block) {
+          const before = src.slice(0, block.closeBrace);
+          const after = src.slice(block.closeBrace);
+          src = before.trimEnd() + '\n\n' + annotations + '\n' + after;
+        }
+        return { ...tab, source: src };
+      });
+    },
+    [activeDiagram, activeTab, updateActiveTab],
+  );
 
   // ── Context menu callbacks (Feature 19) ─────────────────
-  const handleContextEntityDelete = useCallback((entityName: string) => {
-    if (!activeTab) return;
-    updateActiveTab(tab => {
-      let src = tab.source;
-      // Remove entity declaration
-      const extracted = extractEntityDeclaration(src, entityName);
-      if (extracted) {
-        src = src.replace(extracted, '');
-      }
-      // Remove annotations for this entity
-      const annoRx = new RegExp(`^\\s*@${escapeRegex(entityName)}\\s+at\\s*\\([^)]+\\)\\s*$`, 'gm');
-      src = src.replace(annoRx, '');
-      // Remove relations involving this entity
-      const relRx = new RegExp(`^\\s*${escapeRegex(entityName)}\\s+(?:--|\\.\\.)[^\\n]*$|^\\s*\\S+\\s+(?:--|\\.\\.)[^\\n]*${escapeRegex(entityName)}[^\\n]*$`, 'gm');
-      src = src.replace(relRx, '');
-      src = src.replace(/\n{3,}/g, '\n\n');
-      return { ...tab, source: src };
-    });
-    setSelectedItems(prev => prev.filter(i => i.id !== entityName));
-  }, [activeTab, updateActiveTab]);
+  const handleContextEntityDelete = useCallback(
+    (entityName: string) => {
+      if (!activeTab) return;
+      updateActiveTab((tab) => {
+        let src = tab.source;
+        // Remove entity declaration
+        const extracted = extractEntityDeclaration(src, entityName);
+        if (extracted) {
+          src = src.replace(extracted, '');
+        }
+        // Remove annotations for this entity
+        const annoRx = new RegExp(`^\\s*@${escapeRegex(entityName)}\\s+at\\s*\\([^)]+\\)\\s*$`, 'gm');
+        src = src.replace(annoRx, '');
+        // Remove relations involving this entity
+        const relRx = new RegExp(
+          `^\\s*${escapeRegex(entityName)}\\s+(?:--|\\.\\.)[^\\n]*$|^\\s*\\S+\\s+(?:--|\\.\\.)[^\\n]*${escapeRegex(entityName)}[^\\n]*$`,
+          'gm',
+        );
+        src = src.replace(relRx, '');
+        src = src.replace(/\n{3,}/g, '\n\n');
+        return { ...tab, source: src };
+      });
+      setSelectedItems((prev) => prev.filter((i) => i.id !== entityName));
+    },
+    [activeTab, updateActiveTab],
+  );
 
-  const handleContextEntityDuplicate = useCallback((entityName: string) => {
-    if (!activeTab || !activeDiagram) return;
-    const snippets: string[] = [];
-    const extracted = extractEntityDeclaration(activeTab.source, entityName);
-    if (extracted) snippets.push(extracted.trim());
-    const annoRx = new RegExp(`^\\s*@${escapeRegex(entityName)}\\s+at\\s*\\([^)]+\\)`, 'gm');
-    const annoMatches = activeTab.source.match(annoRx);
-    if (annoMatches) snippets.push(...annoMatches);
-    if (snippets.length === 0) return;
+  const handleContextEntityDuplicate = useCallback(
+    (entityName: string) => {
+      if (!activeTab || !activeDiagram) return;
+      const snippets: string[] = [];
+      const extracted = extractEntityDeclaration(activeTab.source, entityName);
+      if (extracted) snippets.push(extracted.trim());
+      const annoRx = new RegExp(`^\\s*@${escapeRegex(entityName)}\\s+at\\s*\\([^)]+\\)`, 'gm');
+      const annoMatches = activeTab.source.match(annoRx);
+      if (annoMatches) snippets.push(...annoMatches);
+      if (snippets.length === 0) return;
 
-    let pasteText = snippets.join('\n');
-    const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
-    const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
-    for (const name of namesToReplace) {
-      const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
-      const baseStr = baseMatch ? baseMatch[1] : name;
-      let newName = baseStr + '1';
-      let i = 2;
-      const isNameTaken = (n: string) => {
-        const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
-        return rx.test(activeTab.source) || rx.test(pasteText);
-      };
-      let emergencyBreak = 0;
-      while (isNameTaken(newName) && emergencyBreak < 1000) { newName = baseStr + i; i++; emergencyBreak++; }
-      pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
-    }
-    pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
-      const offset = 40 * pasteCounterRef.current;
-      return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
-    });
-    pasteCounterRef.current++;
-    updateActiveTab(tab => {
-      let src = insertBeforeAnnotations(tab.source, pasteText.trim());
-      src = formatDiagramSource(src);
-      return { ...tab, source: src };
-    });
-  }, [activeTab, activeDiagram, updateActiveTab]);
-
-  const handleContextEntityCopy = useCallback((entityName: string) => {
-    if (!activeTab) return;
-    const snippets: string[] = [];
-    const extracted = extractEntityDeclaration(activeTab.source, entityName);
-    if (extracted) snippets.push(extracted.trim());
-    const annoRx = new RegExp(`^\\s*@${escapeRegex(entityName)}\\s+at\\s*\\([^)]+\\)`, 'gm');
-    const annoMatches = activeTab.source.match(annoRx);
-    if (annoMatches) snippets.push(...annoMatches);
-    if (snippets.length > 0) {
-      navigator.clipboard.writeText(snippets.join('\n')).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => { });
-      pasteCounterRef.current = 1;
-    }
-  }, [activeTab]);
-
-  const handleContextRelationDelete = useCallback((relationId: string) => {
-    if (!activeTab || !activeDiagram) return;
-    const rel = activeDiagram.relations.find(r => r.id === relationId);
-    if (!rel) return;
-    updateActiveTab(tab => {
-      let src = tab.source;
-      // Find and remove the relation line by matching from -> to with the token
-      const patterns = [
-        new RegExp(`^\\s*${escapeRegex(rel.from)}\\s+\\S+\\s+${escapeRegex(rel.to)}[^\\n]*$`, 'gm'),
-      ];
-      for (const rx of patterns) {
-        const match = src.match(rx);
-        if (match) { src = src.replace(match[0], ''); break; }
-      }
-      src = src.replace(/\n{3,}/g, '\n\n');
-      return { ...tab, source: src };
-    });
-    setSelectedItems(prev => prev.filter(i => i.id !== relationId));
-  }, [activeTab, activeDiagram, updateActiveTab]);
-
-  const handleContextPaste = useCallback(() => {
-    navigator.clipboard.readText().then(text => {
-      if (!text.trim() || !activeTab) return;
-      let pasteText = text;
+      let pasteText = snippets.join('\n');
       const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
-      const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
+      const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map((m) => m[1]))];
       for (const name of namesToReplace) {
         const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
         const baseStr = baseMatch ? baseMatch[1] : name;
-        let newName = baseStr + '1'; let i = 2;
+        let newName = baseStr + '1';
+        let i = 2;
         const isNameTaken = (n: string) => {
           const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
           return rx.test(activeTab.source) || rx.test(pasteText);
         };
         let emergencyBreak = 0;
-        while (isNameTaken(newName) && emergencyBreak < 1000) { newName = baseStr + i; i++; emergencyBreak++; }
+        while (isNameTaken(newName) && emergencyBreak < 1000) {
+          newName = baseStr + i;
+          i++;
+          emergencyBreak++;
+        }
         pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
       }
-      pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
-        const offset = 40 * pasteCounterRef.current;
-        return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
-      });
+      pasteText = pasteText.replace(
+        /@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g,
+        (_, n, x, y, sizeSuffix) => {
+          const offset = 40 * pasteCounterRef.current;
+          return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
+        },
+      );
       pasteCounterRef.current++;
-      updateActiveTab(tab => {
+      updateActiveTab((tab) => {
         let src = insertBeforeAnnotations(tab.source, pasteText.trim());
         src = formatDiagramSource(src);
         return { ...tab, source: src };
       });
-    }).catch(() => { });
+    },
+    [activeTab, activeDiagram, updateActiveTab],
+  );
+
+  const handleContextEntityCopy = useCallback(
+    (entityName: string) => {
+      if (!activeTab) return;
+      const snippets: string[] = [];
+      const extracted = extractEntityDeclaration(activeTab.source, entityName);
+      if (extracted) snippets.push(extracted.trim());
+      const annoRx = new RegExp(`^\\s*@${escapeRegex(entityName)}\\s+at\\s*\\([^)]+\\)`, 'gm');
+      const annoMatches = activeTab.source.match(annoRx);
+      if (annoMatches) snippets.push(...annoMatches);
+      if (snippets.length > 0) {
+        navigator.clipboard
+          .writeText(snippets.join('\n'))
+          .then(() => addToast(t('ui.copied') || 'Copied'))
+          .catch(() => {});
+        pasteCounterRef.current = 1;
+      }
+    },
+    [activeTab],
+  );
+
+  const handleContextRelationDelete = useCallback(
+    (relationId: string) => {
+      if (!activeTab || !activeDiagram) return;
+      const rel = activeDiagram.relations.find((r) => r.id === relationId);
+      if (!rel) return;
+      updateActiveTab((tab) => {
+        let src = tab.source;
+        // Find and remove the relation line by matching from -> to with the token
+        const patterns = [new RegExp(`^\\s*${escapeRegex(rel.from)}\\s+\\S+\\s+${escapeRegex(rel.to)}[^\\n]*$`, 'gm')];
+        for (const rx of patterns) {
+          const match = src.match(rx);
+          if (match) {
+            src = src.replace(match[0], '');
+            break;
+          }
+        }
+        src = src.replace(/\n{3,}/g, '\n\n');
+        return { ...tab, source: src };
+      });
+      setSelectedItems((prev) => prev.filter((i) => i.id !== relationId));
+    },
+    [activeTab, activeDiagram, updateActiveTab],
+  );
+
+  const handleContextPaste = useCallback(() => {
+    navigator.clipboard
+      .readText()
+      .then((text) => {
+        if (!text.trim() || !activeTab) return;
+        let pasteText = text;
+        const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
+        const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map((m) => m[1]))];
+        for (const name of namesToReplace) {
+          const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
+          const baseStr = baseMatch ? baseMatch[1] : name;
+          let newName = baseStr + '1';
+          let i = 2;
+          const isNameTaken = (n: string) => {
+            const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
+            return rx.test(activeTab.source) || rx.test(pasteText);
+          };
+          let emergencyBreak = 0;
+          while (isNameTaken(newName) && emergencyBreak < 1000) {
+            newName = baseStr + i;
+            i++;
+            emergencyBreak++;
+          }
+          pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
+        }
+        pasteText = pasteText.replace(
+          /@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g,
+          (_, n, x, y, sizeSuffix) => {
+            const offset = 40 * pasteCounterRef.current;
+            return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
+          },
+        );
+        pasteCounterRef.current++;
+        updateActiveTab((tab) => {
+          let src = insertBeforeAnnotations(tab.source, pasteText.trim());
+          src = formatDiagramSource(src);
+          return { ...tab, source: src };
+        });
+      })
+      .catch(() => {});
   }, [activeTab, updateActiveTab]);
 
-  const handleAddNote = useCallback((_x: number, _y: number, attachToEntity?: string) => {
-    if (!activeTab) return;
-    updateActiveTab(tab => {
-      let src = tab.source;
-      // Generate a unique note name
-      let noteIdx = 1;
-      while (src.includes(`note Note${noteIdx}`)) noteIdx++;
-      const noteName = `Note${noteIdx}`;
-      const block = findDiagramBlock(src);
-      if (block) {
-        const before = src.slice(0, block.closeBrace);
-        const after = src.slice(block.closeBrace);
-        let extra = '';
-        if (attachToEntity) {
-          extra = `  ${attachToEntity} ..> ${noteName}\n`;
+  const handleAddNote = useCallback(
+    (_x: number, _y: number, attachToEntity?: string) => {
+      if (!activeTab) return;
+      updateActiveTab((tab) => {
+        let src = tab.source;
+        // Generate a unique note name
+        let noteIdx = 1;
+        while (src.includes(`note Note${noteIdx}`)) noteIdx++;
+        const noteName = `Note${noteIdx}`;
+        const block = findDiagramBlock(src);
+        if (block) {
+          const before = src.slice(0, block.closeBrace);
+          const after = src.slice(block.closeBrace);
+          let extra = '';
+          if (attachToEntity) {
+            extra = `  ${attachToEntity} ..> ${noteName}\n`;
+          }
+          src = before.trimEnd() + `\n\n  note ${noteName} {\n    New note\n  }\n${extra}` + after;
         }
-        src = before.trimEnd() + `\n\n  note ${noteName} {\n    New note\n  }\n${extra}` + after;
-      }
-      return { ...tab, source: src };
-    });
-  }, [activeTab, updateActiveTab]);
+        return { ...tab, source: src };
+      });
+    },
+    [activeTab, updateActiveTab],
+  );
 
   const canvasPane = (
     <div className="iso-panel iso-panel--canvas" style={{ height: '100%' }}>
@@ -1774,9 +2031,7 @@ export default function App() {
         {t('ui.canvas')}
         <span className="iso-panel-spacer" />
         {diagrams.length > 0 && (
-          <span style={{ fontSize: 10, color: '#6e7781', fontFamily: 'monospace' }}>
-            {t('ui.drag_reposition')}
-          </span>
+          <span style={{ fontSize: 10, color: '#6e7781', fontFamily: 'monospace' }}>{t('ui.drag_reposition')}</span>
         )}
       </div>
       <div className="iso-panel-body">
@@ -1786,30 +2041,84 @@ export default function App() {
           isAnimating={isAnimating}
           animationSpeed={animationSpeed}
           language={language}
-          onEntityMove={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleEntityMove}
-          onEntityResize={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleEntityResize}
-          onRelationVerticalMove={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleRelationVerticalMove}
+          onEntityMove={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleEntityMove
+          }
+          onEntityResize={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleEntityResize
+          }
+          onRelationVerticalMove={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleRelationVerticalMove
+          }
           onEntityEditRequest={(entity) => {
             if (activeTab?.project_role === 'viewer') return;
             if (activeTab?.project_role === 'commenter' && entity.kind !== 'note') return;
             handleEntityEditRequest(entity);
           }}
-          onRelationEditRequest={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleRelationEditRequest}
-          onRelationAddRequest={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleRelationAddRequest}
+          onRelationEditRequest={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleRelationEditRequest
+          }
+          onRelationAddRequest={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleRelationAddRequest
+          }
           onTextRenameRequest={handleTextRenameRequest}
           onExportSVG={handleExportSVG}
-          onDropEntity={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleDropEntity}
+          onDropEntity={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleDropEntity
+          }
           pendingDropKeyword={isMobileLayout ? pendingMobileDropKeyword : null}
           onConsumePendingDrop={() => setPendingMobileDropKeyword(null)}
-          availableTools={selectedHistoryItem ? [] : (activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? ['hand'] : toolsetFor(activeDiagram?.kind)}
+          availableTools={
+            selectedHistoryItem
+              ? []
+              : activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+                ? ['hand']
+                : toolsetFor(activeDiagram?.kind)
+          }
           selectedItems={selectedItems}
           onSelectionChange={setSelectedItems}
-          onAutoLayout={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleAutoLayout}
-          onEntityDelete={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextEntityDelete}
-          onEntityDuplicate={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextEntityDuplicate}
-          onEntityCopy={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextEntityCopy}
-          onRelationDelete={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextRelationDelete}
-          onPaste={(activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? undefined : handleContextPaste}
+          onAutoLayout={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleAutoLayout
+          }
+          onEntityDelete={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleContextEntityDelete
+          }
+          onEntityDuplicate={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleContextEntityDuplicate
+          }
+          onEntityCopy={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleContextEntityCopy
+          }
+          onRelationDelete={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleContextRelationDelete
+          }
+          onPaste={
+            activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+              ? undefined
+              : handleContextPaste
+          }
           onAddNote={activeTab?.project_role === 'viewer' ? undefined : handleAddNote}
           awareness={awareness}
         />
@@ -1817,25 +2126,26 @@ export default function App() {
     </div>
   );
 
-  const mobileStencilRail = activeDiagram?.kind && 
-    activeTab?.project_role !== 'viewer' && 
-    activeTab?.project_role !== 'commenter' && 
+  const mobileStencilRail =
+    activeDiagram?.kind &&
+    activeTab?.project_role !== 'viewer' &&
+    activeTab?.project_role !== 'commenter' &&
     getStencilsForKind(activeDiagram.kind).length > 0 ? (
-    <div className="iso-mobile-stencil-rail" role="toolbar" aria-label={t('ui.insert_shapes')}>
-      {getStencilsForKind(activeDiagram.kind).map(stencil => (
-        <button
-          key={stencil.label}
-          type="button"
-          className="iso-mobile-stencil"
-          onClick={() => handleStencilInsert(stencil.keyword)}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          {stencil.icon && <div style={{ display: 'flex' }}>{stencil.icon}</div>}
-          {stencil.label}
-        </button>
-      ))}
-    </div>
-  ) : null;
+      <div className="iso-mobile-stencil-rail" role="toolbar" aria-label={t('ui.insert_shapes')}>
+        {getStencilsForKind(activeDiagram.kind).map((stencil) => (
+          <button
+            key={stencil.label}
+            type="button"
+            className="iso-mobile-stencil"
+            onClick={() => handleStencilInsert(stencil.keyword)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            {stencil.icon && <div style={{ display: 'flex' }}>{stencil.icon}</div>}
+            {stencil.label}
+          </button>
+        ))}
+      </div>
+    ) : null;
 
   const mobileCanvasPane = (
     <div className="iso-mobile-canvas-pane">
@@ -1843,8 +2153,6 @@ export default function App() {
       {canvasPane}
     </div>
   );
-
-
 
   const renderCommonModals = () => {
     return (
@@ -1911,28 +2219,77 @@ export default function App() {
         )}
         {projectDetailModalOpen && projectDetailProject && (
           <div className="iso-modal-overlay" style={{ zIndex: 2100 }} onClick={() => setProjectDetailModalOpen(false)}>
-            <div className="iso-modal" style={{ width: '480px', maxWidth: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', padding: '24px' }} onClick={e => e.stopPropagation()}>
+            <div
+              className="iso-modal"
+              style={{
+                width: '480px',
+                maxWidth: '90%',
+                maxHeight: '80vh',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '24px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="iso-modal-header" style={{ marginBottom: '16px' }}>
-                <h3 className="iso-modal-title" style={{ fontSize: '18px', fontWeight: 600 }}>{projectDetailProject.name}</h3>
-                <button className="iso-modal-close" onClick={() => setProjectDetailModalOpen(false)}>×</button>
+                <h3 className="iso-modal-title" style={{ fontSize: '18px', fontWeight: 600 }}>
+                  {projectDetailProject.name}
+                </h3>
+                <button className="iso-modal-close" onClick={() => setProjectDetailModalOpen(false)}>
+                  ×
+                </button>
               </div>
 
               <p className="iso-modal-desc" style={{ marginBottom: '16px' }}>
                 Select a file to open, or open the entire project.
               </p>
 
-              <div style={{ flex: 1, overflowY: 'auto', marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '120px', maxHeight: '300px', paddingRight: '4px' }}>
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  marginBottom: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  minHeight: '120px',
+                  maxHeight: '300px',
+                  paddingRight: '4px',
+                }}
+              >
                 {isLoadingProjectDetail ? (
-                  <div style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flex: 1,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--iso-text-muted)',
+                    }}
+                  >
                     <div className="iso-spinner" style={{ marginRight: '8px' }} /> Loading files...
                   </div>
                 ) : projectDetailDiagrams.length === 0 ? (
-                  <div style={{ display: 'flex', flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--iso-text-muted)', padding: '24px', textAlign: 'center', background: 'var(--iso-bg-header)', borderRadius: '8px', border: '1px dashed var(--iso-border)' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flex: 1,
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--iso-text-muted)',
+                      padding: '24px',
+                      textAlign: 'center',
+                      background: 'var(--iso-bg-header)',
+                      borderRadius: '8px',
+                      border: '1px dashed var(--iso-border)',
+                    }}
+                  >
                     <span style={{ fontSize: '24px', marginBottom: '8px' }}>📂</span>
                     <span>This project has no files.</span>
                   </div>
                 ) : (
-                  projectDetailDiagrams.map(d => (
+                  projectDetailDiagrams.map((d) => (
                     <div
                       key={d.id}
                       onClick={() => openProjectFile(d, projectDetailProject.id, getDiagramRole(d.id))}
@@ -1946,8 +2303,8 @@ export default function App() {
                           extra: {
                             projectId: projectDetailProject.id,
                             diagramName: d.name,
-                            diagram: d
-                          }
+                            diagram: d,
+                          },
                         });
                       }}
                       style={{
@@ -1961,11 +2318,11 @@ export default function App() {
                         cursor: 'pointer',
                         transition: 'all 0.15s ease-in-out',
                       }}
-                      onMouseOver={e => {
+                      onMouseOver={(e) => {
                         e.currentTarget.style.borderColor = 'var(--iso-accent)';
                         e.currentTarget.style.background = 'var(--iso-bg-hover)';
                       }}
-                      onMouseOut={e => {
+                      onMouseOut={(e) => {
                         e.currentTarget.style.borderColor = 'var(--iso-border)';
                         e.currentTarget.style.background = 'var(--iso-bg-header)';
                       }}
@@ -1974,21 +2331,32 @@ export default function App() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{d.name}</strong>
                           {projectDetailProject.owner_id !== user?.id && (
-                            <span style={{
-                              fontSize: '10px',
-                              background: 'var(--iso-bg-app)',
-                              border: '1px solid var(--iso-border)',
-                              padding: '1px 5px',
-                              borderRadius: '8px',
-                              textTransform: 'capitalize',
-                              color: 'var(--iso-text-muted)',
-                              fontWeight: 500
-                            }}>
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                background: 'var(--iso-bg-app)',
+                                border: '1px solid var(--iso-border)',
+                                padding: '1px 5px',
+                                borderRadius: '8px',
+                                textTransform: 'capitalize',
+                                color: 'var(--iso-text-muted)',
+                                fontWeight: 500,
+                              }}
+                            >
                               {t(`share.${getDiagramRole(d.id)}`) || getDiagramRole(d.id)}
                             </span>
                           )}
                         </div>
-                        <span style={{ fontSize: '11px', color: 'var(--iso-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{d.kind}</span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: 'var(--iso-text-muted)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                          }}
+                        >
+                          {d.kind}
+                        </span>
                       </div>
                       <span style={{ fontSize: '18px', color: 'var(--iso-text-muted)' }}>→</span>
                     </div>
@@ -2006,14 +2374,14 @@ export default function App() {
                   disabled={isLoadingProjectDetail || projectDetailDiagrams.length === 0}
                   onClick={() => {
                     const rolesMap: Record<string, string> = {};
-                    projectDetailDiagrams.forEach(d => {
+                    projectDetailDiagrams.forEach((d) => {
                       rolesMap[d.id] = getDiagramRole(d.id);
                     });
                     openWholeProject(
                       projectDetailDiagrams,
                       projectDetailProject.id,
-                      projectDetailProject.owner_id === user?.id ? 'owner' : (projectDetailAccessMap.base || 'viewer'),
-                      rolesMap
+                      projectDetailProject.owner_id === user?.id ? 'owner' : projectDetailAccessMap.base || 'viewer',
+                      rolesMap,
                     );
                   }}
                 >
@@ -2026,14 +2394,20 @@ export default function App() {
 
         {diagramToDelete && (
           <div className="iso-modal-overlay" style={{ zIndex: 2200 }} onClick={() => setDiagramToDelete(null)}>
-            <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+            <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete Diagram</h3>
               <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>
                 Are you sure you want to delete "{diagramToDelete.name}"? This action cannot be undone.
               </p>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button className="iso-btn" onClick={() => setDiagramToDelete(null)}>{t('ui.cancel')}</button>
-                <button className="iso-btn" style={{ background: 'var(--iso-danger)', color: '#fff', border: 'none' }} onClick={handleConfirmDeleteDiagram}>
+                <button className="iso-btn" onClick={() => setDiagramToDelete(null)}>
+                  {t('ui.cancel')}
+                </button>
+                <button
+                  className="iso-btn"
+                  style={{ background: 'var(--iso-danger)', color: '#fff', border: 'none' }}
+                  onClick={handleConfirmDeleteDiagram}
+                >
                   Delete
                 </button>
               </div>
@@ -2043,146 +2417,234 @@ export default function App() {
 
         {contextMenu && (
           <>
-            <div style={{ position: 'fixed', inset: 0, zIndex: 99998 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }}></div>
+            <div
+              style={{ position: 'fixed', inset: 0, zIndex: 99998 }}
+              onClick={() => setContextMenu(null)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu(null);
+              }}
+            ></div>
             <div className="iso-context-menu" style={{ left: contextMenu.x, top: contextMenu.y, zIndex: 99999 }}>
               {contextMenu.type === 'category' && (
                 <>
-                  <button className="iso-context-menu-item" onClick={() => {
-                    setRenameType('category');
-                    setRenameTargetId(contextMenu.id);
-                    setRenameValue(contextMenu.id);
-                    setRenameModalOpen(true);
-                    setContextMenu(null);
-                  }}>Rename</button>
-                  <div className="iso-context-menu-sep" />
-                  <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
-                    const next = customCategories.filter(c => c !== contextMenu.id);
-                    setCustomCategories(next);
-                    saveCustomCategoriesToDB(next);
-                    if (libraryCategory === contextMenu.id) setLibraryCategory('All Projects');
-
-                    setProjects(prev => prev.map(p => {
-                      if (p.settings?.category === contextMenu.id) {
-                        const newSettings = { ...p.settings, category: null };
-                        if (user) {
-                          import('./lib/projects.js').then(({ updateProject }) => {
-                            updateProject(user.id, p.id, { settings: newSettings });
-                          });
-                        }
-                        return { ...p, settings: newSettings };
-                      }
-                      return p;
-                    }));
-
-                    setContextMenu(null);
-                  }}>Delete Category</button>
-                </>
-              )}
-              {contextMenu.type === 'project' && (() => {
-                const project = projects.find(p => p.id === contextMenu.id);
-                const isFav = project?.settings?.is_favorite;
-                const currentFolder = project?.settings?.category;
-
-                return (
-                  <>
-                    <button className="iso-context-menu-item" onClick={() => {
-                      setRenameType('project');
+                  <button
+                    className="iso-context-menu-item"
+                    onClick={() => {
+                      setRenameType('category');
                       setRenameTargetId(contextMenu.id);
-                      setRenameValue(project?.name || '');
+                      setRenameValue(contextMenu.id);
                       setRenameModalOpen(true);
                       setContextMenu(null);
-                    }}>Rename</button>
-                    <button className="iso-context-menu-item" onClick={() => {
-                      if (project) {
-                        const currentSettings = project.settings || {};
-                        const nextFav = !currentSettings.is_favorite;
-                        const newSettings = { ...currentSettings, is_favorite: nextFav };
-                        import('./lib/projects.js').then(({ updateProject }) => {
-                          if (user) {
-                            updateProject(user.id, contextMenu.id, { settings: newSettings }).then(success => {
-                              if (success) {
-                                setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, settings: newSettings } : p));
-                                addToast(nextFav ? 'Added to Favorites' : 'Removed from Favorites');
+                    }}
+                  >
+                    Rename
+                  </button>
+                  <div className="iso-context-menu-sep" />
+                  <button
+                    className="iso-context-menu-item iso-context-menu-item--danger"
+                    onClick={() => {
+                      const next = customCategories.filter((c) => c !== contextMenu.id);
+                      setCustomCategories(next);
+                      saveCustomCategoriesToDB(next);
+                      if (libraryCategory === contextMenu.id) setLibraryCategory('All Projects');
+
+                      setProjects((prev) =>
+                        prev.map((p) => {
+                          if (p.settings?.category === contextMenu.id) {
+                            const newSettings = { ...p.settings, category: null };
+                            if (user) {
+                              import('./lib/projects.js').then(({ updateProject }) => {
+                                updateProject(user.id, p.id, { settings: newSettings });
+                              });
+                            }
+                            return { ...p, settings: newSettings };
+                          }
+                          return p;
+                        }),
+                      );
+
+                      setContextMenu(null);
+                    }}
+                  >
+                    Delete Category
+                  </button>
+                </>
+              )}
+              {contextMenu.type === 'project' &&
+                (() => {
+                  const project = projects.find((p) => p.id === contextMenu.id);
+                  const isFav = project?.settings?.is_favorite;
+                  const currentFolder = project?.settings?.category;
+
+                  return (
+                    <>
+                      <button
+                        className="iso-context-menu-item"
+                        onClick={() => {
+                          setRenameType('project');
+                          setRenameTargetId(contextMenu.id);
+                          setRenameValue(project?.name || '');
+                          setRenameModalOpen(true);
+                          setContextMenu(null);
+                        }}
+                      >
+                        Rename
+                      </button>
+                      <button
+                        className="iso-context-menu-item"
+                        onClick={() => {
+                          if (project) {
+                            const currentSettings = project.settings || {};
+                            const nextFav = !currentSettings.is_favorite;
+                            const newSettings = { ...currentSettings, is_favorite: nextFav };
+                            import('./lib/projects.js').then(({ updateProject }) => {
+                              if (user) {
+                                updateProject(user.id, contextMenu.id, { settings: newSettings }).then((success) => {
+                                  if (success) {
+                                    setProjects((prev) =>
+                                      prev.map((p) => (p.id === contextMenu.id ? { ...p, settings: newSettings } : p)),
+                                    );
+                                    addToast(nextFav ? 'Added to Favorites' : 'Removed from Favorites');
+                                  }
+                                });
                               }
                             });
                           }
-                        });
-                      }
-                      setContextMenu(null);
-                    }}>{isFav ? 'Remove from Favorites' : 'Add to Favorites'}</button>
-                    <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
-                      <button className="iso-context-menu-item" style={{ justifyContent: 'space-between', display: 'flex' }}>
-                        Add to Folder <span>▶</span>
+                          setContextMenu(null);
+                        }}
+                      >
+                        {isFav ? 'Remove from Favorites' : 'Add to Favorites'}
                       </button>
-                      <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--white)', border: '1px solid var(--iso-border-strong)', borderRadius: 'var(--iso-radius-lg)', padding: '4px', display: 'none', flexDirection: 'column', minWidth: '120px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
-                        {customCategories
-                          .filter(cat => cat.toLowerCase() !== 'favorites' && cat.toLowerCase() !== 'favourites')
-                          .map(cat => {
-                            const isCurrent = currentFolder === cat;
-                            return (
-                              <button
-                                key={cat}
-                                className="iso-context-menu-item"
-                                style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}
-                                onClick={() => {
-                                  if (project) {
-                                    const currentSettings = project.settings || {};
-                                    const newSettings = { ...currentSettings, category: isCurrent ? null : cat };
-                                    import('./lib/projects.js').then(({ updateProject }) => {
-                                      if (user) {
-                                        updateProject(user.id, contextMenu.id, { settings: newSettings }).then(success => {
-                                          if (success) {
-                                            setProjects(prev => prev.map(p => p.id === contextMenu.id ? { ...p, settings: newSettings } : p));
-                                            addToast(isCurrent ? `Removed from ${cat}` : `Added to ${cat}`);
-                                          }
-                                        });
-                                      }
-                                    });
-                                  }
-                                  setContextMenu(null);
-                                }}
-                              >
-                                {cat} {isCurrent && '✓'}
-                              </button>
-                            );
-                          })}
+                      <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
+                        <button
+                          className="iso-context-menu-item"
+                          style={{ justifyContent: 'space-between', display: 'flex' }}
+                        >
+                          Add to Folder <span>▶</span>
+                        </button>
+                        <div
+                          className="iso-menu-dropdown-submenu"
+                          style={{
+                            position: 'absolute',
+                            left: '100%',
+                            top: 0,
+                            background: 'var(--white)',
+                            border: '1px solid var(--iso-border-strong)',
+                            borderRadius: 'var(--iso-radius-lg)',
+                            padding: '4px',
+                            display: 'none',
+                            flexDirection: 'column',
+                            minWidth: '120px',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
+                          }}
+                        >
+                          {customCategories
+                            .filter((cat) => cat.toLowerCase() !== 'favorites' && cat.toLowerCase() !== 'favourites')
+                            .map((cat) => {
+                              const isCurrent = currentFolder === cat;
+                              return (
+                                <button
+                                  key={cat}
+                                  className="iso-context-menu-item"
+                                  style={{ fontWeight: isCurrent ? 'bold' : 'normal' }}
+                                  onClick={() => {
+                                    if (project) {
+                                      const currentSettings = project.settings || {};
+                                      const newSettings = { ...currentSettings, category: isCurrent ? null : cat };
+                                      import('./lib/projects.js').then(({ updateProject }) => {
+                                        if (user) {
+                                          updateProject(user.id, contextMenu.id, { settings: newSettings }).then(
+                                            (success) => {
+                                              if (success) {
+                                                setProjects((prev) =>
+                                                  prev.map((p) =>
+                                                    p.id === contextMenu.id ? { ...p, settings: newSettings } : p,
+                                                  ),
+                                                );
+                                                addToast(isCurrent ? `Removed from ${cat}` : `Added to ${cat}`);
+                                              }
+                                            },
+                                          );
+                                        }
+                                      });
+                                    }
+                                    setContextMenu(null);
+                                  }}
+                                >
+                                  {cat} {isCurrent && '✓'}
+                                </button>
+                              );
+                            })}
+                        </div>
                       </div>
-                    </div>
-                    <div className="iso-context-menu-sep" />
-                    <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
-                      setProjectToDelete(contextMenu.id);
-                      setContextMenu(null);
-                    }}>Delete Project</button>
-                  </>
-                );
-              })()}
+                      <div className="iso-context-menu-sep" />
+                      <button
+                        className="iso-context-menu-item iso-context-menu-item--danger"
+                        onClick={() => {
+                          setProjectToDelete(contextMenu.id);
+                          setContextMenu(null);
+                        }}
+                      >
+                        Delete Project
+                      </button>
+                    </>
+                  );
+                })()}
               {contextMenu.type === 'diagram' && (
                 <>
-                  <button className="iso-context-menu-item" onClick={() => {
-                    setRenameType('diagram');
-                    setRenameTargetId(contextMenu.id);
-                    setRenameValue(contextMenu.extra?.diagramName || '');
-                    setRenameModalOpen(true);
-                    setContextMenu(null);
-                  }}>Rename</button>
+                  <button
+                    className="iso-context-menu-item"
+                    onClick={() => {
+                      setRenameType('diagram');
+                      setRenameTargetId(contextMenu.id);
+                      setRenameValue(contextMenu.extra?.diagramName || '');
+                      setRenameModalOpen(true);
+                      setContextMenu(null);
+                    }}
+                  >
+                    Rename
+                  </button>
 
                   <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
-                    <button className="iso-context-menu-item" style={{ justifyContent: 'space-between', display: 'flex' }}>
+                    <button
+                      className="iso-context-menu-item"
+                      style={{ justifyContent: 'space-between', display: 'flex' }}
+                    >
                       Move to Project <span>▶</span>
                     </button>
-                    <div className="iso-menu-dropdown-submenu" style={{ position: 'absolute', left: '100%', top: 0, background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', display: 'none', flexDirection: 'column', minWidth: '160px', boxShadow: '0 8px 32px rgba(0,0,0,0.22)' }}>
+                    <div
+                      className="iso-menu-dropdown-submenu"
+                      style={{
+                        position: 'absolute',
+                        left: '100%',
+                        top: 0,
+                        background: 'var(--iso-bg-panel)',
+                        border: '1px solid var(--iso-border)',
+                        borderRadius: '4px',
+                        padding: '4px',
+                        display: 'none',
+                        flexDirection: 'column',
+                        minWidth: '160px',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
+                      }}
+                    >
                       {projects
-                        .filter(proj => proj.id !== contextMenu.extra?.projectId)
-                        .map(proj => (
+                        .filter((proj) => proj.id !== contextMenu.extra?.projectId)
+                        .map((proj) => (
                           <button
                             key={proj.id}
                             className="iso-context-menu-item"
                             onClick={() => {
                               import('./lib/projects.js').then(({ updateDiagram }) => {
-                                updateDiagram(contextMenu.id, { project_id: proj.id }).then(success => {
+                                updateDiagram(contextMenu.id, { project_id: proj.id }).then((success) => {
                                   if (success) {
-                                    setProjectDetailDiagrams(prev => prev.filter(d => d.id !== contextMenu.id));
-                                    setTabs(prev => prev.map(t => t.diagram_id === contextMenu.id ? { ...t, project_id: proj.id } : t));
+                                    setProjectDetailDiagrams((prev) => prev.filter((d) => d.id !== contextMenu.id));
+                                    setTabs((prev) =>
+                                      prev.map((t) =>
+                                        t.diagram_id === contextMenu.id ? { ...t, project_id: proj.id } : t,
+                                      ),
+                                    );
                                     addToast(`Moved to project ${proj.name}`);
                                   } else {
                                     addToast('Failed to move diagram', 'info');
@@ -2195,25 +2657,42 @@ export default function App() {
                             {proj.name}
                           </button>
                         ))}
-                      {projects.filter(proj => proj.id !== contextMenu.extra?.projectId).length === 0 && (
-                        <div style={{ padding: '8px 12px', fontSize: '12px', color: 'var(--iso-text-muted)', fontStyle: 'italic' }}>
+                      {projects.filter((proj) => proj.id !== contextMenu.extra?.projectId).length === 0 && (
+                        <div
+                          style={{
+                            padding: '8px 12px',
+                            fontSize: '12px',
+                            color: 'var(--iso-text-muted)',
+                            fontStyle: 'italic',
+                          }}
+                        >
                           No other projects
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <button className="iso-context-menu-item" onClick={() => {
-                    downloadDiagramFile(contextMenu.extra?.diagram);
-                    setContextMenu(null);
-                  }}>Download</button>
+                  <button
+                    className="iso-context-menu-item"
+                    onClick={() => {
+                      downloadDiagramFile(contextMenu.extra?.diagram);
+                      setContextMenu(null);
+                    }}
+                  >
+                    Download
+                  </button>
 
                   <div className="iso-context-menu-sep" />
 
-                  <button className="iso-context-menu-item iso-context-menu-item--danger" onClick={() => {
-                    setDiagramToDelete(contextMenu.extra?.diagram);
-                    setContextMenu(null);
-                  }}>Delete</button>
+                  <button
+                    className="iso-context-menu-item iso-context-menu-item--danger"
+                    onClick={() => {
+                      setDiagramToDelete(contextMenu.extra?.diagram);
+                      setContextMenu(null);
+                    }}
+                  >
+                    Delete
+                  </button>
                 </>
               )}
             </div>
@@ -2222,31 +2701,63 @@ export default function App() {
 
         {projectToDelete && (
           <div className="iso-modal-overlay" onClick={() => setProjectToDelete(null)}>
-            <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+            <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
               <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete Project</h3>
-              <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>Are you sure you want to delete this project? This action cannot be undone.</p>
+              <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>
+                Are you sure you want to delete this project? This action cannot be undone.
+              </p>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                <button className="iso-btn" onClick={() => setProjectToDelete(null)}>{t('ui.cancel')}</button>
-                <button className="iso-btn" style={{ background: 'var(--iso-danger)', color: '#fff', border: 'none' }} onClick={() => {
-                  import('./lib/supabase.js').then(({ supabase }) => {
-                    supabase.from('projects').delete().eq('id', projectToDelete).then(() => {
-                      setProjects(prev => prev.filter(p => p.id !== projectToDelete));
-                      setProjectToDelete(null);
-                      addToast('Project deleted successfully');
+                <button className="iso-btn" onClick={() => setProjectToDelete(null)}>
+                  {t('ui.cancel')}
+                </button>
+                <button
+                  className="iso-btn"
+                  style={{ background: 'var(--iso-danger)', color: '#fff', border: 'none' }}
+                  onClick={() => {
+                    import('./lib/supabase.js').then(({ supabase }) => {
+                      supabase
+                        .from('projects')
+                        .delete()
+                        .eq('id', projectToDelete)
+                        .then(() => {
+                          setProjects((prev) => prev.filter((p) => p.id !== projectToDelete));
+                          setProjectToDelete(null);
+                          addToast('Project deleted successfully');
+                        });
                     });
-                  });
-                }}>Delete</button>
+                  }}
+                >
+                  Delete
+                </button>
               </div>
             </div>
           </div>
         )}
 
         {renameModalOpen && (
-          <div className="iso-modal-overlay" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>
-            <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
-              <button className="iso-modal-close-btn" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>×</button>
+          <div
+            className="iso-modal-overlay"
+            onClick={() => {
+              setRenameModalOpen(false);
+              setRenameType(null);
+              setRenameTargetId(null);
+              setRenameValue('');
+            }}
+          >
+            <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
+              <button
+                className="iso-modal-close-btn"
+                onClick={() => {
+                  setRenameModalOpen(false);
+                  setRenameType(null);
+                  setRenameTargetId(null);
+                  setRenameValue('');
+                }}
+              >
+                ×
+              </button>
               <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>
-                Rename {renameType === 'project' ? 'Project' : (renameType === 'category' ? 'Category' : 'Diagram')}
+                Rename {renameType === 'project' ? 'Project' : renameType === 'category' ? 'Category' : 'Diagram'}
               </h3>
               <div className="iso-modal-field">
                 <label>New Name</label>
@@ -2254,8 +2765,14 @@ export default function App() {
                   type="text"
                   className="iso-input"
                   value={renameValue}
-                  onChange={e => setRenameValue(e.target.value)}
-                  placeholder={renameType === 'project' ? 'Project name...' : (renameType === 'category' ? 'Category name...' : 'Diagram name...')}
+                  onChange={(e) => setRenameValue(e.target.value)}
+                  placeholder={
+                    renameType === 'project'
+                      ? 'Project name...'
+                      : renameType === 'category'
+                        ? 'Category name...'
+                        : 'Diagram name...'
+                  }
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && renameValue.trim()) {
@@ -2265,8 +2782,22 @@ export default function App() {
                 />
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-                <button className="iso-btn" onClick={() => { setRenameModalOpen(false); setRenameType(null); setRenameTargetId(null); setRenameValue(''); }}>{t('ui.cancel')}</button>
-                <button className="iso-btn iso-btn--primary" disabled={!renameValue.trim()} onClick={handleRenameSubmit}>
+                <button
+                  className="iso-btn"
+                  onClick={() => {
+                    setRenameModalOpen(false);
+                    setRenameType(null);
+                    setRenameTargetId(null);
+                    setRenameValue('');
+                  }}
+                >
+                  {t('ui.cancel')}
+                </button>
+                <button
+                  className="iso-btn iso-btn--primary"
+                  disabled={!renameValue.trim()}
+                  onClick={handleRenameSubmit}
+                >
                   Rename
                 </button>
               </div>
@@ -2276,15 +2807,29 @@ export default function App() {
 
         {isRevertModalOpen && (
           <div className="iso-modal-overlay" onClick={() => setIsRevertModalOpen(false)}>
-            <div className="iso-modal" onClick={e => e.stopPropagation()}>
-              <form onSubmit={e => { e.preventDefault(); confirmRevertHistory(); }}>
+            <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  confirmRevertHistory();
+                }}
+              >
                 <h2 className="iso-modal-title">Revert to snapshot</h2>
                 <p className="iso-modal-desc" style={{ color: 'var(--iso-text-muted)' }}>
                   Are you sure you want to revert to this snapshot? This will permanently delete all newer saves.
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                  <button type="button" className="iso-btn" onClick={() => setIsRevertModalOpen(false)}>{t('ui.cancel')}</button>
-                  <button type="submit" className="iso-btn" style={{ background: 'var(--iso-error)', color: 'white', borderColor: 'var(--iso-error)' }} autoFocus>Revert</button>
+                  <button type="button" className="iso-btn" onClick={() => setIsRevertModalOpen(false)}>
+                    {t('ui.cancel')}
+                  </button>
+                  <button
+                    type="submit"
+                    className="iso-btn"
+                    style={{ background: 'var(--iso-error)', color: 'white', borderColor: 'var(--iso-error)' }}
+                    autoFocus
+                  >
+                    Revert
+                  </button>
                 </div>
               </form>
             </div>
@@ -2295,7 +2840,7 @@ export default function App() {
 
         {saveToCloudModalOpen && (
           <div className="iso-modal-overlay" onClick={() => setSaveToCloudModalOpen(false)}>
-            <div className="iso-modal" onClick={e => e.stopPropagation()}>
+            <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
               <h2 className="iso-modal-title">Save to Cloud</h2>
               <p className="iso-modal-desc">Select a project to save this diagram into.</p>
               <div className="iso-modal-field">
@@ -2304,7 +2849,7 @@ export default function App() {
                     className="iso-select"
                     style={{ flex: 1 }}
                     value={selectedProjectId}
-                    onChange={e => setSelectedProjectId(e.target.value)}
+                    onChange={(e) => setSelectedProjectId(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -2314,21 +2859,36 @@ export default function App() {
                     }}
                   >
                     <option value="">-- Select Project --</option>
-                    {projects.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
                     ))}
                   </select>
-                  <button className="iso-btn" onClick={() => {
-                    setNewModalTab('project');
-                    setIsNewModalOpen(true);
-                    setSaveToCloudModalOpen(false);
-                    setIsSavingFlow(true);
-                  }}>New Project</button>
+                  <button
+                    className="iso-btn"
+                    onClick={() => {
+                      setNewModalTab('project');
+                      setIsNewModalOpen(true);
+                      setSaveToCloudModalOpen(false);
+                      setIsSavingFlow(true);
+                    }}
+                  >
+                    New Project
+                  </button>
                 </div>
               </div>
               <div className="iso-modal-actions">
-                <button className="iso-modal-btn cancel" onClick={() => setSaveToCloudModalOpen(false)}>{t('ui.cancel')}</button>
-                <button className="iso-modal-btn confirm" disabled={!selectedProjectId || isSavingToCloud} onClick={handleSaveToCloudSubmit}>{isSavingToCloud ? 'Saving...' : 'Save'}</button>
+                <button className="iso-modal-btn cancel" onClick={() => setSaveToCloudModalOpen(false)}>
+                  {t('ui.cancel')}
+                </button>
+                <button
+                  className="iso-modal-btn confirm"
+                  disabled={!selectedProjectId || isSavingToCloud}
+                  onClick={handleSaveToCloudSubmit}
+                >
+                  {isSavingToCloud ? 'Saving...' : 'Save'}
+                </button>
               </div>
             </div>
           </div>
@@ -2347,7 +2907,7 @@ export default function App() {
 
         {toasts.length > 0 && (
           <div className="iso-toast-container">
-            {toasts.map(t => (
+            {toasts.map((t) => (
               <div key={t.id} className="iso-toast">
                 {t.type === 'success' && <span style={{ color: 'var(--iso-success, #4caf50)' }}>✓</span>}
                 {t.message}
@@ -2368,9 +2928,23 @@ export default function App() {
           </button>
         </header>
         {isRedeeming ? (
-          <div className="iso-empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-            <div className="iso-spinner" style={{ width: '40px', height: '40px', borderWidth: '3px', marginBottom: '16px' }} />
-            <p style={{ color: 'var(--iso-text-muted)', fontSize: '14px' }}>{t('share.loading') || 'Loading shared diagram...'}</p>
+          <div
+            className="iso-empty-state"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '60vh',
+            }}
+          >
+            <div
+              className="iso-spinner"
+              style={{ width: '40px', height: '40px', borderWidth: '3px', marginBottom: '16px' }}
+            />
+            <p style={{ color: 'var(--iso-text-muted)', fontSize: '14px' }}>
+              {t('share.loading') || 'Loading shared diagram...'}
+            </p>
           </div>
         ) : (
           <div className="iso-empty-state">
@@ -2378,40 +2952,75 @@ export default function App() {
             <p className="iso-empty-copy">{t('welcome.description')}</p>
             <div className="iso-empty-actions">
               <div className="iso-empty-group">
-                <select className="iso-modal-select" style={{ marginBottom: 0, padding: '8px 12px' }} value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
-                  {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                    <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
+                <select
+                  className="iso-modal-select"
+                  style={{ marginBottom: 0, padding: '8px 12px' }}
+                  value={newDiagramKind}
+                  onChange={(e) => setNewDiagramKind(e.target.value as DiagramKind)}
+                >
+                  {DIAGRAM_KINDS.filter((k) => k !== 'all').map((k) => (
+                    <option key={k} value={k}>
+                      {t(`diagram_type.${k}`)}
+                    </option>
                   ))}
                 </select>
-                <button className="iso-btn iso-btn--primary" style={{ padding: '8px 16px', justifyContent: 'center' }} onClick={() => executeNewDiagram(newDiagramKind)}>
+                <button
+                  className="iso-btn iso-btn--primary"
+                  style={{ padding: '8px 16px', justifyContent: 'center' }}
+                  onClick={() => executeNewDiagram(newDiagramKind)}
+                >
                   {t('welcome.create_new')}
                 </button>
               </div>
               <div className="iso-empty-divider" aria-hidden="true"></div>
               <div className="iso-empty-group iso-empty-group--secondary">
-                <button className="iso-btn" style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }} onClick={() => { setLibraryInitialTab('open_folder'); setIsLibraryOpen(true); }}>
+                <button
+                  className="iso-btn"
+                  style={{ padding: '8px 16px', minHeight: '36px', justifyContent: 'center' }}
+                  onClick={() => {
+                    setLibraryInitialTab('open_folder');
+                    setIsLibraryOpen(true);
+                  }}
+                >
                   {t('welcome.open_existing')}
                 </button>
               </div>
             </div>
-            <input ref={fileInputRef} type="file" accept=".isx" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".isx"
+              onChange={handleFileOpen}
+              style={{ display: 'none' }}
+              tabIndex={-1}
+            />
           </div>
         )}
 
         {/* ──────────────── MODALS (Empty State) ───────────────── */}
         {isNewModalOpen && (
           <div className="iso-modal-overlay" onClick={() => setIsNewModalOpen(false)}>
-            <div className="iso-modal" onClick={e => e.stopPropagation()}>
+            <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
               <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
-              <p className="iso-modal-desc">{t('Select the type of diagram you\'d like to create.')}</p>
-              <select className="iso-modal-select" value={newDiagramKind} onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}>
-                {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                  <option key={k} value={k}>{t(`diagram_type.${k}`)}</option>
+              <p className="iso-modal-desc">{t("Select the type of diagram you'd like to create.")}</p>
+              <select
+                className="iso-modal-select"
+                value={newDiagramKind}
+                onChange={(e) => setNewDiagramKind(e.target.value as DiagramKind)}
+              >
+                {DIAGRAM_KINDS.filter((k) => k !== 'all').map((k) => (
+                  <option key={k} value={k}>
+                    {t(`diagram_type.${k}`)}
+                  </option>
                 ))}
               </select>
               <div className="iso-modal-actions">
-                <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>{t('ui.cancel')}</button>
-                <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
+                <button className="iso-modal-btn cancel" onClick={() => setIsNewModalOpen(false)}>
+                  {t('ui.cancel')}
+                </button>
+                <button className="iso-modal-btn confirm" onClick={() => executeNewDiagram(newDiagramKind)}>
+                  {t('ui.create')}
+                </button>
               </div>
             </div>
           </div>
@@ -2469,44 +3078,53 @@ export default function App() {
       {isMobileLayout && (
         <>
           <div className="iso-mobile-meta">
-            {activeDiagram && (
-              <div className="iso-kind-badge iso-kind-badge--mobile">
-                {activeDiagram.kind}
-              </div>
-            )}
+            {activeDiagram && <div className="iso-kind-badge iso-kind-badge--mobile">{activeDiagram.kind}</div>}
           </div>
 
           {tabs.length > 1 && (
             <div className="iso-mobile-strip">
               <nav className="iso-tabs" aria-label={t('tabs.open_files')}>
-                {tabs.map(tab => (
+                {tabs.map((tab) => (
                   <div
                     key={tab.id}
                     className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
                     onClick={() => {
                       setActiveTabId(tab.id);
                     }}
-                    onDoubleClick={() => { if (!tab.project_role || tab.project_role === 'owner') setRenamingTabId(tab.id); }}
+                    onDoubleClick={() => {
+                      if (!tab.project_role || tab.project_role === 'owner') setRenamingTabId(tab.id);
+                    }}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
                     {renamingTabId === tab.id ? (
                       <span style={{ display: 'flex', alignItems: 'center' }}>
                         <input
                           autoFocus
-                          defaultValue={tab.name.includes('.') ? tab.name.substring(0, tab.name.lastIndexOf('.')) : tab.name}
+                          defaultValue={
+                            tab.name.includes('.') ? tab.name.substring(0, tab.name.lastIndexOf('.')) : tab.name
+                          }
                           className="iso-tab-rename-input"
-                          style={{ background: 'transparent', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', outline: 'none', width: '80px', borderBottom: '1px solid currentColor' }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'inherit',
+                            fontFamily: 'inherit',
+                            fontSize: 'inherit',
+                            outline: 'none',
+                            width: '80px',
+                            borderBottom: '1px solid currentColor',
+                          }}
                           onBlur={(e) => {
                             const ext = tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : '';
                             const newName = e.target.value ? e.target.value + ext : tab.name;
-                            setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, name: newName } : t));
+                            setTabs((prev) => prev.map((t) => (t.id === tab.id ? { ...t, name: newName } : t)));
                             setRenamingTabId(null);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') e.currentTarget.blur();
                             if (e.key === 'Escape') setRenamingTabId(null);
                           }}
-                          onClick={e => e.stopPropagation()}
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <span>{tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : ''}</span>
                       </span>
@@ -2514,7 +3132,7 @@ export default function App() {
                       <>
                         <span
                           style={{ cursor: activeTab?.project_id ? 'pointer' : 'default' }}
-                          data-tooltip={activeTab?.project_id ? "Double click to rename project" : undefined}
+                          data-tooltip={activeTab?.project_id ? 'Double click to rename project' : undefined}
                         >
                           {tab.name}
                         </span>
@@ -2522,7 +3140,19 @@ export default function App() {
                           <button
                             type="button"
                             aria-label={t('tabs.close_name', { name: tab.name })}
-                            style={{ all: 'unset', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 16, borderRadius: 4, opacity: 0.75, fontSize: 13, lineHeight: 1, cursor: 'pointer' }}
+                            style={{
+                              all: 'unset',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 16,
+                              height: 16,
+                              borderRadius: 4,
+                              opacity: 0.75,
+                              fontSize: 13,
+                              lineHeight: 1,
+                              cursor: 'pointer',
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               setTabToClose(tab.id);
@@ -2539,8 +3169,6 @@ export default function App() {
             </div>
           )}
 
-
-
           <div className="iso-mobile-actions">
             <div className="iso-mobile-actions-group">
               {(!activeTab?.project_id || activeTab?.project_role === 'owner') && (
@@ -2549,7 +3177,14 @@ export default function App() {
                     <IconNew />
                     {t('menu.new')}
                   </button>
-                  <button type="button" className="iso-btn" onClick={() => { setLibraryInitialTab('my'); setIsLibraryOpen(true); }}>
+                  <button
+                    type="button"
+                    className="iso-btn"
+                    onClick={() => {
+                      setLibraryInitialTab('my');
+                      setIsLibraryOpen(true);
+                    }}
+                  >
                     <IconOpen />
                     {t('menu.open')}
                   </button>
@@ -2566,7 +3201,7 @@ export default function App() {
                 <button
                   type="button"
                   className="iso-btn"
-                  onClick={() => setIsAnimating(a => !a)}
+                  onClick={() => setIsAnimating((a) => !a)}
                   style={{ color: isAnimating ? 'var(--iso-accent)' : 'inherit' }}
                 >
                   {isAnimating ? '⏸' : '▶'} {isAnimating ? t('ui.pause') : t('ui.play')}
@@ -2576,7 +3211,7 @@ export default function App() {
                 <button
                   type="button"
                   className="iso-btn"
-                  onClick={() => setExportMenuOpen(o => !o)}
+                  onClick={() => setExportMenuOpen((o) => !o)}
                   disabled={!activeDiagram}
                 >
                   <IconExport />
@@ -2614,18 +3249,25 @@ export default function App() {
                 <IconSave />
                 {t('menu.save')}
               </button>
-              <button type="button" className="iso-btn iso-btn--icon" onClick={() => setShortcutsOpen(o => !o)} aria-label={t('ui.shortcuts')}>
+              <button
+                type="button"
+                className="iso-btn iso-btn--icon"
+                onClick={() => setShortcutsOpen((o) => !o)}
+                aria-label={t('ui.shortcuts')}
+              >
                 <IconKeyboard />
               </button>
               <select
                 className="iso-select"
                 aria-label={t('ui.language')}
                 value={language}
-                onChange={e => setLanguage(e.target.value as Language)}
+                onChange={(e) => setLanguage(e.target.value as Language)}
                 style={{ width: 'auto', minHeight: 32 }}
               >
-                {LANGUAGE_OPTIONS.map(option => (
-                  <option key={option.code} value={option.code}>{option.label}</option>
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
                 ))}
               </select>
               <button
@@ -2642,7 +3284,7 @@ export default function App() {
                 {themeMode === 'light' ? <IconMoon /> : <IconSun />}
               </button>
               <label className="iso-mobile-toggle">
-                <input type="checkbox" checked={isUMLCompliant} onChange={e => setIsUMLCompliant(e.target.checked)} />
+                <input type="checkbox" checked={isUMLCompliant} onChange={(e) => setIsUMLCompliant(e.target.checked)} />
                 {t('ui.strict_uml')}
               </label>
             </div>
@@ -2678,25 +3320,37 @@ export default function App() {
           </div>
         ) : (
           <>
-            <div style={{
-              width: (isHistoryOpen || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? 0 : 'var(--iso-sidebar-width, 200px)',
-              overflow: 'hidden',
-              transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
-              opacity: (isHistoryOpen || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? 0 : 1,
-              flexShrink: 0
-            }}>
-              {(activeTab?.project_role !== 'viewer' && activeTab?.project_role !== 'commenter') && <Sidebar activeDiagram={activeDiagram} activeTab={activeTab} t={t} />}
+            <div
+              style={{
+                width:
+                  isHistoryOpen || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+                    ? 0
+                    : 'var(--iso-sidebar-width, 200px)',
+                overflow: 'hidden',
+                transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
+                opacity:
+                  isHistoryOpen || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter'
+                    ? 0
+                    : 1,
+                flexShrink: 0,
+              }}
+            >
+              {activeTab?.project_role !== 'viewer' && activeTab?.project_role !== 'commenter' && (
+                <Sidebar activeDiagram={activeDiagram} activeTab={activeTab} t={t} />
+              )}
             </div>
             <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
-            <div style={{
-              width: isHistoryOpen ? 'var(--iso-sidebar-width, 200px)' : 0,
-              overflow: 'hidden',
-              transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
-              opacity: isHistoryOpen ? 1 : 0,
-              flexShrink: 0,
-              borderLeft: isHistoryOpen ? '1px solid var(--iso-border)' : 'none',
-              background: 'var(--iso-bg-sidebar)'
-            }}>
+            <div
+              style={{
+                width: isHistoryOpen ? 'var(--iso-sidebar-width, 200px)' : 0,
+                overflow: 'hidden',
+                transition: 'width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), opacity 0.3s ease',
+                opacity: isHistoryOpen ? 1 : 0,
+                flexShrink: 0,
+                borderLeft: isHistoryOpen ? '1px solid var(--iso-border)' : 'none',
+                background: 'var(--iso-bg-sidebar)',
+              }}
+            >
               <HistoryPane
                 diagramHistoryList={diagramHistoryList}
                 selectedHistoryId={selectedHistoryId}
@@ -2711,11 +3365,16 @@ export default function App() {
 
       {editingEntity && (
         <div className="iso-modal-overlay" onClick={() => setEditingEntity(null)}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()}>
+          <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{t('edit.entity_title')}</h3>
             <div className="iso-modal-field">
               <label>{t('edit.name')}</label>
-              <input type="text" value={editingEntity.name} onChange={e => setEditingEntity({ ...editingEntity, name: e.target.value })} autoFocus={!isMobileLayout && editingEntity.kind !== 'note'} />
+              <input
+                type="text"
+                value={editingEntity.name}
+                onChange={(e) => setEditingEntity({ ...editingEntity, name: e.target.value })}
+                autoFocus={!isMobileLayout && editingEntity.kind !== 'note'}
+              />
             </div>
 
             {editingEntity.kind === 'note' ? (
@@ -2723,89 +3382,193 @@ export default function App() {
                 <label style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
                   <span>{t('edit.body')} (Markdown)</span>
                   <div style={{ display: 'flex', gap: '4px', userSelect: 'none' }}>
-                    <button type="button" className="iso-btn" title="Bold (Ctrl+B)" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', fontWeight: 'bold' }} onClick={(e) => {
-                      e.stopPropagation();
-                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
-                      if (!target) return;
-                      const start = target.selectionStart;
-                      const end = target.selectionEnd;
-                      const val = target.value;
-                      const prefix = '**'; const suffix = '**';
-                      let newVal = val, newStart = start, newEnd = end;
-                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
-                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
-                        newStart = start - prefix.length; newEnd = end - prefix.length;
-                      } else {
-                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
-                        newStart = start + prefix.length; newEnd = end + prefix.length;
-                      }
-                      setEditingEntity({ ...editingEntity, bodyText: newVal });
-                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
-                    }}>B</button>
-                    <button type="button" className="iso-btn" title="Italic (Ctrl+I)" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', fontStyle: 'italic' }} onClick={(e) => {
-                      e.stopPropagation();
-                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
-                      if (!target) return;
-                      const start = target.selectionStart;
-                      const end = target.selectionEnd;
-                      const val = target.value;
-                      const prefix = '*'; const suffix = '*';
-                      let newVal = val, newStart = start, newEnd = end;
-                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
-                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
-                        newStart = start - prefix.length; newEnd = end - prefix.length;
-                      } else {
-                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
-                        newStart = start + prefix.length; newEnd = end + prefix.length;
-                      }
-                      setEditingEntity({ ...editingEntity, bodyText: newVal });
-                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
-                    }}>I</button>
-                    <button type="button" className="iso-btn" title="Underline (Ctrl+U)" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', textDecoration: 'underline' }} onClick={(e) => {
-                      e.stopPropagation();
-                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
-                      if (!target) return;
-                      const start = target.selectionStart;
-                      const end = target.selectionEnd;
-                      const val = target.value;
-                      const prefix = '__'; const suffix = '__';
-                      let newVal = val, newStart = start, newEnd = end;
-                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
-                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
-                        newStart = start - prefix.length; newEnd = end - prefix.length;
-                      } else {
-                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
-                        newStart = start + prefix.length; newEnd = end + prefix.length;
-                      }
-                      setEditingEntity({ ...editingEntity, bodyText: newVal });
-                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
-                    }}>U</button>
-                    <button type="button" className="iso-btn" title="Strikethrough" onMouseDown={e => e.preventDefault()} style={{ padding: '2px 8px', textDecoration: 'line-through' }} onClick={(e) => {
-                      e.stopPropagation();
-                      const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
-                      if (!target) return;
-                      const start = target.selectionStart;
-                      const end = target.selectionEnd;
-                      const val = target.value;
-                      const prefix = '~~'; const suffix = '~~';
-                      let newVal = val, newStart = start, newEnd = end;
-                      if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
-                        newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
-                        newStart = start - prefix.length; newEnd = end - prefix.length;
-                      } else {
-                        newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
-                        newStart = start + prefix.length; newEnd = end + prefix.length;
-                      }
-                      setEditingEntity({ ...editingEntity, bodyText: newVal });
-                      setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
-                    }}>S</button>
+                    <button
+                      type="button"
+                      className="iso-btn"
+                      title="Bold (Ctrl+B)"
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ padding: '2px 8px', fontWeight: 'bold' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                        if (!target) return;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const val = target.value;
+                        const prefix = '**';
+                        const suffix = '**';
+                        let newVal = val,
+                          newStart = start,
+                          newEnd = end;
+                        if (
+                          start >= prefix.length &&
+                          end <= val.length - suffix.length &&
+                          val.substring(start - prefix.length, start) === prefix &&
+                          val.substring(end, end + suffix.length) === suffix
+                        ) {
+                          newVal =
+                            val.substring(0, start - prefix.length) +
+                            val.substring(start, end) +
+                            val.substring(end + suffix.length);
+                          newStart = start - prefix.length;
+                          newEnd = end - prefix.length;
+                        } else {
+                          newVal =
+                            val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                          newStart = start + prefix.length;
+                          newEnd = end + prefix.length;
+                        }
+                        setEditingEntity({ ...editingEntity, bodyText: newVal });
+                        setTimeout(() => {
+                          target.focus();
+                          target.setSelectionRange(newStart, newEnd);
+                        }, 0);
+                      }}
+                    >
+                      B
+                    </button>
+                    <button
+                      type="button"
+                      className="iso-btn"
+                      title="Italic (Ctrl+I)"
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ padding: '2px 8px', fontStyle: 'italic' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                        if (!target) return;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const val = target.value;
+                        const prefix = '*';
+                        const suffix = '*';
+                        let newVal = val,
+                          newStart = start,
+                          newEnd = end;
+                        if (
+                          start >= prefix.length &&
+                          end <= val.length - suffix.length &&
+                          val.substring(start - prefix.length, start) === prefix &&
+                          val.substring(end, end + suffix.length) === suffix
+                        ) {
+                          newVal =
+                            val.substring(0, start - prefix.length) +
+                            val.substring(start, end) +
+                            val.substring(end + suffix.length);
+                          newStart = start - prefix.length;
+                          newEnd = end - prefix.length;
+                        } else {
+                          newVal =
+                            val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                          newStart = start + prefix.length;
+                          newEnd = end + prefix.length;
+                        }
+                        setEditingEntity({ ...editingEntity, bodyText: newVal });
+                        setTimeout(() => {
+                          target.focus();
+                          target.setSelectionRange(newStart, newEnd);
+                        }, 0);
+                      }}
+                    >
+                      I
+                    </button>
+                    <button
+                      type="button"
+                      className="iso-btn"
+                      title="Underline (Ctrl+U)"
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ padding: '2px 8px', textDecoration: 'underline' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                        if (!target) return;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const val = target.value;
+                        const prefix = '__';
+                        const suffix = '__';
+                        let newVal = val,
+                          newStart = start,
+                          newEnd = end;
+                        if (
+                          start >= prefix.length &&
+                          end <= val.length - suffix.length &&
+                          val.substring(start - prefix.length, start) === prefix &&
+                          val.substring(end, end + suffix.length) === suffix
+                        ) {
+                          newVal =
+                            val.substring(0, start - prefix.length) +
+                            val.substring(start, end) +
+                            val.substring(end + suffix.length);
+                          newStart = start - prefix.length;
+                          newEnd = end - prefix.length;
+                        } else {
+                          newVal =
+                            val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                          newStart = start + prefix.length;
+                          newEnd = end + prefix.length;
+                        }
+                        setEditingEntity({ ...editingEntity, bodyText: newVal });
+                        setTimeout(() => {
+                          target.focus();
+                          target.setSelectionRange(newStart, newEnd);
+                        }, 0);
+                      }}
+                    >
+                      U
+                    </button>
+                    <button
+                      type="button"
+                      className="iso-btn"
+                      title="Strikethrough"
+                      onMouseDown={(e) => e.preventDefault()}
+                      style={{ padding: '2px 8px', textDecoration: 'line-through' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const target = document.getElementById('note-body-textarea') as HTMLTextAreaElement;
+                        if (!target) return;
+                        const start = target.selectionStart;
+                        const end = target.selectionEnd;
+                        const val = target.value;
+                        const prefix = '~~';
+                        const suffix = '~~';
+                        let newVal = val,
+                          newStart = start,
+                          newEnd = end;
+                        if (
+                          start >= prefix.length &&
+                          end <= val.length - suffix.length &&
+                          val.substring(start - prefix.length, start) === prefix &&
+                          val.substring(end, end + suffix.length) === suffix
+                        ) {
+                          newVal =
+                            val.substring(0, start - prefix.length) +
+                            val.substring(start, end) +
+                            val.substring(end + suffix.length);
+                          newStart = start - prefix.length;
+                          newEnd = end - prefix.length;
+                        } else {
+                          newVal =
+                            val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                          newStart = start + prefix.length;
+                          newEnd = end + prefix.length;
+                        }
+                        setEditingEntity({ ...editingEntity, bodyText: newVal });
+                        setTimeout(() => {
+                          target.focus();
+                          target.setSelectionRange(newStart, newEnd);
+                        }, 0);
+                      }}
+                    >
+                      S
+                    </button>
                   </div>
                 </label>
                 <textarea
                   id="note-body-textarea"
                   value={editingEntity.bodyText ?? ''}
-                  onChange={e => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
-                  onKeyDown={e => {
+                  onChange={(e) => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
+                  onKeyDown={(e) => {
                     if (e.ctrlKey && !e.shiftKey) {
                       const target = e.target as HTMLTextAreaElement;
                       const start = target.selectionStart;
@@ -2813,16 +3576,32 @@ export default function App() {
                       const val = target.value;
 
                       const toggleFormat = (prefix: string, suffix: string) => {
-                        let newVal = val, newStart = start, newEnd = end;
-                        if (start >= prefix.length && end <= val.length - suffix.length && val.substring(start - prefix.length, start) === prefix && val.substring(end, end + suffix.length) === suffix) {
-                          newVal = val.substring(0, start - prefix.length) + val.substring(start, end) + val.substring(end + suffix.length);
-                          newStart = start - prefix.length; newEnd = end - prefix.length;
+                        let newVal = val,
+                          newStart = start,
+                          newEnd = end;
+                        if (
+                          start >= prefix.length &&
+                          end <= val.length - suffix.length &&
+                          val.substring(start - prefix.length, start) === prefix &&
+                          val.substring(end, end + suffix.length) === suffix
+                        ) {
+                          newVal =
+                            val.substring(0, start - prefix.length) +
+                            val.substring(start, end) +
+                            val.substring(end + suffix.length);
+                          newStart = start - prefix.length;
+                          newEnd = end - prefix.length;
                         } else {
-                          newVal = val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
-                          newStart = start + prefix.length; newEnd = end + prefix.length;
+                          newVal =
+                            val.substring(0, start) + prefix + val.substring(start, end) + suffix + val.substring(end);
+                          newStart = start + prefix.length;
+                          newEnd = end + prefix.length;
                         }
                         setEditingEntity({ ...editingEntity, bodyText: newVal });
-                        setTimeout(() => { target.focus(); target.setSelectionRange(newStart, newEnd); }, 0);
+                        setTimeout(() => {
+                          target.focus();
+                          target.setSelectionRange(newStart, newEnd);
+                        }, 0);
                       };
 
                       if (e.key === 'b') {
@@ -2837,7 +3616,13 @@ export default function App() {
                       }
                     }
                   }}
-                  style={{ width: '100%', minHeight: '200px', fontFamily: 'monospace', padding: '0.5rem', resize: 'vertical' }}
+                  style={{
+                    width: '100%',
+                    minHeight: '200px',
+                    fontFamily: 'monospace',
+                    padding: '0.5rem',
+                    resize: 'vertical',
+                  }}
                   autoFocus={!isMobileLayout}
                 />
               </div>
@@ -2849,19 +3634,35 @@ export default function App() {
                 </div>
                 {entitySupportsStereotype(editingEntity.kind) && (
                   <div className="iso-modal-field">
-                    <label>{['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind) ? 'Caption' : t('edit.stereotype')}</label>
-                    <input type="text" value={editingEntity.stereotype} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.value })} placeholder={['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind) ? 'e.g. cond' : t('edit.eg_device')} />
+                    <label>
+                      {['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind)
+                        ? 'Caption'
+                        : t('edit.stereotype')}
+                    </label>
+                    <input
+                      type="text"
+                      value={editingEntity.stereotype}
+                      onChange={(e) => setEditingEntity({ ...editingEntity, stereotype: e.target.value })}
+                      placeholder={
+                        ['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind)
+                          ? 'e.g. cond'
+                          : t('edit.eg_device')
+                      }
+                    />
                   </div>
                 )}
                 {['alt', 'par'].includes(editingEntity.kind) && (
-                  <div className="iso-modal-field" style={{ flexDirection: 'column', alignItems: 'flex-start', paddingTop: '0.5rem' }}>
+                  <div
+                    className="iso-modal-field"
+                    style={{ flexDirection: 'column', alignItems: 'flex-start', paddingTop: '0.5rem' }}
+                  >
                     <label style={{ marginBottom: '0.5rem' }}>Substates (Else Branches)</label>
                     {(editingEntity.elseBlocks || []).map((b, i) => (
                       <div key={i} style={{ display: 'flex', gap: '0.5rem', width: '100%', marginBottom: '0.5rem' }}>
                         <input
                           type="text"
                           value={b.label || ''}
-                          onChange={e => {
+                          onChange={(e) => {
                             const newBlocks = [...(editingEntity.elseBlocks || [])];
                             newBlocks[i] = { ...newBlocks[i], label: e.target.value };
                             setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
@@ -2877,7 +3678,9 @@ export default function App() {
                             const newBlocks = (editingEntity.elseBlocks || []).filter((_, idx) => idx !== i);
                             setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
                           }}
-                        >-</button>
+                        >
+                          -
+                        </button>
                       </div>
                     ))}
                     <button
@@ -2895,76 +3698,324 @@ export default function App() {
                 )}
                 {['class', 'interface'].includes(editingEntity.kind) && (
                   <div className="iso-modal-field">
-                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
-                      <input type="checkbox" checked={editingEntity.isAbstract} onChange={e => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })} style={{ margin: 0 }} />
+                    <label
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={editingEntity.isAbstract}
+                        onChange={(e) => setEditingEntity({ ...editingEntity, isAbstract: e.target.checked })}
+                        style={{ margin: 0 }}
+                      />
                       {t('edit.abstract')}
                     </label>
                   </div>
                 )}
-                {editingEntity.kind === 'interface' && ['component', 'deployment'].includes(activeDiagram?.kind || '') && (
-                  <div className="iso-modal-field">
-                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}>
-                      <input type="checkbox" checked={editingEntity.stereotype === 'lollipop'} onChange={e => setEditingEntity({ ...editingEntity, stereotype: e.target.checked ? 'lollipop' : '' })} style={{ margin: 0 }} />
-                      {t('edit.lollipop')}
-                    </label>
-                  </div>
-                )}
-                {[
-                  'class', 'interface', 'enum', 'struct', 'component', 'node', 'device',
-                  'environment', 'state', 'activity', 'usecase', 'actor', 'multiobject',
-                  'active_object', 'collaboration', 'composite', 'concurrent', 'artifact'
-                ].includes(editingEntity.kind) && (
-                    <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}>
-                        <label>{t('edit.body')}</label>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                          {['enum'].includes(editingEntity.kind) && (
-                            <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'NEW_VALUE' } : null); }}>{t('edit.enum_value')}</button>
-                          )}
-                          {['usecase'].includes(editingEntity.kind) && (
-                            <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'extensionPoint' } : null); }}>{t('edit.ext_pt')}</button>
-                          )}
-                          {['class', 'interface'].includes(editingEntity.kind) && (
-                            <>
-                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newField : string' } : null); }}>{t('edit.pub_field')}</button>
-                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '- newField : string' } : null); }}>{t('edit.priv_field')}</button>
-                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newMethod() : void' } : null); }}>{t('edit.pub_method')}</button>
-                            </>
-                          )}
-                          {['node', 'device', 'environment', 'component'].includes(editingEntity.kind) && (
-                            <>
-                              {activeDiagram?.kind !== 'component' && (
-                                <>
-                                  <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'node NewNode' } : null); }}>{t('edit.node')}</button>
-                                  <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'artifact NewArtifact' } : null); }}>{t('edit.artifact')}</button>
-                                </>
-                              )}
-                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port1 : provided' } : null); }}>{t('edit.port_prov')}</button>
-                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port2 : required' } : null); }}>{t('edit.port_req')}</button>
-                            </>
-                          )}
-                          {['state', 'composite', 'concurrent'].includes(editingEntity.kind) && (
-                            <>
-                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'entry() : void' } : null); }}>{t('edit.entry')}</button>
-                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'exit() : void' } : null); }}>{t('edit.exit')}</button>
-                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'do() : void' } : null); }}>{t('edit.do')}</button>
-                              <button type="button" className="iso-btn" style={{ fontSize: 10, padding: '2px 6px' }} onClick={(e) => { e.stopPropagation(); setEditingEntity(e => e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'state SubState' } : null); }}>{t('edit.substate')}</button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <textarea
-                        value={editingEntity.bodyText ?? ''}
-                        onChange={e => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
-                        style={{ width: '100%', minHeight: '120px', fontFamily: 'monospace', padding: '0.5rem', resize: 'vertical' }}
-                      />
+                {editingEntity.kind === 'interface' &&
+                  ['component', 'deployment'].includes(activeDiagram?.kind || '') && (
+                    <div className="iso-modal-field">
+                      <label
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '0.5rem' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={editingEntity.stereotype === 'lollipop'}
+                          onChange={(e) =>
+                            setEditingEntity({ ...editingEntity, stereotype: e.target.checked ? 'lollipop' : '' })
+                          }
+                          style={{ margin: 0 }}
+                        />
+                        {t('edit.lollipop')}
+                      </label>
                     </div>
                   )}
+                {[
+                  'class',
+                  'interface',
+                  'enum',
+                  'struct',
+                  'component',
+                  'node',
+                  'device',
+                  'environment',
+                  'state',
+                  'activity',
+                  'usecase',
+                  'actor',
+                  'multiobject',
+                  'active_object',
+                  'collaboration',
+                  'composite',
+                  'concurrent',
+                  'artifact',
+                ].includes(editingEntity.kind) && (
+                  <div className="iso-modal-field" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
+                    <div
+                      style={{ display: 'flex', justifyContent: 'space-between', width: '100%', marginBottom: '4px' }}
+                    >
+                      <label>{t('edit.body')}</label>
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {['enum'].includes(editingEntity.kind) && (
+                          <button
+                            type="button"
+                            className="iso-btn"
+                            style={{ fontSize: 10, padding: '2px 6px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingEntity((e) =>
+                                e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'NEW_VALUE' } : null,
+                              );
+                            }}
+                          >
+                            {t('edit.enum_value')}
+                          </button>
+                        )}
+                        {['usecase'].includes(editingEntity.kind) && (
+                          <button
+                            type="button"
+                            className="iso-btn"
+                            style={{ fontSize: 10, padding: '2px 6px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingEntity((e) =>
+                                e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'extensionPoint' } : null,
+                              );
+                            }}
+                          >
+                            {t('edit.ext_pt')}
+                          </button>
+                        )}
+                        {['class', 'interface'].includes(editingEntity.kind) && (
+                          <>
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ fontSize: 10, padding: '2px 6px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntity((e) =>
+                                  e
+                                    ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newField : string' }
+                                    : null,
+                                );
+                              }}
+                            >
+                              {t('edit.pub_field')}
+                            </button>
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ fontSize: 10, padding: '2px 6px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntity((e) =>
+                                  e
+                                    ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '- newField : string' }
+                                    : null,
+                                );
+                              }}
+                            >
+                              {t('edit.priv_field')}
+                            </button>
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ fontSize: 10, padding: '2px 6px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntity((e) =>
+                                  e
+                                    ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ newMethod() : void' }
+                                    : null,
+                                );
+                              }}
+                            >
+                              {t('edit.pub_method')}
+                            </button>
+                          </>
+                        )}
+                        {['node', 'device', 'environment', 'component'].includes(editingEntity.kind) && (
+                          <>
+                            {activeDiagram?.kind !== 'component' && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="iso-btn"
+                                  style={{ fontSize: 10, padding: '2px 6px' }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingEntity((e) =>
+                                      e
+                                        ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'node NewNode' }
+                                        : null,
+                                    );
+                                  }}
+                                >
+                                  {t('edit.node')}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="iso-btn"
+                                  style={{ fontSize: 10, padding: '2px 6px' }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingEntity((e) =>
+                                      e
+                                        ? {
+                                            ...e,
+                                            bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'artifact NewArtifact',
+                                          }
+                                        : null,
+                                    );
+                                  }}
+                                >
+                                  {t('edit.artifact')}
+                                </button>
+                              </>
+                            )}
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ fontSize: 10, padding: '2px 6px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntity((e) =>
+                                  e
+                                    ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port1 : provided' }
+                                    : null,
+                                );
+                              }}
+                            >
+                              {t('edit.port_prov')}
+                            </button>
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ fontSize: 10, padding: '2px 6px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntity((e) =>
+                                  e
+                                    ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + '+ port2 : required' }
+                                    : null,
+                                );
+                              }}
+                            >
+                              {t('edit.port_req')}
+                            </button>
+                          </>
+                        )}
+                        {['state', 'composite', 'concurrent'].includes(editingEntity.kind) && (
+                          <>
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ fontSize: 10, padding: '2px 6px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntity((e) =>
+                                  e
+                                    ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'entry() : void' }
+                                    : null,
+                                );
+                              }}
+                            >
+                              {t('edit.entry')}
+                            </button>
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ fontSize: 10, padding: '2px 6px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntity((e) =>
+                                  e
+                                    ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'exit() : void' }
+                                    : null,
+                                );
+                              }}
+                            >
+                              {t('edit.exit')}
+                            </button>
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ fontSize: 10, padding: '2px 6px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntity((e) =>
+                                  e ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'do() : void' } : null,
+                                );
+                              }}
+                            >
+                              {t('edit.do')}
+                            </button>
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ fontSize: 10, padding: '2px 6px' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingEntity((e) =>
+                                  e
+                                    ? { ...e, bodyText: (e.bodyText ? e.bodyText + '\n' : '') + 'state SubState' }
+                                    : null,
+                                );
+                              }}
+                            >
+                              {t('edit.substate')}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <textarea
+                      value={editingEntity.bodyText ?? ''}
+                      onChange={(e) => setEditingEntity({ ...editingEntity, bodyText: e.target.value })}
+                      style={{
+                        width: '100%',
+                        minHeight: '120px',
+                        fontFamily: 'monospace',
+                        padding: '0.5rem',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+                )}
               </>
             )}
             <div className="iso-modal-actions">
-              <button type="button" className="iso-btn" onClick={(e) => { e.stopPropagation(); setEditingEntity(null); }}>{t('ui.cancel')}</button>
-              <button type="button" className="iso-btn iso-btn--primary" onClick={(e) => { e.stopPropagation(); const isNameOnlyBoundary = editingEntity.kind === 'partition' || editingEntity.kind === 'system' || editingEntity.kind === 'boundary'; handleEntityEdit(editingEntity.origName || editingEntity.id, { name: editingEntity.name, stereotype: isNameOnlyBoundary ? undefined : editingEntity.stereotype, isAbstract: editingEntity.isAbstract, bodyText: editingEntity.bodyText, kind: editingEntity.kind, elseBlocks: editingEntity.elseBlocks }); }}>{t('menu.save')}</button>
+              <button
+                type="button"
+                className="iso-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingEntity(null);
+                }}
+              >
+                {t('ui.cancel')}
+              </button>
+              <button
+                type="button"
+                className="iso-btn iso-btn--primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const isNameOnlyBoundary =
+                    editingEntity.kind === 'partition' ||
+                    editingEntity.kind === 'system' ||
+                    editingEntity.kind === 'boundary';
+                  handleEntityEdit(editingEntity.origName || editingEntity.id, {
+                    name: editingEntity.name,
+                    stereotype: isNameOnlyBoundary ? undefined : editingEntity.stereotype,
+                    isAbstract: editingEntity.isAbstract,
+                    bodyText: editingEntity.bodyText,
+                    kind: editingEntity.kind,
+                    elseBlocks: editingEntity.elseBlocks,
+                  });
+                }}
+              >
+                {t('menu.save')}
+              </button>
             </div>
           </div>
         </div>
@@ -2972,14 +4023,29 @@ export default function App() {
 
       {editingRelation && (
         <div className="iso-modal-overlay" onClick={() => setEditingRelation(null)}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()}>
+          <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
             <h3>{t('edit.relation_title')}</h3>
             <div className="iso-modal-field">
               <label>{t('edit.role_label')}</label>
               <div style={{ display: 'flex', gap: '4px', width: '100%' }}>
-                <input type="text" style={{ flex: 1 }} value={editingRelation.label} onChange={e => setEditingRelation({ ...editingRelation, label: e.target.value })} autoFocus={!isMobileLayout} />
+                <input
+                  type="text"
+                  style={{ flex: 1 }}
+                  value={editingRelation.label}
+                  onChange={(e) => setEditingRelation({ ...editingRelation, label: e.target.value })}
+                  autoFocus={!isMobileLayout}
+                />
                 {['state', 'activity'].includes(activeDiagram?.kind || '') && (
-                  <button className="iso-btn" onClick={() => setEditingRelation(r => r ? { ...r, label: r.label.includes('[') ? r.label : `[${r.label || 'guard'}]` } : null)}>{t('edit.guard')}</button>
+                  <button
+                    className="iso-btn"
+                    onClick={() =>
+                      setEditingRelation((r) =>
+                        r ? { ...r, label: r.label.includes('[') ? r.label : `[${r.label || 'guard'}]` } : null,
+                      )
+                    }
+                  >
+                    {t('edit.guard')}
+                  </button>
                 )}
               </div>
             </div>
@@ -2987,11 +4053,19 @@ export default function App() {
               <div style={{ display: 'flex', gap: '16px', width: '100%' }}>
                 <div className="iso-modal-field" style={{ flex: 1, minWidth: 0 }}>
                   <label>{t('edit.from_mult')}</label>
-                  <input type="text" value={editingRelation.fromMult || ''} onChange={e => setEditingRelation({ ...editingRelation, fromMult: e.target.value })} />
+                  <input
+                    type="text"
+                    value={editingRelation.fromMult || ''}
+                    onChange={(e) => setEditingRelation({ ...editingRelation, fromMult: e.target.value })}
+                  />
                 </div>
                 <div className="iso-modal-field" style={{ flex: 1, minWidth: 0 }}>
                   <label>{t('edit.to_mult')}</label>
-                  <input type="text" value={editingRelation.toMult || ''} onChange={e => setEditingRelation({ ...editingRelation, toMult: e.target.value })} />
+                  <input
+                    type="text"
+                    value={editingRelation.toMult || ''}
+                    onChange={(e) => setEditingRelation({ ...editingRelation, toMult: e.target.value })}
+                  />
                 </div>
               </div>
             )}
@@ -3001,7 +4075,9 @@ export default function App() {
                 <select
                   className="iso-select"
                   value={editingRelation.seqMessageType || 'synchronous'}
-                  onChange={e => setEditingRelation({ ...editingRelation, seqMessageType: e.target.value as SequenceMessageType })}
+                  onChange={(e) =>
+                    setEditingRelation({ ...editingRelation, seqMessageType: e.target.value as SequenceMessageType })
+                  }
                 >
                   <option value="synchronous">{t('rel.seq_synchronous')}</option>
                   <option value="asynchronous">{t('rel.seq_asynchronous')}</option>
@@ -3012,7 +4088,11 @@ export default function App() {
             ) : (
               <div className="iso-modal-field">
                 <label>{t('edit.kind')}</label>
-                <select className="iso-select" value={editingRelation.kind} onChange={e => setEditingRelation({ ...editingRelation, kind: e.target.value })}>
+                <select
+                  className="iso-select"
+                  value={editingRelation.kind}
+                  onChange={(e) => setEditingRelation({ ...editingRelation, kind: e.target.value })}
+                >
                   <option value="association">{t('rel.association')}</option>
                   <option value="directed-association">{t('rel.directed_association')}</option>
                   <option value="inheritance">{t('rel.inheritance')}</option>
@@ -3032,7 +4112,13 @@ export default function App() {
             )}
             <div className="iso-modal-field">
               <label>{t('edit.direction')}</label>
-              <select className="iso-select" value={editingRelation.direction} onChange={e => setEditingRelation({ ...editingRelation, direction: e.target.value as 'forward' | 'reverse' })}>
+              <select
+                className="iso-select"
+                value={editingRelation.direction}
+                onChange={(e) =>
+                  setEditingRelation({ ...editingRelation, direction: e.target.value as 'forward' | 'reverse' })
+                }
+              >
                 <option value="forward">{t('edit.forward')}</option>
                 <option value="reverse">{t('edit.reverse')}</option>
               </select>
@@ -3044,9 +4130,11 @@ export default function App() {
                   <button
                     className="iso-btn"
                     onClick={() => {
-                      updateActiveTab(tab => ({
+                      updateActiveTab((tab) => ({
                         ...tab,
-                        source: formatDiagramSource(insertSequenceLifecycleAfterRelation(tab.source, editingRelation.relationId, 'create')),
+                        source: formatDiagramSource(
+                          insertSequenceLifecycleAfterRelation(tab.source, editingRelation.relationId, 'create'),
+                        ),
                       }));
                     }}
                   >
@@ -3055,9 +4143,11 @@ export default function App() {
                   <button
                     className="iso-btn"
                     onClick={() => {
-                      updateActiveTab(tab => ({
+                      updateActiveTab((tab) => ({
                         ...tab,
-                        source: formatDiagramSource(insertSequenceLifecycleAfterRelation(tab.source, editingRelation.relationId, 'destroy')),
+                        source: formatDiagramSource(
+                          insertSequenceLifecycleAfterRelation(tab.source, editingRelation.relationId, 'destroy'),
+                        ),
                       }));
                     }}
                   >
@@ -3067,14 +4157,106 @@ export default function App() {
               </div>
             )}
             <div className="iso-modal-actions">
-              <button className="iso-btn" onClick={() => setEditingRelation(null)}>{t('ui.cancel')}</button>
-              <button className="iso-btn iso-btn--primary" onClick={() => handleRelationEdit(editingRelation.relationId, { label: editingRelation.label, kind: editingRelation.kind, direction: editingRelation.direction, fromMult: editingRelation.fromMult, toMult: editingRelation.toMult, seqMessageType: editingRelation.seqMessageType })}>{t('menu.save')}</button>
+              <button className="iso-btn" onClick={() => setEditingRelation(null)}>
+                {t('ui.cancel')}
+              </button>
+              <button
+                className="iso-btn iso-btn--primary"
+                onClick={() =>
+                  handleRelationEdit(editingRelation.relationId, {
+                    label: editingRelation.label,
+                    kind: editingRelation.kind,
+                    direction: editingRelation.direction,
+                    fromMult: editingRelation.fromMult,
+                    toMult: editingRelation.toMult,
+                    seqMessageType: editingRelation.seqMessageType,
+                  })
+                }
+              >
+                {t('menu.save')}
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {editingText && (<div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div>)}
+      {editingText && (
+        <div className="iso-modal-overlay" onClick={() => setEditingText(null)}>
+          {' '}
+          <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
+            {' '}
+            <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3>{' '}
+            <div className="iso-modal-field">
+              {' '}
+              <label>{t('edit.name')}</label>{' '}
+              <input
+                type="text"
+                style={{ width: '100%', padding: '0.4rem' }}
+                value={editingText.newName}
+                onChange={(e) => setEditingText({ ...editingText, newName: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    updateActiveTab((tab) => {
+                      let src = tab.source;
+                      if (editingText.type === 'diagram') {
+                        src = src.replace(
+                          new RegExp('diagram\\s+' + editingText.oldName),
+                          'diagram ' + editingText.newName,
+                        );
+                      } else {
+                        src = src.replace(
+                          new RegExp('package\\s+' + editingText.oldName + '\\b'),
+                          'package ' + editingText.newName,
+                        );
+                        src = src.replace(
+                          new RegExp('@' + editingText.oldName + '\\s+at'),
+                          '@' + editingText.newName + ' at',
+                        );
+                      }
+                      return { ...tab, source: src };
+                    });
+                    setEditingText(null);
+                  }
+                }}
+                autoFocus={!isMobileLayout}
+              />{' '}
+            </div>{' '}
+            <div className="iso-modal-actions">
+              {' '}
+              <button className="iso-btn" onClick={() => setEditingText(null)}>
+                {t('ui.cancel')}
+              </button>{' '}
+              <button
+                className="iso-btn iso-btn--primary"
+                onClick={() => {
+                  updateActiveTab((tab) => {
+                    let src = tab.source;
+                    if (editingText.type === 'diagram') {
+                      src = src.replace(
+                        new RegExp('diagram\\s+' + editingText.oldName),
+                        'diagram ' + editingText.newName,
+                      );
+                    } else {
+                      src = src.replace(
+                        new RegExp('package\\s+' + editingText.oldName + '\\b'),
+                        'package ' + editingText.newName,
+                      );
+                      src = src.replace(
+                        new RegExp('@' + editingText.oldName + '\\s+at'),
+                        '@' + editingText.newName + ' at',
+                      );
+                    }
+                    return { ...tab, source: src };
+                  });
+                  setEditingText(null);
+                }}
+              >
+                {t('menu.save')}
+              </button>{' '}
+            </div>{' '}
+          </div>{' '}
+        </div>
+      )}
 
       {/* ──────────────── STATUS BAR ──────────────────────── */}
       <StatusBar source={source} activeDiagram={activeDiagram} t={t} />
@@ -3084,21 +4266,68 @@ export default function App() {
 
       {/* ──────────────── MODALS ───────────────── */}
       {isNewModalOpen && (
-        <div className="iso-modal-overlay" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
-            <button className="iso-modal-close-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>×</button>
+        <div
+          className="iso-modal-overlay"
+          onClick={() => {
+            setIsNewModalOpen(false);
+            setIsSavingFlow(false);
+          }}
+        >
+          <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
+            <button
+              className="iso-modal-close-btn"
+              onClick={() => {
+                setIsNewModalOpen(false);
+                setIsSavingFlow(false);
+              }}
+            >
+              ×
+            </button>
             <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '16px' }}>{'Create new'}</h3>
 
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', background: 'var(--iso-bg-header)', padding: '4px', borderRadius: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                marginBottom: '24px',
+                background: 'var(--iso-bg-header)',
+                padding: '4px',
+                borderRadius: '8px',
+              }}
+            >
               <button
-                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'tab' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'tab' ? 'var(--white)' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
-                onClick={() => { setNewModalTab('tab'); setNewProjectError(''); }}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: newModalTab === 'tab' ? 'var(--iso-primary)' : 'transparent',
+                  color: newModalTab === 'tab' ? 'var(--white)' : 'var(--iso-text)',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+                onClick={() => {
+                  setNewModalTab('tab');
+                  setNewProjectError('');
+                }}
               >
                 Diagram
               </button>
               <button
-                style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: newModalTab === 'project' ? 'var(--iso-primary)' : 'transparent', color: newModalTab === 'project' ? 'var(--white)' : 'var(--iso-text)', cursor: 'pointer', fontWeight: 500 }}
-                onClick={() => { setNewModalTab('project'); setNewProjectError(''); }}
+                style={{
+                  flex: 1,
+                  padding: '8px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: newModalTab === 'project' ? 'var(--iso-primary)' : 'transparent',
+                  color: newModalTab === 'project' ? 'var(--white)' : 'var(--iso-text)',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                }}
+                onClick={() => {
+                  setNewModalTab('project');
+                  setNewProjectError('');
+                }}
               >
                 Project
               </button>
@@ -3107,36 +4336,56 @@ export default function App() {
             {newModalTab === 'tab' ? (
               <>
                 <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Diagram type</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>
+                    Diagram type
+                  </label>
                   <select
                     className="iso-select"
                     value={newDiagramKind}
-                    onChange={e => setNewDiagramKind(e.target.value as DiagramKind)}
+                    onChange={(e) => setNewDiagramKind(e.target.value as DiagramKind)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         executeNewDiagram(newDiagramKind);
                       }
                     }}
                   >
-                    {DIAGRAM_KINDS.filter(k => k !== 'all').map(k => (
-                      <option key={k} value={k}>{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
+                    {DIAGRAM_KINDS.filter((k) => k !== 'all').map((k) => (
+                      <option
+                        key={k}
+                        value={k}
+                      >{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
                     ))}
                   </select>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button className="iso-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>{t('ui.cancel')}</button>
-                  <button className="iso-btn iso-btn--primary" onClick={() => executeNewDiagram(newDiagramKind)}>{t('ui.create')}</button>
+                  <button
+                    className="iso-btn"
+                    onClick={() => {
+                      setIsNewModalOpen(false);
+                      setIsSavingFlow(false);
+                    }}
+                  >
+                    {t('ui.cancel')}
+                  </button>
+                  <button className="iso-btn iso-btn--primary" onClick={() => executeNewDiagram(newDiagramKind)}>
+                    {t('ui.create')}
+                  </button>
                 </div>
               </>
             ) : (
               <>
                 <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>Project name</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>
+                    Project name
+                  </label>
                   <input
                     type="text"
                     className="iso-input"
                     value={newProjectName}
-                    onChange={e => { setNewProjectName(e.target.value); setNewProjectError(''); }}
+                    onChange={(e) => {
+                      setNewProjectName(e.target.value);
+                      setNewProjectError('');
+                    }}
                     placeholder="Q3 System architecture..."
                     autoFocus
                     style={{ borderColor: newProjectError ? 'var(--iso-danger)' : undefined }}
@@ -3148,11 +4397,27 @@ export default function App() {
                       }
                     }}
                   />
-                  {newProjectError && <div style={{ color: 'var(--iso-danger)', fontSize: '12px', marginTop: '6px' }}>{newProjectError}</div>}
-                  {!user && <div style={{ color: 'var(--iso-text)', fontSize: '12px', marginTop: '6px' }}>You must be logged in to create projects</div>}
+                  {newProjectError && (
+                    <div style={{ color: 'var(--iso-danger)', fontSize: '12px', marginTop: '6px' }}>
+                      {newProjectError}
+                    </div>
+                  )}
+                  {!user && (
+                    <div style={{ color: 'var(--iso-text)', fontSize: '12px', marginTop: '6px' }}>
+                      You must be logged in to create projects
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button className="iso-btn" onClick={() => { setIsNewModalOpen(false); setIsSavingFlow(false); }}>{t('ui.cancel')}</button>
+                  <button
+                    className="iso-btn"
+                    onClick={() => {
+                      setIsNewModalOpen(false);
+                      setIsSavingFlow(false);
+                    }}
+                  >
+                    {t('ui.cancel')}
+                  </button>
                   <button
                     className="iso-btn iso-btn--primary"
                     disabled={!user || !newProjectName.trim() || isCreatingProject}
@@ -3169,19 +4434,28 @@ export default function App() {
 
       {tabToClose && (
         <div className="iso-modal-overlay" onClick={() => setTabToClose(null)}>
-          <div className="iso-modal" onClick={e => e.stopPropagation()}>
+          <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
             <h2 className="iso-modal-title">{t('dialog.close_title')}</h2>
-            <p className="iso-modal-desc">{t('dialog.close_desc', { name: tabs.find(t => t.id === tabToClose)?.name ?? '' })}</p>
+            <p className="iso-modal-desc">
+              {t('dialog.close_desc', { name: tabs.find((t) => t.id === tabToClose)?.name ?? '' })}
+            </p>
             <div className="iso-modal-actions">
-              <button className="iso-modal-btn cancel" onClick={() => setTabToClose(null)}>{t('ui.cancel')}</button>
-              <button className="iso-modal-btn danger" onClick={() => {
-                setTabs(prev => {
-                  const next = prev.filter(t => t.id !== tabToClose);
-                  if (activeTabId === tabToClose) setActiveTabId(next[Math.max(0, next.length - 1)]?.id ?? '');
-                  return next;
-                });
-                setTabToClose(null);
-              }}>{t('ui.close')}</button>
+              <button className="iso-modal-btn cancel" onClick={() => setTabToClose(null)}>
+                {t('ui.cancel')}
+              </button>
+              <button
+                className="iso-modal-btn danger"
+                onClick={() => {
+                  setTabs((prev) => {
+                    const next = prev.filter((t) => t.id !== tabToClose);
+                    if (activeTabId === tabToClose) setActiveTabId(next[Math.max(0, next.length - 1)]?.id ?? '');
+                    return next;
+                  });
+                  setTabToClose(null);
+                }}
+              >
+                {t('ui.close')}
+              </button>
             </div>
           </div>
         </div>

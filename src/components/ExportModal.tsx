@@ -6,12 +6,7 @@
 // ============================================================
 
 import React from 'react';
-import {
-  IconImage,
-  IconFileImage,
-  IconGif,
-  IconVideo
-} from './Icons.js';
+import { IconImage, IconFileImage, IconGif, IconVideo } from './Icons.js';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -34,41 +29,42 @@ export function ExportModal({
   handleExportGIF,
   handleExportMP4,
   isAnimationsEnabled,
-  t
+  t,
 }: ExportModalProps) {
   if (!isOpen) return null;
 
-  const style: React.CSSProperties = position === 'bottom'
-    ? {
-        position: 'absolute',
-        bottom: '100%',
-        right: 0,
-        marginBottom: '4px',
-        background: 'var(--iso-bg-panel)',
-        border: '1px solid var(--iso-border)',
-        borderRadius: '4px',
-        padding: '4px',
-        zIndex: 100,
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: '160px',
-        boxShadow: '0 -4px 12px var(--iso-glass-shadow)',
-      }
-    : {
-        position: 'absolute',
-        top: '100%',
-        right: 0,
-        marginTop: '4px',
-        background: 'var(--iso-bg-panel)',
-        border: '1px solid var(--iso-border)',
-        borderRadius: '4px',
-        padding: '4px',
-        zIndex: 100,
-        display: 'flex',
-        flexDirection: 'column',
-        minWidth: '160px',
-        boxShadow: '0 4px 12px var(--iso-glass-shadow)',
-      };
+  const style: React.CSSProperties =
+    position === 'bottom'
+      ? {
+          position: 'absolute',
+          bottom: '100%',
+          right: 0,
+          marginBottom: '4px',
+          background: 'var(--iso-bg-panel)',
+          border: '1px solid var(--iso-border)',
+          borderRadius: '4px',
+          padding: '4px',
+          zIndex: 100,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: '160px',
+          boxShadow: '0 -4px 12px var(--iso-glass-shadow)',
+        }
+      : {
+          position: 'absolute',
+          top: '100%',
+          right: 0,
+          marginTop: '4px',
+          background: 'var(--iso-bg-panel)',
+          border: '1px solid var(--iso-border)',
+          borderRadius: '4px',
+          padding: '4px',
+          zIndex: 100,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: '160px',
+          boxShadow: '0 4px 12px var(--iso-glass-shadow)',
+        };
 
   return (
     <div style={style} onClick={(e) => e.stopPropagation()}>

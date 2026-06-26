@@ -12,15 +12,7 @@ import type { WorkspaceTab } from '../types/index.js';
 import type { IOMDiagram } from '../semantics/iom.js';
 import { CollaboratorBar, type Collaborator } from './CollaboratorBar.js';
 import { ExportModal } from './ExportModal.js';
-import {
-  IconNew,
-  IconOpen,
-  IconKeyboard,
-  IconSettings,
-  IconSave,
-  IconTransform,
-  IconExport,
-} from './Icons.js';
+import { IconNew, IconOpen, IconKeyboard, IconSettings, IconSave, IconTransform, IconExport } from './Icons.js';
 
 interface ToolbarProps {
   activeTab: WorkspaceTab | null;
@@ -112,12 +104,7 @@ export function Toolbar({
   return (
     <header className="iso-header">
       {/* Logo */}
-      <button
-        type="button"
-        className="iso-logo"
-        aria-label={t('ui.isomorph_home')}
-        onClick={(e) => e.preventDefault()}
-      >
+      <button type="button" className="iso-logo" aria-label={t('ui.isomorph_home')} onClick={(e) => e.preventDefault()}>
         <span className="iso-logo-name">Isomorph</span>
       </button>
 
@@ -152,11 +139,9 @@ export function Toolbar({
               if (e.key === 'Enter') {
                 const newName = e.currentTarget.value;
                 if (activeTab?.project_id && user && newName) {
-                  setProjects((prev) =>
-                    prev.map((p) => (p.id === activeTab.project_id ? { ...p, name: newName } : p))
-                  );
+                  setProjects((prev) => prev.map((p) => (p.id === activeTab.project_id ? { ...p, name: newName } : p)));
                   import('../lib/projects.js').then((m) =>
-                    m.updateProject(user.id, activeTab.project_id!, { name: newName })
+                    m.updateProject(user.id, activeTab.project_id!, { name: newName }),
                   );
                   addToast('Project renamed');
                 }
@@ -201,9 +186,7 @@ export function Toolbar({
             <span style={{ display: 'flex', alignItems: 'center' }}>
               <input
                 autoFocus
-                defaultValue={
-                  fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName
-                }
+                defaultValue={fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName}
                 className="iso-tab-rename-input"
                 style={{
                   background: 'transparent',
@@ -220,9 +203,7 @@ export function Toolbar({
                   const ext = fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '';
                   const newName = e.target.value ? e.target.value + ext : fileName;
                   if (activeTab) {
-                    setTabs((prev) =>
-                      prev.map((t) => (t.id === activeTab.id ? { ...t, name: newName } : t))
-                    );
+                    setTabs((prev) => prev.map((t) => (t.id === activeTab.id ? { ...t, name: newName } : t)));
                   }
                   setRenamingTabId(null);
                 }}
@@ -231,9 +212,7 @@ export function Toolbar({
                     const ext = fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '';
                     const newName = e.currentTarget.value ? e.currentTarget.value + ext : fileName;
                     if (activeTab) {
-                      setTabs((prev) =>
-                        prev.map((t) => (t.id === activeTab.id ? { ...t, name: newName } : t))
-                      );
+                      setTabs((prev) => prev.map((t) => (t.id === activeTab.id ? { ...t, name: newName } : t)));
                     }
                     setRenamingTabId(null);
                   }
@@ -329,9 +308,7 @@ export function Toolbar({
                 <span style={{ display: 'flex', alignItems: 'center' }}>
                   <input
                     autoFocus
-                    defaultValue={
-                      tab.name.includes('.') ? tab.name.substring(0, tab.name.lastIndexOf('.')) : tab.name
-                    }
+                    defaultValue={tab.name.includes('.') ? tab.name.substring(0, tab.name.lastIndexOf('.')) : tab.name}
                     className="iso-tab-rename-input"
                     style={{
                       background: 'transparent',
@@ -346,9 +323,7 @@ export function Toolbar({
                     onBlur={(e) => {
                       const ext = tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : '';
                       const newName = e.target.value ? e.target.value + ext : tab.name;
-                      setTabs((prev) =>
-                        prev.map((t) => (t.id === tab.id ? { ...t, name: newName } : t))
-                      );
+                      setTabs((prev) => prev.map((t) => (t.id === tab.id ? { ...t, name: newName } : t)));
                       setRenamingTabId(null);
                     }}
                     onKeyDown={(e) => {
@@ -422,13 +397,7 @@ export function Toolbar({
       <div className="iso-header-spacer" />
 
       {activeDiagram && (
-        <div
-          className={
-            isMobileLayout
-              ? 'iso-kind-badge iso-kind-badge--mobile iso-mobile-hide'
-              : 'iso-kind-badge'
-          }
-        >
+        <div className={isMobileLayout ? 'iso-kind-badge iso-kind-badge--mobile iso-mobile-hide' : 'iso-kind-badge'}>
           {activeDiagram.kind}
         </div>
       )}
@@ -568,9 +537,7 @@ export function Toolbar({
               data-tooltip={t('ui.export')}
             >
               {isExporting ? <div className="iso-spinner" /> : <IconExport />}
-              {isExporting
-                ? `${t('ui.exporting') || 'Exporting...'} (${exportTime}s)`
-                : t('ui.export')}
+              {isExporting ? `${t('ui.exporting') || 'Exporting...'} (${exportTime}s)` : t('ui.export')}
             </button>
             <ExportModal
               isOpen={exportMenuOpen && !!activeDiagram}
