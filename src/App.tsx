@@ -33,6 +33,7 @@ import { isTelemetryEnabled, setTelemetryEnabled, logEvent } from './lib/telemet
 import { useCollaboration } from './lib/collaboration.js';
 import { ShareModal } from './components/ShareModal.js';
 import { AnonymousLoginModal } from './components/AnonymousLoginModal.js';
+import { useWorkspace } from './hooks/useWorkspace.js';
 
 // Types extracted to src/types/index.ts: DiagramKind, WorkspaceTab, SequenceMessageType
 import { DIAGRAM_KINDS, ENTITY_KINDS_RX } from './constants.js';
@@ -77,11 +78,20 @@ import { formatDiagramSource, sequenceToCollaborationSource } from './utils/form
 
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => getStoredLanguage());
-  const [tabs, setTabs] = useState<WorkspaceTab[]>([]);
-  const [activeTabId, setActiveTabId] = useState<string>('');
-  const [newDiagramKind, setNewDiagramKind] = useState<DiagramKind>('class');
-  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [tabToClose, setTabToClose] = useState<string | null>(null);
+  const {
+    tabs,
+    setTabs,
+    activeTabId,
+    setActiveTabId,
+    newDiagramKind,
+    setNewDiagramKind,
+    isNewModalOpen,
+    setIsNewModalOpen,
+    tabToClose,
+    setTabToClose,
+    renamingTabId,
+    setRenamingTabId,
+  } = useWorkspace();
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [isUMLCompliant, setIsUMLCompliant] = useState(() => {
@@ -125,7 +135,6 @@ export default function App() {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 3000);
   }, []);
-  const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [pendingMobileDropKeyword, setPendingMobileDropKeyword] = useState<string | null>(null);
   const examplesRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
