@@ -21,7 +21,8 @@ import { Sidebar } from './components/Sidebar.js';
 import { HistoryPane } from './components/HistoryPane.js';
 import { SettingsModal } from './components/SettingsModal.js';
 import { LibraryModal } from './components/LibraryModal.js';
-import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconCanvas, IconAlertTriangle, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
+import { ExportModal } from './components/ExportModal.js';
+import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconCanvas, IconAlertTriangle } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -2581,18 +2582,17 @@ export default function App() {
                   <IconExport />
                   {t('ui.export')}
                 </button>
-                {exportMenuOpen && activeDiagram && (
-                  <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '4px', background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', zIndex: 100, display: 'flex', flexDirection: 'column', minWidth: '160px', boxShadow: '0 -4px 12px var(--iso-glass-shadow)' }}>
-                    <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}><IconImage /> {t('ui.export_png')}</button>
-                    <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}><IconFileImage /> {t('ui.export_svg')}</button>
-                    {isAnimationsEnabled && (
-                      <>
-                        <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}><IconGif /> {t('ui.export_gif')}</button>
-                        <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}><IconVideo /> {t('ui.export_mp4')}</button>
-                      </>
-                    )}
-                  </div>
-                )}
+                <ExportModal
+                  isOpen={exportMenuOpen && !!activeDiagram}
+                  onClose={() => setExportMenuOpen(false)}
+                  position="bottom"
+                  handleExportPNG={handleExportPNG}
+                  handleExportSVG={handleExportSVG}
+                  handleExportGIF={handleExportGIF}
+                  handleExportMP4={handleExportMP4}
+                  isAnimationsEnabled={isAnimationsEnabled}
+                  t={t}
+                />
               </div>
             </div>
             <div className="iso-mobile-actions-group iso-mobile-actions-group--secondary">

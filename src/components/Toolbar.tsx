@@ -11,6 +11,7 @@ import type { Project } from '../lib/projects.js';
 import type { WorkspaceTab } from '../types/index.js';
 import type { IOMDiagram } from '../semantics/iom.js';
 import { CollaboratorBar, type Collaborator } from './CollaboratorBar.js';
+import { ExportModal } from './ExportModal.js';
 import {
   IconNew,
   IconOpen,
@@ -19,10 +20,6 @@ import {
   IconSave,
   IconTransform,
   IconExport,
-  IconImage,
-  IconFileImage,
-  IconVideo,
-  IconGif,
 } from './Icons.js';
 
 interface ToolbarProps {
@@ -575,107 +572,17 @@ export function Toolbar({
                 ? `${t('ui.exporting') || 'Exporting...'} (${exportTime}s)`
                 : t('ui.export')}
             </button>
-            {exportMenuOpen && activeDiagram && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '4px',
-                  background: 'var(--iso-bg-panel)',
-                  border: '1px solid var(--iso-border)',
-                  borderRadius: '4px',
-                  padding: '4px',
-                  zIndex: 100,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minWidth: '160px',
-                  boxShadow: '0 4px 12px var(--iso-glass-shadow)',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  className="iso-dropdown-item"
-                  style={{
-                    border: 'none',
-                    textAlign: 'left',
-                    padding: '6px 12px',
-                    cursor: 'pointer',
-                    color: 'var(--iso-text)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                  }}
-                  onClick={() => {
-                    setExportMenuOpen(false);
-                    handleExportPNG();
-                  }}
-                >
-                  <IconImage /> {t('ui.export_png')}
-                </button>
-                <button
-                  className="iso-dropdown-item"
-                  style={{
-                    border: 'none',
-                    textAlign: 'left',
-                    padding: '6px 12px',
-                    cursor: 'pointer',
-                    color: 'var(--iso-text)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                  }}
-                  onClick={() => {
-                    setExportMenuOpen(false);
-                    handleExportSVG();
-                  }}
-                >
-                  <IconFileImage /> {t('ui.export_svg')}
-                </button>
-                {isAnimationsEnabled && (
-                  <>
-                    <button
-                      className="iso-dropdown-item"
-                      style={{
-                        border: 'none',
-                        textAlign: 'left',
-                        padding: '6px 12px',
-                        cursor: 'pointer',
-                        color: 'var(--iso-text)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                      }}
-                      onClick={() => {
-                        setExportMenuOpen(false);
-                        handleExportGIF();
-                      }}
-                    >
-                      <IconGif /> {t('ui.export_gif')}
-                    </button>
-                    <button
-                      className="iso-dropdown-item"
-                      style={{
-                        border: 'none',
-                        textAlign: 'left',
-                        padding: '6px 12px',
-                        cursor: 'pointer',
-                        color: 'var(--iso-text)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                      }}
-                      onClick={() => {
-                        setExportMenuOpen(false);
-                        handleExportMP4();
-                      }}
-                    >
-                      <IconVideo /> {t('ui.export_mp4')}
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+            <ExportModal
+              isOpen={exportMenuOpen && !!activeDiagram}
+              onClose={() => setExportMenuOpen(false)}
+              position="top"
+              handleExportPNG={handleExportPNG}
+              handleExportSVG={handleExportSVG}
+              handleExportGIF={handleExportGIF}
+              handleExportMP4={handleExportMP4}
+              isAnimationsEnabled={isAnimationsEnabled}
+              t={t}
+            />
           </div>
 
           {isAnimationsEnabled && activeDiagram && (
