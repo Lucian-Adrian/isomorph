@@ -24,6 +24,7 @@ import { exportSVG, exportPNG } from './utils/exporter.js';
 import { EXAMPLES } from './data/examples.js';
 import type { IOMDiagram, IOMEntity } from './semantics/iom.js';
 import type { ParseError } from './parser/index.js';
+import type { DiagramKind, SequenceMessageType, WorkspaceTab } from './types/index.js';
 import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Language } from './i18n.js';
 import { computeLayout } from './utils/auto-layout.js';
 import { useAuth } from './lib/auth-context.js';
@@ -34,38 +35,12 @@ import { useCollaboration } from './lib/collaboration.js';
 import { ShareModal } from './components/ShareModal.js';
 import { AnonymousLoginModal } from './components/AnonymousLoginModal.js';
 
-type DiagramKind = IOMDiagram['kind'];
+// Types extracted to src/types/index.ts: DiagramKind, WorkspaceTab, SequenceMessageType
+import { DIAGRAM_KINDS, REL_TOKENS_BY_KIND, ENTITY_KINDS_RX } from './constants.js';
 
-interface WorkspaceTab {
-  id: string;
-  name: string;
-  source: string;
-  activeDiagramIdx: number;
-  diagramKindFilter: 'all' | DiagramKind;
-  undoStack?: string[];
-  redoStack?: string[];
-  savedSource?: string; // Snapshot of source when tab was created/opened — used for beforeunload guard
-  project_role?: 'owner' | 'editor' | 'commenter' | 'viewer' | string;
-  diagram_id?: string;
-  project_id?: string;
-}
+// Constants extracted to src/constants.ts: DIAGRAM_KINDS, REL_TOKENS_BY_KIND
 
-const DIAGRAM_KINDS: Array<'all' | DiagramKind> = ['all', 'class', 'usecase', 'component', 'deployment', 'sequence', 'activity', 'state', 'collaboration', 'flow'];
-
-const REL_TOKENS_BY_KIND: Record<string, string> = {
-  association: '--',
-  'directed-association': '-->',
-  inheritance: '--|>',
-  realization: '..|>',
-  aggregation: '--o',
-  composition: '--*',
-  dependency: '..>',
-  restriction: '--x',
-  provides: '--()',
-  requires: '--(',
-};
-
-type SequenceMessageType = 'synchronous' | 'asynchronous' | 'response' | 'self-call';
+// SequenceMessageType extracted to src/types/index.ts
 
 function inferSequenceMessageType(kind: string, from?: string, to?: string): SequenceMessageType {
   if (from && to && from === to) return 'self-call';
@@ -577,7 +552,7 @@ function removeLayoutAnnotation(source: string, entityName: string): string {
   return source.replace(annoRx, '');
 }
 
-const ENTITY_KINDS_RX = '(?:package|class|interface|enum|actor|usecase|component|node|participant|partition|decision|merge|fork|join|start|stop|action|state|composite|concurrent|choice|history|device|artifact|environment|boundary|system|multiobject|active_object|collaboration|composite_object|alt|loop|opt|break|critical|par|note)';
+// ENTITY_KINDS_RX extracted to src/constants.ts
 
 function findEntityBounds(source: string, entityName: string): { start: number, end: number, bodyStart: number, bodyEnd: number } | null {
   const sigRx = new RegExp(`^[ \\t]*(?:abstract[ \\t]+|static[ \\t]+|final[ \\t]+)*${ENTITY_KINDS_RX}[ \\t]+${escapeRegex(entityName)}\\b`, 'm');
