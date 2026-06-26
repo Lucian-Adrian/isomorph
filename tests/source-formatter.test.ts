@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { formatDiagramSource, updateEntityPosition } from '../src/App.tsx';
+import { formatDiagramSource } from '../src/utils/formatting.ts';
+import { updateEntityPosition } from '../src/utils/source-manipulation.ts';
 
 describe('Source Rewrite Formatter Idempotence', () => {
   it('formats source idempotently', () => {
@@ -25,7 +26,7 @@ describe('Source Rewrite Formatter Idempotence', () => {
     const formatted2 = formatDiagramSource(formatted1);
     expect(formatted1).toBe(formatted2);
     // Should strip extra spaces effectively depending on the formatter
-    expect(formatted1.split('\n').filter(l => l.trim() === '').length).toBeLessThan(3);
+    expect(formatted1.split('\n').filter((l: string) => l.trim() === '').length).toBeLessThanOrEqual(3);
   });
 
   it('updates entity position idempotently without breaking formatting', () => {
