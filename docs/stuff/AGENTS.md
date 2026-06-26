@@ -64,3 +64,6 @@ Any new feature/fix must include documentation updates when applicable:
 - **Always write all the changes you implement nicely formatted into `changes.md` after they have been done.**
 
 - Keep verification strict: old + new tests, build pass, and manual test instructions after each batch.
+
+## Environment & Tooling Rules
+- **On Windows**: If running scripts is blocked by the PowerShell execution policy, execute terminal commands using Command Prompt prefix (`cmd /c`) instead of launching a heavy PowerShell bypass command (e.g., use `cmd /c npm run typecheck` instead of `powershell -ExecutionPolicy Bypass ...`). This is faster, cleaner, and uses fewer context tokens.
