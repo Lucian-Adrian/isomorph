@@ -40,8 +40,8 @@ interface KeyboardShortcutsOptions {
   setIsSavingFlow: (v: boolean) => void;
   tabToClose: any;
   setTabToClose: (v: any) => void;
-  isDeleteModalOpen: boolean;
-  setIsDeleteModalOpen: (v: boolean) => void;
+  isDeleteModalOpen?: boolean;
+  setIsDeleteModalOpen?: (v: boolean) => void;
   renameModalOpen: boolean;
   setRenameModalOpen: (v: boolean) => void;
   isRevertModalOpen: boolean;
@@ -329,7 +329,7 @@ export function useKeyboardShortcuts({
         if (isNewModalOpen) { setIsNewModalOpen(false); setIsSavingFlow(false); return; }
         if (tabToClose) { setTabToClose(null); return; }
         if (shortcutsOpen) { setShortcutsOpen(false); return; }
-        if (isDeleteModalOpen) { setIsDeleteModalOpen(false); return; }
+        if (isDeleteModalOpen && setIsDeleteModalOpen) { setIsDeleteModalOpen(false); return; }
         if (renameModalOpen) { setRenameModalOpen(false); return; }
         if (isRevertModalOpen) { setIsRevertModalOpen(false); return; }
         if (saveToCloudModalOpen) { setSaveToCloudModalOpen(false); return; }

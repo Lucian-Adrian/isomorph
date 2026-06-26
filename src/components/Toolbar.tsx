@@ -64,7 +64,7 @@ interface ToolbarProps {
   setShortcutsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   fileInputRef: React.RefObject<HTMLInputElement>;
   handleFileOpen: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  setSettingsTab: (tab: 'profile' | 'collab' | 'storage' | 'app') => void;
+  setSettingsTab?: (tab: 'profile' | 'collab' | 'storage' | 'app') => void;
   setIsSettingsOpen: (open: boolean) => void;
   addToast: (msg: string, type?: 'success' | 'info') => void;
 }
@@ -719,7 +719,7 @@ export function Toolbar({
         className="iso-btn iso-btn--icon iso-mobile-hide"
         style={{ marginLeft: 'auto' }}
         onClick={() => {
-          setSettingsTab('profile');
+          setSettingsTab?.('profile');
           setIsSettingsOpen(true);
         }}
         aria-label="Settings"
