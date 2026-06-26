@@ -28,12 +28,13 @@ import { LANGUAGE_OPTIONS, getStoredLanguage, setStoredLanguage, tText, type Lan
 import { computeLayout } from './utils/auto-layout.js';
 import { useAuth } from './lib/auth-context.js';
 import { AuthModal } from './components/AuthModal.js';
-import { getProjects, getSharedProjects, getPublicProjectIds, type Project, getDiagramHistory, deleteDiagramHistoryAfter, type DiagramHistory } from './lib/projects.js';
+import { type Project, getDiagramHistory, deleteDiagramHistoryAfter } from './lib/projects.js';
 import { isTelemetryEnabled, setTelemetryEnabled, logEvent } from './lib/telemetry.js';
 import { useCollaboration } from './lib/collaboration.js';
 import { ShareModal } from './components/ShareModal.js';
 import { AnonymousLoginModal } from './components/AnonymousLoginModal.js';
 import { useWorkspace } from './hooks/useWorkspace.js';
+import { useCloudSync } from './hooks/useCloudSync.js';
 
 // Types extracted to src/types/index.ts: DiagramKind, WorkspaceTab, SequenceMessageType
 import { DIAGRAM_KINDS, ENTITY_KINDS_RX } from './constants.js';
@@ -77,6 +78,7 @@ import { formatDiagramSource, sequenceToCollaborationSource } from './utils/form
 // ── App ──────────────────────────────────────────────────────
 
 export default function App() {
+  const { session, user, signOut, loading } = useAuth();
   const [language, setLanguage] = useState<Language>(() => getStoredLanguage());
   const {
     tabs,
@@ -142,37 +144,58 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'collab' | 'storage' | 'app'>('profile');
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [diagramHistoryList, setDiagramHistoryList] = useState<DiagramHistory[]>([]);
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
-  const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
+  const {
+    projects,
+    setProjects,
+    sharedProjects,
+    publicProjectIds,
+    isCreatingProject,
+    setIsCreatingProject,
+    librarySearchQuery,
+    setLibrarySearchQuery,
+    isSavingToCloud,
+    setIsSavingToCloud,
+    saveToCloudModalOpen,
+    setSaveToCloudModalOpen,
+    selectedProjectId,
+    setSelectedProjectId,
+    newProjectName,
+    setNewProjectName,
+    newProjectError,
+    setNewProjectError,
+    projectToDelete,
+    setProjectToDelete,
+    libraryVisibilityFilter,
+    setLibraryVisibilityFilter,
+    librarySort,
+    setLibrarySort,
+    libraryCategory,
+    setLibraryCategory,
+    customCategories,
+    setCustomCategories,
+    newCategoryPrompt,
+    setNewCategoryPrompt,
+    newCategoryName,
+    setNewCategoryName,
+    isHistoryOpen,
+    setIsHistoryOpen,
+    diagramHistoryList,
+    setDiagramHistoryList,
+    selectedHistoryId,
+    setSelectedHistoryId,
+    isRevertModalOpen,
+    setIsRevertModalOpen,
+    refreshPublicProjects
+  } = useCloudSync(user);
 
   const [libraryTab, setLibraryTab] = useState<'my' | 'shared' | 'open_folder' | 'examples'>('my');
   const [isExporting, setIsExporting] = useState(false);
   const [exportTime, setExportTime] = useState<number>(0);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [sharedProjects, setSharedProjects] = useState<Project[]>([]);
-  const [publicProjectIds, setPublicProjectIds] = useState<Set<string>>(new Set());
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [librarySearchQuery, setLibrarySearchQuery] = useState('');
-  const [isSavingToCloud, setIsSavingToCloud] = useState(false);
-  const [saveToCloudModalOpen, setSaveToCloudModalOpen] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState('');
-
-  const [newProjectName, setNewProjectName] = useState('');
-  const [newProjectError, setNewProjectError] = useState('');
-  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
-  const [libraryVisibilityFilter, setLibraryVisibilityFilter] = useState('all');
-  const [librarySort, setLibrarySort] = useState('accessed');
   const [autoSaveInterval, setAutoSaveInterval] = useState<number>(() => {
     const val = localStorage.getItem('isomorph-autosave');
     return val ? parseFloat(val) : 0;
   });
   const [newModalTab, setNewModalTab] = useState<'tab' | 'project'>('tab');
-  const [libraryCategory, setLibraryCategory] = useState<string>('All Projects');
-  const [customCategories, setCustomCategories] = useState<string[]>(['Favorites', 'Work', 'Personal']);
-  const [newCategoryPrompt, setNewCategoryPrompt] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
 
   // Staged files and folder drag-and-drop
   const [localStagedFiles, setLocalStagedFiles] = useState<Array<{ name: string; source: string; id: string }>>([]);
@@ -197,7 +220,6 @@ export default function App() {
 
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const { session, user, signOut, loading } = useAuth();
 
   const [profile, setProfile] = useState<{ full_name?: string | null, username?: string | null, avatar_url?: string | null, tier?: string | null, settings?: any } | null>(null);
 
@@ -790,21 +812,7 @@ export default function App() {
   };
 
 
-  const refreshPublicProjects = useCallback(() => {
-    getPublicProjectIds().then(data => setPublicProjectIds(data));
-  }, []);
 
-  useEffect(() => {
-    if (user) {
-      getProjects(user.id).then(data => setProjects(data));
-      getSharedProjects(user.id).then(data => setSharedProjects(data));
-      refreshPublicProjects();
-    } else {
-      setProjects([]);
-      setSharedProjects([]);
-      setPublicProjectIds(new Set());
-    }
-  }, [user, refreshPublicProjects]);
 
   const [selectedItems, setSelectedItems] = useState<{ type: 'entity' | 'relation', id: string }[]>([]);
   const t = useCallback((key: string, vars?: Record<string, string | number>) => tText(language, key, vars), [language]);
