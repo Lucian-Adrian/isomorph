@@ -15,7 +15,11 @@ import type { LintDiagnostic } from './editor/IsomorphEditor.js';
 import { DiagramView } from './components/DiagramView.js';
 import { SplitPane } from './components/SplitPane.js';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay.js';
-import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconShapes, IconCanvas, IconTransform, IconSettings, IconAlertTriangle, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
+import { StatusBar } from './components/StatusBar.js';
+import { Toolbar } from './components/Toolbar.js';
+import { Sidebar } from './components/Sidebar.js';
+import { HistoryPane } from './components/HistoryPane.js';
+import { IconCode, IconDiagram, IconExport, IconNew, IconOpen, IconKeyboard, IconSave, IconSun, IconMoon, IconCanvas, IconAlertTriangle, IconFileImage, IconImage, IconVideo, IconGif } from './components/Icons.js';
 import { parse } from './parser/index.js';
 import { analyze } from './semantics/analyzer.js';
 import { formatAllErrors } from './utils/error-formatter.js';
@@ -35,6 +39,8 @@ import { ShareModal } from './components/ShareModal.js';
 import { AnonymousLoginModal } from './components/AnonymousLoginModal.js';
 import { useWorkspace } from './hooks/useWorkspace.js';
 import { useCloudSync } from './hooks/useCloudSync.js';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
+import { useShareLink } from './hooks/useShareLink.js';
 
 // Types extracted to src/types/index.ts: DiagramKind, WorkspaceTab, SequenceMessageType
 import { DIAGRAM_KINDS, ENTITY_KINDS_RX } from './constants.js';
@@ -62,7 +68,6 @@ import {
   ensureUseCaseBoundaryDeclaration,
   extractEntityBody,
   extractEntityDeclaration,
-  removeEntityDeclaration,
   replaceEntityBody,
   entitySupportsBody,
   entitySupportsStereotype,
@@ -225,11 +230,6 @@ export default function App() {
 
   // Share and Anonymous states
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [isAnonymousLoginOpen, setIsAnonymousLoginOpen] = useState(false);
-  const [anonymousName, setAnonymousName] = useState<string | null>(() => localStorage.getItem('isomorph-anon-name'));
-  const [pendingShareToken, setPendingShareToken] = useState<string | null>(null);
-  const [urlShareToken, setUrlShareToken] = useState<string | null>(null);
-  const [isJoiningShare, setIsJoiningShare] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -296,92 +296,7 @@ export default function App() {
     }
   }, [user]);
 
-  // 1. Read share token from URL on mount only
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const shareToken = params.get('share');
-    if (shareToken) {
-      setUrlShareToken(shareToken);
-      // Remove token from URL immediately to keep it clean
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
-
-  // 2. Process the share link after auth loading settles
-  useEffect(() => {
-    if (loading) return;
-    if (urlShareToken) {
-      setPendingShareToken(urlShareToken);
-      if (user) {
-        handleRedeemShareLink(urlShareToken);
-      } else {
-        const savedAnonName = localStorage.getItem('isomorph-anon-name');
-        if (savedAnonName) {
-          handleRedeemShareLink(urlShareToken, savedAnonName);
-        } else {
-          setIsAnonymousLoginOpen(true);
-        }
-      }
-      setUrlShareToken(null); // Mark as processed
-    }
-  }, [loading, urlShareToken, user]);
-
-  const handleRedeemShareLink = async (token: string, anonName?: string) => {
-    setIsJoiningShare(true);
-    const { supabase } = await import('./lib/supabase.js');
-    if (user) {
-      // Logged in: redeem via RPC
-      const { data: success, error } = await supabase.rpc('redeem_share_link', { p_token: token });
-      if (success && !error) {
-        addToast('Project access granted!', 'success');
-        // Let's fetch the project and open it
-        const { data: projData } = await supabase.rpc('get_shared_project_data', { p_token: token });
-        if (projData && projData.project && projData.diagrams) {
-          // Log audit: share link redeemed
-          const { logAudit } = await import('./lib/audit.js');
-          await logAudit('share_link_redeemed', 'share_link', undefined, { token, projectId: projData.project.id });
-
-          // Add project to projects list so its name resolves in the breadcrumbs
-          setProjects(prev => {
-            if (!prev.some(p => p.id === projData.project.id)) {
-              return [projData.project, ...prev];
-            }
-            return prev;
-          });
-          openWholeProject(projData.diagrams, projData.project.id, projData.role || 'editor');
-        }
-      } else {
-        addToast('Invalid or expired share link', 'info');
-      }
-    } else {
-      // Anonymous
-      const { data: projData, error } = await supabase.rpc('get_shared_project_data', { p_token: token });
-      if (projData && projData.project && projData.diagrams && !error) {
-        // Log audit: share link redeemed
-        const { logAudit } = await import('./lib/audit.js');
-        await logAudit('share_link_redeemed', 'share_link', undefined, { token, projectId: projData.project.id, anonymous: true });
-
-        if (anonName) {
-          setAnonymousName(anonName);
-          localStorage.setItem('isomorph-anon-name', anonName);
-        }
-        setIsAnonymousLoginOpen(false);
-        addToast(`Joined project ${projData.project.name} anonymously`);
-        // Add project to projects list so its name resolves in the breadcrumbs
-        setProjects(prev => {
-          if (!prev.some(p => p.id === projData.project.id)) {
-            return [projData.project, ...prev];
-          }
-          return prev;
-        });
-        openWholeProject(projData.diagrams, projData.project.id, projData.role || 'viewer');
-      } else {
-        addToast('Invalid or expired share link', 'info');
-      }
-    }
-    setIsJoiningShare(false);
-    setPendingShareToken(null);
-  };
+  // ── Share link (delegated to useShareLink hook) ───────────────────
 
   const handleSignOut = useCallback(async () => {
     await signOut();
@@ -660,6 +575,22 @@ export default function App() {
     setIsLibraryOpen(false);
   }, []);
 
+  const {
+    isAnonymousLoginOpen,
+    setIsAnonymousLoginOpen,
+    anonymousName,
+    pendingShareToken,
+    setPendingShareToken,
+    isJoiningShare,
+    handleRedeemShareLink,
+  } = useShareLink({
+    user,
+    loading,
+    setProjects,
+    openWholeProject,
+    addToast,
+  });
+
   const handleLoadedFiles = (files: File[]) => {
     const isxFiles = files.filter(f => f.name.endsWith('.isx'));
     if (isxFiles.length === 0) {
@@ -833,18 +764,7 @@ export default function App() {
   );
 
   const isCollabActive = !!(activeTab?.diagram_id && connectedDiagramId === activeTab.diagram_id);
-  const [isCollabDropdownOpen, setIsCollabDropdownOpen] = useState(false);
-  const collabRef = useRef<HTMLDivElement>(null);
 
-  const getInitials = useCallback((name: string) => {
-    const clean = name.trim();
-    if (!clean) return '?';
-    const parts = clean.split(/\s+/);
-    if (parts.length > 1) {
-      return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-    }
-    return clean.slice(0, 2).toUpperCase();
-  }, []);
 
   const sortedCollaborators = useMemo(() => {
     if (!collaborators || !awareness) return [];
@@ -916,27 +836,7 @@ export default function App() {
     };
   }, [examplesOpen]);
 
-  // ── Close collaboration dropdown on outside click or Escape ──
-  useEffect(() => {
-    function handleOutsideCollabClick(e: Event) {
-      if (collabRef.current && !collabRef.current.contains(e.target as Node)) {
-        setIsCollabDropdownOpen(false);
-      }
-    }
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setIsCollabDropdownOpen(false);
-      }
-    }
-    if (isCollabDropdownOpen) {
-      document.addEventListener('click', handleOutsideCollabClick);
-      document.addEventListener('keydown', handleEscape);
-    }
-    return () => {
-      document.removeEventListener('click', handleOutsideCollabClick);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [isCollabDropdownOpen]);
+
 
   // ── Parse + analyze on every keystroke ───────────────────
   const parseResult = useMemo(() => {
@@ -1398,234 +1298,7 @@ export default function App() {
     setMobilePane('diagram');
   }, [activeDiagram, handleDropEntity, isMobileLayout]);
 
-  // ── Keyboard shortcuts ────────────────────────────────────
-  useEffect(() => {
-    const clickHandler = () => setExportMenuOpen(false);
-    window.addEventListener('click', clickHandler);
-    return () => window.removeEventListener('click', clickHandler);
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      // Skip Escape handling here, handled in the other useEffect
-
-      // Skip if user is focused on CodeMirror editor or an input/textarea
-      const ae = document.activeElement;
-      const isInEditor = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.closest?.('.cm-content') || ae.closest?.('.cm-editor'));
-      if (isInEditor) return;
-
-      // Deletion of selected items
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedItems.length > 0) {
-          updateActiveTab(tab => {
-            let nextSource = tab.source;
-
-            for (const item of selectedItems) {
-              if (item.type === 'entity') {
-                // Wipe entity block properly considering nested braces
-                nextSource = removeEntityDeclaration(nextSource, item.id);
-                // Wipe annotations
-                const rxAnno = new RegExp(`^[ \\t]*@${escapeRegex(item.id)}[ \\t]+at[ \\t]*\\([^)]+\\)[ \\t]*\\n?`, 'gm');
-                nextSource = nextSource.replace(rxAnno, '');
-                // Wipe relations connected to this
-                const rxRel = new RegExp(`^[ \\t]*(?:${escapeRegex(item.id)}[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+${escapeRegex(item.id)})(?:[ \\t]*\\[[^\\]]*\\])?[ \\t]*\\n?`, 'gm');
-                nextSource = nextSource.replace(rxRel, '');
-              } else if (item.type === 'relation') {
-                const idxRaw = item.id.replace('rel_', '');
-                const relationIdx = Number.parseInt(idxRaw, 10);
-                if (Number.isInteger(relationIdx) && relationIdx >= 0) {
-                  const relRegex = /^([ \t]*)([A-Za-z_][\w]*)[ \t]+(--\|>|\.\.\|>|<\|--|<\|\.\.|<\.\.|o--|\*--|-->|->|\.\.>|--o|--\*|--x|--)[ \t]+([A-Za-z_][\w]*)([ \t]*\[[^\]]*\])?[ \t]*$/gm;
-                  const matches = [...nextSource.matchAll(relRegex)];
-                  const match = matches[relationIdx];
-                  if (match && match.index != null) {
-                    nextSource = nextSource.slice(0, match.index) + nextSource.slice(match.index + match[0].length + 1);
-                  }
-                }
-              }
-            }
-            return { ...tab, source: nextSource };
-          });
-          setSelectedItems([]);
-        }
-      }
-
-      // Undo / Redo (skip when CodeMirror has focus — it has its own undo/redo)
-      if ((e.ctrlKey || e.metaKey) && !isInEditor) {
-        if (e.key === 'z') {
-          e.preventDefault();
-          updateActiveTab(tab => {
-            if (!tab.undoStack || tab.undoStack.length === 0) return tab;
-            const newUndo = [...tab.undoStack];
-            const previousSource = newUndo.pop()!;
-            return {
-              ...tab,
-              source: previousSource,
-              undoStack: newUndo,
-              redoStack: [...(tab.redoStack || []), tab.source]
-            };
-          }, false);
-        } else if (e.key === 'y') {
-          e.preventDefault();
-          updateActiveTab(tab => {
-            if (!tab.redoStack || tab.redoStack.length === 0) return tab;
-            const newRedo = [...tab.redoStack];
-            const nextSource = newRedo.pop()!;
-            return {
-              ...tab,
-              source: nextSource,
-              undoStack: [...(tab.undoStack || []), tab.source],
-              redoStack: newRedo
-            };
-          }, false);
-        }
-
-        // Duplicate selected items (Ctrl+D) or Copy (Ctrl+C)
-        if ((e.key === 'c' || e.key === 'd') && selectedItems.length > 0 && activeDiagram) {
-          e.preventDefault();
-          const snippets: string[] = [];
-          for (const item of selectedItems) {
-            if (item.type === 'entity') {
-              if (!activeDiagram.entities.has(item.id) && !activeDiagram.packages.find(p => p.name === item.id)) continue;
-              // Reconstruct the entity declaration from the source using exact boundaries
-              const extracted = extractEntityDeclaration(activeTab!.source, item.id);
-              if (extracted) snippets.push(extracted.trim());
-
-              // Also copy annotations
-              const annoRx = new RegExp(`^\\s*@${escapeRegex(item.id)}\\s+at\\s*\\([^)]+\\)`, 'gm');
-              const annoMatches = activeTab?.source.match(annoRx);
-              if (annoMatches) snippets.push(...annoMatches);
-            }
-          }
-          if (snippets.length > 0) {
-            const textToCopy = snippets.join('\n');
-            if (e.key === 'c') {
-              navigator.clipboard.writeText(textToCopy).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => { });
-              pasteCounterRef.current = 1; // Reset cascade on copy
-            } else if (e.key === 'd') {
-              // Re-use paste logic for duplicate
-              const doPaste = (text: string) => {
-                if (!text.trim()) return;
-                let pasteText = text;
-                const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
-                const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
-
-                for (const name of namesToReplace) {
-                  const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
-                  const baseStr = baseMatch ? baseMatch[1] : name;
-                  let newName = baseStr + '1';
-                  let i = 2;
-                  const isNameTaken = (n: string) => {
-                    const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
-                    return rx.test(activeTab?.source || '') || rx.test(pasteText);
-                  };
-                  let emergencyBreak = 0;
-                  while (isNameTaken(newName) && emergencyBreak < 1000) {
-                    newName = baseStr + i;
-                    i++;
-                    emergencyBreak++;
-                  }
-                  pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
-                }
-                pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
-                  const offset = 40 * pasteCounterRef.current;
-                  return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
-                });
-                pasteCounterRef.current++;
-                updateActiveTab(tab => {
-                  let src = insertBeforeAnnotations(tab.source, pasteText.trim());
-                  src = formatDiagramSource(src);
-                  return { ...tab, source: src };
-                });
-              };
-              doPaste(textToCopy);
-            }
-          }
-        }
-
-        // Paste from clipboard
-        if (e.key === 'v') {
-          e.preventDefault();
-          navigator.clipboard.readText().then(text => {
-            if (!text.trim()) return;
-            // Auto-rename pasted entities to avoid collisions
-            let pasteText = text;
-            const entityNameRx = new RegExp(`${ENTITY_KINDS_RX}\\s+([A-Za-z_]\\w*)`, 'g');
-            const namesToReplace = [...new Set([...pasteText.matchAll(entityNameRx)].map(m => m[1]))];
-
-            for (const name of namesToReplace) {
-              const baseMatch = name.match(/^([A-Za-z_]+)(\d*)$/);
-              const baseStr = baseMatch ? baseMatch[1] : name;
-
-              let newName = baseStr + '1';
-              let i = 2;
-
-              const isNameTaken = (n: string) => {
-                const rx = new RegExp(`\\b${escapeRegex(n)}\\b`);
-                return rx.test(activeTab?.source || '') || rx.test(pasteText);
-              };
-
-              let emergencyBreak = 0;
-              while (isNameTaken(newName) && emergencyBreak < 1000) {
-                newName = baseStr + i;
-                i++;
-                emergencyBreak++;
-              }
-              pasteText = pasteText.replace(new RegExp(`\\b${escapeRegex(name)}\\b`, 'g'), newName);
-            }
-            // Offset positions by cascading amount
-            pasteText = pasteText.replace(/@(\w+)\s+at\s*\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)(\s*,\s*-?\d+(?:\.\d+)?\s*,\s*-?\d+(?:\.\d+)?)?\s*\)/g, (_, n, x, y, sizeSuffix) => {
-              const offset = 40 * pasteCounterRef.current;
-              return `@${n} at (${Math.round(parseFloat(x) + offset)}, ${Math.round(parseFloat(y) + offset)}${sizeSuffix || ''})`;
-            });
-            pasteCounterRef.current++;
-            updateActiveTab(tab => {
-              let src = insertBeforeAnnotations(tab.source, pasteText.trim());
-              src = formatDiagramSource(src);
-              return { ...tab, source: src };
-            });
-          }).catch(() => { });
-        }
-
-        // Cut selected items
-        if (e.key === 'x' && selectedItems.length > 0 && activeDiagram) {
-          e.preventDefault();
-          const snippets: string[] = [];
-
-          updateActiveTab(tab => {
-            let nextSource = tab.source;
-            for (const item of selectedItems) {
-              if (item.type === 'entity') {
-                if (!activeDiagram.entities.has(item.id) && !activeDiagram.packages.find(p => p.name === item.id)) continue;
-
-                const extracted = extractEntityDeclaration(nextSource, item.id);
-                if (extracted) snippets.push(extracted.trim());
-
-                // Wipe entity block properly considering nested braces
-                nextSource = removeEntityDeclaration(nextSource, item.id);
-
-                // Also copy & wipe annotations
-                const annoRx = new RegExp(`^[ \\t]*@${escapeRegex(item.id)}[ \\t]+at[ \\t]*\\([^)]+\\)[ \\t]*\\n?`, 'gm');
-                const annoMatches = nextSource.match(annoRx);
-                if (annoMatches) snippets.push(...annoMatches.map(s => s.trim()));
-                nextSource = nextSource.replace(annoRx, '');
-
-                // Wipe relations connected to this
-                const rxRel = new RegExp(`^[ \\t]*(?:${escapeRegex(item.id)}[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+[A-Za-z_][\\w]*|[A-Za-z_][\\w]*[ \\t]+(?:--\\|>|\\.\\.\\|>|<\\|--|<\\|\\.\\.|<\\.\\.|o--|\\*--|-->|->|\\.\\.>|--o|--\\*|--x|--)[ \\t]+${escapeRegex(item.id)})(?:[ \\t]*\\[[^\\]]*\\])?[ \\t]*\\n?`, 'gm');
-                nextSource = nextSource.replace(rxRel, '');
-              }
-            }
-            if (snippets.length > 0) {
-              navigator.clipboard.writeText(snippets.join('\n')).then(() => addToast(t('ui.copied') || 'Copied')).catch(() => { });
-            }
-            return { ...tab, source: nextSource };
-          });
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [selectedItems, updateActiveTab, activeDiagram, activeTab]);
+  // ── Keyboard shortcuts (delegated to useKeyboardShortcuts hook) ────────────────────
 
   // ── Export callbacks (delegated to exporter module) ───────
   const handleExportSVG = useCallback(() => {
@@ -1764,51 +1437,53 @@ export default function App() {
     }
   }, [user, activeTab, activeDiagram, updateActiveTab]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const ae = document.activeElement;
-      const isInInput = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
-
-      if (e.key === 'Escape') {
-        if (editingEntity) { setEditingEntity(null); return; }
-        if (editingRelation) { setEditingRelation(null); return; }
-        if (editingText) { setEditingText(null); return; }
-        if (isNewModalOpen) { setIsNewModalOpen(false); setIsSavingFlow(false); return; }
-        if (tabToClose) { setTabToClose(null); return; }
-        if (shortcutsOpen) { setShortcutsOpen(false); return; }
-        if (isDeleteModalOpen) { setIsDeleteModalOpen(false); return; }
-        if (renameModalOpen) { setRenameModalOpen(false); return; }
-        if (isRevertModalOpen) { setIsRevertModalOpen(false); return; }
-        if (saveToCloudModalOpen) { setSaveToCloudModalOpen(false); return; }
-        if (projectDetailModalOpen) { setProjectDetailModalOpen(false); return; }
-        if (isHistoryOpen) { setIsHistoryOpen(false); return; }
-        if (isAuthOpen) { setIsAuthOpen(false); return; }
-        if (isSettingsOpen) { setIsSettingsOpen(false); return; }
-        if (isLibraryOpen) { setIsLibraryOpen(false); return; }
-        if (exportMenuOpen) { setExportMenuOpen(false); return; }
-      }
-
-      if (isInInput) return;
-      if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
-        if (!activeTab?.project_id || activeTab?.project_role === 'owner') {
-          e.preventDefault();
-          handleNew();
-        }
-      }
-      if (e.ctrlKey && !e.shiftKey && e.key === 'o') {
-        if (!activeTab?.project_id || activeTab?.project_role === 'owner') {
-          e.preventDefault();
-          setIsLibraryOpen(true);
-        }
-      }
-      if (e.ctrlKey && !e.shiftKey && e.key === 's') { e.preventDefault(); handleSaveToCloud(); }
-      if (e.ctrlKey && !e.shiftKey && e.key === 'e') { e.preventDefault(); handleExportSVG(); }
-      if (e.ctrlKey && e.shiftKey && e.key === 'E') { e.preventDefault(); handleExportPNG(); }
-      if (e.ctrlKey && e.key === 'q') { e.preventDefault(); setShortcutsOpen(o => !o); }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [handleNew, handleExportSVG, handleExportPNG, handleSaveToCloud, shortcutsOpen, editingEntity, editingRelation, editingText, isNewModalOpen, tabToClose, user, isSavingFlow, isDeleteModalOpen, renameModalOpen, isRevertModalOpen, saveToCloudModalOpen, projectDetailModalOpen, isHistoryOpen, isAuthOpen, isSettingsOpen, isLibraryOpen, exportMenuOpen, activeTab]);
+  useKeyboardShortcuts({
+    activeTab,
+    activeDiagram,
+    selectedItems,
+    setSelectedItems,
+    updateActiveTab,
+    addToast,
+    t,
+    pasteCounterRef,
+    handleNew,
+    setIsLibraryOpen,
+    handleSaveToCloud,
+    handleExportSVG,
+    handleExportPNG,
+    setShortcutsOpen,
+    shortcutsOpen,
+    editingEntity,
+    setEditingEntity,
+    editingRelation,
+    setEditingRelation,
+    editingText,
+    setEditingText,
+    isNewModalOpen,
+    setIsNewModalOpen,
+    setIsSavingFlow,
+    tabToClose,
+    setTabToClose,
+    isDeleteModalOpen,
+    setIsDeleteModalOpen,
+    renameModalOpen,
+    setRenameModalOpen,
+    isRevertModalOpen,
+    setIsRevertModalOpen,
+    saveToCloudModalOpen,
+    setSaveToCloudModalOpen,
+    projectDetailModalOpen,
+    setProjectDetailModalOpen,
+    isHistoryOpen,
+    setIsHistoryOpen,
+    isAuthOpen,
+    setIsAuthOpen,
+    isSettingsOpen,
+    setIsSettingsOpen,
+    isLibraryOpen,
+    exportMenuOpen,
+    setExportMenuOpen,
+  });
 
 
   const handleExportGIF = useCallback(async () => {
@@ -1928,110 +1603,9 @@ export default function App() {
   }, [updateActiveTab]);
 
 
-  const shapesPane = activeDiagram?.kind && getStencilsForKind(activeDiagram.kind).length > 0 ? (
-    <div className="iso-sidebar">
-      <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-        <IconShapes size={11} /> {t('ui.shapes')}
-      </div>
-      <div className="iso-sidebar-body">
-        {getStencilsForKind(activeDiagram.kind).map(stencil => (
-          <div
-            key={stencil.label}
-            draggable
-            onDragStart={e => {
-              const baseName = stencil.keyword.split(' ')[0];
-              const prefixName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
-              
-              let index = 1;
-              let name = `${prefixName}${index}`;
-              const src = activeTab?.source || '';
-              while (new RegExp(`${ENTITY_KINDS_RX}[ \\t]+${name}\\b`).test(src)) {
-                index++;
-                name = `${prefixName}${index}`;
-              }
 
-              let expandedCode = stencil.keyword;
-              const BRACE_KINDS = ['class', 'interface', 'component', 'node', 'state', 'usecase', 'package', 'composite', 'concurrent', 'environment', 'artifact', 'device', 'enum', 'note'];
-              const FRAGMENT_KINDS = ['alt', 'loop', 'opt', 'par', 'break', 'critical'];
-              
-              if (BRACE_KINDS.includes(baseName)) {
-                expandedCode = `${stencil.keyword} ${name} {\n\n}`;
-              } else if (FRAGMENT_KINDS.includes(baseName)) {
-                if (baseName === 'alt') {
-                  expandedCode = `${stencil.keyword} ${name} {\n\n} else {\n\n}`;
-                } else {
-                  expandedCode = `${stencil.keyword} ${name} {\n\n}`;
-                }
-              } else if (['start', 'stop', 'fork', 'join', 'decision', 'merge'].includes(baseName)) {
-                expandedCode = `${stencil.keyword} ${name}`;
-              } else if (baseName === 'action') {
-                expandedCode = `action ${name}`;
-              } else {
-                expandedCode = `${stencil.keyword} ${name}`;
-              }
 
-              e.dataTransfer.setData('text/plain', expandedCode);
-              e.dataTransfer.setData('application/x-isomorph-stencil', stencil.keyword);
-              e.dataTransfer.effectAllowed = 'copy';
-            }}
-            className="iso-stencil"
-            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: '12px', padding: '10px 12px', width: '100%', boxSizing: 'border-box' }}
-          >
-            {stencil.icon && <div style={{ color: 'var(--iso-text)', display: 'flex' }}>{stencil.icon}</div>}
-            <div style={{ fontSize: '12px', fontWeight: 500 }}>{stencil.label}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  ) : null;
 
-  const historyPane = (
-    <div className="iso-sidebar" style={{ width: 'var(--iso-sidebar-width, 200px)', flexShrink: 0 }}>
-      <div className="iso-panel-header" style={{ borderBottom: '1px solid var(--iso-divider)', padding: '0 12px' }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}>
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-        History
-      </div>
-      <div className="iso-sidebar-body" style={{ padding: '8px', overflowY: 'auto' }}>
-        {diagramHistoryList.length === 0 ? (
-          <div style={{ color: 'var(--iso-text-muted)', fontSize: '12px', padding: '16px', textAlign: 'center' }}>No history available.</div>
-        ) : (
-          diagramHistoryList.map(h => (
-            <button
-              key={h.id}
-              className="iso-btn"
-              style={{
-                width: '100%',
-                justifyContent: 'flex-start',
-                marginBottom: '8px',
-                background: selectedHistoryId === h.id ? 'var(--iso-bg-active)' : 'transparent',
-                border: selectedHistoryId === h.id ? '1px solid var(--iso-brand)' : '1px solid transparent',
-              }}
-              onClick={() => setSelectedHistoryId(selectedHistoryId === h.id ? null : h.id)}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 600 }}>{new Date(h.created_at).toLocaleString()}</span>
-                </div>
-                {h.user_id && <span style={{ fontSize: '11px', color: 'var(--iso-text-muted)' }}>Saved by {h.user_id === user?.id ? 'you' : 'collaborator'}</span>}
-                {selectedHistoryId === h.id && (
-                   <button 
-                     className="iso-btn" 
-                     style={{ marginTop: 8, padding: '4px 8px', fontSize: 11, width: '100%', background: 'transparent', color: 'var(--iso-error)', border: '1px solid var(--iso-error)' }} 
-                     onClick={(e) => { e.stopPropagation(); setIsRevertModalOpen(true); }}
-                   >
-                     Revert snapshot
-                   </button>
-                )}
-              </div>
-            </button>
-          ))
-        )}
-      </div>
-    </div>
-  );
 
   const toggleHistory = async () => {
     if (!isHistoryOpen && activeTab?.diagram_id) {
@@ -4114,435 +3688,49 @@ export default function App() {
   return (
     <div className="iso-shell">
       {/* ──────────────── HEADER ──────────────────────────── */}
-      <header className="iso-header">
-        {/* Logo */}
-        <button type="button" className="iso-logo" aria-label={t('ui.isomorph_home')} onClick={e => e.preventDefault()}>
-          <span className="iso-logo-name">Isomorph</span>
-        </button>
-
-        <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
-
-        {/* File breadcrumb */}
-        <div className="iso-breadcrumb iso-mobile-hide" onDoubleClick={() => {
-          if (activeTab?.project_id && (!activeTab.project_role || activeTab.project_role === 'owner')) {
-            setRenamingTabId('project-' + activeTab.project_id);
-          }
-        }}>
-          {renamingTabId === 'project-' + activeTab?.project_id ? (
-            <input
-              autoFocus
-              defaultValue={projects.find(p => p.id === activeTab?.project_id)?.name || 'Local Project'}
-              className="iso-tab-rename-input"
-              style={{ background: "transparent", border: "none", color: "inherit", fontFamily: "inherit", fontSize: "inherit", outline: "none", width: "100%", borderBottom: "1px solid currentColor" }}
-              onBlur={() => setRenamingTabId(null)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const newName = e.currentTarget.value;
-                  if (activeTab?.project_id && user && newName) {
-                    setProjects(prev => prev.map(p => p.id === activeTab.project_id ? { ...p, name: newName } : p));
-                    import('./lib/projects.js').then(m => m.updateProject(user.id, activeTab.project_id!, { name: newName }));
-                    addToast('Project renamed');
-                  }
-                  setRenamingTabId(null);
-                }
-                if (e.key === "Escape") setRenamingTabId(null);
-              }}
-            />
-          ) : (
-            <span
-              className="iso-breadcrumb-name"
-              style={{ cursor: (activeTab?.project_id && (!activeTab.project_role || activeTab.project_role === 'owner')) ? 'pointer' : 'default' }}
-              data-tooltip={(activeTab?.project_id && (!activeTab.project_role || activeTab.project_role === 'owner')) ? "Double click to rename project" : undefined}
-            >
-              {projects.find(p => p.id === activeTab?.project_id)?.name || 'Local Project'}
-            </span>
-          )}
-        </div>
-
-        {isMobileLayout && (
-          <div
-            className="iso-mobile-title"
-            title={fileName}
-            onPointerDown={e => {
-              e.preventDefault();
-              e.stopPropagation();
-              setRenamingTabId(activeTab?.id ?? null);
-            }}
-            onDoubleClick={() => setRenamingTabId(activeTab?.id ?? null)}
-            onClick={() => setRenamingTabId(activeTab?.id ?? null)}
-          >
-            {renamingTabId === activeTab?.id ? (
-              <span style={{ display: "flex", alignItems: "center" }}>
-                <input
-                  autoFocus
-                  defaultValue={fileName.includes(".") ? fileName.substring(0, fileName.lastIndexOf(".")) : fileName}
-                  className="iso-tab-rename-input"
-                  style={{ background: "transparent", border: "none", color: "inherit", fontFamily: "inherit", fontSize: "inherit", outline: "none", width: "100%", borderBottom: "1px solid currentColor" }}
-                  onBlur={(e) => {
-                    if (isMobileLayout) return;
-                    const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : "";
-                    const newName = e.target.value ? e.target.value + ext : fileName;
-                    if (activeTab) setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: newName } : t));
-                    setRenamingTabId(null);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const ext = fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : "";
-                      const newName = e.currentTarget.value ? e.currentTarget.value + ext : fileName;
-                      if (activeTab) setTabs(prev => prev.map(t => t.id === activeTab.id ? { ...t, name: newName } : t));
-                      setRenamingTabId(null);
-                    }
-                    if (e.key === "Escape") setRenamingTabId(null);
-                  }}
-                  onClick={e => e.stopPropagation()}
-                />
-                <span>{fileName.includes(".") ? fileName.substring(fileName.lastIndexOf(".")) : ""}</span>
-              </span>
-            ) : (
-              fileName
-            )}
-          </div>
-        )}
-
-        <div className="iso-header-sep iso-mobile-hide" aria-hidden="true" />
-
-
-
-        <div className="iso-mobile-hide" style={{ display: 'flex', alignItems: 'center', flex: '0 1 auto', minWidth: 0, overflow: 'hidden', marginLeft: '12px' }}>
-          <button
-            type="button"
-            style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }}
-            onClick={e => e.currentTarget.nextElementSibling?.scrollBy({ left: -150, behavior: 'smooth' })}
-            onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
-          >
-            ◀
-          </button>
-          <nav className="iso-tabs" aria-label={t('tabs.open_files')} style={{ flex: '1 1 auto', overflowX: 'auto', display: 'flex', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            {tabs.map((tab, idx) => (
-              <div
-                key={tab.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/plain', idx.toString());
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
-                  if (isNaN(fromIdx) || fromIdx === idx) return;
-                  setTabs(prev => {
-                    const next = [...prev];
-                    const [moved] = next.splice(fromIdx, 1);
-                    next.splice(idx, 0, moved);
-                    return next;
-                  });
-                }}
-                className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
-                onClick={() => setActiveTabId(tab.id)}
-                onDoubleClick={() => { if (!tab.project_role || tab.project_role === 'owner') setRenamingTabId(tab.id); }}
-                aria-label={t('tabs.open_name', { name: tab.name })}
-                style={{ paddingRight: tabs.length > 1 ? '4px' : '10px', cursor: 'grab' }}
-              >
-                {renamingTabId === tab.id ? (
-                  <span style={{ display: 'flex', alignItems: 'center' }}>
-                    <input
-                      autoFocus
-                      defaultValue={tab.name.includes('.') ? tab.name.substring(0, tab.name.lastIndexOf('.')) : tab.name}
-                      className="iso-tab-rename-input"
-                      style={{ background: 'transparent', border: 'none', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', outline: 'none', width: '80px', borderBottom: '1px solid currentColor' }}
-                      onBlur={(e) => {
-                        const ext = tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : '';
-                        const newName = e.target.value ? e.target.value + ext : tab.name;
-                        setTabs(prev => prev.map(t => t.id === tab.id ? { ...t, name: newName } : t));
-                        setRenamingTabId(null);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') e.currentTarget.blur();
-                        if (e.key === 'Escape') setRenamingTabId(null);
-                      }}
-                      onClick={e => e.stopPropagation()}
-                    />
-                    <span>{tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : ''}</span>
-                  </span>
-                ) : (
-                  tab.name
-                )}
-                {tabs.length > 1 && (
-                  <button
-                    type="button"
-                    style={{ all: 'unset', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '16px', height: '16px', borderRadius: '4px', marginLeft: '4px', cursor: 'pointer', opacity: 0.6 }}
-                    onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.background = 'transparent'; }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTabToClose(tab.id);
-                    }}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-          </nav>
-          <button
-            type="button"
-            style={{ background: 'transparent', border: 'none', color: 'var(--iso-text)', cursor: 'pointer', padding: '0 4px', opacity: 0.6 }}
-            onClick={e => e.currentTarget.previousElementSibling?.scrollBy({ left: 150, behavior: 'smooth' })}
-            onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
-          >
-            ▶
-          </button>
-        </div>
-
-        <div className="iso-header-spacer" />
-
-        {activeDiagram && (
-          <div className={isMobileLayout ? 'iso-kind-badge iso-kind-badge--mobile iso-mobile-hide' : 'iso-kind-badge'}>
-            {activeDiagram.kind}
-          </div>
-        )}
-
-        {activeTab?.diagram_id && isConnected && (
-          <div ref={collabRef} className="iso-avatar-stack">
-            {sortedCollaborators.slice(0, 2).map((collab) => (
-              <div
-                key={collab.clientId}
-                className="iso-avatar"
-                style={{ backgroundColor: collab.avatarUrl ? 'transparent' : collab.color, border: `2px solid ${collab.color}` }}
-                title={collab.clientId === awareness?.clientID ? `${collab.name} (${t('ui.you')})` : collab.name}
-                onClick={() => setIsCollabDropdownOpen(prev => !prev)}
-              >
-                {collab.avatarUrl ? (
-                  <img
-                    src={collab.avatarUrl}
-                    alt={collab.name}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      borderRadius: '50%',
-                      objectFit: 'cover',
-                      display: 'block'
-                    }}
-                  />
-                ) : (
-                  getInitials(collab.name)
-                )}
-              </div>
-            ))}
-            {sortedCollaborators.length > 2 && (
-              <div
-                className="iso-avatar iso-avatar-more"
-                title={t('ui.connected_users')}
-                onClick={() => setIsCollabDropdownOpen(prev => !prev)}
-              >
-                ...
-              </div>
-            )}
-            {isCollabDropdownOpen && (
-              <div className="iso-collab-dropdown">
-                <div className="iso-collab-dropdown-title">
-                  {t('ui.connected_users')} ({sortedCollaborators.length})
-                </div>
-                {sortedCollaborators.map((c) => (
-                  <div key={c.clientId} className="iso-collab-user-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {c.avatarUrl ? (
-                      <img
-                        src={c.avatarUrl}
-                        alt={c.name}
-                        style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                          flexShrink: 0,
-                          border: `2px solid ${c.color}`
-                        }}
-                      />
-                    ) : (
-                      <span className="iso-collab-user-dot" style={{ backgroundColor: c.color }} />
-                    )}
-                    <div className="iso-collab-user-name" title={c.name} style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {c.name}
-                        {c.clientId === awareness?.clientID && ` (${t('ui.you')})`}
-                      </span>
-                      {c.username && (
-                        <span style={{ fontSize: '10px', color: 'var(--iso-text-muted)', lineHeight: 1 }}>
-                          @{c.username}
-                        </span>
-                      )}
-                    </div>
-                    <span
-                      className="iso-collab-user-role"
-                      style={{
-                        fontSize: '10px',
-                        color: 'var(--iso-text-muted)',
-                        textTransform: 'capitalize',
-                        border: '1px solid var(--iso-border)',
-                        borderRadius: '4px',
-                        padding: '1px 5px',
-                        backgroundColor: 'var(--iso-bg-app)',
-                        lineHeight: 1.2
-                      }}
-                    >
-                      {c.role === 'owner' ? 'editor' : c.role}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {!isMobileLayout && (
-          <div className="iso-header-actions">
-            {(!activeTab?.project_id || activeTab?.project_role === 'owner') && (
-              <>
-                <button type="button" className="iso-btn" onClick={handleNew} aria-label={t('menu.new_diagram')} data-tooltip={t('menu.new_shortcut')}>
-                  <IconNew />
-                  {t('menu.new')}
-                </button>
-
-                <button type="button" className="iso-btn" onClick={() => setIsLibraryOpen(true)} aria-label={t('menu.open_isx')} data-tooltip={t('menu.open_shortcut')}>
-                  <IconOpen />
-                  {t('menu.open')}
-                </button>
-              </>
-            )}
-
-            {activeTab?.project_role === 'owner' && (
-              <button type="button" className="iso-btn" onClick={() => setIsShareModalOpen(true)} aria-label="Share Project" data-tooltip="Share Project">
-                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ marginRight: 4 }}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                {t('ui.share')}
-              </button>
-            )}
-
-
-
-            {activeDiagram?.kind === 'sequence' && (
-              <button
-                type="button"
-                className="iso-btn"
-                onClick={handleTransformToCollaboration}
-                aria-label={t('menu.transform_seq_collab')}
-                data-tooltip={t('menu.transform_collab')}
-              >
-                <IconTransform />
-                {t('menu.transform')}
-              </button>
-            )}
-
-            <button
-              type="button"
-              className="iso-btn"
-              onClick={() => {
-                if (!activeTab) return;
-                const blob = new Blob([activeTab.source], { type: 'application/octet-stream' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = activeTab.name || 'diagram.isx';
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              disabled={!activeTab}
-              aria-label={t('menu.export_source')}
-              data-tooltip={t('menu.save_isx')}
-            >
-              <IconSave />
-              {t('menu.save_isx_ext')}
-            </button>
-
-            {session && (
-              <button
-                type="button"
-                className={`iso-btn${isHistoryOpen ? ' iso-btn--active' : ''}`}
-                onClick={toggleHistory}
-                aria-label="Toggle History"
-                data-tooltip="View History"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                History
-              </button>
-            )}
-
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                className="iso-btn"
-                onClick={(e) => { e.stopPropagation(); setExportMenuOpen(o => !o); }}
-                disabled={!activeDiagram || isExporting}
-                aria-label={t('ui.export')}
-                data-tooltip={t('ui.export')}
-              >
-                {isExporting ? <div className="iso-spinner" /> : <IconExport />}
-                {isExporting ? `${t('ui.exporting') || 'Exporting...'} (${exportTime}s)` : t('ui.export')}
-              </button>
-              {exportMenuOpen && activeDiagram && (
-                <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '4px', background: 'var(--iso-bg-panel)', border: '1px solid var(--iso-border)', borderRadius: '4px', padding: '4px', zIndex: 100, display: 'flex', flexDirection: 'column', minWidth: '160px', boxShadow: '0 4px 12px var(--iso-glass-shadow)' }} onClick={e => e.stopPropagation()}>
-                  <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportPNG(); }}><IconImage /> {t('ui.export_png')}</button>
-                  <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportSVG(); }}><IconFileImage /> {t('ui.export_svg')}</button>
-                  {isAnimationsEnabled && (
-                    <>
-                      <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportGIF(); }}><IconGif /> {t('ui.export_gif')}</button>
-                      <button className="iso-dropdown-item" style={{ border: 'none', textAlign: 'left', padding: '6px 12px', cursor: 'pointer', color: 'var(--iso-text)', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setExportMenuOpen(false); handleExportMP4(); }}><IconVideo /> {t('ui.export_mp4')}</button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {isAnimationsEnabled && activeDiagram && (
-              <button
-                type="button"
-                className="iso-btn"
-                onClick={() => setIsAnimating(a => !a)}
-                aria-label={isAnimating ? t('ui.pause') : t('ui.play')}
-                data-tooltip={isAnimating ? t('ui.pause') : t('ui.play')}
-                style={{ color: isAnimating ? 'var(--iso-accent)' : 'inherit' }}
-              >
-                {isAnimating ? '⏸' : '▶'} {isAnimating ? t('ui.pause') : t('ui.play')}
-              </button>
-            )}
-
-            <div className="iso-header-sep" aria-hidden="true" />
-
-            <button
-              type="button"
-              className="iso-btn iso-btn--icon"
-              onClick={() => setShortcutsOpen(o => !o)}
-              aria-label={t('ui.shortcuts')}
-              data-tooltip={t('menu.shortcuts')}
-            >
-              <IconKeyboard size={20} />
-            </button>
-          </div>
-        )}
-
-        <input ref={fileInputRef} type="file" accept=".isx" onChange={handleFileOpen} style={{ display: 'none' }} tabIndex={-1} />
-
-        <button
-          type="button"
-          className="iso-btn iso-btn--icon iso-mobile-hide"
-          style={{ marginLeft: 'auto' }}
-          onClick={() => { setSettingsTab('profile'); setIsSettingsOpen(true); }}
-          aria-label="Settings"
-          data-tooltip="Settings"
-        >
-          <IconSettings size={20} />
-        </button>
-      </header>
+      <Toolbar
+        activeTab={activeTab}
+        activeDiagram={activeDiagram}
+        projects={projects}
+        setProjects={setProjects}
+        renamingTabId={renamingTabId}
+        setRenamingTabId={setRenamingTabId}
+        user={user}
+        session={session}
+        isMobileLayout={isMobileLayout}
+        fileName={fileName}
+        tabs={tabs}
+        setTabs={setTabs}
+        setActiveTabId={setActiveTabId}
+        setTabToClose={setTabToClose}
+        isConnected={isConnected}
+        sortedCollaborators={sortedCollaborators}
+        awareness={awareness}
+        t={t}
+        handleNew={handleNew}
+        setIsLibraryOpen={setIsLibraryOpen}
+        setIsShareModalOpen={setIsShareModalOpen}
+        handleTransformToCollaboration={handleTransformToCollaboration}
+        isHistoryOpen={isHistoryOpen}
+        toggleHistory={toggleHistory}
+        isExporting={isExporting}
+        exportTime={exportTime}
+        exportMenuOpen={exportMenuOpen}
+        setExportMenuOpen={setExportMenuOpen}
+        handleExportPNG={handleExportPNG}
+        handleExportSVG={handleExportSVG}
+        handleExportGIF={handleExportGIF}
+        handleExportMP4={handleExportMP4}
+        isAnimationsEnabled={isAnimationsEnabled}
+        setIsAnimating={setIsAnimating}
+        isAnimating={isAnimating}
+        setShortcutsOpen={setShortcutsOpen}
+        fileInputRef={fileInputRef}
+        handleFileOpen={handleFileOpen}
+        setSettingsTab={setSettingsTab}
+        setIsSettingsOpen={setIsSettingsOpen}
+        addToast={addToast}
+      />
 
       {isMobileLayout && (
         <>
@@ -4764,7 +3952,7 @@ export default function App() {
               opacity: (isHistoryOpen || activeTab?.project_role === 'viewer' || activeTab?.project_role === 'commenter') ? 0 : 1,
               flexShrink: 0
             }}>
-              {(activeTab?.project_role !== 'viewer' && activeTab?.project_role !== 'commenter') && shapesPane}
+              {(activeTab?.project_role !== 'viewer' && activeTab?.project_role !== 'commenter') && <Sidebar activeDiagram={activeDiagram} activeTab={activeTab} t={t} />}
             </div>
             <SplitPane left={sourcePane} right={canvasPane} separatorLabel={t('tool.resize_panels')} />
             <div style={{
@@ -4776,7 +3964,13 @@ export default function App() {
               borderLeft: isHistoryOpen ? '1px solid var(--iso-border)' : 'none',
               background: 'var(--iso-bg-sidebar)'
             }}>
-              {historyPane}
+              <HistoryPane
+                diagramHistoryList={diagramHistoryList}
+                selectedHistoryId={selectedHistoryId}
+                setSelectedHistoryId={setSelectedHistoryId}
+                user={user}
+                setIsRevertModalOpen={setIsRevertModalOpen}
+              />
             </div>
           </>
         )}
@@ -5150,27 +4344,7 @@ export default function App() {
       {editingText && (<div className="iso-modal-overlay" onClick={() => setEditingText(null)}> <div className="iso-modal" onClick={e => e.stopPropagation()}> <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3> <div className="iso-modal-field"> <label>{t('edit.name')}</label> <input type="text" style={{ width: '100%', padding: '0.4rem' }} value={editingText.newName} onChange={e => setEditingText({ ...editingText, newName: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); } }} autoFocus={!isMobileLayout} /> </div> <div className="iso-modal-actions"> <button className="iso-btn" onClick={() => setEditingText(null)}>{t('ui.cancel')}</button> <button className="iso-btn iso-btn--primary" onClick={() => { updateActiveTab(tab => { let src = tab.source; if (editingText.type === 'diagram') { src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName); } else { src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName); src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at'); } return { ...tab, source: src }; }); setEditingText(null); }}>{t('menu.save')}</button> </div> </div> </div>)}
 
       {/* ──────────────── STATUS BAR ──────────────────────── */}
-      <footer className="iso-statusbar">
-        <span className="iso-statusbar-item">{t('ui.isomorph_dsl')}</span>
-        <span className="iso-statusbar-sep">·</span>
-        <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {t(source.split('\n').length === 1 ? 'status.line' : 'status.lines', { count: source.split('\n').length })}
-        </span>
-        {activeDiagram && (
-          <>
-            <span className="iso-statusbar-sep">·</span>
-            <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {t(activeDiagram.entities.size === 1 ? 'status.entity' : 'status.entities', { count: activeDiagram.entities.size })}
-            </span>
-            <span className="iso-statusbar-sep">·</span>
-            <span className="iso-statusbar-item" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {t(activeDiagram.relations.length === 1 ? 'status.relation' : 'status.relations', { count: activeDiagram.relations.length })}
-            </span>
-            <span className="iso-statusbar-sep">·</span>
-            <span className="iso-statusbar-item">{activeDiagram.kind}</span>
-          </>
-        )}
-      </footer>
+      <StatusBar source={source} activeDiagram={activeDiagram} t={t} />
 
       {/* ──────────────── SHORTCUTS OVERLAY ───────────────── */}
       <ShortcutsOverlay open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} t={t} />

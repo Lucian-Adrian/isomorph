@@ -66,4 +66,5 @@ Any new feature/fix must include documentation updates when applicable:
 - Keep verification strict: old + new tests, build pass, and manual test instructions after each batch.
 
 ## Environment & Tooling Rules
-- **On Windows**: If running scripts is blocked by the PowerShell execution policy, execute terminal commands using Command Prompt prefix (`cmd /c`) instead of launching a heavy PowerShell bypass command (e.g., use `cmd /c npm run typecheck` instead of `powershell -ExecutionPolicy Bypass ...`). This is faster, cleaner, and uses fewer context tokens.
+- **On Windows**: Avoid launching heavy PowerShell commands with bypass parameters (e.g., `powershell -ExecutionPolicy Bypass ...`). Instead, execute terminal commands using the Command Prompt prefix (`cmd /c` or `cmd /e:on /c`, e.g., `cmd /c npm run typecheck`). This is significantly faster, easier to test, and saves on precious context tokens.
+
