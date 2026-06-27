@@ -24,6 +24,7 @@ import { LibraryModal } from './components/LibraryModal.js';
 import { ExportModal } from './components/ExportModal.js';
 import { ProjectDetailModal } from './components/ProjectDetailModal.js';
 import { ContextMenu } from './components/ContextMenu.js';
+import { RenameModal } from './components/RenameModal.js';
 import {
   IconCode,
   IconDiagram,
@@ -1492,76 +1493,20 @@ export default function App() {
           </div>
         )}
 
-        {renameModalOpen && (
-          <div
-            className="iso-modal-overlay"
-            onClick={() => {
-              setRenameModalOpen(false);
-              setRenameType(null);
-              setRenameTargetId(null);
-              setRenameValue('');
-            }}
-          >
-            <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
-              <button
-                className="iso-modal-close-btn"
-                onClick={() => {
-                  setRenameModalOpen(false);
-                  setRenameType(null);
-                  setRenameTargetId(null);
-                  setRenameValue('');
-                }}
-              >
-                ×
-              </button>
-              <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>
-                Rename {renameType === 'project' ? 'Project' : renameType === 'category' ? 'Category' : 'Diagram'}
-              </h3>
-              <div className="iso-modal-field">
-                <label>New Name</label>
-                <input
-                  type="text"
-                  className="iso-input"
-                  value={renameValue}
-                  onChange={(e) => setRenameValue(e.target.value)}
-                  placeholder={
-                    renameType === 'project'
-                      ? 'Project name...'
-                      : renameType === 'category'
-                        ? 'Category name...'
-                        : 'Diagram name...'
-                  }
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && renameValue.trim()) {
-                      handleRenameSubmit();
-                    }
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
-                <button
-                  className="iso-btn"
-                  onClick={() => {
-                    setRenameModalOpen(false);
-                    setRenameType(null);
-                    setRenameTargetId(null);
-                    setRenameValue('');
-                  }}
-                >
-                  {t('ui.cancel')}
-                </button>
-                <button
-                  className="iso-btn iso-btn--primary"
-                  disabled={!renameValue.trim()}
-                  onClick={handleRenameSubmit}
-                >
-                  Rename
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <RenameModal
+          isOpen={renameModalOpen}
+          renameType={renameType}
+          renameValue={renameValue}
+          setRenameValue={setRenameValue}
+          onClose={() => {
+            setRenameModalOpen(false);
+            setRenameType(null);
+            setRenameTargetId(null);
+            setRenameValue('');
+          }}
+          onConfirm={handleRenameSubmit}
+          t={t}
+        />
 
         {isRevertModalOpen && (
           <div className="iso-modal-overlay" onClick={() => setIsRevertModalOpen(false)}>
