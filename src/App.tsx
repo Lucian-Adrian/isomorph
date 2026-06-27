@@ -22,6 +22,7 @@ import { HistoryPane } from './components/HistoryPane.js';
 import { SettingsModal } from './components/SettingsModal.js';
 import { LibraryModal } from './components/LibraryModal.js';
 import { ExportModal } from './components/ExportModal.js';
+import { ProjectDetailModal } from './components/ProjectDetailModal.js';
 import {
   IconCode,
   IconDiagram,
@@ -1394,180 +1395,20 @@ export default function App() {
             initialTab={libraryInitialTab}
           />
         )}
-        {projectDetailModalOpen && projectDetailProject && (
-          <div className="iso-modal-overlay" style={{ zIndex: 2100 }} onClick={() => setProjectDetailModalOpen(false)}>
-            <div
-              className="iso-modal"
-              style={{
-                width: '480px',
-                maxWidth: '90%',
-                maxHeight: '80vh',
-                display: 'flex',
-                flexDirection: 'column',
-                padding: '24px',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="iso-modal-header" style={{ marginBottom: '16px' }}>
-                <h3 className="iso-modal-title" style={{ fontSize: '18px', fontWeight: 600 }}>
-                  {projectDetailProject.name}
-                </h3>
-                <button className="iso-modal-close" onClick={() => setProjectDetailModalOpen(false)}>
-                  ×
-                </button>
-              </div>
-
-              <p className="iso-modal-desc" style={{ marginBottom: '16px' }}>
-                Select a file to open, or open the entire project.
-              </p>
-
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: 'auto',
-                  marginBottom: '24px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  minHeight: '120px',
-                  maxHeight: '300px',
-                  paddingRight: '4px',
-                }}
-              >
-                {isLoadingProjectDetail ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flex: 1,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--iso-text-muted)',
-                    }}
-                  >
-                    <div className="iso-spinner" style={{ marginRight: '8px' }} /> Loading files...
-                  </div>
-                ) : projectDetailDiagrams.length === 0 ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flex: 1,
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--iso-text-muted)',
-                      padding: '24px',
-                      textAlign: 'center',
-                      background: 'var(--iso-bg-header)',
-                      borderRadius: '8px',
-                      border: '1px dashed var(--iso-border)',
-                    }}
-                  >
-                    <span style={{ fontSize: '24px', marginBottom: '8px' }}>📂</span>
-                    <span>This project has no files.</span>
-                  </div>
-                ) : (
-                  projectDetailDiagrams.map((d) => (
-                    <div
-                      key={d.id}
-                      onClick={() => openProjectFile(d, projectDetailProject.id, getDiagramRole(d.id))}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setContextMenu({
-                          type: 'diagram',
-                          id: d.id,
-                          x: e.clientX,
-                          y: e.clientY,
-                          extra: {
-                            projectId: projectDetailProject.id,
-                            diagramName: d.name,
-                            diagram: d,
-                          },
-                        });
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        background: 'var(--iso-bg-header)',
-                        border: '1px solid var(--iso-border)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease-in-out',
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--iso-accent)';
-                        e.currentTarget.style.background = 'var(--iso-bg-hover)';
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--iso-border)';
-                        e.currentTarget.style.background = 'var(--iso-bg-header)';
-                      }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{d.name}</strong>
-                          {projectDetailProject.owner_id !== user?.id && (
-                            <span
-                              style={{
-                                fontSize: '10px',
-                                background: 'var(--iso-bg-app)',
-                                border: '1px solid var(--iso-border)',
-                                padding: '1px 5px',
-                                borderRadius: '8px',
-                                textTransform: 'capitalize',
-                                color: 'var(--iso-text-muted)',
-                                fontWeight: 500,
-                              }}
-                            >
-                              {t(`share.${getDiagramRole(d.id)}`) || getDiagramRole(d.id)}
-                            </span>
-                          )}
-                        </div>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            color: 'var(--iso-text-muted)',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.5px',
-                          }}
-                        >
-                          {d.kind}
-                        </span>
-                      </div>
-                      <span style={{ fontSize: '18px', color: 'var(--iso-text-muted)' }}>→</span>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button className="iso-btn" style={{ flex: 1 }} onClick={() => setProjectDetailModalOpen(false)}>
-                  {t('ui.cancel')}
-                </button>
-                <button
-                  className="iso-btn iso-btn--primary"
-                  style={{ flex: 1 }}
-                  disabled={isLoadingProjectDetail || projectDetailDiagrams.length === 0}
-                  onClick={() => {
-                    const rolesMap: Record<string, string> = {};
-                    projectDetailDiagrams.forEach((d) => {
-                      rolesMap[d.id] = getDiagramRole(d.id);
-                    });
-                    openWholeProject(
-                      projectDetailDiagrams,
-                      projectDetailProject.id,
-                      projectDetailProject.owner_id === user?.id ? 'owner' : projectDetailAccessMap.base || 'viewer',
-                      rolesMap,
-                    );
-                  }}
-                >
-                  Open Whole Project
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ProjectDetailModal
+          isOpen={projectDetailModalOpen}
+          project={projectDetailProject}
+          isLoading={isLoadingProjectDetail}
+          diagrams={projectDetailDiagrams}
+          accessMap={projectDetailAccessMap}
+          user={user}
+          t={t}
+          onClose={() => setProjectDetailModalOpen(false)}
+          openProjectFile={openProjectFile}
+          getDiagramRole={getDiagramRole}
+          setContextMenu={setContextMenu}
+          openWholeProject={openWholeProject}
+        />
 
         {diagramToDelete && (
           <div className="iso-modal-overlay" style={{ zIndex: 2200 }} onClick={() => setDiagramToDelete(null)}>
