@@ -75,6 +75,11 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
         } else {
           entitySpans.set(item.name, { line: item.span.line, col: item.span.col });
           entities.set(item.name, buildEntity(item, pkgName, errors));
+          for (const member of item.members) {
+            if (member.kind === 'EntityDecl') {
+              collectItems([member], item.name);
+            }
+          }
         }
         // Support nested entities in collectItems but buildEntity handles the hierarchy
       } else if (item.kind === 'NoteDecl') {
@@ -275,6 +280,7 @@ export function analyzeDiagram(diag: DiagramDecl, errors: SemanticError[]): IOMD
           entityNames: pContent.entityNames,
           relationIds: pContent.relationIds,
         });
+        collectItems(item.body);
       } else if (item.kind === 'CreateDecl') {
         if (!entities.has(item.entity)) {
           errors.push({ message: `Create references unknown entity '${item.entity}'`, rule: 'SS-17', line: item.span.line, col: item.span.col });

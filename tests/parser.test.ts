@@ -5,6 +5,7 @@ import { parse } from '../src/parser/index.js';
 
 function parseOk(source: string) {
   const result = parse(source);
+  if (result.errors.length > 0) console.error(result.errors);
   expect(result.errors).toHaveLength(0);
   return result.program;
 }
