@@ -58,7 +58,7 @@ export function renderUsecaseDiagram(diag: IOMDiagram, _options?: { isAnimating?
   const caption = renderConfigCaption(diag, canvasW, canvasH + header.height + 40);
   const totalH = canvasH + header.height + caption.height + 40;
   
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${totalH}" style="font-family:'Libron',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
   svg += legend.svg;

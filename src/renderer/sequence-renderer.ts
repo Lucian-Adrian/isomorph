@@ -80,7 +80,7 @@ export function renderSequenceDiagram(diag: IOMDiagram, options?: { isAnimating?
   const caption = renderConfigCaption(diag, width, diagramHeight + header.height + 40);
   const totalH = diagramHeight + header.height + caption.height + 40;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalH}" style="font-family:'Libron',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
   svg += legend.svg;

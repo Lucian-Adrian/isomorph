@@ -6,7 +6,7 @@ Transitioning from an AI-assisted prototype to a production-ready application re
 
 ## Part 1: Erasing the "AI Scent"
 
-AI code generally works, but it lacks the context of a holistic system. To make the code look like it was crafted by a human engineer, you need to target its most common bad habits.
+AI code generally works, but it lacks the context of a holistic system. To make the code look like it was crafted by a human engineer, you need to target its most common bad habits. Also it needs implemented SOLID OOP principles where possible.
 
 * **Nuke the Robotic Comments:** AI loves to over-explain the obvious. Delete comments like `// Checks if user is null` that sit directly above `if (!user)`. Professional code uses comments to explain *why* a decision was made (e.g., `// Workaround for Safari timezone bug`), not *what* the code is doing.
 * **Kill the "God Files":** AI tends to build linearly, resulting in massive 500+ line files. Break your code down by domain. Separate your types, UI components, state management, and API calls into distinct, logically named files.
@@ -27,6 +27,20 @@ Writing professional TypeScript isn't about using the most complex syntax; it's 
 | **Type Reusability**| Duplicates the same interface across five files. | Centralizes types in a `types/` directory and exports them cleanly. |
 
 **Formatting Rule:** Format the entire project with **Prettier** and run **ESLint** with standard TypeScript rules. Consistent indentation and formatting instantly signal professional code.
+
+---
+
+## Part 2.5: UI Copy, Casing & Typography Standards
+
+A dead giveaway of uncurated UI (or disjointed AI generation) is inconsistent or aggressive Title Casing.
+
+* **Sentence Case Everywhere (Mandatory):** Everything in the user interface must be written in **Sentence case**, NOT Title Case.
+  * **Applies to:** Modal titles, page headers, section headers, toasts/notifications, subtitles, menus, submenus, button labels, dropdown options, radio/checkbox labels, tooltips, and dialog descriptions.
+  * **Incorrect (Title Case):** *"Create New Diagram"*, *"Save Project To Cloud"*, *"Share Project With Collaborators"*, *"Diagram Deleted Successfully"*.
+  * **Correct (Sentence case):** *"Create new diagram"*, *"Save project to cloud"*, *"Share project with collaborators"*, *"Diagram deleted successfully"*.
+  * **Only capitalize proper nouns:** e.g., *"Isomorph"*, *"Supabase"*, *"UML"*, *"GitHub"*.
+* **Font System:** The application uses the **Libron** font family (`public/fonts/`) as its primary UI typography. All renderers, SVG generators, and UI sheets must consistently target Libron with system fallbacks.
+
 
 ---
 

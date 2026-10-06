@@ -43,7 +43,7 @@ export function renderFlowDiagram(diag: IOMDiagram, options?: { isAnimating?: bo
   const caption = renderConfigCaption(diag, maxX, maxY + header.height);
   const totalH = maxY + header.height + caption.height;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'Libron',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
   svg += legend.svg;

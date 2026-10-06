@@ -34,7 +34,7 @@ export function renderDiagram(diag: IOMDiagram, options?: { isWatermarkEnabled?:
   }
 
   if (options?.isWatermarkEnabled) {
-    const watermarkStr = `\n  <text x="100%" y="100%" dx="-20" dy="-20" text-anchor="end" font-family="DM Sans, system-ui, sans-serif" font-size="12" fill="var(--iso-text-muted)" opacity="0.5" pointer-events="none">Generated with Isomorph</text>\n</svg>`;
+    const watermarkStr = `\n  <text x="100%" y="100%" dx="-20" dy="-20" text-anchor="end" font-family="Libron, system-ui, sans-serif" font-size="12" fill="var(--iso-text-muted)" opacity="0.5" pointer-events="none">Generated with Isomorph</text>\n</svg>`;
     return svgStr.replace(/<\/svg>\s*$/, watermarkStr);
   }
 

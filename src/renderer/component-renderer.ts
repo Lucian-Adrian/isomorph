@@ -45,7 +45,7 @@ export function renderComponentDiagram(diag: IOMDiagram, _options?: { isAnimatin
   const caption = renderConfigCaption(diag, maxX, maxY + header.height + 40);
   const totalH = maxY + header.height + caption.height + 40;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'Libron',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
   svg += legend.svg;
@@ -334,7 +334,7 @@ export function renderPlaceholderDiagram(diag: IOMDiagram): string {
   const entities = [...diag.entities.values()];
   const canvasW = 640, canvasH = 200 + entities.length * 22;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:'DM Sans',system-ui,sans-serif;background:#fafafa">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasW}" height="${canvasH}" style="font-family:'Libron',system-ui,sans-serif;background:#fafafa">\n`;
   svg += `  <rect width="${canvasW}" height="${canvasH}" fill="var(--iso-bg-panel, #fafafa)"/>\n`;
 
   // Header band

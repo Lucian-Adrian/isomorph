@@ -84,11 +84,11 @@ export function renderConfigHeaders(diag: import('../semantics/iom.js').IOMDiagr
   let svg = '';
   let y = 35;
   if (diag.config?.title) {
-    svg += `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="20" font-weight="800" fill="var(--iso-text)" font-family="DM Sans, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.title)}</text>\n`;
+    svg += `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="20" font-weight="800" fill="var(--iso-text)" font-family="Libron, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.title)}</text>\n`;
     y += 30;
   }
   if (diag.config?.subtitle) {
-    svg += `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="14" fill="var(--iso-text-muted)" font-family="DM Sans, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.subtitle)}</text>\n`;
+    svg += `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="14" fill="var(--iso-text-muted)" font-family="Libron, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.subtitle)}</text>\n`;
     y += 25;
   }
   return { svg, height: y > 35 ? y : 0 };
@@ -98,7 +98,7 @@ export function renderConfigHeaders(diag: import('../semantics/iom.js').IOMDiagr
 export function renderConfigCaption(diag: import('../semantics/iom.js').IOMDiagram, width: number, totalHeight: number): { svg: string, height: number } {
   if (!diag.config?.caption) return { svg: '', height: 0 };
   const y = totalHeight + 25;
-  const svg = `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="12" font-style="italic" fill="var(--iso-text-muted)" font-family="DM Sans, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.caption)}</text>\n`;
+  const svg = `  <text x="${width / 2}" y="${y}" text-anchor="middle" font-size="12" font-style="italic" fill="var(--iso-text-muted)" font-family="Libron, system-ui, -apple-system, sans-serif">${escapeXml(diag.config.caption)}</text>\n`;
   return { svg, height: 40 };
 }
 
@@ -112,7 +112,7 @@ export function renderConfigLegend(diag: import('../semantics/iom.js').IOMDiagra
   let svg = `  <g transform="translate(${x},${y})">\n`;
   svg += `    <rect width="${frameW}" height="${frameH}" fill="var(--iso-bg-panel)" stroke="var(--iso-border)" stroke-width="1.5" rx="4" filter="url(#shadow)" />\n`;
   lines.forEach((l, i) => {
-    svg += `    <text x="10" y="${20 + i * 20}" font-size="12" fill="var(--iso-text)" font-family="DM Sans, system-ui, sans-serif">${escapeXml(l)}</text>\n`;
+    svg += `    <text x="10" y="${20 + i * 20}" font-size="12" fill="var(--iso-text)" font-family="Libron, system-ui, sans-serif">${escapeXml(l)}</text>\n`;
   });
   svg += `  </g>\n`;
   return { svg };
@@ -214,11 +214,11 @@ export function renderNoteEntity(entity: import('../semantics/iom.js').IOMEntity
   s += `    <polygon points="${width - foldSize},0 ${width - foldSize},${foldSize} ${width},${foldSize}" fill="var(--iso-note-fold)" stroke="var(--iso-note-border)" stroke-width="1.5" stroke-linejoin="round"/>\n`;
   
   // Name label at top
-  s += `    <text x="8" y="16" font-size="10" font-weight="600" fill="var(--iso-note-title)" font-family="DM Sans, system-ui, sans-serif">${safeName}</text>\n`;
+  s += `    <text x="8" y="16" font-size="10" font-weight="600" fill="var(--iso-note-title)" font-family="Libron, system-ui, sans-serif">${safeName}</text>\n`;
   
   // HTML content inside foreignObject
   s += `    <foreignObject x="8" y="24" width="${width - 16}" height="${height - 32}">\n`;
-  s += `      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: DM Sans, system-ui, sans-serif; font-size: 13px; color: var(--iso-note-text); width: 100%; height: 100%; overflow: hidden; box-sizing: border-box; line-height: 1.4;">\n`;
+  s += `      <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: Libron, system-ui, sans-serif; font-size: 13px; color: var(--iso-note-text); width: 100%; height: 100%; overflow: hidden; box-sizing: border-box; line-height: 1.4;">\n`;
   s += `        ${htmlContent}\n`;
   s += `      </div>\n`;
   s += `    </foreignObject>\n`;

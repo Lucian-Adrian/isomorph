@@ -39,7 +39,7 @@ export function renderClassDiagram(diag: IOMDiagram, options?: { isAnimating?: b
   const caption = renderConfigCaption(diag, maxX, Math.max(maxEntityY, maxPkgY) + 40 + header.height);
   const maxY = Math.max(maxEntityY, maxPkgY) + 40 + header.height + caption.height;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif" style="background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${maxY}" font-family="Libron, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif" style="background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
   svg += legend.svg;
@@ -93,7 +93,7 @@ export function renderClassDiagram(diag: IOMDiagram, options?: { isAnimating?: b
 
       svg += `  <g data-package-name="${escapeXml(pkg.name)}" transform="translate(${px},${py})">\n`;
       svg += `    <rect x="0" y="0" width="${pw}" height="${ph}" rx="6" fill="var(--iso-pkg-bg)" stroke="var(--iso-pkg-border)" stroke-width="1.5" stroke-dasharray="6,3"/>\n`;
-      svg += `    <text x="8" y="18" font-size="11" fill="var(--iso-pkg-text)" font-style="italic" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">«package» ${escapeXml(pkg.name)}</text>\n`;
+      svg += `    <text x="8" y="18" font-size="11" fill="var(--iso-pkg-text)" font-style="italic" font-family="Libron, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">«package» ${escapeXml(pkg.name)}</text>\n`;
       
       for (const member of members) {
         svg += renderEntityBox(member, px, py, options);
@@ -181,11 +181,11 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0, options?: any)
   let nameY = HEADER_HEIGHT / 2 + 4;
   if (entity.stereotype || isInterface || isEnum) {
     const stereoText = entity.stereotype ? `«${entity.stereotype}»` : isInterface ? '«interface»' : '«enum»';
-    s += `    <text x="${width / 2}" y="14" text-anchor="middle" font-size="10" fill="var(--iso-text-muted)" font-style="italic" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">${escapeXml(stereoText)}</text>\n`;
+    s += `    <text x="${width / 2}" y="14" text-anchor="middle" font-size="10" fill="var(--iso-text-muted)" font-style="italic" font-family="Libron, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif">${escapeXml(stereoText)}</text>\n`;
     nameY = HEADER_HEIGHT - 8;
   }
   const nameStyleAttr = isAbstract ? ' font-style="italic"' : '';
-  s += `    <text x="${width / 2}" y="${nameY}" text-anchor="middle" font-size="${FONT_SIZE}" font-weight="600" font-family="DM Sans, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"${nameStyleAttr} fill="var(--iso-text)">${escapeXml(entity.name)}</text>\n`;
+  s += `    <text x="${width / 2}" y="${nameY}" text-anchor="middle" font-size="${FONT_SIZE}" font-weight="600" font-family="Libron, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"${nameStyleAttr} fill="var(--iso-text)">${escapeXml(entity.name)}</text>\n`;
 
   // Divider
   let currentY = HEADER_HEIGHT;

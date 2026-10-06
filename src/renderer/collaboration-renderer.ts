@@ -55,7 +55,7 @@ export function renderCollaborationDiagram(diag: IOMDiagram, options?: { isAnima
   const caption = renderConfigCaption(diag, maxX, maxY + header.height + 40);
   const totalH = maxY + header.height + caption.height + 40;
 
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'DM Sans',system-ui,sans-serif;background:transparent">\n`;
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${maxX}" height="${totalH}" style="font-family:'Libron',system-ui,sans-serif;background:transparent">\n`;
   svg += svgDefs();
   svg += header.svg;
   svg += legend.svg;
