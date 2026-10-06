@@ -829,7 +829,7 @@ export function LibraryModal({
             <button className="iso-modal-close-btn" onClick={() => setNewCategoryPrompt(false)}>
               ×
             </button>
-            <h2 className="iso-modal-title">New Category Name</h2>
+            <h2 className="iso-modal-title">New category name</h2>
             <div className="iso-modal-field">
               <input
                 type="text"
@@ -868,7 +868,7 @@ export function LibraryModal({
                   setNewCategoryPrompt(false);
                 }}
               >
-                {t('ui.add_category') || 'Add Category'}
+                {t('ui.add_category') || 'Add category'}
               </button>
             </div>
           </div>

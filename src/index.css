@@ -189,6 +189,10 @@
 /* ── Reset ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
+button, input, select, textarea {
+  font-family: inherit;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;

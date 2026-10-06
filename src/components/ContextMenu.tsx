@@ -107,7 +107,7 @@ export function ContextMenu({
                 setContextMenu(null);
               }}
             >
-              Delete Category
+              Delete category
             </button>
           </>
         )}
@@ -147,7 +147,7 @@ export function ContextMenu({
                               setProjects((prev) =>
                                 prev.map((p) => (p.id === contextMenu.id ? { ...p, settings: newSettings } : p)),
                               );
-                              addToast(nextFav ? 'Added to Favorites' : 'Removed from Favorites');
+                              addToast(nextFav ? 'Added to favorites' : 'Removed from favorites');
                             }
                           });
                         }
@@ -156,14 +156,14 @@ export function ContextMenu({
                     setContextMenu(null);
                   }}
                 >
-                  {isFav ? 'Remove from Favorites' : 'Add to Favorites'}
+                  {isFav ? 'Remove from favorites' : 'Add to favorites'}
                 </button>
                 <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
                   <button
                     className="iso-context-menu-item"
                     style={{ justifyContent: 'space-between', display: 'flex' }}
                   >
-                    Add to Folder <span>▶</span>
+                    Add to folder <span>▶</span>
                   </button>
                   <div
                     className="iso-menu-dropdown-submenu"
@@ -231,7 +231,7 @@ export function ContextMenu({
                     setContextMenu(null);
                   }}
                 >
-                  Delete Project
+                  Delete project
                 </button>
               </>
             );
@@ -253,7 +253,7 @@ export function ContextMenu({
 
             <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
               <button className="iso-context-menu-item" style={{ justifyContent: 'space-between', display: 'flex' }}>
-                Move to Project <span>▶</span>
+                Move to project <span>▶</span>
               </button>
               <div
                 className="iso-menu-dropdown-submenu"

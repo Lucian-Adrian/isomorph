@@ -9,7 +9,7 @@ const SHORTCUTS: { keys: string; descKey: string }[] = [
   { keys: 'Ctrl + O',           descKey: 'Open .isx file' },
   { keys: 'Ctrl + E',           descKey: 'Export SVG' },
   { keys: 'Ctrl + Shift + E',   descKey: 'Export PNG' },
-  { keys: 'Ctrl + Z / Y',       descKey: 'Undo / Redo' },
+  { keys: 'Ctrl + Z / Y',       descKey: 'Undo / redo' },
   { keys: 'Ctrl + D',           descKey: 'Duplicate selected items' },
   { keys: 'Ctrl + Q',           descKey: 'Toggle this panel' },
 ];

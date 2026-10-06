@@ -26,10 +26,10 @@ export function RenameModal({
           ×
         </button>
         <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>
-          Rename {renameType === 'project' ? 'Project' : renameType === 'category' ? 'Category' : 'Diagram'}
+          Rename {renameType === 'project' ? 'project' : renameType === 'category' ? 'category' : 'diagram'}
         </h3>
         <div className="iso-modal-field">
-          <label>New Name</label>
+          <label>New name</label>
           <input
             type="text"
             className="iso-input"

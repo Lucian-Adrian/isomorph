@@ -47,7 +47,7 @@ export function CommonModals({
       {diagramToDelete && (
         <div className="iso-modal-overlay" style={{ zIndex: 2200 }} onClick={() => setDiagramToDelete(null)}>
           <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete Diagram</h3>
+            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete diagram</h3>
             <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>
               Are you sure you want to delete "{diagramToDelete.name}"? This action cannot be undone.
             </p>
@@ -71,7 +71,7 @@ export function CommonModals({
       {projectToDelete && (
         <div className="iso-modal-overlay" onClick={() => setProjectToDelete(null)}>
           <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete Project</h3>
+            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete project</h3>
             <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>
               Are you sure you want to delete this project? This action cannot be undone.
             </p>

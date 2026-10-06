@@ -129,7 +129,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
                   <option
                     key={k}
                     value={k}
-                  >{`${k.charAt(0).toUpperCase() + k.slice(1)} ${t('welcome.diagram')}`}</option>
+                  >{t(`diagram_type.${k}`) || `${k.charAt(0).toUpperCase() + k.slice(1)} diagram`}</option>
                 ))}
               </select>
             </div>

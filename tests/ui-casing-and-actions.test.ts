@@ -18,6 +18,9 @@ describe('UI Casing & Actions Compliance', () => {
     expect(tText('en', 'diagram_type.class')).toBe('Class diagram');
     expect(tText('en', 'diagram_type.sequence')).toBe('Sequence diagram');
     expect(tText('en', 'ctx.add_note')).toBe('Add note');
+    expect(tText('en', 'share.error_create_link')).toBe('Failed to create share link. Please verify project ownership.');
+    expect(tText('en', 'share.no_share_links_active')).toBe('No active share links. Generate one above.');
+    expect(tText('en', 'ui.save_to_cloud')).toBe('Save to cloud');
   });
 
   it('correctly interpolates dynamic variables into Sentence case templates', () => {

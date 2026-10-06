@@ -200,7 +200,7 @@ export function ProjectDetailModal({
               );
             }}
           >
-            Open Whole Project
+            Open whole project
           </button>
         </div>
       </div>

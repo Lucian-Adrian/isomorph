@@ -143,7 +143,7 @@ export function SettingsModal({
                       
                       {/* Section 1: Personal Info */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Personal Information</div>
+                        <div className="iso-settings-section-title">Personal information</div>
                         <div className="iso-settings-grid" style={{ gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
                           {/* Profile Photo Card */}
                           <div className="iso-settings-card" style={{ display: 'flex', flexDirection: 'row', gap: '20px', alignItems: 'center', justifyContent: 'flex-start' }}>
@@ -184,7 +184,7 @@ export function SettingsModal({
                                     input.click();
                                   }}
                                 >
-                                  Upload Photo
+                                  Upload photo
                                 </button>
                                 {profile?.avatar_url && (
                                   <button
@@ -214,7 +214,7 @@ export function SettingsModal({
                           {/* Display Name Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Display Name</div>
+                              <div className="iso-settings-label">Display name</div>
                               <div className="iso-settings-desc">What name should we display in comments and live previews?</div>
                             </div>
                             <div className="iso-settings-control" style={{ width: '100%', marginTop: '8px' }}>
@@ -262,7 +262,7 @@ export function SettingsModal({
                           {/* Email Address Card */}
                           <div className="iso-settings-card" style={{ gridColumn: 'span 2' }}>
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Email Address</div>
+                              <div className="iso-settings-label">Email address</div>
                               <div className="iso-settings-desc">Your verified account email address. Managed via authentication settings.</div>
                             </div>
                             <div className="iso-settings-control" style={{ width: '100%', marginTop: '8px' }}>
@@ -281,18 +281,18 @@ export function SettingsModal({
 
                       {/* Section 2: Account Status & Actions */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Account Actions</div>
+                        <div className="iso-settings-section-title">Account actions</div>
                         <div className="iso-settings-grid" style={{ gridTemplateColumns: '1fr', gap: '16px' }}>
                           {/* Reset Password Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Update Password</div>
+                              <div className="iso-settings-label">Update password</div>
                               <div className="iso-settings-desc">Choose a new, secure password for your account.</div>
                             </div>
                             <div className="iso-settings-control" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                               <input
                                 type="password"
-                                placeholder="New Password"
+                                placeholder="New password"
                                 value={newPassword}
                                 onChange={e => setNewPassword(e.target.value)}
                                 className="iso-input"
@@ -307,12 +307,12 @@ export function SettingsModal({
                           {/* Sign Out Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Sign Out</div>
+                              <div className="iso-settings-label">Sign out</div>
                               <div className="iso-settings-desc">Log out of your session on this browser.</div>
                             </div>
                             <div className="iso-settings-control">
                               <button className="iso-btn" onClick={handleSignOut}>
-                                Sign Out
+                                Sign out
                               </button>
                             </div>
                           </div>
@@ -320,7 +320,7 @@ export function SettingsModal({
                           {/* Delete Account Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal" style={{ borderColor: 'rgba(255, 95, 87, 0.2)', background: 'rgba(255, 95, 87, 0.02)' }}>
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label" style={{ color: 'var(--iso-danger)' }}>Delete Account</div>
+                              <div className="iso-settings-label" style={{ color: 'var(--iso-danger)' }}>Delete account</div>
                               <div className="iso-settings-desc">Permanently erase your account, all projects, and custom diagrams.</div>
                             </div>
                             <div className="iso-settings-control">
@@ -332,7 +332,7 @@ export function SettingsModal({
                                   setIsDeleteModalOpen(true);
                                 }}
                               >
-                                Delete Account
+                                Delete account
                               </button>
                             </div>
                           </div>
@@ -362,13 +362,13 @@ export function SettingsModal({
                       
                       {/* Section 1: Live Cursor Options */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Live Cursor Options</div>
+                        <div className="iso-settings-section-title">Live cursor options</div>
                         <div className="iso-settings-grid">
                           
                           {/* Cursor Color Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Cursor Color</div>
+                              <div className="iso-settings-label">Cursor color</div>
                               <div className="iso-settings-desc">Choose a custom color that represents your cursor on shared canvas boards.</div>
                             </div>
                             <div className="iso-settings-control" style={{ flexDirection: 'column', gap: '16px', width: '100%', marginTop: '8px' }}>
@@ -398,7 +398,7 @@ export function SettingsModal({
                           {/* Cursor Preview Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Live Preview</div>
+                              <div className="iso-settings-label">Live preview</div>
                               <div className="iso-settings-desc">How other developers will see your active cursor live.</div>
                             </div>
                             <div className="iso-settings-control" style={{ width: '100%', height: '80px', background: 'var(--iso-bg-canvas)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
@@ -434,7 +434,7 @@ export function SettingsModal({
                           {/* Show Name Label Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Display Name Label</div>
+                              <div className="iso-settings-label">Display name label</div>
                               <div className="iso-settings-desc">Show your name badge alongside your live cursor indicator to others.</div>
                             </div>
                             <div className="iso-settings-control">
@@ -456,7 +456,7 @@ export function SettingsModal({
                           {/* Cursor Trail Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Cursor Particle Trails</div>
+                              <div className="iso-settings-label">Cursor particle trails</div>
                               <div className="iso-settings-desc">Draw a subtle particle trail behind your cursor when in active motion.</div>
                             </div>
                             <div className="iso-settings-control">
@@ -480,15 +480,15 @@ export function SettingsModal({
 
                       {/* Section 2: Future Collaboration Features */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Collaboration Status</div>
+                        <div className="iso-settings-section-title">Collaboration status</div>
                         <div className="iso-settings-grid">
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Multiplayer Canvas</div>
+                              <div className="iso-settings-label">Multiplayer canvas</div>
                               <div className="iso-settings-desc">{t('ui.collab_future')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ marginTop: '8px' }}>
-                              <span style={{ fontSize: '11px', color: 'var(--iso-brand)', background: 'var(--iso-bg-active)', padding: '4px 8px', borderRadius: '12px', fontWeight: 600 }}>Coming Soon</span>
+                              <span style={{ fontSize: '11px', color: 'var(--iso-brand)', background: 'var(--iso-bg-active)', padding: '4px 8px', borderRadius: '12px', fontWeight: 600 }}>Coming soon</span>
                             </div>
                           </div>
                         </div>
@@ -509,13 +509,13 @@ export function SettingsModal({
                       
                       {/* Section 1: Resource Usage */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Resource Usage</div>
+                        <div className="iso-settings-section-title">Resource usage</div>
                         <div className="iso-settings-grid">
                           
                           {/* Subscription Tier Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Subscription Tier</div>
+                              <div className="iso-settings-label">Subscription tier</div>
                               <div className="iso-settings-desc">Your active user plan. Multi-device cloud backup limits apply.</div>
                             </div>
                             <div className="iso-settings-control" style={{ marginTop: '8px' }}>
@@ -528,7 +528,7 @@ export function SettingsModal({
                           {/* Projects Limit Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Cloud Projects Usage</div>
+                              <div className="iso-settings-label">Cloud projects usage</div>
                               <div className="iso-settings-desc">Percentage of your workspace allowance stored in the cloud.</div>
                             </div>
                             <div className="iso-settings-control" style={{ flexDirection: 'column', width: '100%', gap: '8px', marginTop: '12px' }}>
@@ -561,13 +561,13 @@ export function SettingsModal({
 
                       {/* Section 2: Storage Tiers & Billing */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Upgrade Plan</div>
+                        <div className="iso-settings-section-title">Upgrade plan</div>
                         <div className="iso-settings-grid">
                           
                           {/* Plans Card */}
                           <div className="iso-settings-card" style={{ gridColumn: 'span 2' }}>
                             <div className="iso-settings-info" style={{ marginBottom: '12px' }}>
-                              <div className="iso-settings-label">Available Subscriptions</div>
+                              <div className="iso-settings-label">Available subscriptions</div>
                               <div className="iso-settings-desc">{t('ui.storage_future')} Upgrade to scale your projects.</div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', width: '100%' }}>
@@ -577,7 +577,7 @@ export function SettingsModal({
                                 <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>Ideal for starting out. Up to 5 projects stored securely in the cloud.</span>
                               </div>
                               <div style={{ background: 'var(--iso-bg-active)', border: '1px solid var(--iso-brand)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', transform: 'scale(1.02)' }}>
-                                <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>Power Plan</strong>
+                                <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>Power plan</strong>
                                 <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--iso-brand)' }}>$5 <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--iso-text-muted)' }}>/ month</span></span>
                                 <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>For power users. Up to 25 projects and advanced sharing options.</span>
                               </div>
@@ -589,7 +589,7 @@ export function SettingsModal({
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '16px' }}>
                               <button className="iso-btn iso-btn--primary" onClick={() => window.open('https://isomorph.ro/pricing', '_blank')}>
-                                View Detailed Plans
+                                View detailed plans
                               </button>
                             </div>
                           </div>
@@ -608,7 +608,7 @@ export function SettingsModal({
                   
                   {/* Section 1: Appearance & Interface */}
                   <div className="iso-settings-section">
-                    <div className="iso-settings-section-title">Appearance & Interface</div>
+                    <div className="iso-settings-section-title">Appearance & interface</div>
                     <div className="iso-settings-grid">
                       
                       {/* Theme Card */}
@@ -678,7 +678,7 @@ export function SettingsModal({
 
                   {/* Section 2: Editor & Workspace */}
                   <div className="iso-settings-section">
-                    <div className="iso-settings-section-title">Editor & Workspace</div>
+                    <div className="iso-settings-section-title">Editor & workspace</div>
                     <div className="iso-settings-grid">
 
                       {/* Strict UML Card */}
@@ -708,7 +708,7 @@ export function SettingsModal({
                       {session && (
                         <div className="iso-settings-card">
                           <div className="iso-settings-info">
-                            <div className="iso-settings-label">Auto Save</div>
+                            <div className="iso-settings-label">Auto save</div>
                             <div className="iso-settings-desc">Configure the interval for automatically saving changes to the cloud.</div>
                           </div>
                           <div className="iso-settings-control" style={{ width: '100%' }}>
@@ -745,13 +745,13 @@ export function SettingsModal({
 
                   {/* Section 3: Visuals & Export */}
                   <div className="iso-settings-section">
-                    <div className="iso-settings-section-title">Visuals & Exports</div>
+                    <div className="iso-settings-section-title">Visuals & exports</div>
                     <div className="iso-settings-grid">
 
                       {/* Output Watermark Card */}
                       <div className="iso-settings-card iso-settings-card-horizontal">
                         <div className="iso-settings-info">
-                          <div className="iso-settings-label">Output Watermark</div>
+                          <div className="iso-settings-label">Output watermark</div>
                           <div className="iso-settings-desc">{t('ui.watermark')}</div>
                         </div>
                         <div className="iso-settings-control">
@@ -825,7 +825,7 @@ export function SettingsModal({
                       {/* Anonymous Telemetry Card */}
                       <div className="iso-settings-card iso-settings-card-horizontal">
                         <div className="iso-settings-info">
-                          <div className="iso-settings-label">Anonymous Telemetry</div>
+                          <div className="iso-settings-label">Anonymous telemetry</div>
                           <div className="iso-settings-desc">Send anonymous telemetry data to help improve Isomorph.</div>
                         </div>
                         <div className="iso-settings-control">

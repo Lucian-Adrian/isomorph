@@ -33,7 +33,7 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
   return (
     <div className="iso-modal-overlay" onClick={() => setSaveToCloudModalOpen(false)}>
       <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
-        <h2 className="iso-modal-title">Save to Cloud</h2>
+        <h2 className="iso-modal-title">{t('ui.save_to_cloud')}</h2>
         <p className="iso-modal-desc">Select a project to save this diagram into.</p>
         <div className="iso-modal-field">
           <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
@@ -50,7 +50,7 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
                 }
               }}
             >
-              <option value="">-- Select Project --</option>
+              <option value="">-- Select project --</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -67,7 +67,7 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
                 setIsSavingFlow(true);
               }}
             >
-              New Project
+              New project
             </button>
           </div>
         </div>
