@@ -120,7 +120,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
       <div className="iso-modal iso-modal-large" onClick={e => e.stopPropagation()}>
         {/* Sidebar */}
         <div className="iso-modal-sidebar">
-          <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', color: 'var(--iso-text)' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', color: 'var(--iso-text)' }}>
             {t('share.share_project')}
           </h2>
           <button

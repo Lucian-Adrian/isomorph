@@ -125,7 +125,7 @@ export function LibraryModal({
       <div className="iso-modal-overlay" onClick={onClose}>
         <div className="iso-modal iso-modal-large" onClick={(e) => e.stopPropagation()}>
           <div className="iso-modal-sidebar">
-            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('ui.library')}</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', color: 'var(--iso-text)' }}>{t('ui.library')}</h2>
             <button
               className={`iso-modal-sidebar-tab ${libraryTab === 'my' ? 'active' : ''}`}
               onClick={() => setLibraryTab('my')}

@@ -125,7 +125,7 @@ export function SettingsModal({
       <div className="iso-modal-overlay" onClick={onClose}>
         <div className="iso-modal iso-modal-large" onClick={e => e.stopPropagation()}>
           <div className="iso-modal-sidebar">
-            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>{t('ui.settings')}</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', color: 'var(--iso-text)' }}>{t('ui.settings')}</h2>
             <button className={`iso-modal-sidebar-tab ${settingsTab === 'profile' ? 'active' : ''}`} onClick={() => setSettingsTab('profile')}>{t('ui.profile')}</button>
             <button className={`iso-modal-sidebar-tab ${settingsTab === 'collab' ? 'active' : ''}`} onClick={() => setSettingsTab('collab')}>{t('ui.collab_settings')}</button>
             <button className={`iso-modal-sidebar-tab ${settingsTab === 'storage' ? 'active' : ''}`} onClick={() => setSettingsTab('storage')}>{t('ui.storage')}</button>
@@ -137,7 +137,7 @@ export function SettingsModal({
 
               {settingsTab === 'profile' && (
                 <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.profile')}</h3>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px', fontWeight: 700, color: 'var(--iso-text)' }}>{t('ui.profile')}</h3>
                   {session ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
                       
@@ -354,7 +354,7 @@ export function SettingsModal({
 
               {settingsTab === 'collab' && (
                 <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.collab_settings')}</h3>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px', fontWeight: 700, color: 'var(--iso-text)' }}>{t('ui.collab_settings')}</h3>
                   {!session ? (
                     <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.collab_login_needed')}</p>
                   ) : (
@@ -501,7 +501,7 @@ export function SettingsModal({
 
               {settingsTab === 'storage' && (
                 <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.storage')}</h3>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px', fontWeight: 700, color: 'var(--iso-text)' }}>{t('ui.storage')}</h3>
                   {!session ? (
                     <p style={{ color: 'var(--iso-text-muted)' }}>{t('ui.storage_login_needed')}</p>
                   ) : (
@@ -604,7 +604,7 @@ export function SettingsModal({
 
               {settingsTab === 'app' && (
                 <div>
-                  <h3 style={{ marginBottom: '24px', fontSize: '20px' }}>{t('ui.app_settings')}</h3>
+                  <h3 style={{ marginBottom: '24px', fontSize: '20px', fontWeight: 700, color: 'var(--iso-text)' }}>{t('ui.app_settings')}</h3>
                   
                   {/* Section 1: Appearance & Interface */}
                   <div className="iso-settings-section">
