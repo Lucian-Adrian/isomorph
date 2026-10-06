@@ -69,6 +69,8 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
       logAudit('share_link_created', 'share_link', link.id, { role: newLinkRole, scope: newLinkScope, projectId });
       onToast(t('share.success_link_created', { role: t(`share.${newLinkRole}`) }), 'success');
       onShareChange?.();
+    } else {
+      onToast(t('share.error_create_link') || 'Failed to create share link. Please verify project ownership.', 'info');
     }
   }
 
@@ -286,7 +288,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
                           onClick={() => handleRevokeAccess(a.id)}
                           className="iso-btn"
                           style={{ padding: '6px 12px', fontSize: '12px', color: 'var(--iso-error)', borderColor: 'rgba(255, 95, 87, 0.2)', background: 'var(--iso-bg-panel)' }}
-                          title="Remove Access"
+                          title="Remove access"
                         >
                           {t('share.remove')}
                         </button>

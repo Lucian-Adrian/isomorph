@@ -20,6 +20,7 @@
   ],
   "scripts": {
     "dev": "vite",
+    "server": "node server/index.js",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",

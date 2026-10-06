@@ -443,8 +443,8 @@ export function Toolbar({
               type="button"
               className="iso-btn"
               onClick={() => setIsShareModalOpen(true)}
-              aria-label="Share Project"
-              data-tooltip="Share Project"
+              aria-label={t('share.share_project')}
+              data-tooltip={t('share.share_project')}
             >
               <svg
                 width="14"
@@ -504,8 +504,8 @@ export function Toolbar({
               type="button"
               className={`iso-btn${isHistoryOpen ? ' iso-btn--active' : ''}`}
               onClick={toggleHistory}
-              aria-label="Toggle History"
-              data-tooltip="View History"
+              aria-label="Toggle history"
+              data-tooltip="View history"
             >
               <svg
                 width="14"
@@ -596,8 +596,8 @@ export function Toolbar({
           setSettingsTab?.('profile');
           setIsSettingsOpen(true);
         }}
-        aria-label="Settings"
-        data-tooltip="Settings"
+        aria-label={t('ui.settings')}
+        data-tooltip={t('ui.settings')}
       >
         <IconSettings size={20} />
       </button>

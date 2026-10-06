@@ -66,8 +66,43 @@ export function CollaboratorBar({
     return clean.slice(0, 2).toUpperCase();
   }, []);
 
-  if (!activeTab?.diagram_id || !isConnected) {
+  if (!activeTab?.diagram_id) {
     return null;
+  }
+
+  if (!isConnected) {
+    return (
+      <div
+        className="iso-avatar-stack"
+        title="Collaboration server disconnected. Changes saved locally."
+        style={{ cursor: 'help' }}
+      >
+        <span
+          style={{
+            fontSize: '11px',
+            color: 'var(--iso-text-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            padding: '2px 8px',
+            borderRadius: '12px',
+            background: 'var(--iso-bg-app)',
+            border: '1px solid var(--iso-border)',
+          }}
+        >
+          <span
+            style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              backgroundColor: '#94a3b8',
+              opacity: 0.7,
+            }}
+          />
+          Collab offline
+        </span>
+      </div>
+    );
   }
 
   return (
