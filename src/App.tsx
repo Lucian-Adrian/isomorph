@@ -10,6 +10,7 @@
 // ============================================================
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { sound } from './lib/sound.js';
 import { IsomorphEditor } from './editor/IsomorphEditor.js';
 import type { LintDiagnostic } from './editor/IsomorphEditor.js';
 import { DiagramView } from './components/DiagramView.js';
@@ -142,9 +143,10 @@ export default function App() {
   const [collabShowTrail, setCollabShowTrail] = useState(true);
   const [collabShowNameLabel, setCollabShowNameLabel] = useState(true);
 
-  const addToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
+  const addToast = useCallback((message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    sound.toast(type as any);
     const id = Math.random().toString(36).substr(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type: type === 'error' ? 'info' : type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);
@@ -405,6 +407,13 @@ export default function App() {
       }
       addToast('Category renamed');
     } else if (renameType === 'diagram') {
+      const isDuplicate = projectDetailDiagrams.some(
+        (d) => d.id !== renameTargetId && d.name.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      if (isDuplicate) {
+        addToast(`A file named "${trimmed}" already exists in this project`, 'error');
+        return;
+      }
       import('./lib/projects.js').then(({ updateDiagram }) => {
         updateDiagram(renameTargetId, { name: trimmed }).then((success) => {
           if (success) {
@@ -412,8 +421,10 @@ export default function App() {
               prev.map((d) => (d.id === renameTargetId ? { ...d, name: trimmed } : d)),
             );
             setTabs((prev) => prev.map((t) => (t.diagram_id === renameTargetId ? { ...t, name: trimmed } : t)));
-            addToast('Diagram renamed');
+            addToast('Diagram renamed', 'success');
           }
+        }).catch((err: any) => {
+          addToast(err.message || 'Failed to rename diagram', 'error');
         });
       });
     }
@@ -1211,9 +1222,7 @@ export default function App() {
         <IconCanvas size={11} />
         {t('ui.canvas')}
         <span className="iso-panel-spacer" />
-        {diagrams.length > 0 && (
-          <span style={{ fontSize: 10, color: '#6e7781', fontFamily: 'monospace' }}>{t('ui.drag_reposition')}</span>
-        )}
+        
       </div>
       <div className="iso-panel-body">
         <DiagramView
@@ -1465,6 +1474,7 @@ export default function App() {
           setNewModalTab={setNewModalTab}
           setIsNewModalOpen={setIsNewModalOpen}
           setIsSavingFlow={setIsSavingFlow}
+          currentFileName={activeTab?.name}
         />
 
         {isAnonymousLoginOpen && pendingShareToken && (

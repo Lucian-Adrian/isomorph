@@ -12,6 +12,7 @@ import type { WorkspaceTab } from '../types/index.js';
 import type { IOMDiagram } from '../semantics/iom.js';
 import { CollaboratorBar, type Collaborator } from './CollaboratorBar.js';
 import { ExportModal } from './ExportModal.js';
+import { sound } from '../lib/sound.js';
 import { IconNew, IconOpen, IconKeyboard, IconSettings, IconSave, IconTransform, IconExport } from './Icons.js';
 
 interface ToolbarProps {
@@ -297,7 +298,7 @@ export function Toolbar({
                 });
               }}
               className={`iso-tab${tab.id === activeTab?.id ? ' iso-tab--active' : ''}`}
-              onClick={() => setActiveTabId(tab.id)}
+              onClick={() => { sound.tab(); setActiveTabId(tab.id); }}
               onDoubleClick={() => {
                 if (!tab.project_role || tab.project_role === 'owner') setRenamingTabId(tab.id);
               }}

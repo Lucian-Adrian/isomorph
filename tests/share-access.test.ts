@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('Share Links & Access Control Logic', () => {
   it('generates a compliant 40-character unique hex share token', () => {
@@ -59,5 +59,35 @@ describe('Share Links & Access Control Logic', () => {
     expect(canShare('owner')).toBe(true);
     expect(canShare('editor')).toBe(false);
     expect(canShare('viewer')).toBe(false);
+  });
+
+  it('detects duplicate filenames within a project case-insensitively', () => {
+    const existingProjectFiles = [
+      { id: 'diag-1', name: 'untitled.isx', project_id: 'proj-1' },
+      { id: 'diag-2', name: 'architecture.isx', project_id: 'proj-1' },
+      { id: 'diag-3', name: 'untitled.isx', project_id: 'proj-2' },
+    ];
+
+    const isDuplicate = (projectId: string, candidateName: string, excludeId?: string) => {
+      const norm = candidateName.trim().toLowerCase();
+      return existingProjectFiles.some(
+        f => f.project_id === projectId && f.id !== excludeId && f.name.trim().toLowerCase() === norm
+      );
+    };
+
+    // Duplicate in proj-1
+    expect(isDuplicate('proj-1', 'untitled.isx')).toBe(true);
+    expect(isDuplicate('proj-1', 'UNTITLED.ISX')).toBe(true);
+    expect(isDuplicate('proj-1', ' architecture.isx ')).toBe(true);
+
+    // Not duplicate in proj-1
+    expect(isDuplicate('proj-1', 'untitled-1.isx')).toBe(false);
+    expect(isDuplicate('proj-1', 'flow.isx')).toBe(false);
+
+    // Same file being updated (exclude own id)
+    expect(isDuplicate('proj-1', 'untitled.isx', 'diag-1')).toBe(false);
+
+    // Permitted in different project (proj-2 has its own scope)
+    expect(isDuplicate('proj-2', 'architecture.isx')).toBe(false);
   });
 });

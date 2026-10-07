@@ -682,18 +682,20 @@ export function useCanvasInteractions(options: CanvasInteractionsOptions) {
     [setTabs, setActiveTabId],
   );
 
-  const handleSaveToCloudSubmit = useCallback(async () => {
+  const handleSaveToCloudSubmit = useCallback(async (customFileName?: string) => {
     if (!selectedProjectId || !user || isSavingToCloud) return;
     setIsSavingToCloud(true);
+    const saveName = (customFileName || activeTab?.name || "untitled.isx").trim();
     try {
       const { createDiagram } = await import('../lib/projects.js');
-      const diagram = await createDiagram(user.id, selectedProjectId, activeTab!.name, activeDiagram?.kind || 'class', {
+      const diagram = await createDiagram(user.id, selectedProjectId, saveName, activeDiagram?.kind || 'class', {
         source: activeTab!.source,
       });
       if (diagram) {
         updateActiveTab(
           (tab) => ({
             ...tab,
+            name: saveName,
             diagram_id: diagram.id,
             project_id: selectedProjectId,
             savedSource: tab.source,
@@ -702,10 +704,10 @@ export function useCanvasInteractions(options: CanvasInteractionsOptions) {
           false,
         );
         setSaveToCloudModalOpen(false);
-        addToast('Saved to cloud');
+        addToast('Saved to cloud', 'success');
       }
     } catch (e: any) {
-      alert(e.message || 'Error saving to cloud');
+      addToast(e.message || 'Error saving to cloud', 'error');
     } finally {
       setIsSavingToCloud(false);
     }

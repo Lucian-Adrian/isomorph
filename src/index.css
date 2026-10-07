@@ -250,7 +250,7 @@ body {
 }
 
 .iso-logo-name {
-  font-family: var(--sans);
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   font-size: 15px;
   font-weight: 300;
   letter-spacing: 0.08em;

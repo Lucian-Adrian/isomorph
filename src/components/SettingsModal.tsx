@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { isSoundEnabled, setSoundEnabled, getSoundVolume, setSoundVolume, sound } from '../lib/sound.js';
 import { type Language, LANGUAGE_OPTIONS } from '../i18n.js';
 import { type Project } from '../lib/projects.js';
 import { IconSun, IconMoon } from './Icons.js';
@@ -79,6 +80,12 @@ export function SettingsModal({
   t
 }: SettingsModalProps) {
   const [settingsTab, setSettingsTab] = useState<'profile' | 'collab' | 'storage' | 'app'>('profile');
+  const [soundEffectsEnabled, setSoundEffectsEnabled] = useState<boolean>(() => isSoundEnabled());
+  const [soundVolumeLevel, setSoundVolumeLevel] = useState<number>(() => Math.round(getSoundVolume() * 100));
+
+  useEffect(() => {
+    sound.modalOpen();
+  }, []);
   const [newPassword, setNewPassword] = useState('');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deleteStep, setDeleteStep] = useState(0);
@@ -672,6 +679,61 @@ export function SettingsModal({
                           </select>
                         </div>
                       </div>
+
+                      {/* Sound Effects Card */}
+                      <div className="iso-settings-card">
+                        <div className="iso-settings-info">
+                          <div className="iso-settings-label">Sound effects</div>
+                          <div className="iso-settings-desc">Play tactile audio feedback on clicks, toggles, and actions.</div>
+                        </div>
+                        <div className="iso-settings-control">
+                          <label className="iso-toggle">
+                            <input
+                              type="checkbox"
+                              checked={soundEffectsEnabled}
+                              onChange={e => {
+                                const next = e.target.checked;
+                                setSoundEffectsEnabled(next);
+                                setSoundEnabled(next);
+                                sound.toggle(next);
+                              }}
+                            />
+                            <span className="iso-toggle-slider" />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Sound Volume Card */}
+                      {soundEffectsEnabled && (
+                        <div className="iso-settings-card">
+                          <div className="iso-settings-info">
+                            <div className="iso-settings-label">Sound volume ({soundVolumeLevel}%)</div>
+                            <div className="iso-settings-desc">Adjust the volume level of interface audio effects.</div>
+                          </div>
+                          <div className="iso-settings-control" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={soundVolumeLevel}
+                              onChange={e => {
+                                const val = parseInt(e.target.value, 10);
+                                setSoundVolumeLevel(val);
+                                setSoundVolume(val / 100);
+                              }}
+                              style={{ width: '120px' }}
+                            />
+                            <button
+                              type="button"
+                              className="iso-btn"
+                              style={{ padding: '4px 10px', fontSize: '12px' }}
+                              onClick={() => sound.button()}
+                            >
+                              Test sound
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                     </div>
                   </div>

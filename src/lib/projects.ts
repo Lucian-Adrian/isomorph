@@ -109,9 +109,21 @@ export async function createDiagram(userId: string, projectId: string, name: str
     throw new Error('Diagram limit reached for this project under your tier.');
   }
 
+  // Prevent duplicate filenames within the same project
+  const { data: existing } = await supabase
+    .from('diagrams')
+    .select('id, name')
+    .eq('project_id', projectId)
+    .ilike('name', name.trim())
+    .maybeSingle();
+
+  if (existing) {
+    throw new Error(`A file named "${name.trim()}" already exists in this project.`);
+  }
+
   const { data, error } = await supabase
     .from('diagrams')
-    .insert([{ project_id: projectId, name, kind, content }])
+    .insert([{ project_id: projectId, name: name.trim(), kind, content }])
     .select()
     .single();
 
@@ -270,6 +282,30 @@ export async function updateDiagramContent(diagramId: string, content: any): Pro
 }
 
 export async function updateDiagram(diagramId: string, updates: Partial<Diagram>): Promise<boolean> {
+  if (updates.name || updates.project_id) {
+    const { data: current } = await supabase
+      .from('diagrams')
+      .select('project_id, name')
+      .eq('id', diagramId)
+      .maybeSingle();
+
+    if (current) {
+      const targetProjectId = updates.project_id ?? current.project_id;
+      const targetName = (updates.name ?? current.name).trim();
+      const { data: existing } = await supabase
+        .from('diagrams')
+        .select('id')
+        .eq('project_id', targetProjectId)
+        .ilike('name', targetName)
+        .neq('id', diagramId)
+        .maybeSingle();
+
+      if (existing) {
+        throw new Error(`A file named "${targetName}" already exists in this project.`);
+      }
+    }
+  }
+
   const { error } = await supabase
     .from('diagrams')
     .update({ ...updates, updated_at: new Date().toISOString() })

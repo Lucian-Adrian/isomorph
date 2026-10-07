@@ -162,20 +162,30 @@ function renderEntityBox(p: Positioned, parentX = 0, parentY = 0, options?: any)
     boxAnimStyle = ` stroke-dasharray="${perimeter}" stroke-dashoffset="${offset}"`;
   }
 
-  s += `    <rect width="${width}" height="${height}" rx="6" fill="var(--iso-bg-panel)" stroke="${borderColor}" stroke-width="${borderWidth}" filter="url(#shadow)"${boxAnimStyle}/>\n`;
+  const hasMembers = entity.fields.length > 0 || entity.methods.length > 0 || entity.enumValues.length > 0;
+  const baseFill = hasMembers ? 'var(--iso-bg-panel)' : headerFill;
+  s += `    <rect width="${width}" height="${height}" rx="6" fill="${baseFill}" stroke="${borderColor}" stroke-width="${borderWidth}" filter="url(#shadow)"${boxAnimStyle}/>\n`;
 
-  // Header background
-  let headerOpacity = '1';
-  if (options?.isAnimating) {
-    const duration = 2000;
-    const t = (options?.animationTimeMs ?? 0) % (duration + 1000);
-    const progress = Math.max(0, Math.min(1, (t - 500) / 1000));
-    headerOpacity = progress.toString();
+  // Header background (for entities with member compartments below the header)
+  if (hasMembers) {
+    let headerOpacity = '1';
+    if (options?.isAnimating) {
+      const duration = 2000;
+      const t = (options?.animationTimeMs ?? 0) % (duration + 1000);
+      const progress = Math.max(0, Math.min(1, (t - 500) / 1000));
+      headerOpacity = progress.toString();
+    }
+    s += `    <g opacity="${headerOpacity}">\n`;
+    s += `      <path d="M 0 6 Q 0 0 6 0 L ${width - 6} 0 Q ${width} 0 ${width} 6 L ${width} ${HEADER_HEIGHT} L 0 ${HEADER_HEIGHT} Z" fill="${headerFill}"/>\n`;
+    s += `    </g>\n`;
   }
-  s += `    <g opacity="${headerOpacity}">\n`;
-  s += `      <rect width="${width}" height="${HEADER_HEIGHT}" rx="6" fill="${headerFill}" stroke="${borderColor}" stroke-width="${borderWidth}"/>\n`;
-  s += `      <rect y="${HEADER_HEIGHT - 6}" width="${width}" height="6" fill="${headerFill}"/>\n`;
-  s += `    </g>\n`;
+
+  // Future extension: Custom color-coded accent badge / strip for classes/entities
+  // In the future, entities can define an accentColor / color property to render a colored bar at the top:
+  // const customAccentColor = (entity as any).color ?? (entity as any).accentColor;
+  // if (customAccentColor) {
+  //   s += `    <path d="M 0 6 Q 0 0 6 0 L ${width - 6} 0 Q ${width} 0 ${width} 6 L ${width} 4 L 0 4 Z" fill="${escapeXml(customAccentColor)}"/>\n`;
+  // }
 
   // Header text
   let nameY = HEADER_HEIGHT / 2 + 4;

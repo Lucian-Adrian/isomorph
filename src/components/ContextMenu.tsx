@@ -285,10 +285,12 @@ export function ContextMenu({
                               setTabs((prev) =>
                                 prev.map((t) => (t.diagram_id === contextMenu.id ? { ...t, project_id: proj.id } : t)),
                               );
-                              addToast(`Moved to project ${proj.name}`);
+                              addToast(`Moved to project ${proj.name}`, 'success');
                             } else {
-                              addToast('Failed to move diagram', 'info');
+                              addToast('Failed to move diagram', 'error');
                             }
+                          }).catch((err: any) => {
+                            addToast(err.message || 'Failed to move diagram', 'error');
                           });
                         });
                         setContextMenu(null);

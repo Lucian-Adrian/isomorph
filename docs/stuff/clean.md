@@ -44,6 +44,13 @@ A dead giveaway of uncurated UI (or disjointed AI generation) is inconsistent or
 
 ---
 
+
+---
+
+## Part 2.6: Future Diagram Features & Roadmap
+
+* **Custom Entity Color Coding:** In diagram renderers (specifically class diagrams), elements originally had an experimental horizontal dividing strip that cut through elements. This was removed in favor of clean, top-rounded header paths and compartment dividers. In the future, this mechanism can be reintroduced cleanly as a custom color-coding accent badge/strip (e.g., `entity.color` or `entity.accentColor`) across class and entity headers. The implementation scaffold is preserved in `src/renderer/class-renderer.ts`.
+
 ## Part 3: Locking Down Supabase Auth (Security Check)
 
 If you are handling user logins and data, security is a liability. Supabase is secure out of the box, but *only* if you configure **Row Level Security (RLS)** correctly. RLS acts as a bouncer inside the PostgreSQL database, inspecting the user's JWT token and filtering rows so users only see their own data.
