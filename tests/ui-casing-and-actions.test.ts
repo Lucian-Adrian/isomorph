@@ -21,6 +21,16 @@ describe('UI Casing & Actions Compliance', () => {
     expect(tText('en', 'share.error_create_link')).toBe('Failed to create share link. Please verify project ownership.');
     expect(tText('en', 'share.no_share_links_active')).toBe('No active share links. Generate one above.');
     expect(tText('en', 'ui.save_to_cloud')).toBe('Save to cloud');
+    expect(tText('en', 'settings.appearance_interface')).toBe('Appearance & interface');
+    expect(tText('en', 'settings.sound_effects')).toBe('Sound effects');
+    expect(tText('en', 'settings.sound_volume')).toBe('Sound volume');
+    expect(tText('en', 'settings.test_sound')).toBe('Test sound');
+    expect(tText('en', 'settings.editor_workspace')).toBe('Editor & workspace');
+    expect(tText('en', 'settings.auto_save')).toBe('Auto save');
+    expect(tText('ro', 'settings.sound_effects')).toBe('Efecte sonore');
+    expect(tText('ro', 'settings.sound_volume')).toBe('Volum sunet');
+    expect(tText('ru', 'settings.sound_effects')).toBe('Звуковые эффекты');
+    expect(tText('ru', 'settings.sound_volume')).toBe('Громкость звука');
   });
 
   it('correctly interpolates dynamic variables into Sentence case templates', () => {
@@ -29,6 +39,34 @@ describe('UI Casing & Actions Compliance', () => {
 
     const createdMsg = tText('en', 'share.success_link_created', { role: 'editor' });
     expect(createdMsg).toBe('Share link for editor created successfully!');
+  });
+
+  it('validates duplicate diagram names case-insensitively', () => {
+    const existing = [
+      { id: 'd1', name: 'untitled.isx' },
+      { id: 'd2', name: 'ClassDiagram-1.isx' },
+    ];
+
+    const isDuplicate = (name: string) => {
+      const clean = name.trim().toLowerCase();
+      return existing.some((d) => d.name.trim().toLowerCase() === clean);
+    };
+
+    expect(isDuplicate('untitled.isx')).toBe(true);
+    expect(isDuplicate('UNTITLED.ISX')).toBe(true);
+    expect(isDuplicate('  untitled.isx  ')).toBe(true);
+    expect(isDuplicate('ClassDiagram-1.isx')).toBe(true);
+    expect(isDuplicate('classdiagram-1.isx')).toBe(true);
+    expect(isDuplicate('untitled-2.isx')).toBe(false);
+  });
+
+  it('enforces steps of 5 for sound volume adjustments', () => {
+    const snapToStep5 = (val: number) => Math.round(val / 5) * 5;
+    expect(snapToStep5(48)).toBe(50);
+    expect(snapToStep5(52)).toBe(50);
+    expect(snapToStep5(53)).toBe(55);
+    expect(snapToStep5(0)).toBe(0);
+    expect(snapToStep5(100)).toBe(100);
   });
 
   it('determines appropriate collaborator initials for avatar badges', () => {
@@ -48,3 +86,4 @@ describe('UI Casing & Actions Compliance', () => {
     expect(getInitials('')).toBe('?');
   });
 });
+

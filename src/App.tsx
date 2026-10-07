@@ -32,6 +32,7 @@ import { EditRelationModal } from './components/EditRelationModal.js';
 import { EditTextModal } from './components/EditTextModal.js';
 import { NewDiagramModal } from './components/NewDiagramModal.js';
 import { SaveToCloudModal } from './components/SaveToCloudModal.js';
+import { AlertModal } from './components/AlertModal.js';
 import {
   IconCode,
   IconDiagram,
@@ -802,6 +803,38 @@ export default function App() {
   const diagrams: IOMDiagram[] = analysisResult?.iom.diagrams ?? [];
   const activeDiagram = diagrams[0] ?? null;
 
+  const [alertModalState, setAlertModalState] = useState<{
+    isOpen: boolean;
+    type?: 'caution' | 'error' | 'info';
+    title?: string;
+    message: string;
+    confirmLabel?: string;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    message: '',
+  });
+
+  const showAlert = useCallback(
+    (options: {
+      message: string;
+      type?: 'caution' | 'error' | 'info';
+      title?: string;
+      confirmLabel?: string;
+      onConfirm?: () => void;
+    }) => {
+      setAlertModalState({
+        isOpen: true,
+        type: options.type ?? 'caution',
+        title: options.title,
+        message: options.message,
+        confirmLabel: options.confirmLabel,
+        onConfirm: options.onConfirm,
+      });
+    },
+    [],
+  );
+
   const handleCreateProjectSubmit = useCallback(async () => {
     if (!user || !newProjectName.trim() || isCreatingProject) return;
     setIsCreatingProject(true);
@@ -1011,6 +1044,7 @@ export default function App() {
     isLoadingProjectDetail,
     projectDetailDiagrams,
     projectDetailAccessMap,
+    showAlert,
   });
 
   useKeyboardShortcuts({
@@ -1497,6 +1531,15 @@ export default function App() {
             ))}
           </div>
         )}
+        <AlertModal
+          isOpen={alertModalState.isOpen}
+          type={alertModalState.type}
+          title={alertModalState.title}
+          message={alertModalState.message}
+          confirmLabel={alertModalState.confirmLabel}
+          onConfirm={alertModalState.onConfirm}
+          onClose={() => setAlertModalState((prev) => ({ ...prev, isOpen: false }))}
+        />
         <CommonModals
           diagramToDelete={diagramToDelete}
           setDiagramToDelete={setDiagramToDelete}

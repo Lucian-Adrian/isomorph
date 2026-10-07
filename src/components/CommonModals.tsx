@@ -9,7 +9,7 @@ interface CommonModalsProps {
   projectToDelete: string | null;
   setProjectToDelete: (val: string | null) => void;
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
-  addToast: (message: string, type?: 'success' | 'info') => void;
+  addToast: (message: string, type?: 'success' | 'info' | 'error') => void;
   isRevertModalOpen: boolean;
   setIsRevertModalOpen: (val: boolean) => void;
   confirmRevertHistory: () => void;

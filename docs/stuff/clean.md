@@ -40,6 +40,8 @@ A dead giveaway of uncurated UI (or disjointed AI generation) is inconsistent or
   * **Correct (Sentence case):** *"Create new diagram"*, *"Save project to cloud"*, *"Share project with collaborators"*, *"Diagram deleted successfully"*.
   * **Only capitalize proper nouns:** e.g., *"Isomorph"*, *"Supabase"*, *"UML"*, *"GitHub"*.
 * **Font System:** The application uses the **Libron** font family (`public/fonts/`) as its primary UI typography. All renderers, SVG generators, and UI sheets must consistently target Libron with system fallbacks.
+* **Themed Modals for Errors & Cautions (Mandatory):** Never use browser-native dialogs (`window.alert()`, `window.confirm()`, `window.prompt()`). Browser-native alerts break the application design system, cannot respect light/dark themes, look unprofessional, and cannot be localized cleanly. All warnings, errors, tier limit cautions, and confirmation checks must use the application's themed modals (`AlertModal` / `CommonModals`) with distinct severity styles (error, caution, info) and Sentence case copy.
+
 
 
 ---

@@ -23,7 +23,7 @@ interface ContextMenuProps {
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   projects: Project[];
   user: any;
-  addToast: (message: string, type?: 'success' | 'info') => void;
+  addToast: (message: string, type?: 'success' | 'info' | 'error') => void;
   setProjectToDelete: React.Dispatch<React.SetStateAction<string | null>>;
   setProjectDetailDiagrams: React.Dispatch<React.SetStateAction<any[]>>;
   setTabs: React.Dispatch<React.SetStateAction<WorkspaceTab[]>>;

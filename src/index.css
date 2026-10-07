@@ -249,6 +249,21 @@ body {
   outline-offset: 2px;
 }
 
+.iso-logo-mark {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 13px;
+  color: white;
+  letter-spacing: -1px;
+  flex-shrink: 0;
+}
+
 .iso-logo-name {
   font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   font-size: 15px;
@@ -2166,6 +2181,77 @@ body {
   justify-content: space-between;
   font-size: 11px;
   color: var(--iso-text-muted);
+}
+
+/* ── Alert / Caution Themed Modal ────────────────────────────── */
+.iso-alert-modal {
+  border-radius: var(--iso-radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+  animation: overlay-slide-in 200ms var(--iso-ease);
+}
+.iso-alert-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.iso-alert-icon-badge--caution {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+.iso-alert-icon-badge--error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+.iso-alert-icon-badge--info {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+/* ── Segmented Pill Switch (e.g. Language Selector) ────────── */
+.iso-segmented-pill {
+  display: inline-flex;
+  align-items: center;
+  background: var(--iso-bg-app);
+  border: 1px solid var(--iso-border-strong);
+  border-radius: 9999px;
+  padding: 3px;
+  gap: 2px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.iso-segmented-pill-btn {
+  border: none;
+  background: transparent;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--iso-text-muted);
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+  line-height: 1.2;
+}
+.iso-segmented-pill-btn:hover {
+  color: var(--iso-text);
+  background: rgba(0, 0, 0, 0.04);
+}
+[data-theme='dark'] .iso-segmented-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.iso-segmented-pill-btn.active {
+  background: var(--white);
+  color: var(--ink-deep);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+[data-theme='dark'] .iso-segmented-pill-btn.active {
+  background: var(--iso-bg-card, #2d333b);
+  color: var(--iso-text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
 .iso-select:disabled {

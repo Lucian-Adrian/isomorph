@@ -56,7 +56,7 @@ interface CanvasInteractionsOptions {
   pasteCounterRef: React.MutableRefObject<number>;
   selectedItems: { type: 'entity' | 'relation'; id: string }[];
   setSelectedItems: React.Dispatch<React.SetStateAction<{ type: 'entity' | 'relation'; id: string }[]>>;
-  addToast: (message: string, type?: 'success' | 'info') => void;
+  addToast: (message: string, type?: 'success' | 'info' | 'error') => void;
   t: (key: string, vars?: any) => string;
   language: Language;
   isUMLCompliant: boolean;
@@ -115,6 +115,7 @@ interface CanvasInteractionsOptions {
   isLoadingProjectDetail: boolean;
   projectDetailDiagrams: any[];
   projectDetailAccessMap: { base: string; diagrams: Record<string, string> };
+  showAlert?: (options: { title?: string; message: string; type?: 'caution' | 'error' | 'info'; confirmLabel?: string }) => void;
 }
 
 export function useCanvasInteractions(options: CanvasInteractionsOptions) {
@@ -138,6 +139,7 @@ export function useCanvasInteractions(options: CanvasInteractionsOptions) {
     isSavingToCloud,
     setIsSavingToCloud,
     setSaveToCloudModalOpen,
+    showAlert,
     setIsExporting,
     setExportTime,
     setEditingEntity,
@@ -707,7 +709,15 @@ export function useCanvasInteractions(options: CanvasInteractionsOptions) {
         addToast('Saved to cloud', 'success');
       }
     } catch (e: any) {
-      addToast(e.message || 'Error saving to cloud', 'error');
+      if (showAlert) {
+        showAlert({
+          title: 'Unable to save diagram',
+          message: e.message || 'An error occurred while saving the diagram.',
+          type: 'caution',
+        });
+      } else {
+        addToast(e.message || 'Error saving to cloud', 'error');
+      }
     } finally {
       setIsSavingToCloud(false);
     }
@@ -720,6 +730,7 @@ export function useCanvasInteractions(options: CanvasInteractionsOptions) {
     updateActiveTab,
     setSaveToCloudModalOpen,
     addToast,
+    showAlert,
   ]);
 
   const handleSaveToCloud = useCallback(
@@ -794,11 +805,21 @@ export function useCanvasInteractions(options: CanvasInteractionsOptions) {
         isWatermarkEnabled,
         animationSpeed,
       });
+    } catch (err: any) {
+      if (showAlert) {
+        showAlert({
+          title: 'Export failed',
+          message: err?.message || 'Failed to export GIF.',
+          type: 'error',
+        });
+      } else {
+        addToast(err?.message || 'Failed to export GIF', 'error');
+      }
     } finally {
       clearInterval(timer);
       setIsExporting(false);
     }
-  }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed, setIsExporting, setExportTime]);
+  }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed, setIsExporting, setExportTime, showAlert, addToast]);
 
   const handleExportMP4 = useCallback(async () => {
     if (!activeDiagram) return;
@@ -811,11 +832,21 @@ export function useCanvasInteractions(options: CanvasInteractionsOptions) {
         isWatermarkEnabled,
         animationSpeed,
       });
+    } catch (err: any) {
+      if (showAlert) {
+        showAlert({
+          title: 'Export failed',
+          message: err?.message || 'Failed to export video.',
+          type: 'error',
+        });
+      } else {
+        addToast(err?.message || 'Failed to export video', 'error');
+      }
     } finally {
       clearInterval(timer);
       setIsExporting(false);
     }
-  }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed, setIsExporting, setExportTime]);
+  }, [activeDiagram, activeTab, isWatermarkEnabled, animationSpeed, setIsExporting, setExportTime, showAlert, addToast]);
 
   const toggleHistory = async () => {
     if (!isHistoryOpen && activeTab?.diagram_id) {

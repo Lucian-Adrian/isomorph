@@ -127,19 +127,24 @@ export function SettingsModal({
     onClose();
   };
 
+  const handleModalClose = () => {
+    sound.modalClose();
+    onClose();
+  };
+
   return (
     <>
-      <div className="iso-modal-overlay" onClick={onClose}>
+      <div className="iso-modal-overlay" onClick={handleModalClose}>
         <div className="iso-modal iso-modal-large" onClick={e => e.stopPropagation()}>
           <div className="iso-modal-sidebar">
             <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px', color: 'var(--iso-text)' }}>{t('ui.settings')}</h2>
-            <button className={`iso-modal-sidebar-tab ${settingsTab === 'profile' ? 'active' : ''}`} onClick={() => setSettingsTab('profile')}>{t('ui.profile')}</button>
-            <button className={`iso-modal-sidebar-tab ${settingsTab === 'collab' ? 'active' : ''}`} onClick={() => setSettingsTab('collab')}>{t('ui.collab_settings')}</button>
-            <button className={`iso-modal-sidebar-tab ${settingsTab === 'storage' ? 'active' : ''}`} onClick={() => setSettingsTab('storage')}>{t('ui.storage')}</button>
-            <button className={`iso-modal-sidebar-tab ${settingsTab === 'app' ? 'active' : ''}`} onClick={() => setSettingsTab('app')}>{t('ui.app_settings')}</button>
+            <button className={`iso-modal-sidebar-tab ${settingsTab === 'profile' ? 'active' : ''}`} onClick={() => { sound.tab(); setSettingsTab('profile'); }}>{t('ui.profile')}</button>
+            <button className={`iso-modal-sidebar-tab ${settingsTab === 'collab' ? 'active' : ''}`} onClick={() => { sound.tab(); setSettingsTab('collab'); }}>{t('ui.collab_settings')}</button>
+            <button className={`iso-modal-sidebar-tab ${settingsTab === 'storage' ? 'active' : ''}`} onClick={() => { sound.tab(); setSettingsTab('storage'); }}>{t('ui.storage')}</button>
+            <button className={`iso-modal-sidebar-tab ${settingsTab === 'app' ? 'active' : ''}`} onClick={() => { sound.tab(); setSettingsTab('app'); }}>{t('ui.app_settings')}</button>
           </div>
           <div className="iso-modal-content" style={{ position: 'relative', overflow: 'hidden', padding: 0, display: 'flex', flexDirection: 'column' }}>
-            <button className="iso-modal-close-btn" style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }} onClick={onClose}>×</button>
+            <button className="iso-modal-close-btn" style={{ position: 'absolute', top: '16px', right: '16px', zIndex: 10 }} onClick={handleModalClose}>×</button>
             <div style={{ flex: 1, overflowY: 'auto', padding: '40px', display: 'flex', flexDirection: 'column', gap: '24px', height: '100%' }}>
 
               {settingsTab === 'profile' && (
@@ -150,7 +155,7 @@ export function SettingsModal({
                       
                       {/* Section 1: Personal Info */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Personal information</div>
+                        <div className="iso-settings-section-title">{t('settings.personal_info')}</div>
                         <div className="iso-settings-grid" style={{ gridTemplateColumns: '1fr', gap: '16px', marginBottom: '16px' }}>
                           {/* Profile Photo Card */}
                           <div className="iso-settings-card" style={{ display: 'flex', flexDirection: 'row', gap: '20px', alignItems: 'center', justifyContent: 'flex-start' }}>
@@ -164,13 +169,14 @@ export function SettingsModal({
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, alignItems: 'flex-start' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                                 <div className="iso-settings-label" style={{ marginBottom: '2px' }}>{t('ui.profile_photo')}</div>
-                                <div className="iso-settings-desc">Upload a custom profile photo. Supports JPG, PNG, and GIF.</div>
+                                <div className="iso-settings-desc">{t('settings.profile_photo_desc')}</div>
                               </div>
                               <div style={{ display: 'flex', gap: '8px' }}>
                                 <button
                                   className="iso-btn"
                                   style={{ padding: '4px 12px', fontSize: '12px' }}
                                   onClick={() => {
+                                    sound.button();
                                     const input = document.createElement('input');
                                     input.type = 'file';
                                     input.accept = 'image/*';
@@ -191,13 +197,14 @@ export function SettingsModal({
                                     input.click();
                                   }}
                                 >
-                                  Upload photo
+                                  {t('settings.upload_photo')}
                                 </button>
                                 {profile?.avatar_url && (
                                   <button
                                     className="iso-btn"
                                     style={{ padding: '4px 12px', fontSize: '12px', color: 'var(--iso-danger)', borderColor: 'var(--iso-danger)' }}
                                     onClick={async () => {
+                                      sound.button();
                                       if (profile && user) {
                                         const { updateProfile } = await import('../lib/profile.js');
                                         await updateProfile(user.id, { avatar_url: null });
@@ -208,7 +215,7 @@ export function SettingsModal({
                                       }
                                     }}
                                   >
-                                    Remove
+                                    {t('settings.remove')}
                                   </button>
                                 )}
                               </div>
@@ -221,8 +228,8 @@ export function SettingsModal({
                           {/* Display Name Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Display name</div>
-                              <div className="iso-settings-desc">What name should we display in comments and live previews?</div>
+                              <div className="iso-settings-label">{t('settings.display_name')}</div>
+                              <div className="iso-settings-desc">{t('settings.display_name_desc')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ width: '100%', marginTop: '8px' }}>
                               <input
@@ -245,8 +252,8 @@ export function SettingsModal({
                           {/* Username Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Username</div>
-                              <div className="iso-settings-desc">Your unique identifier used for mentions and project mapping.</div>
+                              <div className="iso-settings-label">{t('settings.username')}</div>
+                              <div className="iso-settings-desc">{t('settings.username_desc')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ width: '100%', marginTop: '8px' }}>
                               <input
@@ -293,7 +300,7 @@ export function SettingsModal({
                           {/* Reset Password Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Update password</div>
+                              <div className="iso-settings-label">{t('settings.change_password')}</div>
                               <div className="iso-settings-desc">Choose a new, secure password for your account.</div>
                             </div>
                             <div className="iso-settings-control" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -305,7 +312,13 @@ export function SettingsModal({
                                 className="iso-input"
                                 style={{ width: '180px' }}
                               />
-                              <button className="iso-btn" onClick={() => handleResetPassword(newPassword)}>
+                              <button
+                                className="iso-btn"
+                                onClick={() => {
+                                  sound.button();
+                                  handleResetPassword(newPassword);
+                                }}
+                              >
                                 Update
                               </button>
                             </div>
@@ -441,8 +454,8 @@ export function SettingsModal({
                           {/* Show Name Label Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Display name label</div>
-                              <div className="iso-settings-desc">Show your name badge alongside your live cursor indicator to others.</div>
+                              <div className="iso-settings-label">{t('settings.cursor_label')}</div>
+                              <div className="iso-settings-desc">{t('settings.cursor_label_desc')}</div>
                             </div>
                             <div className="iso-settings-control">
                               <label className="iso-switch">
@@ -452,6 +465,7 @@ export function SettingsModal({
                                   onChange={e => {
                                     const next = e.target.checked;
                                     setCollabShowNameLabel(next);
+                                    sound.toggle(next);
                                     autoSaveSettings({ show_name_label: next });
                                   }} 
                                 />
@@ -463,8 +477,8 @@ export function SettingsModal({
                           {/* Cursor Trail Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Cursor particle trails</div>
-                              <div className="iso-settings-desc">Draw a subtle particle trail behind your cursor when in active motion.</div>
+                              <div className="iso-settings-label">{t('settings.cursor_trails')}</div>
+                              <div className="iso-settings-desc">{t('settings.cursor_trails_desc')}</div>
                             </div>
                             <div className="iso-settings-control">
                               <label className="iso-switch">
@@ -474,6 +488,7 @@ export function SettingsModal({
                                   onChange={e => {
                                     const next = e.target.checked;
                                     setCollabShowTrail(next);
+                                    sound.toggle(next);
                                     autoSaveSettings({ show_trail: next });
                                   }} 
                                 />
@@ -615,14 +630,14 @@ export function SettingsModal({
                   
                   {/* Section 1: Appearance & Interface */}
                   <div className="iso-settings-section">
-                    <div className="iso-settings-section-title">Appearance & interface</div>
+                    <div className="iso-settings-section-title">{t('settings.appearance_interface')}</div>
                     <div className="iso-settings-grid">
                       
                       {/* Theme Card */}
                       <div className="iso-settings-card">
                         <div className="iso-settings-info">
-                          <div className="iso-settings-label">{t('ui.theme')}</div>
-                          <div className="iso-settings-desc">Choose between a light theme or dark theme for the editor and panels.</div>
+                          <div className="iso-settings-label">{t('settings.theme')}</div>
+                          <div className="iso-settings-desc">{t('settings.theme_desc')}</div>
                         </div>
                         <div className="iso-settings-control">
                           <div className="iso-theme-options">
@@ -630,6 +645,7 @@ export function SettingsModal({
                               type="button"
                               className={`iso-theme-option-card ${themeMode === 'light' ? 'active' : ''}`}
                               onClick={() => {
+                                sound.select();
                                 setThemeMode('light');
                                 document.documentElement.setAttribute('data-theme', 'light');
                                 localStorage.setItem('isomorph-theme', 'light');
@@ -643,6 +659,7 @@ export function SettingsModal({
                               type="button"
                               className={`iso-theme-option-card ${themeMode === 'dark' ? 'active' : ''}`}
                               onClick={() => {
+                                sound.select();
                                 setThemeMode('dark');
                                 document.documentElement.setAttribute('data-theme', 'dark');
                                 localStorage.setItem('isomorph-theme', 'dark');
@@ -660,34 +677,37 @@ export function SettingsModal({
                       <div className="iso-settings-card">
                         <div className="iso-settings-info">
                           <div className="iso-settings-label">{t('ui.language')}</div>
-                          <div className="iso-settings-desc">Set the translation for menus, stencils, and error messages.</div>
+                          <div className="iso-settings-desc">{t('settings.language_desc')}</div>
                         </div>
                         <div className="iso-settings-control">
-                          <select
-                            className="iso-select"
-                            value={language}
-                            onChange={e => {
-                              const next = e.target.value as Language;
-                              setLanguage(next);
-                              autoSaveSettings({ language: next });
-                            }}
-                            style={{ width: '100%' }}
-                          >
+                          <div className="iso-segmented-pill">
                             {LANGUAGE_OPTIONS.map(option => (
-                              <option key={option.code} value={option.code}>{option.label}</option>
+                              <button
+                                key={option.code}
+                                type="button"
+                                className={`iso-segmented-pill-btn ${language === option.code ? 'active' : ''}`}
+                                onClick={() => {
+                                  sound.select();
+                                  const next = option.code as Language;
+                                  setLanguage(next);
+                                  autoSaveSettings({ language: next });
+                                }}
+                              >
+                                {option.label}
+                              </button>
                             ))}
-                          </select>
+                          </div>
                         </div>
                       </div>
 
                       {/* Sound Effects Card */}
-                      <div className="iso-settings-card">
+                      <div className="iso-settings-card iso-settings-card-horizontal">
                         <div className="iso-settings-info">
-                          <div className="iso-settings-label">Sound effects</div>
-                          <div className="iso-settings-desc">Play tactile audio feedback on clicks, toggles, and actions.</div>
+                          <div className="iso-settings-label">{t('settings.sound_effects')}</div>
+                          <div className="iso-settings-desc">{t('settings.sound_effects_desc')}</div>
                         </div>
                         <div className="iso-settings-control">
-                          <label className="iso-toggle">
+                          <label className="iso-switch">
                             <input
                               type="checkbox"
                               checked={soundEffectsEnabled}
@@ -698,7 +718,7 @@ export function SettingsModal({
                                 sound.toggle(next);
                               }}
                             />
-                            <span className="iso-toggle-slider" />
+                            <span className="iso-switch-slider" />
                           </label>
                         </div>
                       </div>
@@ -707,29 +727,51 @@ export function SettingsModal({
                       {soundEffectsEnabled && (
                         <div className="iso-settings-card">
                           <div className="iso-settings-info">
-                            <div className="iso-settings-label">Sound volume ({soundVolumeLevel}%)</div>
-                            <div className="iso-settings-desc">Adjust the volume level of interface audio effects.</div>
+                            <div className="iso-settings-label">{t('settings.sound_volume')}</div>
+                            <div className="iso-settings-desc">{t('settings.sound_volume_desc')}</div>
                           </div>
-                          <div className="iso-settings-control" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <input
-                              type="range"
-                              min="0"
-                              max="100"
-                              value={soundVolumeLevel}
-                              onChange={e => {
-                                const val = parseInt(e.target.value, 10);
-                                setSoundVolumeLevel(val);
-                                setSoundVolume(val / 100);
-                              }}
-                              style={{ width: '120px' }}
-                            />
+                          <div className="iso-settings-control" style={{ width: '100%', flexDirection: 'column', alignItems: 'flex-start' }}>
+                            <div className="iso-settings-slider-wrap">
+                              <div className="iso-settings-slider-header">
+                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{t('settings.volume_level')}</span>
+                                <span className="iso-settings-slider-value">{soundVolumeLevel}%</span>
+                              </div>
+                              <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="5"
+                                value={soundVolumeLevel}
+                                className="iso-settings-slider"
+                                onChange={e => {
+                                  const val = parseInt(e.target.value, 10);
+                                  setSoundVolumeLevel(val);
+                                  setSoundVolume(val / 100);
+                                  sound.tap();
+                                }}
+                              />
+                              <div className="iso-settings-slider-labels">
+                                <span>0%</span>
+                                <span>100%</span>
+                              </div>
+                            </div>
                             <button
                               type="button"
                               className="iso-btn"
-                              style={{ padding: '4px 10px', fontSize: '12px' }}
+                              style={{
+                                marginTop: '12px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '6px 14px',
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
                               onClick={() => sound.button()}
                             >
-                              Test sound
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                              <span>{t('settings.test_sound')}</span>
                             </button>
                           </div>
                         </div>
@@ -740,7 +782,7 @@ export function SettingsModal({
 
                   {/* Section 2: Editor & Workspace */}
                   <div className="iso-settings-section">
-                    <div className="iso-settings-section-title">Editor & workspace</div>
+                    <div className="iso-settings-section-title">{t('settings.editor_workspace')}</div>
                     <div className="iso-settings-grid">
 
                       {/* Strict UML Card */}
@@ -757,6 +799,7 @@ export function SettingsModal({
                               onChange={e => {
                                 const next = e.target.checked;
                                 setIsUMLCompliant(next);
+                                sound.toggle(next);
                                 localStorage.setItem('isomorph-strict-uml', String(next));
                                 autoSaveSettings({ strict_uml: next });
                               }}
@@ -770,15 +813,15 @@ export function SettingsModal({
                       {session && (
                         <div className="iso-settings-card">
                           <div className="iso-settings-info">
-                            <div className="iso-settings-label">Auto save</div>
-                            <div className="iso-settings-desc">Configure the interval for automatically saving changes to the cloud.</div>
+                            <div className="iso-settings-label">{t('settings.auto_save')}</div>
+                            <div className="iso-settings-desc">{t('settings.auto_save_desc')}</div>
                           </div>
                           <div className="iso-settings-control" style={{ width: '100%' }}>
                             <div className="iso-settings-slider-wrap">
                               <div className="iso-settings-slider-header">
-                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>Interval</span>
+                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{t('settings.interval')}</span>
                                 <span className="iso-settings-slider-value">
-                                  {autoSaveInterval === 0 ? 'Never' : (autoSaveInterval === 0.5 ? '30 seconds' : `${autoSaveInterval} min`)}
+                                  {autoSaveInterval === 0 ? t('settings.never') : (autoSaveInterval === 0.5 ? t('settings.30_seconds') : `${autoSaveInterval} ${t('settings.min')}`)}
                                 </span>
                               </div>
                               <input
@@ -789,13 +832,14 @@ export function SettingsModal({
                                 onChange={e => {
                                   const val = parseFloat(e.target.value);
                                   setAutoSaveInterval(val);
+                                  sound.tap();
                                   localStorage.setItem('isomorph-autosave', String(val));
                                   autoSaveSettings({ auto_save: val });
                                 }}
                               />
                               <div className="iso-settings-slider-labels">
-                                <span>Never</span>
-                                <span>5 min</span>
+                                <span>{t('settings.never')}</span>
+                                <span>5 {t('settings.min')}</span>
                               </div>
                             </div>
                           </div>

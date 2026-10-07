@@ -104,21 +104,25 @@ export async function updateProject(userId: string, projectId: string, updates: 
 }
 
 export async function createDiagram(userId: string, projectId: string, name: string, kind: string, content: any): Promise<Diagram | null> {
+  const cleanName = name.trim();
+
+  // Prevent duplicate filenames within the same project (checked before tier limit)
+  const { data: existingDiagrams } = await supabase
+    .from('diagrams')
+    .select('id, name')
+    .eq('project_id', projectId);
+
+  const duplicate = existingDiagrams?.find(
+    (d) => d.name.trim().toLowerCase() === cleanName.toLowerCase()
+  );
+
+  if (duplicate) {
+    throw new Error(`A file named "${cleanName}" already exists in this project.`);
+  }
+
   const canCreate = await checkDiagramLimit(userId, projectId);
   if (!canCreate) {
     throw new Error('Diagram limit reached for this project under your tier.');
-  }
-
-  // Prevent duplicate filenames within the same project
-  const { data: existing } = await supabase
-    .from('diagrams')
-    .select('id, name')
-    .eq('project_id', projectId)
-    .ilike('name', name.trim())
-    .maybeSingle();
-
-  if (existing) {
-    throw new Error(`A file named "${name.trim()}" already exists in this project.`);
   }
 
   const { data, error } = await supabase
@@ -292,15 +296,16 @@ export async function updateDiagram(diagramId: string, updates: Partial<Diagram>
     if (current) {
       const targetProjectId = updates.project_id ?? current.project_id;
       const targetName = (updates.name ?? current.name).trim();
-      const { data: existing } = await supabase
+      const { data: existingDiagrams } = await supabase
         .from('diagrams')
-        .select('id')
-        .eq('project_id', targetProjectId)
-        .ilike('name', targetName)
-        .neq('id', diagramId)
-        .maybeSingle();
+        .select('id, name')
+        .eq('project_id', targetProjectId);
 
-      if (existing) {
+      const duplicate = existingDiagrams?.find(
+        (d) => d.id !== diagramId && d.name.trim().toLowerCase() === targetName.toLowerCase()
+      );
+
+      if (duplicate) {
         throw new Error(`A file named "${targetName}" already exists in this project.`);
       }
     }

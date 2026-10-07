@@ -310,9 +310,9 @@ export async function exportGIF(diagram: IOMDiagram, diagramName: string, option
     anchor.download = `${diagramName}.gif`;
     anchor.click();
     URL.revokeObjectURL(url);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to export GIF", err);
-    alert("Failed to export GIF. See console for details.");
+    throw new Error(err?.message || "Failed to export GIF. Please check your browser canvas support.");
   }
 }
 
@@ -352,8 +352,8 @@ export async function exportVideo(diagram: IOMDiagram, diagramName: string, opti
     }
     
     recorder.stop();
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to export WebM", err);
-    alert("Failed to export WebM. See console for details.");
+    throw new Error(err?.message || "Failed to export WebM video. Please check your browser MediaRecorder support.");
   }
 }
