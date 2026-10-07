@@ -85,12 +85,13 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
   }
 
   async function handleGrantAccess() {
-    if (!inviteEmail.trim()) return;
-    const success = await grantAccess(projectId, inviteEmail, inviteRole, inviteScope === 'file' ? diagramId : null);
+    const cleanEmail = inviteEmail.trim();
+    if (!cleanEmail) return;
+    const success = await grantAccess(projectId, cleanEmail, inviteRole, inviteScope === 'file' ? diagramId : null);
     if (success) {
       setInviteEmail('');
       loadAccess();
-      logAudit('access_granted', 'project', projectId, { email: inviteEmail, role: inviteRole, scope: inviteScope });
+      logAudit('access_granted', 'project', projectId, { email: cleanEmail, role: inviteRole, scope: inviteScope });
       onToast(t('share.success_access_granted'), 'success');
       onShareChange?.();
     } else {
@@ -221,6 +222,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
                     placeholder={t('share.username_or_email')}
                     value={inviteEmail}
                     onChange={e => setInviteEmail(e.target.value)}
+                    onBlur={() => setInviteEmail(inviteEmail.trim())}
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
                         e.preventDefault();

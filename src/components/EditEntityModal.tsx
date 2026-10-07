@@ -50,6 +50,7 @@ export const EditEntityModal: React.FC<EditEntityModalProps> = ({
             type="text"
             value={editingEntity.name}
             onChange={(e) => setEditingEntity({ ...editingEntity, name: e.target.value })}
+            onBlur={() => setEditingEntity({ ...editingEntity, name: editingEntity.name.trim() })}
             autoFocus={!isMobileLayout && editingEntity.kind !== 'note'}
           />
         </div>
@@ -320,6 +321,7 @@ export const EditEntityModal: React.FC<EditEntityModalProps> = ({
                   type="text"
                   value={editingEntity.stereotype}
                   onChange={(e) => setEditingEntity({ ...editingEntity, stereotype: e.target.value })}
+                  onBlur={() => setEditingEntity({ ...editingEntity, stereotype: editingEntity.stereotype ? editingEntity.stereotype.trim() : '' })}
                   placeholder={
                     ['alt', 'loop', 'opt', 'par', 'break', 'critical'].includes(editingEntity.kind)
                       ? 'e.g. cond'
@@ -342,6 +344,11 @@ export const EditEntityModal: React.FC<EditEntityModalProps> = ({
                       onChange={(e) => {
                         const newBlocks = [...(editingEntity.elseBlocks || [])];
                         newBlocks[i] = { ...newBlocks[i], label: e.target.value };
+                        setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
+                      }}
+                      onBlur={() => {
+                        const newBlocks = [...(editingEntity.elseBlocks || [])];
+                        newBlocks[i] = { ...newBlocks[i], label: (b.label || '').trim() };
                         setEditingEntity({ ...editingEntity, elseBlocks: newBlocks });
                       }}
                       placeholder="Caption"
@@ -699,12 +706,12 @@ export const EditEntityModal: React.FC<EditEntityModalProps> = ({
                 editingEntity.kind === 'system' ||
                 editingEntity.kind === 'boundary';
               handleEntityEdit(editingEntity.origName || editingEntity.id, {
-                name: editingEntity.name,
-                stereotype: isNameOnlyBoundary ? undefined : editingEntity.stereotype,
+                name: editingEntity.name.trim(),
+                stereotype: isNameOnlyBoundary ? undefined : (editingEntity.stereotype ? editingEntity.stereotype.trim() : undefined),
                 isAbstract: editingEntity.isAbstract,
                 bodyText: editingEntity.bodyText,
                 kind: editingEntity.kind,
-                elseBlocks: editingEntity.elseBlocks,
+                elseBlocks: editingEntity.elseBlocks?.map((b) => ({ ...b, label: b.label ? b.label.trim() : '' })),
               });
             }}
           >

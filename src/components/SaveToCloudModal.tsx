@@ -69,7 +69,16 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
 
   if (!saveToCloudModalOpen) return null;
 
-  const cleanName = fileName.trim();
+  const sanitizeFileName = (name: string) => {
+    let clean = name.trim();
+    if (!clean) return '';
+    if (!clean.toLowerCase().endsWith('.isx')) {
+      clean += '.isx';
+    }
+    return clean;
+  };
+
+  const cleanName = sanitizeFileName(fileName);
   const normalizedCandidate = cleanName.toLowerCase();
   const isDuplicate = Boolean(
     cleanName &&
@@ -116,6 +125,11 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
             }}
             value={fileName}
             onChange={(e) => setFileName(e.target.value)}
+            onBlur={() => {
+              if (fileName.trim()) {
+                setFileName(sanitizeFileName(fileName));
+              }
+            }}
             placeholder="e.g. untitled.isx"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {

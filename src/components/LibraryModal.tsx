@@ -894,6 +894,7 @@ export function LibraryModal({
                 className="iso-input"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
+                onBlur={() => setNewCategoryName(newCategoryName.trim())}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newCategoryName.trim()) {

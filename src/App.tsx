@@ -82,6 +82,7 @@ import { formatDiagramSource, sequenceToCollaborationSource } from './utils/form
 
 export default function App() {
   const { session, user, signOut, loading } = useAuth();
+  const isLoggedIn = !loading && !!(session || user);
   const [language, setLanguage] = useState<Language>(() => getStoredLanguage());
   const {
     tabs,
@@ -117,6 +118,9 @@ export default function App() {
     return stored ? parseFloat(stored) : 1.0;
   });
   const [isAnimating, setIsAnimating] = useState(false);
+  const effectiveWatermark = !isLoggedIn ? true : isWatermarkEnabled;
+  const effectiveAnimationsEnabled = !isLoggedIn ? false : isAnimationsEnabled;
+  const effectiveAnimating = !isLoggedIn ? false : isAnimating;
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -395,20 +399,24 @@ export default function App() {
       }
       addToast('Category renamed');
     } else if (renameType === 'diagram') {
+      let finalDiagramName = trimmed;
+      if (!finalDiagramName.toLowerCase().endsWith('.isx')) {
+        finalDiagramName += '.isx';
+      }
       const isDuplicate = projectDetailDiagrams.some(
-        (d) => d.id !== renameTargetId && d.name.trim().toLowerCase() === trimmed.toLowerCase()
+        (d) => d.id !== renameTargetId && d.name.trim().toLowerCase() === finalDiagramName.toLowerCase()
       );
       if (isDuplicate) {
-        addToast(`A file named "${trimmed}" already exists in this project`, 'error');
+        addToast(`A file named "${finalDiagramName}" already exists in this project`, 'error');
         return;
       }
       import('./lib/projects.js').then(({ updateDiagram }) => {
-        updateDiagram(renameTargetId, { name: trimmed }).then((success) => {
+        updateDiagram(renameTargetId, { name: finalDiagramName }).then((success) => {
           if (success) {
             setProjectDetailDiagrams((prev) =>
-              prev.map((d) => (d.id === renameTargetId ? { ...d, name: trimmed } : d)),
+              prev.map((d) => (d.id === renameTargetId ? { ...d, name: finalDiagramName } : d)),
             );
-            setTabs((prev) => prev.map((t) => (t.diagram_id === renameTargetId ? { ...t, name: trimmed } : t)));
+            setTabs((prev) => prev.map((t) => (t.diagram_id === renameTargetId ? { ...t, name: finalDiagramName } : t)));
             addToast('Diagram renamed', 'success');
           }
         }).catch((err: any) => {
@@ -971,8 +979,8 @@ export default function App() {
     t,
     language,
     isUMLCompliant,
-    isAnimationsEnabled,
-    isWatermarkEnabled,
+    isAnimationsEnabled: effectiveAnimationsEnabled,
+    isWatermarkEnabled: effectiveWatermark,
     animationSpeed,
     user,
     setAuthMode,
@@ -1243,8 +1251,8 @@ export default function App() {
       <div className="iso-panel-body">
         <DiagramView
           diagram={activeDiagram}
-          isWatermarkEnabled={isWatermarkEnabled}
-          isAnimating={isAnimating}
+          isWatermarkEnabled={effectiveWatermark}
+          isAnimating={effectiveAnimating}
           animationSpeed={animationSpeed}
           language={language}
           onEntityMove={
@@ -1374,9 +1382,9 @@ export default function App() {
             setLanguage={setLanguage}
             isUMLCompliant={isUMLCompliant}
             setIsUMLCompliant={setIsUMLCompliant}
-            isWatermarkEnabled={isWatermarkEnabled}
+            isWatermarkEnabled={effectiveWatermark}
             setIsWatermarkEnabled={setIsWatermarkEnabled}
-            isAnimationsEnabled={isAnimationsEnabled}
+            isAnimationsEnabled={effectiveAnimationsEnabled}
             setIsAnimationsEnabled={setIsAnimationsEnabled}
             setIsAnimating={setIsAnimating}
             telemetry={telemetry}
@@ -1695,9 +1703,9 @@ export default function App() {
         handleExportSVG={handleExportSVG}
         handleExportGIF={handleExportGIF}
         handleExportMP4={handleExportMP4}
-        isAnimationsEnabled={isAnimationsEnabled}
+        isAnimationsEnabled={effectiveAnimationsEnabled}
         setIsAnimating={setIsAnimating}
-        isAnimating={isAnimating}
+        isAnimating={effectiveAnimating}
         setShortcutsOpen={setShortcutsOpen}
         fileInputRef={fileInputRef}
         handleFileOpen={handleFileOpen}
@@ -1746,7 +1754,8 @@ export default function App() {
                           }}
                           onBlur={(e) => {
                             const ext = tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : '';
-                            const newName = e.target.value ? e.target.value + ext : tab.name;
+                            const trimmed = e.target.value.trim();
+                            const newName = trimmed ? trimmed + ext : tab.name;
                             setTabs((prev) => prev.map((t) => (t.id === tab.id ? { ...t, name: newName } : t)));
                             setRenamingTabId(null);
                           }}
@@ -1827,14 +1836,14 @@ export default function App() {
                   {t('menu.transform')}
                 </button>
               )}
-              {isAnimationsEnabled && activeDiagram && (
+              {effectiveAnimationsEnabled && activeDiagram && (
                 <button
                   type="button"
                   className="iso-btn"
                   onClick={() => setIsAnimating((a) => !a)}
-                  style={{ color: isAnimating ? 'var(--iso-accent)' : 'inherit' }}
+                  style={{ color: effectiveAnimating ? 'var(--iso-accent)' : 'inherit' }}
                 >
-                  {isAnimating ? '⏸' : '▶'} {isAnimating ? t('ui.pause') : t('ui.play')}
+                  {effectiveAnimating ? '⏸' : '▶'} {effectiveAnimating ? t('ui.pause') : t('ui.play')}
                 </button>
               )}
               <div style={{ position: 'relative' }}>
@@ -1855,7 +1864,7 @@ export default function App() {
                   handleExportSVG={handleExportSVG}
                   handleExportGIF={handleExportGIF}
                   handleExportMP4={handleExportMP4}
-                  isAnimationsEnabled={isAnimationsEnabled}
+                  isAnimationsEnabled={effectiveAnimationsEnabled}
                   t={t}
                 />
               </div>

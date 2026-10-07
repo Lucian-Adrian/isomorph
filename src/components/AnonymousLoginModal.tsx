@@ -54,6 +54,7 @@ export function AnonymousLoginModal({ onJoin, onCancel, isLoading }: AnonymousLo
               autoFocus
               value={name}
               onChange={e => setName(e.target.value)}
+              onBlur={() => setName(name.trim())}
               onKeyDown={e => { if (e.key !== 'Escape') e.stopPropagation(); }}
               onKeyUp={e => { if (e.key !== 'Escape') e.stopPropagation(); }}
               onKeyPress={e => { if (e.key !== 'Escape') e.stopPropagation(); }}

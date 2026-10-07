@@ -162,6 +162,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
                   setNewProjectName(e.target.value);
                   setNewProjectError('');
                 }}
+                onBlur={() => setNewProjectName(newProjectName.trim())}
                 placeholder="Q3 System architecture..."
                 autoFocus
                 style={{ borderColor: newProjectError ? 'var(--iso-danger)' : undefined }}

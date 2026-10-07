@@ -55,6 +55,7 @@ export const EditRelationModal: React.FC<EditRelationModalProps> = ({
               style={{ flex: 1 }}
               value={editingRelation.label}
               onChange={(e) => setEditingRelation({ ...editingRelation, label: e.target.value })}
+              onBlur={() => setEditingRelation({ ...editingRelation, label: editingRelation.label.trim() })}
               autoFocus={!isMobileLayout}
             />
             {['state', 'activity'].includes(activeDiagram?.kind || '') && (
@@ -80,6 +81,7 @@ export const EditRelationModal: React.FC<EditRelationModalProps> = ({
                 type="text"
                 value={editingRelation.fromMult || ''}
                 onChange={(e) => setEditingRelation({ ...editingRelation, fromMult: e.target.value })}
+                onBlur={() => setEditingRelation({ ...editingRelation, fromMult: editingRelation.fromMult ? editingRelation.fromMult.trim() : '' })}
               />
             </div>
             <div className="iso-modal-field" style={{ flex: 1, minWidth: 0 }}>
@@ -88,6 +90,7 @@ export const EditRelationModal: React.FC<EditRelationModalProps> = ({
                 type="text"
                 value={editingRelation.toMult || ''}
                 onChange={(e) => setEditingRelation({ ...editingRelation, toMult: e.target.value })}
+                onBlur={() => setEditingRelation({ ...editingRelation, toMult: editingRelation.toMult ? editingRelation.toMult.trim() : '' })}
               />
             </div>
           </div>
@@ -190,11 +193,11 @@ export const EditRelationModal: React.FC<EditRelationModalProps> = ({
             className="iso-btn iso-btn--primary"
             onClick={() =>
               handleRelationEdit(editingRelation.relationId, {
-                label: editingRelation.label,
+                label: editingRelation.label.trim(),
                 kind: editingRelation.kind,
                 direction: editingRelation.direction,
-                fromMult: editingRelation.fromMult,
-                toMult: editingRelation.toMult,
+                fromMult: editingRelation.fromMult ? editingRelation.fromMult.trim() : undefined,
+                toMult: editingRelation.toMult ? editingRelation.toMult.trim() : undefined,
                 seqMessageType: editingRelation.seqMessageType,
               })
             }

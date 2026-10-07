@@ -5,7 +5,7 @@
 // Each function handles one export format independently.
 // ============================================================
 
-function getExportSVGString(svgEl: Element): string {
+function getExportSVGString(svgEl: Element, watermark?: boolean): string {
   const clone = svgEl.cloneNode(true) as SVGSVGElement;
   
   try {
@@ -66,6 +66,32 @@ ${cssVars}    }
   `;
   clone.prepend(styleEl);
 
+  if (watermark === true) {
+    const texts = Array.from(clone.querySelectorAll('text'));
+    const hasWatermark = texts.some(t => t.textContent?.includes('Generated with Isomorph'));
+    if (!hasWatermark) {
+      const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      textEl.setAttribute('x', '100%');
+      textEl.setAttribute('y', '100%');
+      textEl.setAttribute('dx', '-20');
+      textEl.setAttribute('dy', '-20');
+      textEl.setAttribute('text-anchor', 'end');
+      textEl.setAttribute('font-family', 'Libron, system-ui, sans-serif');
+      textEl.setAttribute('font-size', '12');
+      textEl.setAttribute('fill', 'var(--iso-text-muted)');
+      textEl.setAttribute('opacity', '0.5');
+      textEl.setAttribute('pointer-events', 'none');
+      textEl.textContent = 'Generated with Isomorph';
+      clone.appendChild(textEl);
+    }
+  } else if (watermark === false) {
+    clone.querySelectorAll('text').forEach(t => {
+      if (t.textContent?.includes('Generated with Isomorph')) {
+        t.remove();
+      }
+    });
+  }
+
   return new XMLSerializer().serializeToString(clone);
 }
 
@@ -73,15 +99,17 @@ ${cssVars}    }
  * Serialises the currently visible SVG element and triggers a download.
  * @param diagramName  Base filename (without extension).
  * @param selector     CSS selector for the SVG element (default: `.iso-canvas-wrap svg`).
+ * @param watermark    Whether to enforce the watermark watermark.
  */
 export function exportSVG(
   diagramName: string,
   selector = '.iso-canvas-wrap svg',
+  watermark?: boolean,
 ): void {
   const svgEl = document.querySelector(selector);
   if (!svgEl) return;
 
-  const svgStr = getExportSVGString(svgEl);
+  const svgStr = getExportSVGString(svgEl, watermark);
   const blob = new Blob([svgStr], { type: 'image/svg+xml' });
   const url = URL.createObjectURL(blob);
 
@@ -102,16 +130,18 @@ export function exportSVG(
  * @param diagramName  Base filename (without extension).
  * @param selector     CSS selector for the SVG element (default: `.iso-canvas-wrap svg`).
  * @param scale        Device-pixel ratio (default: 2).
+ * @param watermark    Whether to enforce the watermark watermark.
  */
 export function exportPNG(
   diagramName: string,
   selector = '.iso-canvas-wrap svg',
   scale = 2,
+  watermark?: boolean,
 ): void {
   const svgEl = document.querySelector(selector);
   if (!svgEl) return;
 
-  const svgStr = getExportSVGString(svgEl);
+  const svgStr = getExportSVGString(svgEl, watermark);
   const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
   const url = URL.createObjectURL(svgBlob);
 

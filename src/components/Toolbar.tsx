@@ -138,7 +138,7 @@ export function Toolbar({
             onBlur={() => setRenamingTabId(null)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                const newName = e.currentTarget.value;
+                const newName = e.currentTarget.value.trim();
                 if (activeTab?.project_id && user && newName) {
                   setProjects((prev) => prev.map((p) => (p.id === activeTab.project_id ? { ...p, name: newName } : p)));
                   import('../lib/projects.js').then((m) =>
@@ -202,7 +202,8 @@ export function Toolbar({
                 onBlur={(e) => {
                   if (isMobileLayout) return;
                   const ext = fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '';
-                  const newName = e.target.value ? e.target.value + ext : fileName;
+                  const trimmed = e.target.value.trim();
+                  const newName = trimmed ? trimmed + ext : fileName;
                   if (activeTab) {
                     setTabs((prev) => prev.map((t) => (t.id === activeTab.id ? { ...t, name: newName } : t)));
                   }
@@ -211,7 +212,8 @@ export function Toolbar({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     const ext = fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '';
-                    const newName = e.currentTarget.value ? e.currentTarget.value + ext : fileName;
+                    const trimmed = e.currentTarget.value.trim();
+                    const newName = trimmed ? trimmed + ext : fileName;
                     if (activeTab) {
                       setTabs((prev) => prev.map((t) => (t.id === activeTab.id ? { ...t, name: newName } : t)));
                     }
@@ -323,7 +325,8 @@ export function Toolbar({
                     }}
                     onBlur={(e) => {
                       const ext = tab.name.includes('.') ? tab.name.substring(tab.name.lastIndexOf('.')) : '';
-                      const newName = e.target.value ? e.target.value + ext : tab.name;
+                      const trimmed = e.target.value.trim();
+                      const newName = trimmed ? trimmed + ext : tab.name;
                       setTabs((prev) => prev.map((t) => (t.id === tab.id ? { ...t, name: newName } : t)));
                       setRenamingTabId(null);
                     }}

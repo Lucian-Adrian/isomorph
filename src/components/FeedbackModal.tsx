@@ -32,7 +32,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
       {
         user_id: user?.id || null, // Allow anonymous feedback but link if logged in
         type,
-        content,
+        content: content.trim(),
         created_at: new Date().toISOString()
       }
     ]);
@@ -75,6 +75,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                   <option value="feature">{t('feedback.type_feature')}</option>
                 </select>
               </div>
+
               <div className="iso-modal-field">
                 <label>{t('feedback.content')}</label>
                 <textarea
@@ -83,6 +84,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
                   required
                   value={content}
                   onChange={e => setContent(e.target.value)}
+                  onBlur={() => setContent(content.trim())}
                   placeholder={t('feedback.placeholder')}
                 />
               </div>

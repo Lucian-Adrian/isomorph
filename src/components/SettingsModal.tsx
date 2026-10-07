@@ -275,6 +275,7 @@ export function SettingsModal({
                                 type="text"
                                 value={displayNameInput}
                                 onChange={e => setDisplayNameInput(e.target.value)}
+                                onBlur={() => setDisplayNameInput(displayNameInput.trim())}
                                 onKeyDown={e => {
                                   if (e.key === 'Enter') {
                                     handleSaveDisplayName();
@@ -325,6 +326,7 @@ export function SettingsModal({
                                 type="text"
                                 value={usernameInput}
                                 onChange={e => setUsernameInput(e.target.value)}
+                                onBlur={() => setUsernameInput(usernameInput.trim().toLowerCase())}
                                 onKeyDown={e => {
                                   if (e.key === 'Enter') {
                                     handleSaveUsername();
@@ -400,6 +402,7 @@ export function SettingsModal({
                                 placeholder="New password"
                                 value={newPassword}
                                 onChange={e => setNewPassword(e.target.value)}
+                                onBlur={() => setNewPassword(newPassword.trim())}
                                 className="iso-input"
                                 style={{ width: '180px' }}
                               />
@@ -956,13 +959,20 @@ export function SettingsModal({
                         <div className="iso-settings-info">
                           <div className="iso-settings-label">{t('settings.output_watermark')}</div>
                           <div className="iso-settings-desc">{t('ui.watermark')}</div>
+                          {!session && (
+                            <div className="iso-settings-desc" style={{ color: 'var(--iso-accent)', marginTop: '4px', fontSize: '11px' }}>
+                              {t('settings.watermark_unlogged_notice')}
+                            </div>
+                          )}
                         </div>
                         <div className="iso-settings-control">
-                          <label className="iso-switch">
+                          <label className="iso-switch" style={!session ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}>
                             <input
                               type="checkbox"
-                              checked={isWatermarkEnabled}
+                              checked={!session ? true : isWatermarkEnabled}
+                              disabled={!session}
                               onChange={e => {
+                                if (!session) return;
                                 const next = e.target.checked;
                                 sound.toggle(next);
                                 setIsWatermarkEnabled(next);
@@ -980,13 +990,20 @@ export function SettingsModal({
                         <div className="iso-settings-info">
                           <div className="iso-settings-label">{t('ui.enable_animations')}</div>
                           <div className="iso-settings-desc">{t('settings.animations_desc')}</div>
+                          {!session && (
+                            <div className="iso-settings-desc" style={{ color: 'var(--iso-accent)', marginTop: '4px', fontSize: '11px' }}>
+                              {t('settings.animations_unlogged_notice')}
+                            </div>
+                          )}
                         </div>
                         <div className="iso-settings-control">
-                          <label className="iso-switch">
+                          <label className="iso-switch" style={!session ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}>
                             <input
                               type="checkbox"
-                              checked={isAnimationsEnabled}
+                              checked={!session ? false : isAnimationsEnabled}
+                              disabled={!session}
                               onChange={e => {
+                                if (!session) return;
                                 const next = e.target.checked;
                                 sound.toggle(next);
                                 setIsAnimationsEnabled(next);
@@ -1010,7 +1027,7 @@ export function SettingsModal({
                           <select
                             className="iso-select"
                             value={animationSpeed}
-                            disabled={!isAnimationsEnabled}
+                            disabled={!session || !isAnimationsEnabled}
                             onChange={e => {
                               sound.select();
                               const speed = parseFloat(e.target.value);

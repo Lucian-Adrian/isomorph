@@ -20,8 +20,8 @@ export type SoundEffect =
 const SOUND_PATHS: Record<SoundEffect, string> = {
   button: '/sounds/button.wav',
   select: '/sounds/select.wav',
-  toggle_on: '/sounds/toggle_on.wav',
-  toggle_off: '/sounds/toggle_off.wav',
+  toggle_on: '/sounds/toggle_off.wav',
+  toggle_off: '/sounds/toggle_on.wav',
   transition_up: '/sounds/transition_up.wav',
   transition_down: '/sounds/transition_down.wav',
   notification: '/sounds/notification.wav',

@@ -23,13 +23,15 @@ export const EditTextModal: React.FC<EditTextModalProps> = ({
   if (!editingText) return null;
 
   const handleSave = () => {
+    const clean = editingText.newName.trim();
+    if (!clean) return;
     updateActiveTab((tab) => {
       let src = tab.source;
       if (editingText.type === 'diagram') {
-        src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + editingText.newName);
+        src = src.replace(new RegExp('diagram\\s+' + editingText.oldName), 'diagram ' + clean);
       } else {
-        src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + editingText.newName);
-        src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + editingText.newName + ' at');
+        src = src.replace(new RegExp('package\\s+' + editingText.oldName + '\\b'), 'package ' + clean);
+        src = src.replace(new RegExp('@' + editingText.oldName + '\\s+at'), '@' + clean + ' at');
       }
       return { ...tab, source: src };
     });
@@ -47,6 +49,7 @@ export const EditTextModal: React.FC<EditTextModalProps> = ({
             style={{ width: '100%', padding: '0.4rem' }}
             value={editingText.newName}
             onChange={(e) => setEditingText({ ...editingText, newName: e.target.value })}
+            onBlur={() => setEditingText({ ...editingText, newName: editingText.newName.trim() })}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 handleSave();
@@ -59,7 +62,7 @@ export const EditTextModal: React.FC<EditTextModalProps> = ({
           <button type="button" className="iso-btn" onClick={() => setEditingText(null)}>
             {t('ui.cancel')}
           </button>
-          <button type="button" className="iso-btn iso-btn--primary" onClick={handleSave}>
+          <button type="button" className="iso-btn iso-btn--primary" disabled={!editingText.newName.trim()} onClick={handleSave}>
             {t('menu.save')}
           </button>
         </div>

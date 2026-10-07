@@ -600,13 +600,13 @@ export function useCanvasInteractions(options: CanvasInteractionsOptions) {
 
   const handleExportSVG = useCallback(() => {
     logEvent('diagram_exported', { format: 'svg', kind: activeDiagram?.kind });
-    exportSVG(activeDiagram?.name ?? 'diagram');
-  }, [activeDiagram]);
+    exportSVG(activeDiagram?.name ?? 'diagram', '.iso-canvas-wrap svg', isWatermarkEnabled);
+  }, [activeDiagram, isWatermarkEnabled]);
 
   const handleExportPNG = useCallback(() => {
     logEvent('diagram_exported', { format: 'png', kind: activeDiagram?.kind });
-    exportPNG(activeDiagram?.name ?? 'diagram');
-  }, [activeDiagram]);
+    exportPNG(activeDiagram?.name ?? 'diagram', '.iso-canvas-wrap svg', 2, isWatermarkEnabled);
+  }, [activeDiagram, isWatermarkEnabled]);
 
   const executeNewDiagram = useCallback(
     (kind: DiagramKind) => {
