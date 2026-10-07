@@ -59,7 +59,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
         >
           ×
         </button>
-        <h3 style={{ margin: 0, fontSize: '20px', marginBottom: '16px' }}>{'Create new'}</h3>
+        <h2 className="iso-modal-title" style={{ marginBottom: '16px' }}>{t('welcome.create_new') || 'Create new'}</h2>
 
         <div
           style={{

@@ -87,7 +87,7 @@ export function ContextMenu({
                 const next = customCategories.filter((c) => c !== contextMenu.id);
                 setCustomCategories(next);
                 saveCustomCategoriesToDB(next);
-                if (libraryCategory === contextMenu.id) setLibraryCategory('All Projects');
+                if (libraryCategory === contextMenu.id) setLibraryCategory('All projects');
 
                 setProjects((prev) =>
                   prev.map((p) => {

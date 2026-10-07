@@ -148,7 +148,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
                   <select 
                     value={newLinkScope}
                     onChange={e => setNewLinkScope(e.target.value as any)}
-                    className="iso-input"
+                    className="iso-select"
                     style={{ width: '160px', height: '36px', padding: '8px' }}
                   >
                     <option value="project">{t('share.entire_project')}</option>
@@ -157,7 +157,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
                   <select 
                     value={newLinkRole}
                     onChange={e => setNewLinkRole(e.target.value as any)}
-                    className="iso-input"
+                    className="iso-select"
                     style={{ width: '130px', height: '36px', padding: '8px' }}
                   >
                     <option value="viewer">{t('share.viewer')}</option>
@@ -236,7 +236,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
                   <select 
                     value={inviteScope}
                     onChange={e => setInviteScope(e.target.value as any)}
-                    className="iso-input"
+                    className="iso-select"
                     style={{ width: '160px', height: '36px', padding: '8px' }}
                   >
                     <option value="project">{t('share.entire_project')}</option>
@@ -245,7 +245,7 @@ export function ShareModal({ projectId, diagramId, diagramName, onClose, onToast
                   <select 
                     value={inviteRole}
                     onChange={e => setInviteRole(e.target.value as any)}
-                    className="iso-input"
+                    className="iso-select"
                     style={{ width: '130px', height: '36px', padding: '8px' }}
                   >
                     <option value="viewer">{t('share.viewer')}</option>

@@ -82,6 +82,45 @@ export function SettingsModal({
   const [settingsTab, setSettingsTab] = useState<'profile' | 'collab' | 'storage' | 'app'>('profile');
   const [soundEffectsEnabled, setSoundEffectsEnabled] = useState<boolean>(() => isSoundEnabled());
   const [soundVolumeLevel, setSoundVolumeLevel] = useState<number>(() => Math.round(getSoundVolume() * 100));
+  const [displayNameInput, setDisplayNameInput] = useState(profile?.full_name || '');
+  const [usernameInput, setUsernameInput] = useState(profile?.username || '');
+
+  useEffect(() => {
+    if (profile) {
+      setDisplayNameInput(profile.full_name || '');
+      setUsernameInput(profile.username || '');
+    }
+  }, [profile?.full_name, profile?.username]);
+
+  const handleSaveDisplayName = async () => {
+    const clean = displayNameInput.trim();
+    if (!clean) return;
+    if (clean === profile?.full_name) return;
+    sound.button();
+    await autoSaveProfile({ full_name: clean });
+    addToast(t('settings.name_updated') || 'Display name updated', 'success');
+  };
+
+  const handleSaveUsername = async () => {
+    const clean = usernameInput.trim().toLowerCase();
+    if (!clean) return;
+    if (clean === profile?.username) return;
+    sound.button();
+    try {
+      const { isUsernameAvailable } = await import('../lib/profile.js');
+      const available = await isUsernameAvailable(clean, user?.id);
+      if (!available) {
+        sound.warn();
+        addToast(t('settings.username_taken') || 'Username is already taken');
+        return;
+      }
+      await autoSaveProfile({ username: clean });
+      addToast(t('settings.username_updated') || 'Username updated', 'success');
+    } catch (err: any) {
+      sound.warn();
+      addToast(err?.message || 'Error updating username');
+    }
+  };
 
   useEffect(() => {
     sound.modalOpen();
@@ -190,7 +229,7 @@ export function SettingsModal({
                                           const updated = { ...profile, avatar_url: url };
                                           setProfile(updated);
                                           await autoSaveProfile({ avatar_url: url });
-                                          addToast('Photo uploaded successfully');
+                                          addToast(t('settings.photo_updated') || 'Profile photo updated', 'success');
                                         }
                                       }
                                     };
@@ -211,7 +250,7 @@ export function SettingsModal({
                                         const updated = { ...profile, avatar_url: null };
                                         setProfile(updated);
                                         await autoSaveProfile({ avatar_url: null });
-                                        addToast('Photo removed');
+                                        addToast(t('settings.photo_removed') || 'Profile photo removed', 'info');
                                       }
                                     }}
                                   >
@@ -231,21 +270,47 @@ export function SettingsModal({
                               <div className="iso-settings-label">{t('settings.display_name')}</div>
                               <div className="iso-settings-desc">{t('settings.display_name_desc')}</div>
                             </div>
-                            <div className="iso-settings-control" style={{ width: '100%', marginTop: '8px' }}>
+                            <div className="iso-settings-control" style={{ width: '100%', marginTop: '8px', position: 'relative' }}>
                               <input
                                 type="text"
-                                value={profile?.full_name || ''}
-                                onChange={e => setProfile(profile ? { ...profile, full_name: e.target.value } : null)}
-                                onBlur={e => autoSaveProfile({ full_name: e.target.value })}
+                                value={displayNameInput}
+                                onChange={e => setDisplayNameInput(e.target.value)}
                                 onKeyDown={e => {
                                   if (e.key === 'Enter') {
-                                    autoSaveProfile({ full_name: (e.target as HTMLInputElement).value });
-                                    (e.target as HTMLInputElement).blur();
+                                    handleSaveDisplayName();
                                   }
                                 }}
                                 className="iso-input"
-                                style={{ width: '100%' }}
+                                style={{ width: '100%', paddingRight: '40px' }}
                               />
+                              <button
+                                type="button"
+                                className="iso-btn"
+                                onClick={handleSaveDisplayName}
+                                title={t('settings.name_updated') || 'Save display name'}
+                                aria-label="Save display name"
+                                style={{
+                                  position: 'absolute',
+                                  right: '6px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  padding: '4px',
+                                  minWidth: '28px',
+                                  height: '28px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '6px',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'var(--iso-text)',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                              </button>
                             </div>
                           </div>
 
@@ -255,21 +320,47 @@ export function SettingsModal({
                               <div className="iso-settings-label">{t('settings.username')}</div>
                               <div className="iso-settings-desc">{t('settings.username_desc')}</div>
                             </div>
-                            <div className="iso-settings-control" style={{ width: '100%', marginTop: '8px' }}>
+                            <div className="iso-settings-control" style={{ width: '100%', marginTop: '8px', position: 'relative' }}>
                               <input
                                 type="text"
-                                value={profile?.username || ''}
-                                onChange={e => setProfile(profile ? { ...profile, username: e.target.value } : null)}
-                                onBlur={e => autoSaveProfile({ username: e.target.value })}
+                                value={usernameInput}
+                                onChange={e => setUsernameInput(e.target.value)}
                                 onKeyDown={e => {
                                   if (e.key === 'Enter') {
-                                    autoSaveProfile({ username: (e.target as HTMLInputElement).value });
-                                    (e.target as HTMLInputElement).blur();
+                                    handleSaveUsername();
                                   }
                                 }}
                                 className="iso-input"
-                                style={{ width: '100%' }}
+                                style={{ width: '100%', paddingRight: '40px' }}
                               />
+                              <button
+                                type="button"
+                                className="iso-btn"
+                                onClick={handleSaveUsername}
+                                title={t('settings.username_updated') || 'Save username'}
+                                aria-label="Save username"
+                                style={{
+                                  position: 'absolute',
+                                  right: '6px',
+                                  top: '50%',
+                                  transform: 'translateY(-50%)',
+                                  padding: '4px',
+                                  minWidth: '28px',
+                                  height: '28px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '6px',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: 'var(--iso-text)',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                              </button>
                             </div>
                           </div>
 
@@ -713,9 +804,15 @@ export function SettingsModal({
                               checked={soundEffectsEnabled}
                               onChange={e => {
                                 const next = e.target.checked;
-                                setSoundEffectsEnabled(next);
-                                setSoundEnabled(next);
-                                sound.toggle(next);
+                                if (next) {
+                                  setSoundEnabled(true);
+                                  setSoundEffectsEnabled(true);
+                                  sound.toggle(true);
+                                } else {
+                                  sound.toggle(false);
+                                  setSoundEnabled(false);
+                                  setSoundEffectsEnabled(false);
+                                }
                               }}
                             />
                             <span className="iso-switch-slider" />
@@ -867,6 +964,7 @@ export function SettingsModal({
                               checked={isWatermarkEnabled}
                               onChange={e => {
                                 const next = e.target.checked;
+                                sound.toggle(next);
                                 setIsWatermarkEnabled(next);
                                 localStorage.setItem('isomorph-watermark', String(next));
                                 autoSaveSettings({ watermark: next });
@@ -890,6 +988,7 @@ export function SettingsModal({
                               checked={isAnimationsEnabled}
                               onChange={e => {
                                 const next = e.target.checked;
+                                sound.toggle(next);
                                 setIsAnimationsEnabled(next);
                                 if (!next) setIsAnimating(false);
                                 localStorage.setItem('isomorph-animations', String(next));
@@ -913,6 +1012,7 @@ export function SettingsModal({
                             value={animationSpeed}
                             disabled={!isAnimationsEnabled}
                             onChange={e => {
+                              sound.select();
                               const speed = parseFloat(e.target.value);
                               setAnimationSpeed(speed);
                               localStorage.setItem('isomorph-anim-speed', String(speed));
@@ -941,6 +1041,7 @@ export function SettingsModal({
                               checked={telemetry}
                               onChange={e => {
                                 const next = e.target.checked;
+                                sound.toggle(next);
                                 setTelemetry(next);
                                 setTelemetryEnabled(next);
                                 autoSaveSettings({ telemetry: next });

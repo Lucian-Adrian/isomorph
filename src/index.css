@@ -389,6 +389,16 @@ body {
   border-color: var(--iso-brand-dark);
 }
 
+select,
+option,
+optgroup,
+.iso-select,
+.iso-select option,
+.iso-modal-select,
+.iso-modal-select option {
+  font-family: 'Libron', system-ui, -apple-system, sans-serif !important;
+}
+
 .iso-select {
   min-height: 28px;
   border: 1px solid var(--iso-border);
@@ -397,13 +407,14 @@ body {
   border-radius: var(--iso-radius);
   padding: 0 8px;
   font-size: 13px;
-  font-family: var(--sans);
+  font-family: 'Libron', system-ui, -apple-system, sans-serif !important;
   width: 100%;
 }
 
 .iso-select option {
   background: var(--white);
   color: var(--ink-deep);
+  font-family: 'Libron', system-ui, -apple-system, sans-serif !important;
 }
 
 .iso-select:focus-visible {
@@ -1208,7 +1219,7 @@ body {
   user-select: none;
 }
 .iso-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-.iso-modal-title { font-size: 16px; font-weight: 600; margin: 0; color: var(--iso-text); }
+.iso-modal-title { font-size: 20px; font-weight: 700; margin: 0; color: var(--iso-text); font-family: 'Libron', system-ui, -apple-system, sans-serif; letter-spacing: -0.01em; }
 .iso-modal-close { background: transparent; border: none; font-size: 20px; line-height: 1; color: var(--iso-text-muted); cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; border-radius: var(--iso-radius-sm); transition: all 0.2s; }
 .iso-modal-close:hover { background: var(--iso-bg-hover); color: var(--iso-text); }
 

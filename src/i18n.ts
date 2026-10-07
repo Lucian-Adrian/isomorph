@@ -327,6 +327,12 @@ const translations: Record<Language, Record<string, string>> = {
     'settings.account_settings': 'Account settings',
     'settings.change_password': 'Change password',
     'settings.delete_account': 'Delete account',
+    'ui.add_category': 'Add category',
+    'settings.name_updated': 'Display name updated',
+    'settings.username_updated': 'Username updated',
+    'settings.username_taken': 'Username is already taken',
+    'settings.photo_updated': 'Profile photo updated',
+    'settings.photo_removed': 'Profile photo removed',
   },
   ro: {
     'ui.language': 'Limba',
@@ -646,6 +652,12 @@ const translations: Record<Language, Record<string, string>> = {
     'settings.account_settings': 'Setări cont',
     'settings.change_password': 'Schimbă parola',
     'settings.delete_account': 'Șterge contul',
+    'ui.add_category': 'Adaugă categorie',
+    'settings.name_updated': 'Nume afișat actualizat',
+    'settings.username_updated': 'Nume de utilizator actualizat',
+    'settings.username_taken': 'Numele de utilizator este deja utilizat',
+    'settings.photo_updated': 'Fotografie de profil actualizată',
+    'settings.photo_removed': 'Fotografie de profil eliminată',
   },
   ru: {
     'ui.language': 'Язык',
@@ -965,6 +977,12 @@ const translations: Record<Language, Record<string, string>> = {
     'settings.account_settings': 'Настройки аккаунта',
     'settings.change_password': 'Сменить пароль',
     'settings.delete_account': 'Удалить аккаунт',
+    'ui.add_category': 'Добавить категорию',
+    'settings.name_updated': 'Отображаемое имя обновлено',
+    'settings.username_updated': 'Имя пользователя обновлено',
+    'settings.username_taken': 'Имя пользователя уже занято',
+    'settings.photo_updated': 'Фото профиля обновлено',
+    'settings.photo_removed': 'Фото профиля удалено',
   }
 };
 

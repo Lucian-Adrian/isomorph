@@ -66,6 +66,21 @@ export function CollaboratorBar({
     return clean.slice(0, 2).toUpperCase();
   }, []);
 
+  const isLightColor = (colorStr?: string) => {
+    if (!colorStr) return false;
+    const hex = colorStr.trim().toLowerCase();
+    if (hex === '#fff' || hex === '#ffffff' || hex === '#f8fafc' || hex === '#f1f5f9' || hex === 'white') return true;
+    if (hex.startsWith('#') && (hex.length === 7 || hex.length === 4)) {
+      const raw = hex.slice(1);
+      const r = parseInt(raw.length === 3 ? raw[0] + raw[0] : raw.slice(0, 2), 16);
+      const g = parseInt(raw.length === 3 ? raw[1] + raw[1] : raw.slice(2, 4), 16);
+      const b = parseInt(raw.length === 3 ? raw[2] + raw[2] : raw.slice(4, 6), 16);
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return lum > 0.8;
+    }
+    return false;
+  };
+
   if (!activeTab?.diagram_id) {
     return null;
   }
@@ -107,22 +122,25 @@ export function CollaboratorBar({
 
   return (
     <div ref={collabRef} className="iso-avatar-stack">
-      {sortedCollaborators.slice(0, 2).map((collab) => (
-        <div
-          key={collab.clientId}
-          className="iso-avatar"
-          style={{
-            backgroundColor: collab.avatarUrl ? 'transparent' : collab.color,
-            border: `2px solid ${collab.color}`,
-          }}
-          title={
-            collab.clientId === awareness?.clientID
-              ? `${collab.name} (${t('ui.you')})`
-              : collab.name
-          }
-          onClick={() => setIsCollabDropdownOpen((prev) => !prev)}
-        >
-          {collab.avatarUrl ? (
+      {sortedCollaborators.slice(0, 2).map((collab) => {
+        const isWhite = isLightColor(collab.color);
+        return (
+          <div
+            key={collab.clientId}
+            className="iso-avatar"
+            style={{
+              backgroundColor: collab.avatarUrl ? 'transparent' : collab.color,
+              border: isWhite ? '1.5px solid rgba(0, 0, 0, 0.25)' : `2px solid ${collab.color}`,
+              color: isWhite ? '#1a1a16' : '#ffffff',
+            }}
+            title={
+              collab.clientId === awareness?.clientID
+                ? `${collab.name} (${t('ui.you')})`
+                : collab.name
+            }
+            onClick={() => setIsCollabDropdownOpen((prev) => !prev)}
+          >
+            {collab.avatarUrl ? (
             <img
               src={collab.avatarUrl}
               alt={collab.name}
@@ -138,7 +156,8 @@ export function CollaboratorBar({
             getInitials(collab.name)
           )}
         </div>
-      ))}
+      );
+    })}
       {sortedCollaborators.length > 2 && (
         <div
           className="iso-avatar iso-avatar-more"
@@ -173,7 +192,13 @@ export function CollaboratorBar({
                   }}
                 />
               ) : (
-                <span className="iso-collab-user-dot" style={{ backgroundColor: c.color }} />
+                <span
+                  className="iso-collab-user-dot"
+                  style={{
+                    backgroundColor: c.color,
+                    border: isLightColor(c.color) ? '1px solid rgba(0, 0, 0, 0.3)' : undefined,
+                  }}
+                />
               )}
               <div
                 className="iso-collab-user-name"

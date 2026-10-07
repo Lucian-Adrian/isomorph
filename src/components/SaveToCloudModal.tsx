@@ -95,8 +95,11 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
   return (
     <div className="iso-modal-overlay" onClick={handleClose}>
       <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '420px', maxWidth: '92vw' }}>
-        <h2 className="iso-modal-title">{t('ui.save_to_cloud')}</h2>
-        <p className="iso-modal-desc">Select a project and verify the file name.</p>
+        <div className="iso-modal-header" style={{ marginBottom: '12px' }}>
+          <h2 className="iso-modal-title">{t('ui.save_to_cloud')}</h2>
+          <button className="iso-modal-close" onClick={handleClose} aria-label={t('ui.close')}>×</button>
+        </div>
+        <p className="iso-modal-desc" style={{ marginBottom: '16px' }}>Select a project and verify the file name.</p>
 
         <div className="iso-modal-field" style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--iso-text)' }}>
@@ -104,8 +107,10 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
           </label>
           <input
             type="text"
-            className="iso-modal-select"
+            className="iso-input"
             style={{
+              width: '100%',
+              height: '36px',
               marginBottom: 0,
               borderColor: isDuplicate ? 'var(--iso-danger)' : undefined,
             }}
@@ -128,7 +133,7 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
                 gap: '8px',
                 padding: '8px 12px',
                 borderRadius: '6px',
-                background: 'rgba(239, 68, 68, 0.1)',
+                background: 'rgba(239, 68, 68, 0.08)',
                 border: '1px solid rgba(239, 68, 68, 0.25)',
                 color: 'var(--iso-danger)',
                 fontSize: '12px',
@@ -136,7 +141,11 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
                 lineHeight: 1.4,
               }}
             >
-              <span style={{ fontSize: '14px' }}>⚠️</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
               <span>A file named &quot;{cleanName}&quot; already exists in this project. Please choose a different name.</span>
             </div>
           )}
@@ -149,7 +158,7 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
           <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
             <select
               className="iso-select"
-              style={{ flex: 1 }}
+              style={{ flex: 1, height: '36px' }}
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
               onKeyDown={(e) => {
@@ -160,7 +169,7 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
                 }
               }}
             >
-              <option value="">-- Select project --</option>
+              <option value="">Select project</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -170,6 +179,7 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
             <button
               type="button"
               className="iso-btn"
+              style={{ height: '36px', padding: '0 12px', whiteSpace: 'nowrap' }}
               onClick={() => {
                 sound.button();
                 setNewModalTab('project');

@@ -24,7 +24,7 @@ export function useCloudSync(user: any) {
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [libraryVisibilityFilter, setLibraryVisibilityFilter] = useState('all');
   const [librarySort, setLibrarySort] = useState('accessed');
-  const [libraryCategory, setLibraryCategory] = useState<string>('All Projects');
+  const [libraryCategory, setLibraryCategory] = useState<string>('All projects');
   const [customCategories, setCustomCategories] = useState<string[]>(['Favorites', 'Work', 'Personal']);
   const [newCategoryPrompt, setNewCategoryPrompt] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');

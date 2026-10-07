@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { type Project } from '../lib/projects.js';
 import type { WorkspaceTab } from '../types/index.js';
 import { EXAMPLES } from '../data/examples.js';
@@ -14,6 +14,8 @@ interface LibraryModalProps {
   customCategories: string[];
   setCustomCategories: (cats: string[]) => void;
   saveCustomCategoriesToDB: (cats: string[]) => Promise<void>;
+  libraryCategory?: string;
+  setLibraryCategory?: (category: string) => void;
 
   // Tab actions
   setTabs: React.Dispatch<React.SetStateAction<WorkspaceTab[]>>;
@@ -38,6 +40,8 @@ export function LibraryModal({
   customCategories,
   setCustomCategories,
   saveCustomCategoriesToDB,
+  libraryCategory: externalCategory,
+  setLibraryCategory: externalSetCategory,
   setTabs,
   setActiveTabId,
   handleOpenProjectDetails,
@@ -51,7 +55,20 @@ export function LibraryModal({
   const [librarySearchQuery, setLibrarySearchQuery] = useState('');
   const [libraryVisibilityFilter, setLibraryVisibilityFilter] = useState('all');
   const [librarySort, setLibrarySort] = useState('accessed');
-  const [libraryCategory, setLibraryCategory] = useState('All Projects');
+  const [internalCategory, setInternalCategory] = useState('All projects');
+
+  const libraryCategory = externalCategory ?? internalCategory;
+  const setLibraryCategory = externalSetCategory ?? setInternalCategory;
+
+  useEffect(() => {
+    const isProtected =
+      libraryCategory.toLowerCase() === 'all projects' ||
+      libraryCategory.toLowerCase() === 'favorites' ||
+      libraryCategory.toLowerCase() === 'favourites';
+    if (!isProtected && !customCategories.includes(libraryCategory)) {
+      setLibraryCategory('All projects');
+    }
+  }, [customCategories, libraryCategory, setLibraryCategory]);
 
   // Category addition states
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -238,7 +255,7 @@ export function LibraryModal({
                         style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }}
                         aria-label="Sort projects"
                       >
-                        <option value="accessed">Last Accessed</option>
+                        <option value="accessed">Last accessed</option>
                         <option value="name">Name</option>
                       </select>
                     </div>
@@ -252,7 +269,7 @@ export function LibraryModal({
                       paddingBottom: '4px',
                     }}
                   >
-                    {['All Projects', ...customCategories].map((cat) => (
+                    {['All projects', ...customCategories].map((cat) => (
                       <button
                         key={cat}
                         className={libraryCategory === cat ? 'iso-btn iso-btn--primary' : 'iso-btn'}
@@ -323,7 +340,7 @@ export function LibraryModal({
                           libraryCategory.toLowerCase() === 'favourites';
                         if (isFavTab) {
                           filtered = filtered.filter((p) => p.settings?.is_favorite);
-                        } else if (libraryCategory !== 'All Projects') {
+                        } else if (libraryCategory.toLowerCase() !== 'all projects') {
                           filtered = filtered.filter((p) => p.settings?.category === libraryCategory);
                         }
 
@@ -454,10 +471,34 @@ export function LibraryModal({
                             style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }}
                             aria-label="Sort projects"
                           >
-                            <option value="accessed">Last Accessed</option>
+                            <option value="accessed">Last accessed</option>
                             <option value="name">Name</option>
                           </select>
                         </div>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '8px',
+                          marginBottom: '16px',
+                          overflowX: 'auto',
+                          paddingBottom: '4px',
+                        }}
+                      >
+                        {['All projects', ...customCategories].map((cat) => (
+                          <button
+                            key={cat}
+                            className={libraryCategory === cat ? 'iso-btn iso-btn--primary' : 'iso-btn'}
+                            style={{
+                              borderRadius: '20px',
+                              padding: '4px 12px',
+                              background: libraryCategory === cat ? undefined : 'var(--iso-bg-header)',
+                            }}
+                            onClick={() => setLibraryCategory(cat)}
+                          >
+                            {cat}
+                          </button>
+                        ))}
                       </div>
                       <div
                         style={{
@@ -471,6 +512,15 @@ export function LibraryModal({
                           let filtered = sharedProjects.filter((p) =>
                             p.name.toLowerCase().includes(librarySearchQuery.toLowerCase()),
                           );
+
+                          const isFavTab =
+                            libraryCategory.toLowerCase() === 'favorites' ||
+                            libraryCategory.toLowerCase() === 'favourites';
+                          if (isFavTab) {
+                            filtered = filtered.filter((p) => p.settings?.is_favorite);
+                          } else if (libraryCategory.toLowerCase() !== 'all projects') {
+                            filtered = filtered.filter((p) => p.settings?.category === libraryCategory);
+                          }
 
                           filtered = filtered.sort((a, b) => {
                             if (librarySort === 'name') return a.name.localeCompare(b.name);
@@ -487,7 +537,7 @@ export function LibraryModal({
                                   color: 'var(--iso-text-muted)',
                                 }}
                               >
-                                {t('ui.shared_future')}
+                                {sharedProjects.length === 0 ? t('ui.shared_future') : 'No projects found matching these filters.'}
                               </div>
                             );
                           }
@@ -612,7 +662,7 @@ export function LibraryModal({
                           localFileInputRef.current?.click();
                         }}
                       >
-                        Browse Files
+                        Browse files
                       </button>
                     </div>
                   ) : (
@@ -626,14 +676,14 @@ export function LibraryModal({
                         }}
                       >
                         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
-                          Selected Files ({localStagedFiles.length})
+                          Selected files ({localStagedFiles.length})
                         </h3>
                         <button
                           className="iso-btn"
                           style={{ fontSize: '12px', padding: '4px 12px' }}
                           onClick={() => localFileInputRef.current?.click()}
                         >
-                          + Add More
+                          + Add more
                         </button>
                       </div>
 

@@ -250,59 +250,46 @@ export default function App() {
 
   useEffect(() => {
     if (user) {
-      import('./lib/profile.js').then(({ getProfile }) => {
-        getProfile(user.id).then(async (data) => {
-          if (data) {
-            setProfile(data);
-            if (data.settings?.projects?.tabs) {
-              setCustomCategories(data.settings.projects.tabs);
-            }
-            if (data.settings?.language) {
-              setLanguage(data.settings.language);
-              setStoredLanguage(data.settings.language);
-            }
-            if (typeof data.settings?.auto_save === 'number') {
-              setAutoSaveInterval(data.settings.auto_save);
-              localStorage.setItem('isomorph-autosave', String(data.settings.auto_save));
-            }
-            if (typeof data.settings?.telemetry === 'boolean') {
-              setTelemetry(data.settings.telemetry);
-              setTelemetryEnabled(data.settings.telemetry);
-            }
-            if (typeof data.settings?.show_trail === 'boolean') {
-              setCollabShowTrail(data.settings.show_trail);
-            }
-            if (typeof data.settings?.show_name_label === 'boolean') {
-              setCollabShowNameLabel(data.settings.show_name_label);
-            }
-            if (typeof data.settings?.strict_uml === 'boolean') {
-              setIsUMLCompliant(data.settings.strict_uml);
-              localStorage.setItem('isomorph-strict-uml', String(data.settings.strict_uml));
-            }
-            if (typeof data.settings?.watermark === 'boolean') {
-              setIsWatermarkEnabled(data.settings.watermark);
-              localStorage.setItem('isomorph-watermark', String(data.settings.watermark));
-            }
-            if (typeof data.settings?.animations === 'boolean') {
-              setIsAnimationsEnabled(data.settings.animations);
-              localStorage.setItem('isomorph-animations', String(data.settings.animations));
-            }
-            if (typeof data.settings?.anim_speed === 'number') {
-              setAnimationSpeed(data.settings.anim_speed);
-              localStorage.setItem('isomorph-anim-speed', String(data.settings.anim_speed));
-            }
-          } else {
-            // Profile is missing, let's create it automatically
-            const { updateProfile } = await import('./lib/profile.js');
-            const created = await updateProfile(user.id, {
-              username: user.email?.split('@')[0] || 'user_' + user.id.slice(0, 5),
-              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
-              avatar_url: user.user_metadata?.avatar_url || null,
-            });
-            if (created) {
-              const fresh = await getProfile(user.id);
-              if (fresh) setProfile(fresh);
-            }
+      import('./lib/profile.js').then(({ ensureProfile }) => {
+        ensureProfile(user).then((data) => {
+          if (!data) return;
+          setProfile(data);
+          if (data.settings?.projects?.tabs) {
+            setCustomCategories(data.settings.projects.tabs);
+          }
+          if (data.settings?.language) {
+            setLanguage(data.settings.language);
+            setStoredLanguage(data.settings.language);
+          }
+          if (typeof data.settings?.auto_save === 'number') {
+            setAutoSaveInterval(data.settings.auto_save);
+            localStorage.setItem('isomorph-autosave', String(data.settings.auto_save));
+          }
+          if (typeof data.settings?.telemetry === 'boolean') {
+            setTelemetry(data.settings.telemetry);
+            setTelemetryEnabled(data.settings.telemetry);
+          }
+          if (typeof data.settings?.show_trail === 'boolean') {
+            setCollabShowTrail(data.settings.show_trail);
+          }
+          if (typeof data.settings?.show_name_label === 'boolean') {
+            setCollabShowNameLabel(data.settings.show_name_label);
+          }
+          if (typeof data.settings?.strict_uml === 'boolean') {
+            setIsUMLCompliant(data.settings.strict_uml);
+            localStorage.setItem('isomorph-strict-uml', String(data.settings.strict_uml));
+          }
+          if (typeof data.settings?.watermark === 'boolean') {
+            setIsWatermarkEnabled(data.settings.watermark);
+            localStorage.setItem('isomorph-watermark', String(data.settings.watermark));
+          }
+          if (typeof data.settings?.animations === 'boolean') {
+            setIsAnimationsEnabled(data.settings.animations);
+            localStorage.setItem('isomorph-animations', String(data.settings.animations));
+          }
+          if (typeof data.settings?.anim_speed === 'number') {
+            setAnimationSpeed(data.settings.anim_speed);
+            localStorage.setItem('isomorph-anim-speed', String(data.settings.anim_speed));
           }
         });
       });
@@ -320,7 +307,7 @@ export default function App() {
     setProjects([]);
     setProfile(null);
     setCustomCategories(['Favorites', 'Work', 'Personal']);
-    setLibraryCategory('All Projects');
+    setLibraryCategory('All projects');
     setSelectedProjectId('');
     setIsSavingFlow(false);
     setIsSettingsOpen(false);
@@ -603,27 +590,22 @@ export default function App() {
     settings?: any;
   }) => {
     if (!user || !profile) return;
-    const { supabase } = await import('./lib/supabase.js');
-    const updatedProfile = { ...profile, ...updates };
-    setProfile(updatedProfile);
-
-    const { error } = await supabase.from('profiles').upsert({
-      id: user.id,
-      full_name: updatedProfile.full_name,
-      username: updatedProfile.username,
-      avatar_url: updatedProfile.avatar_url,
-      settings: updatedProfile.settings || profile.settings || {},
-      updated_at: new Date().toISOString(),
-    });
-
-    if (error) {
-      console.error('Error auto-saving profile:', error);
-      // Revert local state
-      setProfile(profile);
-      if (error.code === '23505') {
-        addToast('Error: Username already taken');
+    const { updateProfile } = await import('./lib/profile.js');
+    try {
+      const ok = await updateProfile(user.id, updates);
+      if (ok) {
+        setProfile((prev) => (prev ? { ...prev, ...updates } : prev));
       } else {
+        setProfile(profile);
         addToast('Error saving profile changes');
+      }
+    } catch (err: any) {
+      console.error('Error auto-saving profile:', err);
+      setProfile(profile);
+      if (err?.message?.includes('taken')) {
+        addToast(t('settings.username_taken') || 'Username is already taken');
+      } else {
+        addToast(err?.message || 'Error saving profile changes');
       }
     }
   };
@@ -1431,6 +1413,8 @@ export default function App() {
             customCategories={customCategories}
             setCustomCategories={setCustomCategories}
             saveCustomCategoriesToDB={saveCustomCategoriesToDB}
+            libraryCategory={libraryCategory}
+            setLibraryCategory={setLibraryCategory}
             setTabs={setTabs}
             setActiveTabId={setActiveTabId}
             handleOpenProjectDetails={handleOpenProjectDetails}
@@ -1597,8 +1581,8 @@ export default function App() {
             <div className="iso-empty-actions">
               <div className="iso-empty-group">
                 <select
-                  className="iso-modal-select"
-                  style={{ marginBottom: 0, padding: '8px 12px' }}
+                  className="iso-select"
+                  style={{ marginBottom: 0, padding: '8px 12px', height: '36px', minWidth: '150px' }}
                   value={newDiagramKind}
                   onChange={(e) => setNewDiagramKind(e.target.value as DiagramKind)}
                 >
@@ -1648,7 +1632,8 @@ export default function App() {
               <h2 className="iso-modal-title">{t('welcome.create_new')}</h2>
               <p className="iso-modal-desc">{t("Select the type of diagram you'd like to create.")}</p>
               <select
-                className="iso-modal-select"
+                className="iso-select"
+                style={{ marginBottom: '20px', height: '36px' }}
                 value={newDiagramKind}
                 onChange={(e) => setNewDiagramKind(e.target.value as DiagramKind)}
               >
