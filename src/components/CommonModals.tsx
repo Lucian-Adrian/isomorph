@@ -47,9 +47,9 @@ export function CommonModals({
       {diagramToDelete && (
         <div className="iso-modal-overlay" style={{ zIndex: 2200 }} onClick={() => setDiagramToDelete(null)}>
           <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete diagram</h3>
+            <h2 className="iso-modal-title" style={{ marginBottom: '16px' }}>{t('dialog.delete_diagram_title')}</h2>
             <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>
-              Are you sure you want to delete "{diagramToDelete.name}"? This action cannot be undone.
+              {t('dialog.delete_diagram_desc', { name: diagramToDelete.name })}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="iso-btn" onClick={() => setDiagramToDelete(null)}>
@@ -60,7 +60,7 @@ export function CommonModals({
                 style={{ background: 'var(--iso-danger)', color: '#fff', border: 'none' }}
                 onClick={handleConfirmDeleteDiagram}
               >
-                Delete
+                {t('ui.delete')}
               </button>
             </div>
           </div>
@@ -71,9 +71,9 @@ export function CommonModals({
       {projectToDelete && (
         <div className="iso-modal-overlay" onClick={() => setProjectToDelete(null)}>
           <div className="iso-modal" onClick={(e) => e.stopPropagation()} style={{ width: '400px' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>Delete project</h3>
+            <h2 className="iso-modal-title" style={{ marginBottom: '16px' }}>{t('dialog.delete_project_title')}</h2>
             <p style={{ color: 'var(--iso-text-muted)', marginBottom: '24px' }}>
-              Are you sure you want to delete this project? This action cannot be undone.
+              {t('dialog.delete_project_desc')}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="iso-btn" onClick={() => setProjectToDelete(null)}>
@@ -91,12 +91,12 @@ export function CommonModals({
                       .then(() => {
                         setProjects((prev) => prev.filter((p) => p.id !== projectToDelete));
                         setProjectToDelete(null);
-                        addToast('Project deleted successfully');
+                        addToast(t('dialog.project_deleted'));
                       });
                   });
                 }}
               >
-                Delete
+                {t('ui.delete')}
               </button>
             </div>
           </div>
@@ -113,9 +113,9 @@ export function CommonModals({
                 confirmRevertHistory();
               }}
             >
-              <h2 className="iso-modal-title">Revert to snapshot</h2>
+              <h2 className="iso-modal-title">{t('history.revert_title')}</h2>
               <p className="iso-modal-desc" style={{ color: 'var(--iso-text-muted)' }}>
-                Are you sure you want to revert to this snapshot? This will permanently delete all newer saves.
+                {t('history.revert_desc')}
               </p>
               <div
                 style={{
@@ -138,7 +138,7 @@ export function CommonModals({
                   }}
                   autoFocus
                 >
-                  Revert
+                  {t('history.revert_btn')}
                 </button>
               </div>
             </form>

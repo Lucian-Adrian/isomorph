@@ -99,11 +99,11 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
           <h2 className="iso-modal-title">{t('ui.save_to_cloud')}</h2>
           <button className="iso-modal-close" onClick={handleClose} aria-label={t('ui.close')}>×</button>
         </div>
-        <p className="iso-modal-desc" style={{ marginBottom: '16px' }}>Select a project and verify the file name.</p>
+        <p className="iso-modal-desc" style={{ marginBottom: '16px' }}>{t('save_modal.desc')}</p>
 
         <div className="iso-modal-field" style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--iso-text)' }}>
-            File name
+            {t('save_modal.file_name')}
           </label>
           <input
             type="text"
@@ -146,14 +146,14 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
-              <span>A file named &quot;{cleanName}&quot; already exists in this project. Please choose a different name.</span>
+              <span>{t('save_modal.duplicate_warning', { name: cleanName })}</span>
             </div>
           )}
         </div>
 
         <div className="iso-modal-field">
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px', color: 'var(--iso-text)' }}>
-            Project
+            {t('ui.project')}
           </label>
           <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
             <select
@@ -169,7 +169,7 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
                 }
               }}
             >
-              <option value="">Select project</option>
+              <option value="">{t('save_modal.select_project')}</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -188,12 +188,12 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
                 setIsSavingFlow(true);
               }}
             >
-              New project
+              {t('welcome.new_project')}
             </button>
           </div>
           {isLoadingDiagrams && (
             <span style={{ fontSize: '11px', color: 'var(--iso-text-muted)', marginTop: '4px' }}>
-              Checking project files...
+              {t('save_modal.checking_files')}
             </span>
           )}
         </div>
@@ -208,7 +208,7 @@ export const SaveToCloudModal: React.FC<SaveToCloudModalProps> = ({
             disabled={!selectedProjectId || !cleanName || isDuplicate || isSavingToCloud}
             onClick={handleSubmit}
           >
-            {isSavingToCloud ? 'Saving...' : 'Save'}
+            {isSavingToCloud ? t('save_modal.saving') : t('menu.save')}
           </button>
         </div>
       </div>

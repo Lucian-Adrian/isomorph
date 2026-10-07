@@ -46,7 +46,7 @@ export const EditRelationModal: React.FC<EditRelationModalProps> = ({
   return (
     <div className="iso-modal-overlay" onClick={() => setEditingRelation(null)}>
       <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{t('edit.relation_title')}</h3>
+        <h2 className="iso-modal-title" style={{ marginBottom: '16px' }}>{t('edit.relation_title')}</h2>
         <div className="iso-modal-field">
           <label>{t('edit.role_label')}</label>
           <div style={{ display: 'flex', gap: '4px', width: '100%' }}>

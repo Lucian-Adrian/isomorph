@@ -39,7 +39,7 @@ export const EditTextModal: React.FC<EditTextModalProps> = ({
   return (
     <div className="iso-modal-overlay" onClick={() => setEditingText(null)}>
       <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h3>
+        <h2 className="iso-modal-title" style={{ marginBottom: '16px' }}>{editingText.type === 'diagram' ? t('edit.diagram_name') : t('edit.package_name')}</h2>
         <div className="iso-modal-field">
           <label>{t('edit.name')}</label>
           <input

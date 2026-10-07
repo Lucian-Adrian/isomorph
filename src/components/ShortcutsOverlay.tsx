@@ -5,13 +5,13 @@
 // ============================================================
 
 const SHORTCUTS: { keys: string; descKey: string }[] = [
-  { keys: 'Ctrl + N',           descKey: 'New diagram' },
-  { keys: 'Ctrl + O',           descKey: 'Open .isx file' },
-  { keys: 'Ctrl + E',           descKey: 'Export SVG' },
-  { keys: 'Ctrl + Shift + E',   descKey: 'Export PNG' },
-  { keys: 'Ctrl + Z / Y',       descKey: 'Undo / redo' },
-  { keys: 'Ctrl + D',           descKey: 'Duplicate selected items' },
-  { keys: 'Ctrl + Q',           descKey: 'Toggle this panel' },
+  { keys: 'Ctrl + N',           descKey: 'shortcuts.new_diagram' },
+  { keys: 'Ctrl + O',           descKey: 'shortcuts.open_file' },
+  { keys: 'Ctrl + E',           descKey: 'shortcuts.export_svg' },
+  { keys: 'Ctrl + Shift + E',   descKey: 'shortcuts.export_png' },
+  { keys: 'Ctrl + Z / Y',       descKey: 'shortcuts.undo_redo' },
+  { keys: 'Ctrl + D',           descKey: 'shortcuts.duplicate' },
+  { keys: 'Ctrl + Q',           descKey: 'shortcuts.toggle_panel' },
 ];
 
 export function ShortcutsOverlay({

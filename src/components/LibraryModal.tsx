@@ -242,21 +242,21 @@ export function LibraryModal({
                         value={libraryVisibilityFilter}
                         onChange={(e) => setLibraryVisibilityFilter(e.target.value)}
                         style={{ width: '120px', borderRadius: '20px', background: 'var(--iso-bg-app)' }}
-                        aria-label="Filter visibility"
+                        aria-label={t('library.filter_visibility') || 'Filter visibility'}
                       >
-                        <option value="all">All</option>
-                        <option value="public">Public</option>
-                        <option value="private">Private</option>
+                        <option value="all">{t('library.all')}</option>
+                        <option value="public">{t('library.public')}</option>
+                        <option value="private">{t('library.private')}</option>
                       </select>
                       <select
                         className="iso-select"
                         value={librarySort}
                         onChange={(e) => setLibrarySort(e.target.value)}
                         style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }}
-                        aria-label="Sort projects"
+                        aria-label={t('library.sort_projects') || 'Sort projects'}
                       >
-                        <option value="accessed">Last accessed</option>
-                        <option value="name">Name</option>
+                        <option value="accessed">{t('library.sort_accessed')}</option>
+                        <option value="name">{t('library.sort_name')}</option>
                       </select>
                     </div>
                   </div>
@@ -290,7 +290,11 @@ export function LibraryModal({
                           }
                         }}
                       >
-                        {cat}
+                        {cat.toLowerCase() === 'all projects'
+                          ? (t('library.all_projects') || 'All projects')
+                          : (cat.toLowerCase() === 'favorites' || cat.toLowerCase() === 'favourites')
+                            ? (t('library.favorites') || cat)
+                            : cat}
                       </button>
                     ))}
                     <button
@@ -359,7 +363,7 @@ export function LibraryModal({
                                 color: 'var(--iso-text-muted)',
                               }}
                             >
-                              No projects found matching these filters.
+                              {t('library.no_matching_filters')}
                             </div>
                           );
                         }
@@ -469,10 +473,10 @@ export function LibraryModal({
                             value={librarySort}
                             onChange={(e) => setLibrarySort(e.target.value)}
                             style={{ width: '150px', borderRadius: '20px', background: 'var(--iso-bg-app)' }}
-                            aria-label="Sort projects"
+                            aria-label={t('library.sort_projects') || 'Sort projects'}
                           >
-                            <option value="accessed">Last accessed</option>
-                            <option value="name">Name</option>
+                            <option value="accessed">{t('library.sort_accessed')}</option>
+                            <option value="name">{t('library.sort_name')}</option>
                           </select>
                         </div>
                       </div>
@@ -496,7 +500,11 @@ export function LibraryModal({
                             }}
                             onClick={() => setLibraryCategory(cat)}
                           >
-                            {cat}
+                            {cat.toLowerCase() === 'all projects'
+                              ? (t('library.all_projects') || 'All projects')
+                              : (cat.toLowerCase() === 'favorites' || cat.toLowerCase() === 'favourites')
+                                ? (t('library.favorites') || cat)
+                                : cat}
                           </button>
                         ))}
                       </div>
@@ -537,7 +545,7 @@ export function LibraryModal({
                                   color: 'var(--iso-text-muted)',
                                 }}
                               >
-                                {sharedProjects.length === 0 ? t('ui.shared_future') : 'No projects found matching these filters.'}
+                                {sharedProjects.length === 0 ? t('ui.shared_future') : t('library.no_matching_filters')}
                               </div>
                             );
                           }
@@ -642,7 +650,7 @@ export function LibraryModal({
                       }}
                     >
                       <div style={{ fontSize: '48px', marginBottom: '16px' }}>📂</div>
-                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Drag and drop files here</h3>
+                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{t('library.drop_title')}</h3>
                       <p
                         style={{
                           margin: '8px 0 16px',
@@ -652,7 +660,7 @@ export function LibraryModal({
                           lineHeight: '1.5',
                         }}
                       >
-                        Drop your <strong>.isx</strong> files here, or click to browse.
+                        {t('library.drop_desc')}
                       </p>
                       <button
                         className="iso-btn iso-btn--primary"
@@ -662,7 +670,7 @@ export function LibraryModal({
                           localFileInputRef.current?.click();
                         }}
                       >
-                        Browse files
+                        {t('library.browse_files')}
                       </button>
                     </div>
                   ) : (
@@ -676,14 +684,14 @@ export function LibraryModal({
                         }}
                       >
                         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>
-                          Selected files ({localStagedFiles.length})
+                          {t('library.selected_files')} ({localStagedFiles.length})
                         </h3>
                         <button
                           className="iso-btn"
                           style={{ fontSize: '12px', padding: '4px 12px' }}
                           onClick={() => localFileInputRef.current?.click()}
                         >
-                          + Add more
+                          {t('library.add_more')}
                         </button>
                       </div>
 
@@ -754,7 +762,7 @@ export function LibraryModal({
                                   }
                                 }}
                               >
-                                Open
+                                {t('menu.open') || 'Open'}
                               </button>
                               <button
                                 className="iso-btn"
@@ -766,7 +774,7 @@ export function LibraryModal({
                                 }}
                                 onClick={() => setLocalStagedFiles((prev) => prev.filter((item) => item.id !== f.id))}
                               >
-                                Remove
+                                {t('ui.remove') || 'Remove'}
                               </button>
                             </div>
                           </div>
@@ -786,7 +794,7 @@ export function LibraryModal({
                           style={{ flex: 1, justifyContent: 'center' }}
                           onClick={() => setLocalStagedFiles([])}
                         >
-                          Clear All
+                          {t('library.clear_all') || 'Clear all'}
                         </button>
                         <button
                           className="iso-btn iso-btn--primary"
@@ -811,7 +819,7 @@ export function LibraryModal({
                             onClose();
                           }}
                         >
-                          Open All Files
+                          {t('library.open_all_files') || 'Open all files'}
                         </button>
                       </div>
                     </div>
@@ -879,7 +887,7 @@ export function LibraryModal({
             <button className="iso-modal-close-btn" onClick={() => setNewCategoryPrompt(false)}>
               ×
             </button>
-            <h2 className="iso-modal-title">New category name</h2>
+            <h2 className="iso-modal-title">{t('ui.new_category_name') || 'New category name'}</h2>
             <div className="iso-modal-field">
               <input
                 type="text"

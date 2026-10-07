@@ -43,7 +43,7 @@ export const EditEntityModal: React.FC<EditEntityModalProps> = ({
   return (
     <div className="iso-modal-overlay" onClick={() => setEditingEntity(null)}>
       <div className="iso-modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{t('edit.entity_title')}</h3>
+        <h2 className="iso-modal-title" style={{ marginBottom: '16px' }}>{t('edit.entity_title')}</h2>
         <div className="iso-modal-field">
           <label>{t('edit.name')}</label>
           <input

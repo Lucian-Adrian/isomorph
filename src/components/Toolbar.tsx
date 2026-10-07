@@ -505,8 +505,8 @@ export function Toolbar({
               type="button"
               className={`iso-btn${isHistoryOpen ? ' iso-btn--active' : ''}`}
               onClick={toggleHistory}
-              aria-label="Toggle history"
-              data-tooltip="View history"
+              aria-label={t('ui.history')}
+              data-tooltip={t('ui.view_history')}
             >
               <svg
                 width="14"
@@ -521,7 +521,7 @@ export function Toolbar({
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
-              History
+              {t('ui.history')}
             </button>
           )}
 

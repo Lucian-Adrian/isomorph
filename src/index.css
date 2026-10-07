@@ -395,8 +395,10 @@ optgroup,
 .iso-select,
 .iso-select option,
 .iso-modal-select,
-.iso-modal-select option {
-  font-family: 'Libron', system-ui, -apple-system, sans-serif !important;
+.iso-modal-select option,
+.iso-modal-field select,
+.iso-modal-field select option {
+  font-family: 'Libron', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
 .iso-select {
@@ -1096,10 +1098,15 @@ optgroup,
   color: var(--iso-text);
   box-shadow: 0 10px 25px rgba(0,0,0,0.5);
 }
+.iso-modal h2,
+.iso-modal h3,
+.iso-modal-title {
+  font-family: 'Libron', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
 .iso-modal h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 500;
+  font-weight: 600;
 }
 .iso-modal-field {
   display: flex;
@@ -1112,13 +1119,14 @@ optgroup,
 }
 .iso-modal-field input:not([type="checkbox"]),
 .iso-modal-field select,
+.iso-modal-field select option,
 .iso-modal-field textarea {
   background: rgba(255, 255, 255, 0.04);
   color: var(--iso-text);
   border: 1px solid var(--iso-border);
   border-radius: var(--iso-radius);
   padding: 8px;
-  font-family: inherit;
+  font-family: 'Libron', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   font-size: 14px;
   width: 100%;
   min-width: 0;

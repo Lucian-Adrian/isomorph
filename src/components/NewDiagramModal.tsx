@@ -59,7 +59,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
         >
           ×
         </button>
-        <h2 className="iso-modal-title" style={{ marginBottom: '16px' }}>{t('welcome.create_new') || 'Create new'}</h2>
+        <h2 className="iso-modal-title" style={{ marginBottom: '16px' }}>{t('welcome.create_new_short') || 'Create new'}</h2>
 
         <div
           style={{
@@ -87,7 +87,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
               setNewProjectError('');
             }}
           >
-            Diagram
+            {t('ui.diagram')}
           </button>
           <button
             style={{
@@ -105,7 +105,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
               setNewProjectError('');
             }}
           >
-            Project
+            {t('ui.project')}
           </button>
         </div>
 
@@ -113,7 +113,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
           <>
             <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
               <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>
-                Diagram type
+                {t('new_modal.diagram_type')}
               </label>
               <select
                 className="iso-select"
@@ -152,7 +152,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
           <>
             <div className="iso-modal-field" style={{ marginBottom: '24px' }}>
               <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', color: 'var(--iso-text)' }}>
-                Project name
+                {t('ui.project_name')}
               </label>
               <input
                 type="text"
@@ -178,7 +178,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
               )}
               {!user && (
                 <div style={{ color: 'var(--iso-text)', fontSize: '12px', marginTop: '6px' }}>
-                  You must be logged in to create projects
+                  {t('new_modal.must_be_logged_in')}
                 </div>
               )}
             </div>
@@ -197,7 +197,7 @@ export const NewDiagramModal: React.FC<NewDiagramModalProps> = ({
                 disabled={!user || !newProjectName.trim() || isCreatingProject}
                 onClick={handleCreateProjectSubmit}
               >
-                {isCreatingProject ? 'Creating...' : t('ui.create')}
+                {isCreatingProject ? (t('new_modal.creating') || 'Creating...') : t('ui.create')}
               </button>
             </div>
           </>

@@ -25,11 +25,11 @@ export function RenameModal({
         <button className="iso-modal-close-btn" onClick={onClose}>
           ×
         </button>
-        <h3 style={{ margin: 0, fontSize: '18px', marginBottom: '16px' }}>
-          Rename {renameType === 'project' ? 'project' : renameType === 'category' ? 'category' : 'diagram'}
-        </h3>
+        <h2 className="iso-modal-title" style={{ marginBottom: '16px' }}>
+          {t('ui.rename_item', { item: t(`ui.${renameType}`) || renameType }) || `Rename ${renameType}`}
+        </h2>
         <div className="iso-modal-field">
-          <label>New name</label>
+          <label>{t('ui.new_name') || 'New name'}</label>
           <input
             type="text"
             className="iso-input"
@@ -37,9 +37,9 @@ export function RenameModal({
             onChange={(e) => setRenameValue(e.target.value)}
             placeholder={
               renameType === 'project'
-                ? 'Project name...'
+                ? (t('ui.project_name') || 'Project name...')
                 : renameType === 'category'
-                  ? 'Category name...'
+                  ? (t('ui.new_category_name') || 'Category name...')
                   : 'Diagram name...'
             }
             autoFocus
@@ -62,7 +62,7 @@ export function RenameModal({
             {t('ui.cancel')}
           </button>
           <button className="iso-btn iso-btn--primary" disabled={!renameValue.trim()} onClick={onConfirm}>
-            Rename
+            {t('ui.rename') || 'Rename'}
           </button>
         </div>
       </div>

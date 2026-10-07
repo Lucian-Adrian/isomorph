@@ -29,6 +29,7 @@ interface ContextMenuProps {
   setTabs: React.Dispatch<React.SetStateAction<WorkspaceTab[]>>;
   downloadDiagramFile: (diagram: any) => void;
   setDiagramToDelete: React.Dispatch<React.SetStateAction<any>>;
+  t?: (key: string, vars?: any) => string;
 }
 
 export function ContextMenu({
@@ -52,8 +53,10 @@ export function ContextMenu({
   setTabs,
   downloadDiagramFile,
   setDiagramToDelete,
+  t,
 }: ContextMenuProps) {
   if (!contextMenu) return null;
+  const tr = (k: string, vars?: any) => (t ? t(k, vars) : k);
 
   return (
     <>
@@ -78,7 +81,7 @@ export function ContextMenu({
                 setContextMenu(null);
               }}
             >
-              Rename
+              {tr('ui.rename') || 'Rename'}
             </button>
             <div className="iso-context-menu-sep" />
             <button
@@ -107,7 +110,7 @@ export function ContextMenu({
                 setContextMenu(null);
               }}
             >
-              Delete category
+              {tr('ui.delete_category') || 'Delete category'}
             </button>
           </>
         )}
@@ -129,7 +132,7 @@ export function ContextMenu({
                     setContextMenu(null);
                   }}
                 >
-                  Rename
+                  {tr('ui.rename') || 'Rename'}
                 </button>
                 <button
                   className="iso-context-menu-item"
@@ -156,14 +159,14 @@ export function ContextMenu({
                     setContextMenu(null);
                   }}
                 >
-                  {isFav ? 'Remove from favorites' : 'Add to favorites'}
+                  {isFav ? (tr('library.remove_fav') || 'Remove from favorites') : (tr('library.add_fav') || 'Add to favorites')}
                 </button>
                 <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
                   <button
                     className="iso-context-menu-item"
                     style={{ justifyContent: 'space-between', display: 'flex' }}
                   >
-                    Add to folder <span>▶</span>
+                    {tr('library.add_to_folder') || 'Add to folder'} <span>▶</span>
                   </button>
                   <div
                     className="iso-menu-dropdown-submenu"
@@ -231,7 +234,7 @@ export function ContextMenu({
                     setContextMenu(null);
                   }}
                 >
-                  Delete project
+                  {tr('dialog.delete_project_title') || 'Delete project'}
                 </button>
               </>
             );
@@ -248,12 +251,12 @@ export function ContextMenu({
                 setContextMenu(null);
               }}
             >
-              Rename
+              {tr('ui.rename') || 'Rename'}
             </button>
 
             <div style={{ position: 'relative' }} className="iso-menu-dropdown-wrapper">
               <button className="iso-context-menu-item" style={{ justifyContent: 'space-between', display: 'flex' }}>
-                Move to project <span>▶</span>
+                {tr('library.move_to_project') || 'Move to project'} <span>▶</span>
               </button>
               <div
                 className="iso-menu-dropdown-submenu"
@@ -308,7 +311,7 @@ export function ContextMenu({
                       fontStyle: 'italic',
                     }}
                   >
-                    No other projects
+                    {tr('library.no_other_projects') || 'No other projects'}
                   </div>
                 )}
               </div>
@@ -321,7 +324,7 @@ export function ContextMenu({
                 setContextMenu(null);
               }}
             >
-              Download
+              {tr('ui.download') || 'Download'}
             </button>
 
             <div className="iso-context-menu-sep" />
@@ -333,7 +336,7 @@ export function ContextMenu({
                 setContextMenu(null);
               }}
             >
-              Delete
+              {tr('ui.delete') || 'Delete'}
             </button>
           </>
         )}

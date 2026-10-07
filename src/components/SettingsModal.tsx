@@ -367,8 +367,8 @@ export function SettingsModal({
                           {/* Email Address Card */}
                           <div className="iso-settings-card" style={{ gridColumn: 'span 2' }}>
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Email address</div>
-                              <div className="iso-settings-desc">Your verified account email address. Managed via authentication settings.</div>
+                              <div className="iso-settings-label">{t('settings.email_address')}</div>
+                              <div className="iso-settings-desc">{t('settings.email_desc')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ width: '100%', marginTop: '8px' }}>
                               <input
@@ -386,13 +386,13 @@ export function SettingsModal({
 
                       {/* Section 2: Account Status & Actions */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Account actions</div>
+                        <div className="iso-settings-section-title">{t('settings.account_actions')}</div>
                         <div className="iso-settings-grid" style={{ gridTemplateColumns: '1fr', gap: '16px' }}>
                           {/* Reset Password Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal">
                             <div className="iso-settings-info">
                               <div className="iso-settings-label">{t('settings.change_password')}</div>
-                              <div className="iso-settings-desc">Choose a new, secure password for your account.</div>
+                              <div className="iso-settings-desc">{t('settings.password_desc')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                               <input
@@ -410,7 +410,7 @@ export function SettingsModal({
                                   handleResetPassword(newPassword);
                                 }}
                               >
-                                Update
+                                {t('settings.update_password')}
                               </button>
                             </div>
                           </div>
@@ -418,12 +418,12 @@ export function SettingsModal({
                           {/* Sign Out Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Sign out</div>
-                              <div className="iso-settings-desc">Log out of your session on this browser.</div>
+                              <div className="iso-settings-label">{t('ui.sign_out')}</div>
+                              <div className="iso-settings-desc">{t('settings.sign_out_desc')}</div>
                             </div>
                             <div className="iso-settings-control">
                               <button className="iso-btn" onClick={handleSignOut}>
-                                Sign out
+                                {t('ui.sign_out')}
                               </button>
                             </div>
                           </div>
@@ -431,8 +431,8 @@ export function SettingsModal({
                           {/* Delete Account Card */}
                           <div className="iso-settings-card iso-settings-card-horizontal" style={{ borderColor: 'rgba(255, 95, 87, 0.2)', background: 'rgba(255, 95, 87, 0.02)' }}>
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label" style={{ color: 'var(--iso-danger)' }}>Delete account</div>
-                              <div className="iso-settings-desc">Permanently erase your account, all projects, and custom diagrams.</div>
+                              <div className="iso-settings-label" style={{ color: 'var(--iso-danger)' }}>{t('settings.delete_account')}</div>
+                              <div className="iso-settings-desc">{t('settings.delete_account_desc')}</div>
                             </div>
                             <div className="iso-settings-control">
                               <button 
@@ -443,7 +443,7 @@ export function SettingsModal({
                                   setIsDeleteModalOpen(true);
                                 }}
                               >
-                                Delete account
+                                {t('settings.delete_account_btn')}
                               </button>
                             </div>
                           </div>
@@ -473,14 +473,14 @@ export function SettingsModal({
                       
                       {/* Section 1: Live Cursor Options */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Live cursor options</div>
+                        <div className="iso-settings-section-title">{t('settings.live_cursor_options')}</div>
                         <div className="iso-settings-grid">
                           
                           {/* Cursor Color Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Cursor color</div>
-                              <div className="iso-settings-desc">Choose a custom color that represents your cursor on shared canvas boards.</div>
+                              <div className="iso-settings-label">{t('settings.cursor_color')}</div>
+                              <div className="iso-settings-desc">{t('settings.cursor_color_desc')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ flexDirection: 'column', gap: '16px', width: '100%', marginTop: '8px' }}>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
@@ -509,8 +509,8 @@ export function SettingsModal({
                           {/* Cursor Preview Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Live preview</div>
-                              <div className="iso-settings-desc">How other developers will see your active cursor live.</div>
+                              <div className="iso-settings-label">{t('settings.live_preview')}</div>
+                              <div className="iso-settings-desc">{t('settings.live_preview_desc')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ width: '100%', height: '80px', background: 'var(--iso-bg-canvas)', borderRadius: '8px', border: '1px solid var(--iso-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
                               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
@@ -593,15 +593,15 @@ export function SettingsModal({
 
                       {/* Section 2: Future Collaboration Features */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Collaboration status</div>
+                        <div className="iso-settings-section-title">{t('settings.collab_status')}</div>
                         <div className="iso-settings-grid">
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Multiplayer canvas</div>
+                              <div className="iso-settings-label">{t('settings.multiplayer_canvas')}</div>
                               <div className="iso-settings-desc">{t('ui.collab_future')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ marginTop: '8px' }}>
-                              <span style={{ fontSize: '11px', color: 'var(--iso-brand)', background: 'var(--iso-bg-active)', padding: '4px 8px', borderRadius: '12px', fontWeight: 600 }}>Coming soon</span>
+                              <span style={{ fontSize: '11px', color: 'var(--iso-brand)', background: 'var(--iso-bg-active)', padding: '4px 8px', borderRadius: '12px', fontWeight: 600 }}>{t('settings.coming_soon')}</span>
                             </div>
                           </div>
                         </div>
@@ -622,14 +622,14 @@ export function SettingsModal({
                       
                       {/* Section 1: Resource Usage */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Resource usage</div>
+                        <div className="iso-settings-section-title">{t('settings.resource_usage')}</div>
                         <div className="iso-settings-grid">
                           
                           {/* Subscription Tier Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Subscription tier</div>
-                              <div className="iso-settings-desc">Your active user plan. Multi-device cloud backup limits apply.</div>
+                              <div className="iso-settings-label">{t('settings.subscription_tier')}</div>
+                              <div className="iso-settings-desc">{t('settings.subscription_tier_desc')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ marginTop: '8px' }}>
                               <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--iso-brand)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
@@ -641,8 +641,8 @@ export function SettingsModal({
                           {/* Projects Limit Card */}
                           <div className="iso-settings-card">
                             <div className="iso-settings-info">
-                              <div className="iso-settings-label">Cloud projects usage</div>
-                              <div className="iso-settings-desc">Percentage of your workspace allowance stored in the cloud.</div>
+                              <div className="iso-settings-label">{t('settings.cloud_usage')}</div>
+                              <div className="iso-settings-desc">{t('settings.cloud_usage_desc')}</div>
                             </div>
                             <div className="iso-settings-control" style={{ flexDirection: 'column', width: '100%', gap: '8px', marginTop: '12px' }}>
                               {(() => {
@@ -660,8 +660,8 @@ export function SettingsModal({
                                       ))}
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '12px', color: 'var(--iso-text-muted)' }}>
-                                      <span>{count} created</span>
-                                      <span>{maxLimit} max projects</span>
+                                      <span>{t('settings.projects_created', { count })}</span>
+                                      <span>{t('settings.max_projects', { count: maxLimit })}</span>
                                     </div>
                                   </>
                                 );
@@ -674,35 +674,35 @@ export function SettingsModal({
 
                       {/* Section 2: Storage Tiers & Billing */}
                       <div className="iso-settings-section">
-                        <div className="iso-settings-section-title">Upgrade plan</div>
+                        <div className="iso-settings-section-title">{t('settings.upgrade_plan')}</div>
                         <div className="iso-settings-grid">
                           
                           {/* Plans Card */}
                           <div className="iso-settings-card" style={{ gridColumn: 'span 2' }}>
                             <div className="iso-settings-info" style={{ marginBottom: '12px' }}>
-                              <div className="iso-settings-label">Available subscriptions</div>
+                              <div className="iso-settings-label">{t('settings.available_subscriptions')}</div>
                               <div className="iso-settings-desc">{t('ui.storage_future')} Upgrade to scale your projects.</div>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', width: '100%' }}>
                               <div style={{ background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>Basic (Free)</strong>
-                                <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--iso-text)' }}>$0 <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--iso-text-muted)' }}>/ month</span></span>
-                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>Ideal for starting out. Up to 5 projects stored securely in the cloud.</span>
+                                <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{t('settings.plan_basic')}</strong>
+                                <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--iso-text)' }}>$0 <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--iso-text-muted)' }}>{t('settings.per_month')}</span></span>
+                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{t('settings.plan_basic_desc')}</span>
                               </div>
                               <div style={{ background: 'var(--iso-bg-active)', border: '1px solid var(--iso-brand)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', position: 'relative', transform: 'scale(1.02)' }}>
-                                <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>Power plan</strong>
-                                <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--iso-brand)' }}>$5 <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--iso-text-muted)' }}>/ month</span></span>
-                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>For power users. Up to 25 projects and advanced sharing options.</span>
+                                <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{t('settings.plan_power')}</strong>
+                                <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--iso-brand)' }}>$5 <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--iso-text-muted)' }}>{t('settings.per_month')}</span></span>
+                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{t('settings.plan_power_desc')}</span>
                               </div>
                               <div style={{ background: 'var(--iso-bg-app)', border: '1px solid var(--iso-border)', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>Enterprise</strong>
-                                <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--iso-text)' }}>Custom <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--iso-text-muted)' }}>pricing</span></span>
-                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>For large teams. Up to 100+ projects and enterprise SSO authentication.</span>
+                                <strong style={{ fontSize: '14px', color: 'var(--iso-text)' }}>{t('settings.plan_enterprise')}</strong>
+                                <span style={{ fontSize: '18px', fontWeight: 700, color: 'var(--iso-text)' }}>{t('settings.plan_enterprise_price')} <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--iso-text-muted)' }}>{t('settings.pricing')}</span></span>
+                                <span style={{ fontSize: '12px', color: 'var(--iso-text-muted)' }}>{t('settings.plan_enterprise_desc')}</span>
                               </div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: '16px' }}>
                               <button className="iso-btn iso-btn--primary" onClick={() => window.open('https://isomorph.ro/pricing', '_blank')}>
-                                View detailed plans
+                                {t('settings.view_plans')}
                               </button>
                             </div>
                           </div>
@@ -948,13 +948,13 @@ export function SettingsModal({
 
                   {/* Section 3: Visuals & Export */}
                   <div className="iso-settings-section">
-                    <div className="iso-settings-section-title">Visuals & exports</div>
+                    <div className="iso-settings-section-title">{t('settings.visuals_exports')}</div>
                     <div className="iso-settings-grid">
 
                       {/* Output Watermark Card */}
                       <div className="iso-settings-card iso-settings-card-horizontal">
                         <div className="iso-settings-info">
-                          <div className="iso-settings-label">Output watermark</div>
+                          <div className="iso-settings-label">{t('settings.output_watermark')}</div>
                           <div className="iso-settings-desc">{t('ui.watermark')}</div>
                         </div>
                         <div className="iso-settings-control">
@@ -979,7 +979,7 @@ export function SettingsModal({
                       <div className="iso-settings-card iso-settings-card-horizontal">
                         <div className="iso-settings-info">
                           <div className="iso-settings-label">{t('ui.enable_animations')}</div>
-                          <div className="iso-settings-desc">Animate transitions and steps in sequence diagrams.</div>
+                          <div className="iso-settings-desc">{t('settings.animations_desc')}</div>
                         </div>
                         <div className="iso-settings-control">
                           <label className="iso-switch">
@@ -1004,7 +1004,7 @@ export function SettingsModal({
                       <div className="iso-settings-card">
                         <div className="iso-settings-info">
                           <div className="iso-settings-label">{t('ui.export_speed')}</div>
-                          <div className="iso-settings-desc">Choose the playback rate for diagram animations.</div>
+                          <div className="iso-settings-desc">{t('settings.anim_speed_desc')}</div>
                         </div>
                         <div className="iso-settings-control">
                           <select
@@ -1031,8 +1031,8 @@ export function SettingsModal({
                       {/* Anonymous Telemetry Card */}
                       <div className="iso-settings-card iso-settings-card-horizontal">
                         <div className="iso-settings-info">
-                          <div className="iso-settings-label">Anonymous telemetry</div>
-                          <div className="iso-settings-desc">Send anonymous telemetry data to help improve Isomorph.</div>
+                          <div className="iso-settings-label">{t('settings.telemetry')}</div>
+                          <div className="iso-settings-desc">{t('settings.telemetry_desc')}</div>
                         </div>
                         <div className="iso-settings-control">
                           <label className="iso-switch">

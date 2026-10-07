@@ -1461,6 +1461,7 @@ export default function App() {
           setTabs={setTabs}
           downloadDiagramFile={downloadDiagramFile}
           setDiagramToDelete={setDiagramToDelete}
+          t={t}
         />
 
         <RenameModal
@@ -1986,6 +1987,7 @@ export default function App() {
                 setSelectedHistoryId={setSelectedHistoryId}
                 user={user}
                 setIsRevertModalOpen={setIsRevertModalOpen}
+                t={t}
               />
             </div>
           </>

@@ -56,7 +56,7 @@ export function ProjectDetailModal({
         </div>
 
         <p className="iso-modal-desc" style={{ marginBottom: '16px' }}>
-          Select a file to open, or open the entire project.
+          {t('project_detail.desc') || 'Select a file to open, or open the entire project.'}
         </p>
 
         <div
@@ -82,7 +82,7 @@ export function ProjectDetailModal({
                 color: 'var(--iso-text-muted)',
               }}
             >
-              <div className="iso-spinner" style={{ marginRight: '8px' }} /> Loading files...
+              <div className="iso-spinner" style={{ marginRight: '8px' }} /> {t('project_detail.loading_files') || 'Loading files...'}
             </div>
           ) : diagrams.length === 0 ? (
             <div
@@ -101,7 +101,7 @@ export function ProjectDetailModal({
               }}
             >
               <span style={{ fontSize: '24px', marginBottom: '8px' }}>📂</span>
-              <span>This project has no files.</span>
+              <span>{t('project_detail.no_files') || 'This project has no files.'}</span>
             </div>
           ) : (
             diagrams.map((d) => (
@@ -200,7 +200,7 @@ export function ProjectDetailModal({
               );
             }}
           >
-            Open whole project
+            {t('project_detail.open_whole_project') || 'Open whole project'}
           </button>
         </div>
       </div>

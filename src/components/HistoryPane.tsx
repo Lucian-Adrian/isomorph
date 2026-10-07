@@ -13,6 +13,7 @@ interface HistoryPaneProps {
   setSelectedHistoryId: (id: string | null) => void;
   user: any;
   setIsRevertModalOpen: (open: boolean) => void;
+  t: (key: string, vars?: any) => string;
 }
 
 export function HistoryPane({
@@ -21,6 +22,7 @@ export function HistoryPane({
   setSelectedHistoryId,
   user,
   setIsRevertModalOpen,
+  t,
 }: HistoryPaneProps) {
   return (
     <div className="iso-sidebar" style={{ width: 'var(--iso-sidebar-width, 200px)', flexShrink: 0 }}>
@@ -42,7 +44,7 @@ export function HistoryPane({
           <circle cx="12" cy="12" r="10"></circle>
           <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
-        History
+        {t('ui.history')}
       </div>
       <div className="iso-sidebar-body" style={{ padding: '8px', overflowY: 'auto' }}>
         {diagramHistoryList.length === 0 ? (
@@ -54,7 +56,7 @@ export function HistoryPane({
               textAlign: 'center',
             }}
           >
-            No history available.
+            {t('history.empty')}
           </div>
         ) : (
           diagramHistoryList.map((h) => (
@@ -95,7 +97,7 @@ export function HistoryPane({
                 </div>
                 {h.user_id && (
                   <span style={{ fontSize: '11px', color: 'var(--iso-text-muted)' }}>
-                    Saved by {h.user_id === user?.id ? 'you' : 'collaborator'}
+                    {t('history.saved_by', { who: h.user_id === user?.id ? t('ui.you') : t('history.collaborator') })}
                   </span>
                 )}
                 {selectedHistoryId === h.id && (
@@ -115,7 +117,7 @@ export function HistoryPane({
                       setIsRevertModalOpen(true);
                     }}
                   >
-                    Revert snapshot
+                    {t('history.revert_snapshot')}
                   </button>
                 )}
               </div>
